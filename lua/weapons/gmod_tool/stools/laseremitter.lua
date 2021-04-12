@@ -163,7 +163,7 @@ function TOOL:LeftClick( trace )
 	laser:SetPos( trace.HitPos - trace.HitNormal * min.z );
 	
 	if ( trace.Entity:IsValid() or worldWeld ) then
-		local const = constraint.Weld( laser, trace.Entity, trace.PhysicsBone, 0, 0 );
+		local _ = constraint.Weld( laser, trace.Entity, trace.PhysicsBone, 0, 0 );
 	end
 
 	undo.Create( "LaserEmitter" );

@@ -3,7 +3,7 @@ LaserLib = LaserLib or {};
 
 function LaserLib.GetReflectedVector( incidentVector, surfaceNormal )
 
-	return incidentVector - 2 * ( surfaceNormal:DotProduct( incidentVector ) * surfaceNormal );
+	return incidentVector - 2 * ( surfaceNormal:Dot( incidentVector ) * surfaceNormal );
 
 end
 
