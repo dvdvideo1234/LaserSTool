@@ -10,15 +10,15 @@ ENT.RenderGroup = RENDERGROUP_BOTH;
 -- FIXME : find a better way to render the laser (Scripted Effect?)
 function ENT:Draw()
 
-	self.Entity:DrawModel();
+	self:DrawModel();
 	
 	if ( self:GetOn() ) then
 		local trace = {};
 		
-		local beamStart = self.Entity:GetPos();		
+		local beamStart = self:GetPos();		
 		local beamDir = self:GetBeamDirection();
 		local beamLength = self:GetBeamLength();
-		local beamFilter = self.Entity;
+		local beamFilter = self;
 		
 		local beamPoints = { beamStart };
 		
@@ -46,9 +46,9 @@ function ENT:Draw()
 		until ( isMirror == false or bounces > LASER_MAXBOUNCES )
 		
 		local beamWidth = self:GetBeamWidth();
-		local prevPoint = self.Entity:GetPos();
-		local bbmin = self.Entity:OBBMins();
-		local bbmax = self.Entity:OBBMaxs();
+		local prevPoint = self:GetPos();
+		local bbmin = self:OBBMins();
+		local bbmax = self:OBBMaxs();
 				
 		render.SetMaterial( Material( self:GetBeamMaterial() ) );
 		for k, v in pairs ( beamPoints ) do
@@ -79,7 +79,7 @@ function ENT:Draw()
 			self.NextEffect = CurTime() + 0.1;
 		end
 		
-		self.Entity:SetRenderBoundsWS( bbmin, bbmax );
+		self:SetRenderBoundsWS( bbmin, bbmax );
 	end
 
 end

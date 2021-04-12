@@ -15,20 +15,20 @@ LASER_MAXBOUNCES	= 4; -- FIXME: make a convar for this
 
 function ENT:Setup( width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, update )
 	
-	self.Entity:SetBeamWidth( width );
+	self:SetBeamWidth( width );
 	self.defaultWidth = width;
-	self.Entity:SetBeamLength( length );
+	self:SetBeamLength( length );
 	self.defaultLength = length;
-	self.Entity:SetDamageAmmount( damage );
-	self.Entity:SetBeamMaterial( material );
-	self.Entity:SetDissolveType( dissolveType );
-	self.Entity:SetStartSound( startSound );
-	self.Entity:SetStopSound( stopSound );
-	self.Entity:SetKillSound( killSound );
-	self.Entity:SetToggle( toggle );
-	if ( ( not toggle and update ) or ( not update ) ) then self.Entity:SetOn( startOn ); end
-	self.Entity:SetPushProps( pushProps );
-	self.Entity:SetEndingEffect( endingEffect );
+	self:SetDamageAmmount( damage );
+	self:SetBeamMaterial( material );
+	self:SetDissolveType( dissolveType );
+	self:SetStartSound( startSound );
+	self:SetStopSound( stopSound );
+	self:SetKillSound( killSound );
+	self:SetToggle( toggle );
+	if ( ( not toggle and update ) or ( not update ) ) then self:SetOn( startOn ); end
+	self:SetPushProps( pushProps );
+	self:SetEndingEffect( endingEffect );
 	
 	if ( update ) then
 		local ttable = {
@@ -45,7 +45,7 @@ function ENT:Setup( width, length, damage, material, dissolveType, startSound, s
 			pushProps = pushProps,
 			endingEffect = endingEffect
 		}
-		table.Merge(self.Entity:GetTable(), ttable );
+		table.Merge(self:GetTable(), ttable );
 	end
 	
 end
@@ -54,10 +54,10 @@ end
 function ENT:GetBeamDirection()
 
 	local angleOffset = self:GetAngleOffset();
-	if ( angleOffset==90 ) then return self.Entity:GetForward();
-	elseif ( angleOffset==180 ) then return -1*self.Entity:GetUp();
-	elseif ( angleOffset==270 ) then return -1*self.Entity:GetForward();
-	else return self.Entity:GetUp(); end
+	if ( angleOffset==90 ) then return self:GetForward();
+	elseif ( angleOffset==180 ) then return -1*self:GetUp();
+	elseif ( angleOffset==270 ) then return -1*self:GetForward();
+	else return self:GetUp(); end
 
 end
 
@@ -68,12 +68,12 @@ end
 ---------------------- */
 function ENT:SetBeamWidth( num )
 	local width = math.Clamp( num, 1, 100 );
-	self.Entity:SetNWInt( "Width", width );
-	if WireAddon then Wire_TriggerOutput( self.Entity, "Width", width ); end
+	self:SetNWInt( "Width", width );
+	if WireAddon then Wire_TriggerOutput( self, "Width", width ); end
 end
 
 function ENT:GetBeamWidth()
-	return self.Entity:GetNWInt( "Width" );
+	return self:GetNWInt( "Width" );
 end
 
 
@@ -82,12 +82,12 @@ end
 ---------------------- */
 function ENT:SetBeamLength( num )
 	local length = math.abs( num );
-	self.Entity:SetNWInt( "Length", length );
-	if WireAddon then Wire_TriggerOutput( self.Entity, "Length", length ); end
+	self:SetNWInt( "Length", length );
+	if WireAddon then Wire_TriggerOutput( self, "Length", length ); end
 end
 
 function ENT:GetBeamLength()
-	return self.Entity:GetNWInt( "Length" );
+	return self:GetNWInt( "Length" );
 end
 
 
@@ -96,12 +96,12 @@ end
 ---------------------- */
 function ENT:SetDamageAmmount( num )
 	local damage = math.Round( num );
-	self.Entity:SetNWInt( "Damage", damage );
-	if WireAddon then Wire_TriggerOutput( self.Entity, "Damage", damage ); end
+	self:SetNWInt( "Damage", damage );
+	if WireAddon then Wire_TriggerOutput( self, "Damage", damage ); end
 end
 
 function ENT:GetDamageAmmount()
-	return self.Entity:GetNWInt( "Damage" );
+	return self:GetNWInt( "Damage" );
 end
 
 
@@ -109,11 +109,11 @@ end
      Model Offset
 ---------------------- */
 function ENT:SetAngleOffset( offset )
-	self.Entity:SetNWInt( "AngleOffset", offset );
+	self:SetNWInt( "AngleOffset", offset );
 end
 
 function ENT:GetAngleOffset()
-	return self.Entity:GetNWInt( "AngleOffset" );
+	return self:GetNWInt( "AngleOffset" );
 end
 
 
@@ -121,11 +121,11 @@ end
 	Material
 ---------------------- */
 function ENT:SetBeamMaterial ( material )
-	self.Entity:SetNWString( "Material", material );
+	self:SetNWString( "Material", material );
 end
 
 function ENT:GetBeamMaterial()
-	return self.Entity:GetNWString( "Material" );
+	return self:GetNWString( "Material" );
 end
 
 
@@ -133,11 +133,11 @@ end
       Dissolve type
 ---------------------- */
 function ENT:SetDissolveType( dissolvetype )
-	self.Entity:SetNWString( "DissolveType", dissolvetype );
+	self:SetNWString( "DissolveType", dissolvetype );
 end
 
 function ENT:GetDissolveType()
-	local dissolvetype = self.Entity:GetNWString( "DissolveType" );
+	local dissolvetype = self:GetNWString( "DissolveType" );
 	
 	if ( dissolvetype == "energy" ) then return 0;
 	elseif ( dissolvetype == "lightelec" ) then return 2;
@@ -179,11 +179,11 @@ end
 	Toggle
 ---------------------- */
 function ENT:SetToggle( bool )
-	self.Entity:SetNWBool( "Toggle", bool );
+	self:SetNWBool( "Toggle", bool );
 end
 
 function ENT:GetToggle()
-	return self.Entity:GetNWBool( "Toggle" );
+	return self:GetNWBool( "Toggle" );
 end
 
 
@@ -191,25 +191,25 @@ end
 	On/Off
 ---------------------- */
 function ENT:SetOn( bool )
-	if ( bool ~= self.Entity:GetOn() ) then
+	if ( bool ~= self:GetOn() ) then
 		if ( bool == true ) then
-			self.Entity:EmitSound( Sound( self.Entity:GetStartSound() ) );
+			self:EmitSound( Sound( self:GetStartSound() ) );
 		else
-			self.Entity:EmitSound( Sound( self.Entity:GetStopSound() ) );
+			self:EmitSound( Sound( self:GetStopSound() ) );
 		end
 	end
 	
-	self.Entity:SetNWBool( "On", bool );
+	self:SetNWBool( "On", bool );
 	
 	if WireAddon then
 		local wireBool = 0;
 		if ( bool == true ) then wireBool = 1; end
-		Wire_TriggerOutput( self.Entity, "On", wireBool );
+		Wire_TriggerOutput( self, "On", wireBool );
 	end
 end
 
 function ENT:GetOn()
-	return self.Entity:GetNWBool( "On" );
+	return self:GetNWBool( "On" );
 end
 
 
@@ -217,11 +217,11 @@ end
       Prop pushing
 ---------------------- */
 function ENT:SetPushProps( bool )
-	self.Entity:SetNWBool( "PushProps", bool );
+	self:SetNWBool( "PushProps", bool );
 end
 
 function ENT:GetPushProps()
-	return self.Entity:GetNWBool( "PushProps" );
+	return self:GetNWBool( "PushProps" );
 end
 
 
@@ -229,9 +229,9 @@ end
      Ending Effect
 ---------------------- */
 function ENT:SetEndingEffect ( bool )
-	self.Entity:SetNWBool( "EndingEffect", bool );
+	self:SetNWBool( "EndingEffect", bool );
 end
 
 function ENT:GetEndingEffect()
-	return self.Entity:GetNWBool( "EndingEffect" );
+	return self:GetNWBool( "EndingEffect" );
 end

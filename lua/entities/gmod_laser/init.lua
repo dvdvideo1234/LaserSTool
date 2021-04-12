@@ -7,21 +7,43 @@ include( "shared.lua" );
 resource.AddFile( "materials/vgui/entities/gmod_laser_killicon.vtf" );
 resource.AddFile( "materials/vgui/entities/gmod_laser_killicon.vmt" );
 
+function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
+	WireLib.ApplyDupeInfo(ply, ent, info, GetEntByID)
+end
+
+function ENT:PreEntityCopy()
+	duplicator.StoreEntityModifier(self, "WireDupeInfo", WireLib.BuildDupeInfo(self))
+end
+
+local function EntityLookup(CreatedEntities)
+	return function(id, default)
+		if id == nil then return default
+		elseif id == 0 then return game.GetWorld() end
+		local ent = CreatedEntities[id] or (isnumber(id) and ents.GetByIndex(id))
+		if IsValid(ent) then return ent else return default end
+	end
+end
+
+function ENT:PostEntityPaste(Player,Ent,CreatedEntities)
+	if Ent.EntityMods and Ent.EntityMods.WireDupeInfo then
+		WireLib.ApplyDupeInfo(Player, Ent, Ent.EntityMods.WireDupeInfo, EntityLookup(CreatedEntities))
+	end
+end
 
 function ENT:Initialize()
 
-	self.Entity:PhysicsInit( SOLID_VPHYSICS );
-	self.Entity:SetMoveType( MOVETYPE_VPHYSICS );
-	self.Entity:SetSolid( SOLID_VPHYSICS );
+	self:PhysicsInit( SOLID_VPHYSICS );
+	self:SetMoveType( MOVETYPE_VPHYSICS );
+	self:SetSolid( SOLID_VPHYSICS );
 	
-	local phys = self.Entity:GetPhysicsObject();
+	local phys = self:GetPhysicsObject();
 	if ( phys:IsValid() ) then
 		phys:Wake();
 	end
 	
 	if WireAddon then
-		self.Inputs = Wire_CreateInputs( self.Entity, { "On", "Length", "Width", "Damage" } )
-		self.Outputs = Wire_CreateOutputs( self.Entity, { "On", "Length", "Width", "Damage" } )
+		self.Inputs = Wire_CreateInputs( self, { "On", "Length", "Width", "Damage" } )
+		self.Outputs = Wire_CreateOutputs( self, { "On", "Length", "Width", "Damage" } )
 	end
 	
 end
@@ -32,10 +54,10 @@ function ENT:Think()
 	if ( self:GetOn() ) then
 		local trace = {};
 		
-		local beamStart = self.Entity:GetPos();
+		local beamStart = self:GetPos();
 		local beamDir = self:GetBeamDirection();
 		local beamLength = self:GetBeamLength();
-		local beamFilter = self.Entity;
+		local beamFilter = self;
 		
 		local bounces = 0;
 		
@@ -43,7 +65,7 @@ function ENT:Think()
 			if ( StarGate ~= nil ) then
 				trace = StarGate.Trace:New( beamStart, beamDir:GetNormalized() * beamLength, beamFilter );
 			else
-				trace = util.QuickTrace( beamStart, (beamDir:GetNormalized() * beamLength), beamFilter )
+				trace = util.QuickTrace( beamStart, beamDir:GetNormalized() * beamLength, beamFilter )
 			end
 			
 			if ( trace.Entity and trace.Entity:IsValid() and trace.Entity:GetModel() == "models/madjawa/laser_reflector.mdl" ) then
@@ -62,12 +84,12 @@ function ENT:Think()
 		if(	self:GetDamageAmmount() > 0 and trace.Entity and trace.Entity:IsValid() and
 			trace.Entity:GetClass() ~= "gmod_laser" and trace.Entity:GetModel() ~= "models/madjawa/laser_reflector.mdl" ) then
 			
-			LaserLib.DoDamage(	trace.Entity, trace.HitPos, trace.Normal, beamDir, self:GetDamageAmmount(), self.ply,self:GetDissolveType(), self:GetPushProps(), self:GetKillSound(), self.Entity );
+			LaserLib.DoDamage(	trace.Entity, trace.HitPos, trace.Normal, beamDir, self:GetDamageAmmount(), self.ply,self:GetDissolveType(), self:GetPushProps(), self:GetKillSound(), self );
 			
 		end
 	end
 	
-	self.Entity:NextThink( CurTime() );
+	self:NextThink( CurTime() );
 	return true;
 
 end
@@ -75,11 +97,11 @@ end
 
 
 function ENT:OnRemove()
-	if WireAddon then Wire_Remove( self.Entity ); end
+	if WireAddon then Wire_Remove( self ); end
 end
 
 function ENT:OnRestore()
-	if WireAddon then Wire_Restored( self.Entity ); end
+	if WireAddon then Wire_Restored( self ); end
 end
 
 
@@ -87,7 +109,7 @@ end
 function ENT:TriggerInput( iname, value )
 
 	if ( iname == "On" ) then
-		self:SetOn( util.tobool( value ) );
+		self:SetOn( tobool( value ) );
 	elseif ( iname == "Length" ) then
 		if ( value == 0 ) then value = self.defaultLength; end
 		self:SetBeamLength( value );
