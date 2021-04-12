@@ -1,32 +1,31 @@
-
-ENT.Type           = "anim";
-ENT.Base           = "base_anim";
-ENT.PrintName      = "Laser";
+ENT.Type           = "anim"
+ENT.Base           = "base_anim"
+ENT.PrintName      = "Laser"
 ENT.WireDebugName  = "Laser"
-ENT.Author         = "MadJawa";
-ENT.Information    = "";
-ENT.Category       = "";
-ENT.Spawnable      = false;
-ENT.AdminSpawnable = false;
+ENT.Author         = "MadJawa"
+ENT.Information    = ""
+ENT.Category       = ""
+ENT.Spawnable      = false
+ENT.AdminSpawnable = false
 
-LASER_MAXBOUNCES   = 4; -- FIXME: make a convar for this
+local gnSVF = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
+local varMaxBounces = CreateConVar("laseremitter_maxbounces", "4", gnSVF, "Maximum surface bounces for the laser beam", 0, 1000)
 
 function ENT:Setup( width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, update )
-
-  self:SetBeamWidth( width );
-  self.defaultWidth = width;
-  self:SetBeamLength( length );
-  self.defaultLength = length;
-  self:SetDamageAmmount( damage );
-  self:SetBeamMaterial( material );
-  self:SetDissolveType( dissolveType );
-  self:SetStartSound( startSound );
-  self:SetStopSound( stopSound );
-  self:SetKillSound( killSound );
-  self:SetToggle( toggle );
-  if ( ( not toggle and update ) or ( not update ) ) then self:SetOn( startOn ); end
-  self:SetPushProps( pushProps );
-  self:SetEndingEffect( endingEffect );
+  self:SetBeamWidth( width )
+  self.defaultWidth = width
+  self:SetBeamLength( length )
+  self.defaultLength = length
+  self:SetDamageAmmount( damage )
+  self:SetBeamMaterial( material )
+  self:SetDissolveType( dissolveType )
+  self:SetStartSound( startSound )
+  self:SetStopSound( stopSound )
+  self:SetKillSound( killSound )
+  self:SetToggle( toggle )
+  if ( ( not toggle and update ) or ( not update ) ) then self:SetOn( startOn ) end
+  self:SetPushProps( pushProps )
+  self:SetEndingEffect( endingEffect )
 
   if ( update ) then
     local ttable = {
@@ -43,63 +42,56 @@ function ENT:Setup( width, length, damage, material, dissolveType, startSound, s
       pushProps = pushProps,
       endingEffect = endingEffect
     }
-    table.Merge(self:GetTable(), ttable );
+    table.Merge(self:GetTable(), ttable )
   end
-
 end
 
 -- FIXME : find a way to dynamically get the laser unit vector according the angle offset of bad oriented models
 function ENT:GetBeamDirection()
-
-  local angleOffset = self:GetAngleOffset();
-  if ( angleOffset==90 ) then return self:GetForward();
-  elseif ( angleOffset==180 ) then return -1*self:GetUp();
-  elseif ( angleOffset==270 ) then return -1*self:GetForward();
-  else return self:GetUp(); end
-
+  local angleOffset = self:GetAngleOffset()
+  if(angleOffset == 90) then return self:GetForward()
+  elseif(angleOffset == 180) then return (-1 * self:GetUp())
+  elseif(angleOffset == 270) then return (-1 * self:GetForward())
+  else return self:GetUp() end
 end
-
-
 
 --[[ ----------------------
   Width
 ---------------------- ]]
 function ENT:SetBeamWidth( num )
-  local width = math.Clamp( num, 1, 100 );
-  self:SetNWInt( "Width", width );
-  if WireAddon then Wire_TriggerOutput( self, "Width", width ); end
+  local width = math.Clamp( num, 1, 100 )
+  self:SetNWInt( "Width", width )
+  if WireAddon then Wire_TriggerOutput( self, "Width", width ) end
 end
 
 function ENT:GetBeamWidth()
-  return self:GetNWInt( "Width" );
+  return self:GetNWInt( "Width" )
 end
-
 
 --[[ ----------------------
    Length
 ---------------------- ]]
 function ENT:SetBeamLength( num )
-  local length = math.abs( num );
-  self:SetNWInt( "Length", length );
-  if WireAddon then Wire_TriggerOutput( self, "Length", length ); end
+  local length = math.abs( num )
+  self:SetNWInt( "Length", length )
+  if WireAddon then Wire_TriggerOutput( self, "Length", length ) end
 end
 
 function ENT:GetBeamLength()
-  return self:GetNWInt( "Length" );
+  return self:GetNWInt( "Length" )
 end
-
 
 --[[ ----------------------
   Damage
 ---------------------- ]]
 function ENT:SetDamageAmmount( num )
-  local damage = math.Round( num );
-  self:SetNWInt( "Damage", damage );
-  if WireAddon then Wire_TriggerOutput( self, "Damage", damage ); end
+  local damage = math.Round( num )
+  self:SetNWInt( "Damage", damage )
+  if WireAddon then Wire_TriggerOutput( self, "Damage", damage ) end
 end
 
 function ENT:GetDamageAmmount()
-  return self:GetNWInt( "Damage" );
+  return self:GetNWInt( "Damage" )
 end
 
 
@@ -107,81 +99,77 @@ end
      Model Offset
 ---------------------- ]]
 function ENT:SetAngleOffset( offset )
-  self:SetNWInt( "AngleOffset", offset );
+  self:SetNWInt( "AngleOffset", offset )
 end
 
 function ENT:GetAngleOffset()
-  return self:GetNWInt( "AngleOffset" );
+  return self:GetNWInt( "AngleOffset" )
 end
-
 
 --[[ ----------------------
   Material
 ---------------------- ]]
 function ENT:SetBeamMaterial ( material )
-  self:SetNWString( "Material", material );
+  self:SetNWString( "Material", material )
 end
 
 function ENT:GetBeamMaterial()
-  return self:GetNWString( "Material" );
+  return self:GetNWString( "Material" )
 end
-
 
 --[[ ----------------------
       Dissolve type
 ---------------------- ]]
 function ENT:SetDissolveType( dissolvetype )
-  self:SetNWString( "DissolveType", dissolvetype );
+  self:SetNWString( "DissolveType", dissolvetype )
 end
 
 function ENT:GetDissolveType()
-  local dissolvetype = self:GetNWString( "DissolveType" );
+  local dissolvetype = self:GetNWString( "DissolveType" )
 
-  if ( dissolvetype == "energy" ) then return 0;
-  elseif ( dissolvetype == "lightelec" ) then return 2;
-  elseif ( dissolvetype == "heavyelec" ) then return 1;
-  else return 3; end
+  if ( dissolvetype == "energy" ) then return 0
+  elseif ( dissolvetype == "lightelec" ) then return 2
+  elseif ( dissolvetype == "heavyelec" ) then return 1
+  else return 3 end
 end
-
 
 --[[ ----------------------
           Sounds
 ---------------------- ]]
 -- FIXME : Well, not really something to fix, but it seems that I can't set networked strings with a length higher than 39 (not ideal for sounds)
 function ENT:SetStartSound( sound )
-  self.startSound = sound;
+  self.startSound = sound
 end
 
 function ENT:GetStartSound()
-  return self.startSound;
+  return self.startSound
 end
 
 function ENT:SetStopSound( sound )
-  self.stopSound = sound;
+  self.stopSound = sound
 end
 
 function ENT:GetStopSound()
-  return self.stopSound;
+  return self.stopSound
 end
 
 function ENT:SetKillSound( sound )
-  self.killSound = sound;
+  self.killSound = sound
 end
 
 function ENT:GetKillSound()
-  return self.killSound;
+  return self.killSound
 end
-
 
 --[[ ----------------------
   Toggle
 ---------------------- ]]
 function ENT:SetToggle( bool )
-  self:SetNWBool( "Toggle", bool );
+  self:SetNWBool( "Toggle", bool )
 end
 
 function ENT:GetToggle()
-  return self:GetNWBool( "Toggle" );
+  return self:GetNWBool( "Toggle" )
 end
 
 
@@ -191,45 +179,43 @@ end
 function ENT:SetOn( bool )
   if ( bool ~= self:GetOn() ) then
     if ( bool == true ) then
-      self:EmitSound( Sound( self:GetStartSound() ) );
+      self:EmitSound( Sound( self:GetStartSound() ) )
     else
-      self:EmitSound( Sound( self:GetStopSound() ) );
+      self:EmitSound( Sound( self:GetStopSound() ) )
     end
   end
 
-  self:SetNWBool( "On", bool );
+  self:SetNWBool( "On", bool )
 
   if WireAddon then
-    local wireBool = 0;
-    if ( bool == true ) then wireBool = 1; end
-    Wire_TriggerOutput( self, "On", wireBool );
+    local wireBool = 0
+    if ( bool == true ) then wireBool = 1 end
+    Wire_TriggerOutput( self, "On", wireBool )
   end
 end
 
 function ENT:GetOn()
-  return self:GetNWBool( "On" );
+  return self:GetNWBool( "On" )
 end
-
 
 --[[ ----------------------
       Prop pushing
 ---------------------- ]]
 function ENT:SetPushProps( bool )
-  self:SetNWBool( "PushProps", bool );
+  self:SetNWBool( "PushProps", bool )
 end
 
 function ENT:GetPushProps()
-  return self:GetNWBool( "PushProps" );
+  return self:GetNWBool( "PushProps" )
 end
-
 
 --[[ ----------------------
      Ending Effect
 ---------------------- ]]
 function ENT:SetEndingEffect ( bool )
-  self:SetNWBool( "EndingEffect", bool );
+  self:SetNWBool( "EndingEffect", bool )
 end
 
 function ENT:GetEndingEffect()
-  return self:GetNWBool( "EndingEffect" );
+  return self:GetNWBool( "EndingEffect" )
 end
