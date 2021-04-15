@@ -5,7 +5,7 @@ in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD 
         Thanks
       - MadJawa
 ]]
-include( "shared.lua" )
+include("shared.lua")
 
 function ENT:Initialize()
 end

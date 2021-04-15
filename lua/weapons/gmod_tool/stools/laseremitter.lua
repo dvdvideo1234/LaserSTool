@@ -1,27 +1,53 @@
+local gsUnit = TOOL.Mode
+
+if(CLIENT) then
+  language.Add("tool."..gsUnit..".name", "Laser Spawner")
+  language.Add("tool."..gsUnit..".desc", "Spawn a very dangerous laser. Do not look into beam with remaining eye!")
+  language.Add("tool."..gsUnit..".0", "Primary: Create/Update a laser where you are aiming")
+  language.Add("tool."..gsUnit..".key_con", "Key:")
+  language.Add("tool."..gsUnit..".key", "Numpad key that controls the laser trigger")
+  language.Add("tool."..gsUnit..".width_con", "Width:")
+  language.Add("tool."..gsUnit..".width", "Controls laser beam width")
+  language.Add("tool."..gsUnit..".length_con", "Length:")
+  language.Add("tool."..gsUnit..".length", "Controls laser beam maximum length")
+  language.Add("tool."..gsUnit..".damage_con", "Damage:")
+  language.Add("tool."..gsUnit..".damage", "Controls laser beam damage amount")
+  language.Add("tool."..gsUnit..".model_con", "Model:")
+  language.Add("tool."..gsUnit..".model", "Select laser entity visual model")
+  language.Add("tool."..gsUnit..".dissolvetype_con", "Dissolve type:")
+  language.Add("tool."..gsUnit..".dissolvetype", "Controls what visuals are used when dissolving players")
+  language.Add("tool."..gsUnit..".toggle_con", "Toggle")
+  language.Add("tool."..gsUnit..".toggle", "Starts the laser when the button is hit")
+  language.Add("tool."..gsUnit..".starton_con", "Start on creation")
+  language.Add("tool."..gsUnit..".starton", "Starts the laser on when gets created")
+  language.Add("tool."..gsUnit..".pushprops_con", "Push props")
+  language.Add("tool."..gsUnit..".pushprops", "Seutp the laser beam to push props")
+  language.Add("tool."..gsUnit..".pushprops_con", "Push props")
+  language.Add("tool."..gsUnit..".pushprops", "Seutp the laser beam to push props")
+  language.Add("tool."..gsUnit..".endingeffect_con", "Ending effect")
+  language.Add("tool."..gsUnit..".endingeffect", "Allow showing ending effects")
+  language.Add("tool."..gsUnit..".worldweld_con", "Weld to world")
+  language.Add("tool."..gsUnit..".worldweld", "Welds the laser to the world")
+  language.Add("Cleanup."..gsUnit, "Lasers")
+  language.Add("Cleaned."..gsUnit, "Cleaned up all Lasers")
+  language.Add("SBoxLimit."..gsUnit.."s", "You've hit Laser limit!")
+  language.Add("Undone."..gsUnit, "Undone Laser")
+  language.Add("max_"..gsUnit.."s", "Max laser emitters")
+  language.Add("SBoxLimit_"..gsUnit.."s", "You've hit the Laser Emmiter limit!")
+end
+
 TOOL.Category = "Construction"
-TOOL.Name     = "Laser 2.0"
+TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
-if ( CLIENT ) then
-  language.Add( "tool.laseremitter.name", "Laser Spawner" )
-  language.Add( "tool.laseremitter.desc", "Spawn a very dangerous laser. Do not look into beam with remaining eye!" )
-  language.Add( "tool.laseremitter.0", "Primary: Create/Update a laser where you are aiming" )
-  language.Add( "Cleanup.laseremitters", "Lasers")
-  language.Add( "Cleaned.laseremitters", "Cleaned up all Lasers")
-  language.Add( "SBoxLimit.laseremitters", "You've hit Laser limit!" )
-  language.Add( "Undone.laseremitter", "Undone Laser" )
-  language.Add( "max_laseremitters", "Max laseremitters" )
-  language.Add( "SBoxLimit_laseremitters", "You've hit the Laser Emmiter limit!" )
+if(SERVER) then -- materials\VGUI\entities
+  resource.AddFile("materials\\VGUI\\entities\\gmod_laser_killicon.vmt")
+  resource.AddFile("models\\madjawa\\*")
+  resource.AddFile("models\\props_junk\\flare.vmt")
+  resource.AddFile("materials\\effects\\redlaser1.vmt")
+  CreateConVar("sbox_max"..gsUnit.."s", 20)
 end
 
-if (SERVER) then -- materials\VGUI\entities
-  resource.AddFile( "materials\\VGUI\\entities\\gmod_laser_killicon.vmt" )
-  resource.AddFile( "models\\madjawa\\*")
-  resource.AddFile( "models\\props_junk\\flare.vmt")
-  resource.AddFile( "materials\\effects\\redlaser1.vmt")
-  CreateConVar("sbox_maxlaseremitters", 20)
-end
-
-cleanup.Register( "laseremitters" )
+cleanup.Register(gsUnit.."s")
 
 TOOL.ClientConVar =
 {
@@ -43,333 +69,285 @@ TOOL.ClientConVar =
   [ "angleoffset"  ] = 270
 }
 
-list.Set( "LaserEmitterModels", "models/props_combine/headcrabcannister01a_skybox.mdl", { laseremitter_angleoffset = 270 } )
-list.Set( "LaserEmitterModels", "models/props_combine/breenlight.mdl", { laseremitter_angleoffset = 180 } )
-list.Set( "LaserEmitterModels", "models/props_junk/flare.mdl", { laseremitter_angleoffset = 0 } )
-list.Set( "LaserEmitterModels", "models/props_lab/tpplug.mdl", { laseremitter_angleoffset = 90 } )
-list.Set( "LaserEmitterModels", "models/props_junk/TrafficCone001a.mdl", { laseremitter_angleoffset = 0 } )
-list.Set( "LaserEmitterModels", "models/props_junk/PopCan01a.mdl", { laseremitter_angleoffset = 0 } )
--- FIXME : make this model available only if the player has Wire
-list.Set( "LaserEmitterModels", "models/jaanus/wiretool/wiretool_beamcaster.mdl", { laseremitter_angleoffset = 0 } )
-list.Set( "LaserEmitterMaterials", "cable/redlaser", "cable/redlaser" )
-list.Set( "LaserEmitterMaterials", "effects/redlaser1", "effects/redlaser1" )
-list.Set( "LaserEmitterMaterials", "cable/physbeam", "cable/physbeam" )
-list.Set( "LaserEmitterMaterials", "cable/xbeam", "cable/xbeam" )
-list.Set( "LaserEmitterMaterials", "cable/blue_elec", "cable/blue_elec" )
-list.Set( "LaserEmitterMaterials", "cable/hydra", "cable/hydra" )
-list.Set( "LaserEmitterMaterials", "cable/crystal_beam1", "cable/crystal_beam1" )
-
-
-if ( CLIENT ) then
-  language.Add( "DissolveType_Energy", "AR2 style" )
-  language.Add( "DissolveType_HeavyElectric", "Heavy electrical" )
-  language.Add( "DissolveType_LightElectric", "Light electrical" )
-  language.Add( "DissolveType_Core", "Core Effect" )
+list.Set("LaserEmitterModels", "models/props_combine/headcrabcannister01a_skybox.mdl", {laseremitter_angleoffset = 270})
+list.Set("LaserEmitterModels", "models/props_combine/breenlight.mdl", {laseremitter_angleoffset = 180})
+list.Set("LaserEmitterModels", "models/props_junk/flare.mdl", {laseremitter_angleoffset = 0 })
+list.Set("LaserEmitterModels", "models/props_lab/tpplug.mdl", {laseremitter_angleoffset = 90 })
+list.Set("LaserEmitterModels", "models/props_junk/TrafficCone001a.mdl", {laseremitter_angleoffset = 0})
+list.Set("LaserEmitterModels", "models/props_junk/PopCan01a.mdl", {laseremitter_angleoffset = 0})
+if(WireLib) then -- Make these model available only if the player has Wire
+  list.Set("LaserEmitterModels", "models/jaanus/wiretool/wiretool_beamcaster.mdl", {laseremitter_angleoffset = 0})
 end
 
-list.Set( "LaserDissolveTypes", "#DissolveType_Energy", { laseremitter_dissolvetype = "energy" } )
-list.Set( "LaserDissolveTypes", "#DissolveType_HeavyElectric", { laseremitter_dissolvetype = "heavyelec" } )
-list.Set( "LaserDissolveTypes", "#DissolveType_LightElectric", { laseremitter_dissolvetype = "lightelec" } )
-list.Set( "LaserDissolveTypes", "#DissolveType_Core", { laseremitter_dissolvetype = "core" } )
+list.Set("LaserEmitterMaterials", "cable/redlaser", "cable/redlaser")
+list.Set("LaserEmitterMaterials", "effects/redlaser1", "effects/redlaser1")
+list.Set("LaserEmitterMaterials", "cable/physbeam", "cable/physbeam")
+list.Set("LaserEmitterMaterials", "cable/xbeam", "cable/xbeam")
+list.Set("LaserEmitterMaterials", "cable/blue_elec", "cable/blue_elec")
+list.Set("LaserEmitterMaterials", "cable/hydra", "cable/hydra")
+list.Set("LaserEmitterMaterials", "cable/crystal_beam1", "cable/crystal_beam1")
 
-
-if ( CLIENT ) then
-  language.Add( "Sound_None", "None" )
-  language.Add( "Sound_AlyxEMP", "Alyx EMP" )
-  language.Add( "Sound_Weld1", "Weld 1" )
-  language.Add( "Sound_Weld2", "Weld 2" )
-  language.Add( "Sound_ElectricExplosion1", "Electric Explosion 1" )
-  language.Add( "Sound_ElectricExplosion2", "Electric Explosion 2" )
-  language.Add( "Sound_ElectricExplosion3", "Electric Explosion 3" )
-  language.Add( "Sound_ElectricExplosion4", "Electric Explosion 4" )
-  language.Add( "Sound_ElectricExplosion5", "Electric Explosion 5" )
-  language.Add( "Sound_Disintegrate1", "Disintegrate 1" )
-  language.Add( "Sound_Disintegrate2", "Disintegrate 2" )
-  language.Add( "Sound_Disintegrate3", "Disintegrate 3" )
-  language.Add( "Sound_Disintegrate4", "Disintegrate 4" )
-  language.Add( "Sound_Zapper", "Zapper" )
+if(CLIENT) then
+  language.Add("DissolveType_Energy", "AR2 style")
+  language.Add("DissolveType_HeavyElectric", "Heavy electrical")
+  language.Add("DissolveType_LightElectric", "Light electrical")
+  language.Add("DissolveType_Core", "Core Effect")
 end
 
-list.Set( "LaserSounds", "#Sound_None", ""  )
-list.Set( "LaserSounds", "#Sound_AlyxEMP", "AlyxEMP.Charge" )
-list.Set( "LaserSounds", "#Sound_Weld1", "ambient/energy/weld1.wav" )
-list.Set( "LaserSounds", "#Sound_Weld2", "ambient/energy/weld2.wav" )
-list.Set( "LaserSounds", "#Sound_ElectricExplosion1", "ambient/levels/labs/electric_explosion1.wav" )
-list.Set( "LaserSounds", "#Sound_ElectricExplosion2", "ambient/levels/labs/electric_explosion2.wav" )
-list.Set( "LaserSounds", "#Sound_ElectricExplosion3", "ambient/levels/labs/electric_explosion3.wav" )
-list.Set( "LaserSounds", "#Sound_ElectricExplosion4", "ambient/levels/labs/electric_explosion4.wav" )
-list.Set( "LaserSounds", "#Sound_ElectricExplosion5", "ambient/levels/labs/electric_explosion5.wav" )
-list.Set( "LaserSounds", "#Sound_Disintegrate1", "ambient/levels/citadel/weapon_disintegrate1.wav" )
-list.Set( "LaserSounds", "#Sound_Disintegrate2", "ambient/levels/citadel/weapon_disintegrate2.wav" )
-list.Set( "LaserSounds", "#Sound_Disintegrate3", "ambient/levels/citadel/weapon_disintegrate3.wav" )
-list.Set( "LaserSounds", "#Sound_Disintegrate4", "ambient/levels/citadel/weapon_disintegrate4.wav" )
-list.Set( "LaserSounds", "#Sound_Zapper", "ambient/levels/citadel/zapper_warmup1.wav" )
+list.Set("LaserDissolveTypes", "#DissolveType_Energy", {laseremitter_dissolvetype = "energy"})
+list.Set("LaserDissolveTypes", "#DissolveType_HeavyElectric", {laseremitter_dissolvetype = "heavyelec"})
+list.Set("LaserDissolveTypes", "#DissolveType_LightElectric", {laseremitter_dissolvetype = "lightelec"})
+list.Set("LaserDissolveTypes", "#DissolveType_Core", {laseremitter_dissolvetype = "core"})
 
-for k,v in pairs(list.Get("LaserSounds")) do
-  list.Set( "LaserStartSounds", k, { laseremitter_startsound = v }  )
-  list.Set( "LaserStopSounds", k, { laseremitter_stopsound = v }  )
-  list.Set( "LaserKillSounds", k, { laseremitter_killsound = v }  )
+if(CLIENT) then
+  language.Add("Sound_None", "None")
+  language.Add("Sound_AlyxEMP", "Alyx EMP")
+  language.Add("Sound_Weld1", "Weld 1")
+  language.Add("Sound_Weld2", "Weld 2")
+  language.Add("Sound_ElectricExplosion1", "Electric Explosion 1")
+  language.Add("Sound_ElectricExplosion2", "Electric Explosion 2")
+  language.Add("Sound_ElectricExplosion3", "Electric Explosion 3")
+  language.Add("Sound_ElectricExplosion4", "Electric Explosion 4")
+  language.Add("Sound_ElectricExplosion5", "Electric Explosion 5")
+  language.Add("Sound_Disintegrate1", "Disintegrate 1")
+  language.Add("Sound_Disintegrate2", "Disintegrate 2")
+  language.Add("Sound_Disintegrate3", "Disintegrate 3")
+  language.Add("Sound_Disintegrate4", "Disintegrate 4")
+  language.Add("Sound_Zapper", "Zapper")
 end
 
-cleanup.Register( "laseremitters" )
+list.Set( "LaserSounds", "#Sound_None", "")
+list.Set( "LaserSounds", "#Sound_AlyxEMP", "AlyxEMP.Charge")
+list.Set( "LaserSounds", "#Sound_Weld1", "ambient/energy/weld1.wav")
+list.Set( "LaserSounds", "#Sound_Weld2", "ambient/energy/weld2.wav")
+list.Set( "LaserSounds", "#Sound_ElectricExplosion1", "ambient/levels/labs/electric_explosion1.wav")
+list.Set( "LaserSounds", "#Sound_ElectricExplosion2", "ambient/levels/labs/electric_explosion2.wav")
+list.Set( "LaserSounds", "#Sound_ElectricExplosion3", "ambient/levels/labs/electric_explosion3.wav")
+list.Set( "LaserSounds", "#Sound_ElectricExplosion4", "ambient/levels/labs/electric_explosion4.wav")
+list.Set( "LaserSounds", "#Sound_ElectricExplosion5", "ambient/levels/labs/electric_explosion5.wav")
+list.Set( "LaserSounds", "#Sound_Disintegrate1", "ambient/levels/citadel/weapon_disintegrate1.wav")
+list.Set( "LaserSounds", "#Sound_Disintegrate2", "ambient/levels/citadel/weapon_disintegrate2.wav")
+list.Set( "LaserSounds", "#Sound_Disintegrate3", "ambient/levels/citadel/weapon_disintegrate3.wav")
+list.Set( "LaserSounds", "#Sound_Disintegrate4", "ambient/levels/citadel/weapon_disintegrate4.wav")
+list.Set( "LaserSounds", "#Sound_Zapper", "ambient/levels/citadel/zapper_warmup1.wav")
 
-function TOOL:LeftClick( trace )
-  if ( not trace.HitPos ) then return false; end
+for k, v in pairs(list.Get("LaserSounds")) do
+  list.Set("LaserStartSounds", k, {laseremitter_startsound = v})
+  list.Set("LaserStopSounds", k, {laseremitter_stopsound = v})
+  list.Set("LaserKillSounds", k, {laseremitter_killsound = v})
+end
 
-  if ( trace.Entity:IsPlayer() ) then return false; end
+cleanup.Register(gsUnit.."s")
 
-  if ( CLIENT ) then return true; end
-
+function TOOL:LeftClick(trace)
+  if(CLIENT) then return true end
+  if(not trace.HitPos) then return false end
+  if(trace.Entity:IsPlayer()) then return false end
+  if(not self:GetSWEP():CheckLimit(gsUnit.."s")) then return false end
   --if ( SERVER and not util.IsValidPhysicsObject( trace.Entity, trace.PhysicsBone ) ) then return false; end
 
-  --if ( !self:GetSWEP():CheckLimit( "laseremitters" ) ) then return false end
+  local ply          = self:GetOwner()
+  local key          = self:GetClientNumber("key")
+  local width        = self:GetClientNumber("width")
+  local length       = self:GetClientNumber("length")
+  local damage       = self:GetClientNumber("damage")
+  local model        = self:GetClientInfo("model")
+  local material     = self:GetClientInfo("material")
+  local stopSound    = self:GetClientInfo("stopsound")
+  local killSound    = self:GetClientInfo("killsound")
+  local startSound   = self:GetClientInfo("startsound")
+  local dissolveType = self:GetClientInfo("dissolvetype")
+  local angleOffset  = self:GetClientNumber("angleoffset")
+  local toggle       = (self:GetClientNumber("toggle") ~= 0)
+  local startOn      = (self:GetClientNumber("starton") ~= 0)
+  local pushProps    = (self:GetClientNumber("pushprops") ~= 0)
+  local worldWeld    = (self:GetClientNumber("worldweld") ~= 0)
+  local endingEffect = (self:GetClientNumber("endingeffect") ~= 0)
 
-  local ply = self:GetOwner()
-
-  local key          = self:GetClientNumber( "key" )
-  local width        = self:GetClientNumber( "width" )
-  local length       = self:GetClientNumber( "length" )
-  local damage       = self:GetClientNumber( "damage" )
-  local material     = self:GetClientInfo( "material" )
-  local model        = self:GetClientInfo( "model" )
-  local dissolveType = self:GetClientInfo( "dissolvetype" )
-  local startSound   = self:GetClientInfo( "startsound" )
-  local stopSound    = self:GetClientInfo( "stopsound" )
-  local killSound    = self:GetClientInfo( "killsound" )
-  local angleOffset  = self:GetClientNumber( "angleoffset" )
-  local toggle       = (self:GetClientNumber( "toggle" ) == 1)
-  local startOn      = (self:GetClientNumber( "starton" ) == 1)
-  local pushProps    = (self:GetClientNumber( "pushprops" ) == 1)
-  local worldWeld    = (self:GetClientNumber( "worldweld" ) == 1)
-  local endingEffect = (self:GetClientNumber( "endingeffect" ) == 1)
-  
-  if ( trace.Entity:IsValid() and trace.Entity:GetClass() == "gmod_laser" ) then
-    trace.Entity:Setup( width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, true )
+  if(trace.Entity:IsValid() and
+     trace.Entity:GetClass() == "gmod_laser")
+  then
+    trace.Entity:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, true)
     return true
   end
 
-  if ( not self:GetSWEP():CheckLimit( "laseremitters" ) ) then return false; end
+  local ang = trace.HitNormal:Angle()
+        ang.pitch = ang.pitch + 90 - angleOffset
 
-  local Ang = trace.HitNormal:Angle()
-  Ang.pitch = Ang.pitch + 90 - angleOffset
+  local laser = MakeLaserEmitter(ply, trace.HitPos, ang, model, angleOffset, key, width, length, damage, material,
+                  dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect)
 
-  local laser = MakeLaserEmitter( ply, trace.HitPos, Ang, model, angleOffset, key, width, length, damage, material,
-                  dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect )
+  if(not (laser and laser:IsValid())) then return false end
 
-  local min = laser:OBBMins()
-  laser:SetPos( trace.HitPos - trace.HitNormal * min.z )
+  laser:SetPos(trace.HitPos - trace.HitNormal * laser:OBBMins().z)
 
-  if ( trace.Entity:IsValid() or worldWeld ) then
-    local _ = constraint.Weld( laser, trace.Entity, trace.PhysicsBone, 0, 0 )
-  end
-
-  undo.Create( "LaserEmitter" )
-    undo.AddEntity( laser )
-    undo.AddEntity( const )
-    undo.SetPlayer( ply )
+  undo.Create("LaserEmitter")
+    undo.AddEntity(laser)
+    if(trace.Entity:IsValid() or worldWeld) then
+      local weld = constraint.Weld(laser, trace.Entity, trace.PhysicsBone, 0, 0)
+      if(weld and weld:IsValid()) then
+        undo.AddEntity(weld)
+        laser:DeleteOnRemove(weld)
+      end
+    end
+    undo.SetPlayer(ply)
   undo.Finish()
 
-  ply:AddCleanup( "laseremitters", laser )
+  ply:AddCleanup(gsUnit.."s", laser)
 
   return true
 end
 
-function TOOL:RightClick( trace )
+function TOOL:RightClick(trace)
   return false
 end
 
-if (SERVER) then
+if(SERVER) then
 
-  function MakeLaserEmitter(  ply, pos, ang, model, angleOffset, key, width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, Vel, aVel, frozen )
-    if ( IsValid( ply ) && !ply:CheckLimit( "laseremitters" ) ) then return nil end
+  function MakeLaserEmitter(ply, pos, ang, model, angleOffset, key, width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, Vel, aVel, frozen)
+    if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
+    if(not ply:CheckLimit(gsUnit.."s")) then return nil end
 
-    local laser = ents.Create( "gmod_laser" )
-    if ( not laser:IsValid() ) then return false; end
+    local laser = ents.Create("gmod_laser")
+    if(not (laser and laser:IsValid())) then return nil end
 
-    laser:SetAngles( ang )
-    laser:SetPos( pos )
-    laser:SetModel( Model(model) )
-    laser:SetAngleOffset( angleOffset )
-
+    laser:SetPos(pos)
+    laser:SetAngles(ang)
+    laser:SetModel(Model(model))
+    laser:SetAngleOffset(angleOffset)
     laser:Spawn()
+    laser:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, false)
 
-    laser:Setup( width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, false )
+    ply:AddCount(gsUnit.."s", laser)
+    numpad.OnDown(ply, key, "Laser_On", laser)
+    numpad.OnUp(ply, key, "Laser_Off", laser)
 
-    numpad.OnDown( ply, key, "Laser_On", laser )
-    numpad.OnUp( ply, key, "Laser_Off", laser )
-
-    local ttable = {
-      ply = ply,
-      key = key,
-      width = width,
-      length = length,
-      damage = damage,
-      material = material,
+    local ttable   = {
+      ply          = ply,
+      key          = key,
+      width        = width,
+      length       = length,
+      damage       = damage,
+      material     = material,
       dissolveType = dissolveType,
-      startSound = startSound,
-      stopSound = stopSound,
-      killSound = killSound,
-      toggle = toggle,
-      startOn = startOn,
-      pushProps = pushProps,
+      startSound   = startSound,
+      stopSound    = stopSound,
+      killSound    = killSound,
+      toggle       = toggle,
+      startOn      = startOn,
+      pushProps    = pushProps,
       endingEffect = endingEffect,
-      angleOffset = angleOffset
+      angleOffset  = angleOffset
     }
-    table.Merge( laser:GetTable(), ttable )
 
-    if ( IsValid( ply ) ) then
-      ply:AddCount( "laseremitters", laser )
-    end
+    table.Merge(laser:GetTable(), ttable)
 
     return laser
-
   end
 
-  duplicator.RegisterEntityClass( "gmod_laser", MakeLaserEmitter, "pos", "ang", "model", "angleOffset", "key", "width", "length","damage", "material", "dissolveType", "startSound", "stopSound", "killSound", "toggle", "startOn","pushProps", "endingEffect", "Vel", "aVel", "frozen")
+  duplicator.RegisterEntityClass("gmod_laser", MakeLaserEmitter, "pos", "ang", "model", "angleOffset", "key", "width", "length","damage", "material", "dissolveType", "startSound", "stopSound", "killSound", "toggle", "startOn","pushProps", "endingEffect", "Vel", "aVel", "frozen")
 end
 
-function TOOL:UpdateGhostLaserEmitter( ent, player )
-  if ( not ent or not ent:IsValid() ) then return; end
+function TOOL:UpdateGhostLaserEmitter(ent, ply)
+  if(not (ent and ent:IsValid())) then return end
+  if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
 
-  local tr = util.GetPlayerTrace( player)
-  local trace = util.TraceLine( tr )
+  local trace = ply:GetEyeTrace()
 
-  if ( not trace.Hit or trace.Entity:IsPlayer() or trace.Entity:GetClass() == "gmod_laser" ) then
-    ent:SetNoDraw( true )
+  if(not trace.Hit or
+         trace.Entity:IsPlayer() or
+         trace.Entity:GetClass() == "gmod_laser")
+  then
+    ent:SetNoDraw(true)
     return
   end
 
-  local Ang = trace.HitNormal:Angle()
-  Ang.pitch = Ang.pitch + 90 - self:GetClientNumber( "angleoffset" )
+  local ang = trace.HitNormal:Angle()
+        ang.pitch = ang.pitch + 90 - self:GetClientNumber("angleoffset")
 
-  local min = ent:OBBMins()
-  ent:SetPos( trace.HitPos - trace.HitNormal * min.z )
-  ent:SetAngles( Ang )
-
-  ent:SetNoDraw( false )
+  ent:SetPos(trace.HitPos - trace.HitNormal * ent:OBBMins().z)
+  ent:SetAngles(ang)
+  ent:SetNoDraw(false)
 end
 
 function TOOL:Think()
-  if ( not self.GhostEntity or not self.GhostEntity:IsValid() or self.GhostEntity:GetModel() ~= self:GetClientInfo( "Model" ) ) then
-    self:MakeGhostEntity( self:GetClientInfo( "Model" ), Vector( 0, 0, 0 ), Angle( 0, 0, 0) )
+  if(not self.GhostEntity or
+     not self.GhostEntity:IsValid() or
+         self.GhostEntity:GetModel() ~= self:GetClientInfo("Model"))
+  then
+    self:MakeGhostEntity(self:GetClientInfo("Model"), Vector(0, 0, 0), Angle(0, 0, 0))
   end
 
-  self:UpdateGhostLaserEmitter( self.GhostEntity, self:GetOwner() )
+  self:UpdateGhostLaserEmitter(self.GhostEntity, self:GetOwner())
 end
 
 -- FIXME: Remove `Addcontrol` and code a proper preset handler
+local gtConvarList = TOOL:BuildConVarList()
+
+-- Enter `spawnmenu_reload` in the console to reload the panel
 function TOOL.BuildCPanel(panel)
-  panel:AddControl("Header", { Text = "#Tool.laseremitter.name", Description = "#Tool.laseremitter.desc" })
+  panel:ClearControls()
+  panel:SetName(language.GetPhrase("tool."..gsUnit..".name"))
+  panel:Help   (language.GetPhrase("tool."..gsUnit..".desc"))
 
-  local params = { Label = "#Presets", MenuButton = 1, Folder = "laseremitter", Options = {}, CVars = {} }
+  local pItem = vgui.Create("ControlPresets", panel)
+        pItem:SetPreset(gsUnit)
+        pItem:AddOption("Default", gtConvarList)
+        for key, val in pairs(table.GetKeys(gtConvarList)) do pItem:AddConVar(val) end
+  panel:AddItem(pItem)
 
-    params.Options.default = {
-      laseremitter_width        = 4,
-      laseremitter_length       = 30000,
-      laseremitter_damage       = 2500,
-      laseremitter_material     = "cable/physbeam",
-      laseremitter_model        = "models/props_combine/headcrabcannister01a_skybox.mdl",
-      laseremitter_dissolvetype = "core",
-      laseremitter_startsound   = "ambient/energy/weld1.wav",
-      laseremitter_stopsound    = "ambient/energy/weld2.wav",
-      laseremitter_killsound    = "ambient/levels/citadel/weapon_disintegrate1.wav",
-      laseremitter_toggle       = 0,
-      laseremitter_starton      = 0,
-      laseremitter_pushprops    = 1,
-      laseremitter_endingeffect = 1,
-      laseremitter_worldweld    = 0,
-      laseremitter_angleoffset  = 270
-    }
+  pItem = vgui.Create("CtrlNumPad", panel)
+  pItem:SetConVar1(gsUnit.."_key")
+  pItem:SetLabel1(language.GetPhrase("tool."..gsUnit..".key_con"))
+  pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsUnit..".key"))
+  panel:AddPanel(pItem)
 
-    table.insert( params.CVars, "laseremitter_width" )
-    table.insert( params.CVars, "laseremitter_length" )
-    table.insert( params.CVars, "laseremitter_damage" )
-    table.insert( params.CVars, "laseremitter_material" )
-    table.insert( params.CVars, "laseremitter_model" )
-    table.insert( params.CVars, "laseremitter_dissolvetype" )
-    table.insert( params.CVars, "laseremitter_startsound" )
-    table.insert( params.CVars, "laseremitter_stopsound" )
-    table.insert( params.CVars, "laseremitter_killsound" )
-    table.insert( params.CVars, "laseremitter_toggle" )
-    table.insert( params.CVars, "laseremitter_starton" )
-    table.insert( params.CVars, "laseremitter_pushprops" )
-    table.insert( params.CVars, "laseremitter_endingeffect" )
-    table.insert( params.CVars, "laseremitter_worldweld" )
-    table.insert( params.CVars, "laseremitter_angleoffset" )
-
-  panel:AddControl( "ComboBox", params )
-
-
-  panel:AddControl( "Numpad", { Label = "Key:",
-                  Command = "laseremitter_key",
-                  ButtonSize = 22 } )
-
-  panel:AddControl( "Slider", {   Label = "Width:",
-                  Type = "Integer",
-                  Min = 1,
-                  Max = 20,
-                  Command = "laseremitter_width" } )
-
-  panel:AddControl( "Slider", {   Label = "Length:",
-                  Type = "Integer",
-                  Min = 0,
-                  Max = 30000,
-                  Command = "laseremitter_length" } )
-
-  panel:AddControl( "Slider", {   Label = "Damage:",
-                  Type = "Integer",
-                  Min = 0,
-                  Max = 2500,
-                  Command = "laseremitter_damage" } )
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".width_con"), gsUnit.."_width", 1, 30, 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".width"))
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".length_con"), gsUnit.."_length", 0, 50000, 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".length"))
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".damage_con"), gsUnit.."_damage", 0, 5000, 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".damage"))
 
   panel:AddControl( "MatSelect", {  Label = "Material:",
                     Height = 1,
                     ItemWidth = 24,
                     ItemHeight = 64,
-                    ConVar = "laseremitter_material",
+                    ConVar = gsUnit.."_material",
                     Options = list.Get( "LaserEmitterMaterials" ) } )
 
   panel:AddControl( "PropSelect", { Label = "Model:",
-                    ConVar = "laseremitter_model",
+                    ConVar = ""..gsUnit.."_model",
                     Models = list.Get( "LaserEmitterModels" ) } )
 
-  panel:AddControl( "Label", { Text = "Dissolve type:" } )
   panel:AddControl( "ComboBox", { Label = "Dissolve type:",
                   MenuButton = "0",
-                  Command = "laseremitter_dissolvetype",
+                  Command = ""..gsUnit.."_dissolvetype",
                   Options = list.Get( "LaserDissolveTypes" ) } )
 
-  panel:AddControl( "Label", { Text = "Start sound:" } )
   panel:AddControl( "ComboBox", { Label = "Start sound:",
                   MenuButton = "0",
-                  Command = "laseremitter_startsound",
+                  Command = gsUnit.."_startsound",
                   Options = list.Get( "LaserStartSounds" ) } )
 
-  panel:AddControl( "Label", { Text = "Stop sound:" } )
   panel:AddControl( "ComboBox", { Label = "Stop sound:",
                   MenuButton = "0",
-                  Command = "laseremitter_stopsound",
+                  Command = gsUnit.."_stopsound",
                   Options = list.Get( "LaserStopSounds" ) } )
 
-  panel:AddControl( "Label", { Text = "Kill sound:" } )
   panel:AddControl( "ComboBox", { Label = "Kill sound:",
                   MenuButton = "0",
-                  Command = "laseremitter_killsound",
+                  Command = gsUnit.."_killsound",
                   Options = list.Get( "LaserKillSounds" ) } )
 
-  panel:AddControl( "CheckBox", { Label = "Toggle",
-                  Command = "laseremitter_toggle" } )
-
-  panel:AddControl( "CheckBox", { Label = "Start On",
-                  Command = "laseremitter_starton" } )
-
-  panel:AddControl( "CheckBox", { Label = "Push props",
-                  Command = "laseremitter_pushprops" } )
-
-  panel:AddControl( "CheckBox", { Label = "Ending effect",
-                  Command = "laseremitter_endingeffect" } )
-
-  panel:AddControl( "CheckBox", { Label = "Weld to world",
-                  Command = "laseremitter_worldweld" } )
-
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".toggle_con"), gsUnit.."_toggle")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".toggle"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".starton_con"), gsUnit.."_starton")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".starton"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".pushprops_con"), gsUnit.."_pushprops")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushprops"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".endingeffect_con"), gsUnit.."_endingeffect")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".endingeffect"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".worldweld_con"), gsUnit.."_worldweld")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".worldweld"))
 end
