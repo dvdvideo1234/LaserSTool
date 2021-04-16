@@ -1,5 +1,57 @@
-LaserLib = nil
-LaserLib = LaserLib or {}
+LaserLib = {} -- Initialize the global variable of the library
+
+local DATA = {}
+
+DATA.CLS = {
+  -- [1] Item true class [2] Spawn class from entities
+  {"gmod_laser"},
+  {"gmod_laser_crystal"  , "gmod_laser_crystal"},
+  {"gmod_laser_reflector", "prop_physics"      }
+}
+
+DATA.MOD = {
+  -- [1] Model used by the entities menu
+  {""}, -- Laser model is changed via laser tool
+  {"models/Combine_Helicopter/helicopter_bomb01.mdl"},
+  {"models/madjawa/laser_reflector.mdl"}
+}
+
+DATA.MAT = {
+  -- [1] Model used by the entities menu
+  {""}, -- Laser material is changed with the model
+  {"models/props_combine/health_charger_glass"},
+  {""}
+}
+
+DATA.COLOR = {
+  ["BLACK"] = Color( 0 ,  0 ,  0 , 255),
+  ["WHITE"] = Color(255, 255, 255, 255)
+}
+
+DATA.TOOL = "laseremitter"
+
+function LaserLib.GetTool()
+  return DATA.TOOL
+end
+
+function LaserLib.GetColor(iK)
+  return DATA.COLOR[iK]
+end
+
+function LaserLib.GetClass(iK, iD)
+  local tI = DATA.CLS[iK]
+  return (tI and (tI[iD] or tI[1]) or nil)
+end
+
+function LaserLib.GetModel(iK, iD)
+  local tI = DATA.MOD[iK]
+  return (tI and (tI[iD] or tI[1]) or nil)
+end
+
+function LaserLib.GetMaterial(iK, iD)
+  local tI = DATA.MAT[iK]
+  return (tI and (tI[iD] or tI[1]) or nil)
+end
 
 function LaserLib.GetReflectedVector(incident, normal)
   local reflect = Vector(normal)
@@ -66,16 +118,57 @@ if(SERVER) then
         end
 
         if(killSound ~= nil and (target:Health() ~= 0 or target:IsPlayer())) then
-          --WorldSound( Sound( killSound ), target:GetPos() )
           sound.Play(killSound, target:GetPos())
           target:EmitSound(Sound(killSound))
         end
       else
         laserEnt.NextLaserDamage = CurTime() + 0.3
       end
-      --attacker:AddFrags(0)
       target:TakeDamage(damage, attacker, laserEnt)
     end
+  end
+
+  local gsUnit = LaserLib.GetTool()
+  local gsLaseremCls = LaserLib.GetClass(1, 1)
+  function LaserLib.New(ply, pos, ang, model, angleOffset, key, width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, Vel, aVel, frozen)
+    if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
+    if(not ply:CheckLimit(gsUnit.."s")) then return nil end
+
+    local laser = ents.Create(gsLaseremCls)
+    if(not (laser and laser:IsValid())) then return nil end
+
+    laser:SetPos(pos)
+    laser:SetAngles(ang)
+    laser:SetModel(Model(model))
+    laser:SetAngleOffset(angleOffset)
+    laser:Spawn()
+    laser:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, false)
+
+    ply:AddCount(gsUnit.."s", laser)
+    numpad.OnDown(ply, key, "Laser_On", laser)
+    numpad.OnUp(ply, key, "Laser_Off", laser)
+
+    local ttable   = {
+      ply          = ply,
+      key          = key,
+      width        = width,
+      length       = length,
+      damage       = damage,
+      material     = material,
+      dissolveType = dissolveType,
+      startSound   = startSound,
+      stopSound    = stopSound,
+      killSound    = killSound,
+      toggle       = toggle,
+      startOn      = startOn,
+      pushProps    = pushProps,
+      endingEffect = endingEffect,
+      angleOffset  = angleOffset
+    }
+
+    table.Merge(laser:GetTable(), ttable)
+
+    return laser
   end
 
 end
@@ -87,7 +180,7 @@ end
  * length > Total beam length to be traced
  * bounce > Maximum amount of reflector bounces
 ]]
-local gsReflector = "models/madjawa/laser_reflector.mdl"
+local gsReflectMod = LaserLib.GetModel(3, 1)
 function LaserLib.DoBeam(entity, origin, direct, length, bounce)
   local data, trace = {}
   -- Configure data structure
@@ -116,7 +209,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, bounce)
 
     if(trace.Entity and
        trace.Entity:IsValid() and
-       trace.Entity:GetModel() == gsReflector)
+       trace.Entity:GetModel() == gsReflectMod)
     then
       data.IsMirror = true
       data.VrOrigin:Set(trace.HitPos)

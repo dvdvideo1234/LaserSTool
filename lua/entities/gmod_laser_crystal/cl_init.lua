@@ -7,6 +7,3 @@ in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD 
 ]]
 
 include("shared.lua")
-
-language.Add("gmod_laser_crystal", "Laser Crystal")
-killicon.AddAlias("gmod_laser_crystal", "gmod_laser")

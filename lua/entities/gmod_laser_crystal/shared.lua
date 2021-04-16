@@ -8,7 +8,7 @@ in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD 
 
 ENT.Type           = "anim"
 ENT.PrintName      = "Laser Crystal"
-ENT.Base           = "gmod_laser"
+ENT.Base           = LaserLib.GetClass(1, 1)
 ENT.Author         = "MadJawa"
 ENT.Information    = ENT.PrintName
 ENT.Category       = "Other"

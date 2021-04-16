@@ -8,25 +8,18 @@ in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD 
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
-resource.AddSingleFile("materials/vgui/entities/gmod_laser_reflector.vmt")
-resource.AddSingleFile("materials/vgui/entities/gmod_laser_reflector.vtf")
-
-resource.AddSingleFile("models/madjawa/laser_reflector.mdl")
-resource.AddSingleFile("models/madjawa/laser_reflector.phy")
-resource.AddSingleFile("models/madjawa/laser_reflector.vvd")
-resource.AddSingleFile("models/madjawa/laser_reflector.sw.vtx")
-resource.AddSingleFile("models/madjawa/laser_reflector.dx80.vtx")
-resource.AddSingleFile("models/madjawa/laser_reflector.dx90.vtx")
-
 include("shared.lua")
+
+local gsReflectMod = LaserLib.GetModel(3, 1)
+local gsReflectCls = LaserLib.GetClass(3, 2)
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
   local pos = tr.HitPos + tr.HitNormal * 35
-  local ent = ents.Create("prop_physics")
-  ent:SetModel("models/madjawa/laser_reflector.mdl")
+  local ent = ents.Create(gsReflectCls)
+  ent:SetModel(gsReflectMod)
   ent:SetPos(pos)
   ent:Spawn()
   ent:Activate()

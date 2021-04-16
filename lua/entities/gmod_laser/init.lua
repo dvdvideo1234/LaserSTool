@@ -3,23 +3,13 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-resource.AddSingleFile("materials/effects/redlaser1.vmt")
-resource.AddSingleFile("materials/effects/redlaser1.vtf")
-resource.AddSingleFile("materials/effects/redlaser1_smoke.vtf")
-
-resource.AddSingleFile("models/props_junk/flare.mdl")
-resource.AddSingleFile("models/props_junk/flare.phy")
-resource.AddSingleFile("models/props_junk/flare.vvd")
-resource.AddSingleFile("models/props_junk/flare.sw.vtx")
-resource.AddSingleFile("models/props_junk/flare.dx80.vtx")
-resource.AddSingleFile("models/props_junk/flare.dx90.vtx")
-
-local gsReflector = "models/madjawa/laser_reflector.mdl"
 local varMaxBounces = GetConVar("laseremitter_maxbounces")
+local gsReflectMod = LaserLib.GetModel(3, 1)
+local gsLaseremCls = LaserLib.GetClass(1, 1)
 
-function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
+function ENT:ApplyDupeInfo(ply, ent, info, entid)
   if(WireLib) then
-    WireLib.ApplyDupeInfo(ply, ent, info, GetEntByID)
+    WireLib.ApplyDupeInfo(ply, ent, info, entid)
   end
 end
 
@@ -73,8 +63,8 @@ function ENT:Think()
     -- FIXME : Eake the owner of the mirror get the kill instead of the owner of the laser
     if(self:GetDamageAmmount() > 0 and trace and
        trace.Entity and trace.Entity:IsValid() and
-       trace.Entity:GetClass() ~= "gmod_laser" and
-       trace.Entity:GetModel() ~= gsReflector)
+       trace.Entity:GetClass() ~= gsLaseremCls and
+       trace.Entity:GetModel() ~= gsReflectMod)
     then
       LaserLib.DoDamage(trace.Entity,
                         trace.HitPos,

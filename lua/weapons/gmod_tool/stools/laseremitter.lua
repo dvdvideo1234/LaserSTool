@@ -1,4 +1,9 @@
-local gsUnit = TOOL.Mode
+local gsUnit = LaserLib.GetTool()
+local gcBaseWhite = LaserLib.GetColor("WHITE")
+local gsLaseremCls = LaserLib.GetClass(1, 1)
+local gsCrystalCls = LaserLib.GetClass(2, 1)
+local gsReflectCls = LaserLib.GetClass(3, 1)
+local gsReflectMod = LaserLib.GetModel(3, 1)
 
 if(CLIENT) then
   language.Add("tool."..gsUnit..".name", "Laser Spawner")
@@ -26,14 +31,12 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".pushprops", "Seutp the laser beam to push props")
   language.Add("tool."..gsUnit..".endingeffect_con", "Ending effect")
   language.Add("tool."..gsUnit..".endingeffect", "Allow showing ending effects")
-  language.Add("tool."..gsUnit..".worldweld_con", "Weld to world")
-  language.Add("tool."..gsUnit..".worldweld", "Welds the laser to the world")
-  language.Add("Cleanup."..gsUnit, "Lasers")
-  language.Add("Cleaned."..gsUnit, "Cleaned up all Lasers")
-  language.Add("SBoxLimit."..gsUnit.."s", "You've hit Laser limit!")
-  language.Add("Undone."..gsUnit, "Undone Laser")
-  language.Add("max_"..gsUnit.."s", "Max laser emitters")
-  language.Add("SBoxLimit_"..gsUnit.."s", "You've hit the Laser emiter limit!")
+  language.Add("tool."..gsUnit..".worldweld_con", "Weld to surface")
+  language.Add("tool."..gsUnit..".worldweld", "Welds the laser to the trace surface")
+  language.Add("Cleanup_"..gsUnit, "Lasers")
+  language.Add("Cleaned_"..gsUnit, "Cleaned up all Lasers")
+  language.Add("Undone_"..gsUnit, "Undone Laser Emitter")
+  language.Add("SBoxLimit_"..gsUnit.."s", "You've hit the Laser emiters limit!")
 end
 
 TOOL.Category = "Construction"
@@ -41,8 +44,25 @@ TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
 if(SERVER) then
   CreateConVar("sbox_max"..gsUnit.."s", 20)
-  resource.AddSingleFile("materials/vgui/entities/gmod_laser_killicon.vmt")
-  resource.AddSingleFile("materials/vgui/entities/gmod_laser_killicon.vtf")
+
+  resource.AddFile(gsReflectMod)
+  resource.AddFile("models/props_junk/flare.mdl")
+  resource.AddFile("materials/effects/redlaser1.vmt")
+  resource.AddFile("materials/effects/redlaser1_smoke.vtf")
+  resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
+  resource.AddFile("materials/vgui/entities/gmod_laser_reflector.vmt")
+  resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vmt")
+end
+
+if(CLIENT) then
+  language.Add(gsLaseremCls, "Laser Emiter") -- Relative to materials
+  killicon.Add(gsLaseremCls, "vgui/entities/gmod_laser_killicon", gcBaseWhite)
+
+  language.Add(gsCrystalCls, "Laser Crystal")
+  killicon.AddAlias(gsCrystalCls, gsLaseremCls)
+
+  language.Add(gsReflectCls, "Laser Reflector")
+  killicon.AddAlias(gsReflectCls, gsLaseremCls)
 end
 
 cleanup.Register(gsUnit.."s")
@@ -142,7 +162,6 @@ function TOOL:LeftClick(trace)
   if(not trace.HitPos) then return false end
   if(trace.Entity:IsPlayer()) then return false end
   if(not self:GetSWEP():CheckLimit(gsUnit.."s")) then return false end
-  --if ( SERVER and not util.IsValidPhysicsObject( trace.Entity, trace.PhysicsBone ) ) then return false end
 
   local ply          = self:GetOwner()
   local key          = self:GetClientNumber("key")
@@ -163,7 +182,7 @@ function TOOL:LeftClick(trace)
   local endingEffect = (self:GetClientNumber("endingeffect") ~= 0)
 
   if(trace.Entity:IsValid() and
-     trace.Entity:GetClass() == "gmod_laser")
+     trace.Entity:GetClass() == gsLaseremCls)
   then
     trace.Entity:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, true)
     return true
@@ -172,7 +191,7 @@ function TOOL:LeftClick(trace)
   local ang = trace.HitNormal:Angle()
         ang.pitch = ang.pitch + 90 - angleOffset
 
-  local laser = MakeLaserEmitter(ply, trace.HitPos, ang, model, angleOffset, key, width, length, damage, material,
+  local laser = LaserLib.New(ply, trace.HitPos, ang, model, angleOffset, key, width, length, damage, material,
                   dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect)
 
   if(not (laser and laser:IsValid())) then return false end
@@ -184,8 +203,9 @@ function TOOL:LeftClick(trace)
     if(trace.Entity:IsValid() or worldWeld) then
       local weld = constraint.Weld(laser, trace.Entity, trace.PhysicsBone, 0, 0)
       if(weld and weld:IsValid()) then
-        undo.AddEntity(weld)
-        laser:DeleteOnRemove(weld)
+        undo.AddEntity(weld) -- Inser the weld in the undo list
+        laser:DeleteOnRemove(weld) -- Remove the weld with the laser
+        trace.Entity:DeleteOnRemove(weld) -- Remove weld with the anchor
       end
     end
     undo.SetPlayer(ply)
@@ -201,49 +221,7 @@ function TOOL:RightClick(trace)
 end
 
 if(SERVER) then
-
-  function MakeLaserEmitter(ply, pos, ang, model, angleOffset, key, width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, Vel, aVel, frozen)
-    if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
-    if(not ply:CheckLimit(gsUnit.."s")) then return nil end
-
-    local laser = ents.Create("gmod_laser")
-    if(not (laser and laser:IsValid())) then return nil end
-
-    laser:SetPos(pos)
-    laser:SetAngles(ang)
-    laser:SetModel(Model(model))
-    laser:SetAngleOffset(angleOffset)
-    laser:Spawn()
-    laser:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, false)
-
-    ply:AddCount(gsUnit.."s", laser)
-    numpad.OnDown(ply, key, "Laser_On", laser)
-    numpad.OnUp(ply, key, "Laser_Off", laser)
-
-    local ttable   = {
-      ply          = ply,
-      key          = key,
-      width        = width,
-      length       = length,
-      damage       = damage,
-      material     = material,
-      dissolveType = dissolveType,
-      startSound   = startSound,
-      stopSound    = stopSound,
-      killSound    = killSound,
-      toggle       = toggle,
-      startOn      = startOn,
-      pushProps    = pushProps,
-      endingEffect = endingEffect,
-      angleOffset  = angleOffset
-    }
-
-    table.Merge(laser:GetTable(), ttable)
-
-    return laser
-  end
-
-  duplicator.RegisterEntityClass("gmod_laser", MakeLaserEmitter, "pos", "ang", "model", "angleOffset", "key", "width", "length","damage", "material", "dissolveType", "startSound", "stopSound", "killSound", "toggle", "startOn","pushProps", "endingEffect", "Vel", "aVel", "frozen")
+  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New, "pos", "ang", "model", "angleOffset", "key", "width", "length","damage", "material", "dissolveType", "startSound", "stopSound", "killSound", "toggle", "startOn","pushProps", "endingEffect", "Vel", "aVel", "frozen")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -254,7 +232,7 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
 
   if(not trace.Hit or
          trace.Entity:IsPlayer() or
-         trace.Entity:GetClass() == "gmod_laser")
+         trace.Entity:GetClass() == gsLaseremCls)
   then
     ent:SetNoDraw(true)
     return
@@ -279,7 +257,7 @@ function TOOL:Think()
   self:UpdateGhostLaserEmitter(self.GhostEntity, self:GetOwner())
 end
 
--- FIXME: Remove `Addcontrol` and code a proper preset handler
+-- FIXME: Remove `AddControl` and code a proper preset handler
 local gtConvarList = TOOL:BuildConVarList()
 
 -- Enter `spawnmenu_reload` in the console to reload the panel
