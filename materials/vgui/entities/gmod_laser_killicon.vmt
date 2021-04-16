@@ -1,6 +1,6 @@
 "UnlitGeneric"
 {
-	"$basetexture" "VGUI/entities/gmod_laser_killicon"
+	"$basetexture" "vgui/entities/gmod_laser_killicon"
 	"$vertexalpha" 1
 	"$vertexcolor" 1
 }

@@ -8,15 +8,15 @@ in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD 
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
-resource.AddFile("models/madjawa/laser_reflector.dx80.vtx")
-resource.AddFile("models/madjawa/laser_reflector.dx90.vtx")
-resource.AddFile("models/madjawa/laser_reflector.mdl")
-resource.AddFile("models/madjawa/laser_reflector.phy")
-resource.AddFile("models/madjawa/laser_reflector.sw.vtx")
-resource.AddFile("models/madjawa/laser_reflector.vvd")
+resource.AddSingleFile("materials/vgui/entities/gmod_laser_reflector.vmt")
+resource.AddSingleFile("materials/vgui/entities/gmod_laser_reflector.vtf")
 
-resource.AddFile("materials/VGUI/entities/gmod_laser_reflector.vtf")
-resource.AddFile("materials/VGUI/entities/gmod_laser_reflector.vmt")
+resource.AddSingleFile("models/madjawa/laser_reflector.mdl")
+resource.AddSingleFile("models/madjawa/laser_reflector.phy")
+resource.AddSingleFile("models/madjawa/laser_reflector.vvd")
+resource.AddSingleFile("models/madjawa/laser_reflector.sw.vtx")
+resource.AddSingleFile("models/madjawa/laser_reflector.dx80.vtx")
+resource.AddSingleFile("models/madjawa/laser_reflector.dx90.vtx")
 
 include("shared.lua")
 

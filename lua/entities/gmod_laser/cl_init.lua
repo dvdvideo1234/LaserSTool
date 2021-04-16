@@ -1,86 +1,61 @@
 include("shared.lua")
 
-language.Add("gmod_laser", "Laser")
-
-killicon.Add("gmod_laser", "vgui/entities/gmod_laser_killicon", Color( 255, 255, 255, 255 ))
-
-ENT.RenderGroup = RENDERGROUP_BOTH
-
+local gcBaseWhite = Color(255, 255, 255, 255)
 local gsReflector = "models/madjawa/laser_reflector.mdl"
 local varMaxBounces = GetConVar("laseremitter_maxbounces")
+
+language.Add("gmod_laser", "Laser")
+killicon.Add("gmod_laser", "materials/vgui/entities/gmod_laser_killicon", gcBaseWhite)
+
+ENT.RenderGroup = RENDERGROUP_BOTH
 
 -- FIXME : find a better way to render the laser (Scripted Effect?)
 function ENT:Draw()
 
-  self:DrawModel()
+ self:DrawModel()
 
   if(self:GetOn()) then
-    local trace, isMirror = {}, false
-    local beamStart = self:GetPos()
-    local beamDir = self:GetBeamDirection()
-    local beamLength = self:GetBeamLength()
-    local beamFilter, bounces = self, 0
-    local beamPoints = {beamStart}
-    local maxbounces = varMaxBounces:GetInt()
+    local trace, data = LaserLib.DoBeam(self,
+                                        self:GetPos(),
+                                        self:GetBeamDirection(),
+                                        self:GetBeamLength(),
+                                        varMaxBounces:GetInt())
 
-    while(bounces < maxbounces) do
-      if(StarGate) then
-        trace = StarGate.Trace:New(beamStart, beamDir:GetNormalized() * beamLength, beamFilter)
-      else
-        trace = util.QuickTrace(beamStart, beamDir:GetNormalized() * beamLength, beamFilter)
-      end
-
-      table.insert(beamPoints, trace.HitPos)
-
-      if(trace.Entity and
-         trace.Entity:IsValid() and
-         trace.Entity:GetModel() == gsReflector)
-      then
-        isMirror = true
-        beamStart = trace.HitPos
-        beamDir = LaserLib.GetReflectedVector(beamDir, trace.HitNormal)
-        beamLength = beamLength - beamLength * trace.Fraction
-        beamFilter = trace.Entity
-        bounces = bounces + 1
-      else
-        isMirror = false
-      end
-
-      if(not isMirror) then break end
-    end
-
-    local beamWidth = self:GetBeamWidth()
-    local prevPoint = self:GetPos()
+    local width = self:GetBeamWidth()
+    local prev  = self:GetPos()
     local bbmin = self:OBBMins()
     local bbmax = self:OBBMaxs()
 
     -- Material must not be caches so that can be updated with left click setup
     render.SetMaterial(Material(self:GetBeamMaterial()))
 
-    for k, v in pairs(beamPoints) do
-      if(prevPoint ~= v) then
-        render.DrawBeam(prevPoint,
+    for k, v in pairs(data.TvPoints) do
+      local conv = self:WorldToLocal(v)
+
+      if(prev ~= v) then
+        local dt = 13 * CurTime()
+        render.DrawBeam(prev,
                         v,
-                        beamWidth,
-                        13 * CurTime(),
-                        13 * CurTime() - (v - prevPoint):Length() / 9,
-                        Color( 255, 255, 255, 255 ))
-      end
-
-      prevPoint = v
-
-      if (v.x < bbmin.x) then bbmin.x = v.x end
-      if (v.y < bbmin.y) then bbmin.y = v.y end
-      if (v.z < bbmin.z) then bbmin.z = v.z end
-      if (v.x > bbmax.x) then bbmax.x = v.x end
-      if (v.y > bbmax.y) then bbmax.y = v.y end
-      if (v.z > bbmax.z) then bbmax.z = v.z end
+                        width,
+                        dt,
+                        dt - (v - prev):Length() / 9,
+                        gcBaseWhite)
+      end; prev = v
+      
+      -- Make sure the coordinates are conveted to local ones
+      if(conv.x < bbmin.x) then bbmin.x = conv.x end
+      if(conv.y < bbmin.y) then bbmin.y = conv.y end
+      if(conv.z < bbmin.z) then bbmin.z = conv.z end
+      if(conv.x > bbmax.x) then bbmax.x = conv.x end
+      if(conv.y > bbmax.y) then bbmax.y = conv.y end
+      if(conv.z > bbmax.z) then bbmax.z = conv.z end
     end
 
     self.NextEffect = self.NextEffect or CurTime()
-    if(not trace.HitSky and
-           self:GetEndingEffect() and
-           CurTime() >= self.NextEffect)
+
+    if(trace and not trace.HitSky and
+       self:GetEndingEffect() and
+       CurTime() >= self.NextEffect)
     then
       if(not self.DataEffect) then
         self.DataEffect = EffectData()
@@ -93,7 +68,7 @@ function ENT:Draw()
       self.NextEffect = CurTime() + 0.1
     end
 
-    self:SetRenderBoundsWS( bbmin, bbmax )
+    -- Adjust the render bounds with local coordinates
+    self:SetRenderBounds(bbmin, bbmax)
   end
-
 end

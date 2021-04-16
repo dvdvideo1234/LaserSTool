@@ -1,6 +1,6 @@
 "UnlitGeneric"
 {
-	"$basetexture" "vgui/entities/gmod_laser_reflector"
+	"$basetexture" "vgui/entities/gmod_laser_crystal"
 	"$vertexcolor" 		1 
 	"$vertexalpha" 		1 
 	"$nolod" 		1 

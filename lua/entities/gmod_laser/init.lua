@@ -3,8 +3,16 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vtf")
-resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vmt")
+resource.AddSingleFile("materials/effects/redlaser1.vmt")
+resource.AddSingleFile("materials/effects/redlaser1.vtf")
+resource.AddSingleFile("materials/effects/redlaser1_smoke.vtf")
+
+resource.AddSingleFile("models/props_junk/flare.mdl")
+resource.AddSingleFile("models/props_junk/flare.phy")
+resource.AddSingleFile("models/props_junk/flare.vvd")
+resource.AddSingleFile("models/props_junk/flare.sw.vtx")
+resource.AddSingleFile("models/props_junk/flare.dx80.vtx")
+resource.AddSingleFile("models/props_junk/flare.dx90.vtx")
 
 local gsReflector = "models/madjawa/laser_reflector.mdl"
 local varMaxBounces = GetConVar("laseremitter_maxbounces")
@@ -21,19 +29,19 @@ function ENT:PreEntityCopy()
   end
 end
 
-local function EntityLookup(CreatedEntities)
+local function EntityLookup(created)
   return function(id, default)
     if(id == nil) then return default
     elseif(id == 0) then return game.GetWorld() end
-    local ent = CreatedEntities[id] or (isnumber(id) and ents.GetByIndex(id))
+    local ent = created[id] or (isnumber(id) and ents.GetByIndex(id))
     if(IsValid(ent)) then return ent else return default end
   end
 end
 
-function ENT:PostEntityPaste(Player,Ent,CreatedEntities)
-  if(Ent.EntityMods and Ent.EntityMods.WireDupeInfo) then
+function ENT:PostEntityPaste(ply, ent, created)
+  if(ent.EntityMods and ent.EntityMods.WireDupeInfo) then
     if(WireLib) then
-      WireLib.ApplyDupeInfo(Player, Ent, Ent.EntityMods.WireDupeInfo, EntityLookup(CreatedEntities))
+      WireLib.ApplyDupeInfo(ply, ent, ent.EntityMods.WireDupeInfo, EntityLookup(created))
     end
   end
 end
@@ -56,39 +64,14 @@ end
 
 function ENT:Think()
   if(self:GetOn()) then
-    local trace, isMirror = {}, false
-    local beamStart = self:GetPos()
-    local beamDir = self:GetBeamDirection()
-    local beamLength = self:GetBeamLength()
-    local beamFilter, bounces = self, 0
-    local maxbounces = varMaxBounces:GetInt()
+    local trace, data = LaserLib.DoBeam(self,
+                                        self:GetPos(),
+                                        self:GetBeamDirection(),
+                                        self:GetBeamLength(),
+                                        varMaxBounces:GetInt())
 
-    while(bounces < maxbounces) do
-      if(StarGate) then
-        trace = StarGate.Trace:New(beamStart, beamDir:GetNormalized() * beamLength, beamFilter)
-      else
-        trace = util.QuickTrace(beamStart, beamDir:GetNormalized() * beamLength, beamFilter)
-      end
-
-      if(trace.Entity and
-         trace.Entity:IsValid() and
-         trace.Entity:GetModel() == gsReflector)
-      then
-        isMirror = true
-        beamStart = trace.HitPos
-        beamDir = LaserLib.GetReflectedVector( beamDir, trace.HitNormal )
-        beamLength = beamLength - beamLength * trace.Fraction
-        beamFilter = trace.Entity
-        bounces = bounces + 1
-        -- FIXME : make the owner of the mirror get the kill instead of the owner of the laser
-      else
-        isMirror = false
-      end
-
-      if(not isMirror) then break end
-    end
-
-    if(self:GetDamageAmmount() > 0 and
+    -- FIXME : Eake the owner of the mirror get the kill instead of the owner of the laser
+    if(self:GetDamageAmmount() > 0 and trace and
        trace.Entity and trace.Entity:IsValid() and
        trace.Entity:GetClass() ~= "gmod_laser" and
        trace.Entity:GetModel() ~= gsReflector)
@@ -96,7 +79,7 @@ function ENT:Think()
       LaserLib.DoDamage(trace.Entity,
                         trace.HitPos,
                         trace.Normal,
-                        beamDir,
+                        data.VrDirect,
                         self:GetDamageAmmount(),
                         self.ply,
                         self:GetDissolveType(),

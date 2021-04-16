@@ -33,18 +33,16 @@ if(CLIENT) then
   language.Add("SBoxLimit."..gsUnit.."s", "You've hit Laser limit!")
   language.Add("Undone."..gsUnit, "Undone Laser")
   language.Add("max_"..gsUnit.."s", "Max laser emitters")
-  language.Add("SBoxLimit_"..gsUnit.."s", "You've hit the Laser Emmiter limit!")
+  language.Add("SBoxLimit_"..gsUnit.."s", "You've hit the Laser emiter limit!")
 end
 
 TOOL.Category = "Construction"
 TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
-if(SERVER) then -- materials\VGUI\entities
-  resource.AddFile("materials\\VGUI\\entities\\gmod_laser_killicon.vmt")
-  resource.AddFile("models\\madjawa\\*")
-  resource.AddFile("models\\props_junk\\flare.vmt")
-  resource.AddFile("materials\\effects\\redlaser1.vmt")
+if(SERVER) then
   CreateConVar("sbox_max"..gsUnit.."s", 20)
+  resource.AddSingleFile("materials/vgui/entities/gmod_laser_killicon.vmt")
+  resource.AddSingleFile("materials/vgui/entities/gmod_laser_killicon.vtf")
 end
 
 cleanup.Register(gsUnit.."s")
@@ -144,7 +142,7 @@ function TOOL:LeftClick(trace)
   if(not trace.HitPos) then return false end
   if(trace.Entity:IsPlayer()) then return false end
   if(not self:GetSWEP():CheckLimit(gsUnit.."s")) then return false end
-  --if ( SERVER and not util.IsValidPhysicsObject( trace.Entity, trace.PhysicsBone ) ) then return false; end
+  --if ( SERVER and not util.IsValidPhysicsObject( trace.Entity, trace.PhysicsBone ) ) then return false end
 
   local ply          = self:GetOwner()
   local key          = self:GetClientNumber("key")
