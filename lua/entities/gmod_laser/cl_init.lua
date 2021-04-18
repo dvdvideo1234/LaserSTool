@@ -5,27 +5,36 @@ local varMaxBounces = GetConVar("laseremitter_maxbounces")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
--- FIXME : find a better way to render the laser (Scripted Effect?)
+-- FIXME : Beam is not rendered whn hits the back of the player
+
 function ENT:Draw()
 
  self:DrawModel()
 
   if(self:GetOn()) then
+    local direct = self:GetBeamDirection()
+    local origin = self:LocalToWorld(self:OBBCenter())
     local trace, data = LaserLib.DoBeam(self,
-                                        self:GetPos(),
-                                        self:GetBeamDirection(),
+                                        origin,
+                                        direct,
                                         self:GetBeamLength(),
                                         varMaxBounces:GetInt())
     if(trace) then
-      local prev  = self:GetPos()
+      local prev  = origin
       local width = self:GetBeamWidth()
       local bbmin = self:LocalToWorld(self:OBBMins())
       local bbmax = self:LocalToWorld(self:OBBMaxs())
 
-      -- Material must not be caches so that can be updated with left click setup
+      -- Material must not be cached so it can be updated with left click setup
       render.SetMaterial(Material(self:GetBeamMaterial()))
 
       for key, val in pairs(data.TvPoints) do
+
+        -- Make sure the coordinates are conveted to world ones
+        LaserLib.UpdateRB(bbmin, val, math.min)
+        LaserLib.UpdateRB(bbmax, val, math.max)
+
+        -- Draw the actual beam texture
         if(prev ~= val) then
           local dt = 13 * CurTime()
           render.DrawBeam(prev,
@@ -35,15 +44,10 @@ function ENT:Draw()
                           dt - (val - prev):Length() / 9,
                           gcBaseWhite)
         end; prev = val
-
-        -- Make sure the coordinates are conveted to local ones
-        if(val.x < bbmin.x) then bbmin.x = val.x end
-        if(val.y < bbmin.y) then bbmin.y = val.y end
-        if(val.z < bbmin.z) then bbmin.z = val.z end
-        if(val.x > bbmax.x) then bbmax.x = val.x end
-        if(val.y > bbmax.y) then bbmax.y = val.y end
-        if(val.z > bbmax.z) then bbmax.z = val.z end
       end
+
+      -- Adjust the render bounds with local coordinates
+      self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
 
       self.NextEffect = self.NextEffect or CurTime()
 
@@ -61,9 +65,6 @@ function ENT:Draw()
         util.Effect("AR2Impact", self.DataEffect)
         self.NextEffect = CurTime() + 0.1
       end
-
-      -- Adjust the render bounds with local coordinates
-      self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
     end
   end
 end

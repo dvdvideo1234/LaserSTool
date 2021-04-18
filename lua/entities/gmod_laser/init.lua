@@ -54,9 +54,11 @@ end
 
 function ENT:Think()
   if(self:GetOn()) then
+    local direct = self:GetBeamDirection()
+    local origin = self:LocalToWorld(self:OBBCenter())
     local trace, data = LaserLib.DoBeam(self,
-                                        self:GetPos(),
-                                        self:GetBeamDirection(),
+                                        origin,
+                                        direct,
                                         self:GetBeamLength(),
                                         varMaxBounces:GetInt())
 

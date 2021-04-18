@@ -53,17 +53,17 @@ end
 
 -- FIXME : find a way to dynamically get the laser unit vector according the angle offset of bad oriented models
 function ENT:GetBeamDirection()
-  local angleOffset = self:GetAngleOffset()
-  if(angleOffset == 90) then return self:GetForward()
-  elseif(angleOffset == 180) then return (-1 * self:GetUp())
-  elseif(angleOffset == 270) then return (-1 * self:GetForward())
+  local aos = self:GetAngleOffset()
+  if    (aos ==  90) then return self:GetForward()
+  elseif(aos == 180) then return (-1 * self:GetUp())
+  elseif(aos == 270) then return (-1 * self:GetForward())
   else return self:GetUp() end
 end
 
 --[[ ----------------------
   Width
 ---------------------- ]]
-function ENT:SetBeamWidth( num )
+function ENT:SetBeamWidth(num)
   local width = math.Clamp(num, 1, 100)
   self:SetNWInt("Width", width)
   if(WireLib) then
@@ -147,24 +147,24 @@ end
           Sounds
 ---------------------- ]]
 -- FIXME : Well, not really something to fix, but it seems that I can't set networked strings with a length higher than 39 (not ideal for sounds)
-function ENT:SetStartSound(sound)
-  self.startSound = sound
+function ENT:SetStartSound(snd)
+  self.startSound = snd
 end
 
 function ENT:GetStartSound()
   return self.startSound
 end
 
-function ENT:SetStopSound(sound)
-  self.stopSound = sound
+function ENT:SetStopSound(snd)
+  self.stopSound = snd
 end
 
 function ENT:GetStopSound()
   return self.stopSound
 end
 
-function ENT:SetKillSound(sound)
-  self.killSound = sound
+function ENT:SetKillSound(snd)
+  self.killSound = snd
 end
 
 function ENT:GetKillSound()

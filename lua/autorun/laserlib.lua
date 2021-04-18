@@ -20,7 +20,7 @@ DATA.MAT = {
   -- [1] Model used by the entities menu
   {""}, -- Laser material is changed with the model
   {"models/props_combine/health_charger_glass"},
-  {""}
+  {"debug/env_cubemap_model"}
 }
 
 DATA.COLOR = {
@@ -29,6 +29,49 @@ DATA.COLOR = {
 }
 
 DATA.TOOL = "laseremitter"
+
+DATA.REFLECT = {
+  [1] = "cubemap", -- Cube maps textures
+  [1] = "shiny"  , -- All shiny stuff reflect
+  [2] = "chrome" , -- Chrome stuff reflect
+  -- Used for prop updates and checks
+  ["#"]                                = "debug/env_cubemap_model",
+  ["debug/env_cubemap_model"]          = true,
+  -- User for general class control
+  ["shiny"]                            = true,
+  ["chrome"]                           = true,
+  ["cubemap"]                          = true,
+  -- Materials that are overriden and directly hash searched
+  ["phoenix_storms/pack2/bluelight"]   = true,
+  ["phoenix_storms/window"]            = true,
+  ["sprops/trans/wheels/wheel_d_rim1"] = true
+}; DATA.REFLECT.__size = #DATA.REFLECT
+
+DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
+  [1] = "air"  , -- Air enumerator index
+  [2] = "glass", -- Glass enumerator index
+  [3] = "water", -- Glass enumerator index
+  -- Used for prop updates and chec
+  ["#"]                                         = "models/props_combine/health_charger_glass",
+  ["models/props_combine/health_charger_glass"] = 1.55, -- Used for prop updates
+  -- User for general class control
+  ["air"]                                       = 1.00, -- Air refraction index
+  ["glass"]                                     = 1.52, -- Ordinary glass
+  ["water"]                                     = 1.33, -- Water refraction index
+  -- Materials that are overriden and directly hash searched
+  ["Models/effects/vol_light001"]               = 1.00, -- Transperent air
+  ["models/props_combine/com_shield001a"]       = 1.57,
+  ["models/props_combine/combine_door01_glass"] = 1.58, -- Bit darker glass
+  ["models/airboat/airboat_blur02"]             = 1.64, -- Non pure glass 1
+  ["models/dog/eyeglass"]                       = 1.61, -- Non pure glass 2
+  ["models/effects/comball_glow2"]              = 1.53, -- Glass with some impurites
+  ["models/props_combine/combine_fenceglow"]    = 1.63, -- Glass with decent impurites
+  ["models/props_lab/xencrystal_sheet"]         = 1.55, -- Amber refraction index
+  ["models/shadertest/predator"]                = 1.33, -- Water refraction index
+  ["models/shadertest/shader3"]                 = 1.33, -- Water refraction index
+  ["models/spawn_effect"]                       = 1.33, -- Water refraction index
+  ["models/shadertest/shader4"]                 = 1.38  -- Water with some impurites
+}; DATA.REFRACT.__size = #DATA.REFRACT
 
 function LaserLib.GetTool()
   return DATA.TOOL
@@ -53,11 +96,17 @@ function LaserLib.GetMaterial(iK, iD)
   return (tI and (tI[iD] or tI[1]) or nil)
 end
 
-function LaserLib.GetReflectedVector(incident, normal)
+function LaserLib.GetReflected(incident, normal)
   local reflect = Vector(normal)
         reflect:Mul(-2 * normal:Dot(incident))
         reflect:Add(incident)
   return reflect
+end
+
+function LaserLib.UpdateRB(base, vec, func)
+  base.x = func(base.x, vec.x)
+  base.y = func(base.y, vec.y)
+  base.z = func(base.z, vec.z)
 end
 
 if(SERVER) then
@@ -107,9 +156,9 @@ if(SERVER) then
             -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way
             target:GetRagdollEntity():SetName(dissolverEnt.Target)
           else
-            target:SetName( dissolverEnt.Target )
+            target:SetName(dissolverEnt.Target)
             if(target:GetActiveWeapon():IsValid()) then
-              target:GetActiveWeapon():SetName( dissolverEnt.Target )
+              target:GetActiveWeapon():SetName(dissolverEnt.Target)
             end
           end
 
@@ -173,22 +222,74 @@ if(SERVER) then
 
 end
 
---[[ Traces a laser beam from the entity provided
+--[[
+Checks when the entity has reflective mirror texture
+ * ent > Entity to retrieve the setting for
+ * set > The dedicated parameeters setting to check
+]]
+function LaserLib.GetSetting(ent, set)
+  if(not ent) then return nil end
+  if(not ent:IsValid()) then return nil end
+  local mat = ent:GetMaterial()
+  if(mat == "") then
+    mat = ent:GetMaterials()[1]
+  end
+  -- Protect hesh indexing by nil
+  if(not mat) then return nil end
+  -- Check for element overrides
+  if(set[mat]) then return set[mat] end
+  -- Check for emement category
+  for i = 1, set.__size do
+    local key = set[i]
+    if(mat:find(key, 1, true)) then
+      return set[key]
+    end
+  end; return nil
+end
+
+function LaserLib.GetReflect()
+  return DATA.REFLECT["#"]
+end
+
+function LaserLib.GetRefract()
+  return DATA.REFRACT["#"]
+end
+
+--[[
+Projects the OBB onto the ray defined by position and direction
+Returns the projected position as the beam position
+ * ent > The laser entity
+ * dir > The beam direction
+]]
+function LaserLib.GetBeamPos(ent, dir)
+  local pos = Vector(ent:GetPos())
+  local obb = ent:LocalToWorld(ent:OBBCenter())
+        obb:Sub(pos)
+  local ofs = obb:Dot(dir)
+        obb:Set(dir)
+        obb:Normalize()
+        obb:Mul(ofs)
+        pos:Add(obb)
+  return pos
+end
+
+--[[
+Traces a laser beam from the entity provided
  * entity > Entity origin to trace the beam from
  * origin > Inititial ray origin position vector
  * direct > Inititial ray world direction vector
  * length > Total beam length to be traced
  * bounce > Maximum amount of reflector bounces
 ]]
-local gsReflectMod = LaserLib.GetModel(3, 1)
 function LaserLib.DoBeam(entity, origin, direct, length, bounce)
   local data, trace = {}
   -- Configure data structure
-  data.IsMirror = false
+  data.Tracing  = false
   data.TeFilter = entity
   data.VrOrigin = Vector(origin)
   data.VrDirect = Vector(direct)
-  data.TvPoints = {data.Origin}
+  data.TvPoints = {}; table.insert(data.TvPoints, Vector(origin))
+  data.TreIndex = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
   data.MxBounce = math.floor(math.max(tonumber(bounce) or 0, 0))
   data.CrBounce = 0 -- All the bounces the loop made so far
   data.BmLength = math.max(tonumber(length) or 0, 0)
@@ -207,20 +308,23 @@ function LaserLib.DoBeam(entity, origin, direct, length, bounce)
 
     table.insert(data.TvPoints, trace.HitPos)
 
-    if(trace.Entity and
-       trace.Entity:IsValid() and
-       trace.Entity:GetModel() == gsReflectMod)
-    then
-      data.IsMirror = true
-      data.VrOrigin:Set(trace.HitPos)
-      data.VrDirect:Set(LaserLib.GetReflectedVector(data.VrDirect, trace.HitNormal))
-      data.BmLength = data.BmLength - data.BmLength * trace.Fraction
-      data.TeFilter = trace.Entity
-      data.CrBounce = data.CrBounce + 1
+    if(trace.Entity and trace.Entity:IsValid()) then
+      if(LaserLib.GetSetting(trace.Entity, DATA.REFLECT)) then
+        data.Tracing = true
+        data.VrOrigin:Set(trace.HitPos)
+        data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
+        data.BmLength = data.BmLength - data.BmLength * trace.Fraction
+        data.CrBounce = data.CrBounce + 1
+      elseif(LaserLib.GetSetting(trace.Entity, DATA.REFRACT)) then
+        data.Tracing = false -- Temporaty prevent inifinite looks when refracting the beam
+      else
+        data.Tracing = false
+      end
     else
-      data.IsMirror = false
+      data.Tracing = false
     end
-  until(not data.IsMirror or data.CrBounce > data.MxBounce)
+
+  until(not data.Tracing or data.CrBounce > data.MxBounce)
 
   return trace, data
 end

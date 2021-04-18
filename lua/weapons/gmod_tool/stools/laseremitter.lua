@@ -157,6 +157,27 @@ end
 
 cleanup.Register(gsUnit.."s")
 
+--[[
+Applies the final posutional and angular offsets to the laser spawned
+Adjusts the custom model angle and calculates the touch position
+ * ent   > The laser entity to preform the operation for
+ * trace > The trace that player is aiming for
+]]
+function TOOL:ApplySpawn(ent, trace)
+  local aos = self:GetClientNumber("angleoffset")
+  local ang = trace.HitNormal:Angle()
+        ang.pitch = ang.pitch + 90 - aos
+  local oob = ent:OBBMins()
+        oob:Rotate(ent:WorldToLocalAngles(ang))
+        cnv = ent:LocalToWorld(oob)
+        cnv:Sub(ent:GetPos())
+  local srf = math.abs(trace.HitNormal:Dot(cnv))
+  local pos = Vector(trace.HitNormal)
+        pos:Mul(srf); pos:Add(trace.HitPos)
+  ent:SetPos(pos)
+  ent:SetAngles(ang)
+end
+
 function TOOL:LeftClick(trace)
   if(CLIENT) then return true end
   if(not trace.HitPos) then return false end
@@ -188,15 +209,12 @@ function TOOL:LeftClick(trace)
     return true
   end
 
-  local ang = trace.HitNormal:Angle()
-        ang.pitch = ang.pitch + 90 - angleOffset
-
-  local laser = LaserLib.New(ply, trace.HitPos, ang, model, angleOffset, key, width, length, damage, material,
+  local laser = LaserLib.New(ply, trace.HitPos, trace.HitNormal:Angle(), model, angleOffset, key, width, length, damage, material,
                   dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect)
 
   if(not (laser and laser:IsValid())) then return false end
 
-  laser:SetPos(trace.HitPos - trace.HitNormal * laser:OBBMins().z)
+  self:ApplySpawn(laser, trace)
 
   undo.Create("LaserEmitter")
     undo.AddEntity(laser)
@@ -220,15 +238,36 @@ function TOOL:RightClick(trace)
   return false
 end
 
+function TOOL:Reload(trace)
+  if(CLIENT) then return true end
+  if(not trace) then return false end
+  if(not trace.Entity)  then return false end
+  local ply, ent = self:GetOwner(), trace.Entity
+  if(not ent:IsValid())  then return false end
+  if(ent:IsPlayer()) then return false end
+  if(ply:KeyDown(IN_SPEED)) then
+    trace.Entity:SetMaterial(LaserLib.GetRefract())
+  else
+    trace.Entity:SetMaterial(LaserLib.GetReflect())
+  end
+  return true
+end
+
 if(SERVER) then
   duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New, "pos", "ang", "model", "angleOffset", "key", "width", "length","damage", "material", "dissolveType", "startSound", "stopSound", "killSound", "toggle", "startOn","pushProps", "endingEffect", "Vel", "aVel", "frozen")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
-  if(not (ent and ent:IsValid())) then return end
-  if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
+  if(not ent) then return end
+  if(not ply) then return end
+  if(ent:IsPlayer()) then return end
+  if(not ent:IsValid()) then return end
+  if(not ply:IsValid()) then return end
+  if(not ply:IsPlayer()) then return end
 
   local trace = ply:GetEyeTrace()
+
+  self:ApplySpawn(ent, trace)
 
   if(not trace.Hit or
          trace.Entity:IsPlayer() or
@@ -238,11 +277,6 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
     return
   end
 
-  local ang = trace.HitNormal:Angle()
-        ang.pitch = ang.pitch + 90 - self:GetClientNumber("angleoffset")
-
-  ent:SetPos(trace.HitPos - trace.HitNormal * ent:OBBMins().z)
-  ent:SetAngles(ang)
   ent:SetNoDraw(false)
 end
 

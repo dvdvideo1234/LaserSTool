@@ -10,16 +10,14 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-local gsReflectMod = LaserLib.GetModel(3, 1)
-local gsReflectCls = LaserLib.GetClass(3, 2)
-
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
   local pos = tr.HitPos + tr.HitNormal * 35
-  local ent = ents.Create(gsReflectCls)
-  ent:SetModel(gsReflectMod)
+  local ent = ents.Create(LaserLib.GetClass(3, 2))
+  ent:SetModel(LaserLib.GetModel(3, 1))
+  ent:SetMaterial(LaserLib.GetMaterial(3, 1))
   ent:SetPos(pos)
   ent:Spawn()
   ent:Activate()
