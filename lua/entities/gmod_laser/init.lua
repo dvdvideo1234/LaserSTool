@@ -3,10 +3,6 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-local varMaxBounces = GetConVar("laseremitter_maxbounces")
-local gsReflectMod = LaserLib.GetModel(3, 1)
-local gsLaseremCls = LaserLib.GetClass(1, 1)
-
 function ENT:ApplyDupeInfo(ply, ent, info, entid)
   if(WireLib) then
     WireLib.ApplyDupeInfo(ply, ent, info, entid)
@@ -42,9 +38,7 @@ function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
 
   local phys = self:GetPhysicsObject()
-  if(phys:IsValid()) then
-    phys:Wake()
-  end
+  if(phys:IsValid()) then phys:Wake() end
 
   if(WireLib)then
     WireLib.CreateSpecialInputs(self, {"On", "Length", "Width", "Damage"})
@@ -52,33 +46,51 @@ function ENT:Initialize()
   end
 end
 
-function ENT:Think()
-  if(self:GetOn()) then
-    local direct = self:GetBeamDirection()
-    local origin = self:LocalToWorld(self:OBBCenter())
-    local trace, data = LaserLib.DoBeam(self,
-                                        origin,
-                                        direct,
-                                        self:GetBeamLength(),
-                                        varMaxBounces:GetInt())
-
-    -- FIXME : Eake the owner of the mirror get the kill instead of the owner of the laser
-    if(self:GetDamageAmmount() > 0 and trace and
-       trace.Entity and trace.Entity:IsValid() and
-       trace.Entity:GetClass() ~= gsLaseremCls and
-       trace.Entity:GetModel() ~= gsReflectMod)
+function ENT:DoDamage(trace, data)
+  -- FIXME : Eake the owner of the mirror get the kill instead of the owner of the laser
+  if(self:GetDamageAmount() > 0 and trace) then
+    local trent = trace.Entity
+    if(trent and trent:IsValid() and
+       trent:GetClass() ~= LaserLib.GetClass(1, 1) and
+       trent:GetClass() ~= LaserLib.GetClass(2, 1) and
+       trent:GetModel() ~= LaserLib.GetModel(3, 1))
     then
-      LaserLib.DoDamage(trace.Entity,
+      LaserLib.DoDamage(trent,
                         trace.HitPos,
                         trace.Normal,
                         data.VrDirect,
-                        self:GetDamageAmmount(),
+                        data.NvDamage,
                         self.ply,
                         self:GetDissolveType(),
                         self:GetPushProps(),
                         self:GetKillSound(),
                         self)
     end
+  end
+
+  return self
+end
+
+function ENT:DoBeam()
+  local origin = self:GetBeamOrigin()
+  local length = self:GetBeamLength()
+  local damage = self:GetDamageAmount()
+  local direct = self:GetBeamDirection()
+  local userfe = self:GetReflectionRate()
+  local trace, data = LaserLib.DoBeam(self,
+                                      origin,
+                                      direct,
+                                      length,
+                                      0, -- Width is not used
+                                      damage,
+                                      userfe)
+  return trace, data
+end
+
+function ENT:Think()
+  if(self:GetOn()) then
+    local trace, data = self:DoBeam()
+    self:DoDamage(trace, data)
   end
 
   self:NextThink(CurTime())
@@ -103,7 +115,7 @@ function ENT:TriggerInput(iname, value)
     if(value == 0) then value = self.defaultWidth end
     self:SetBeamWidth(value)
   elseif(iname == "Damage") then
-    self:SetDamageAmmount(value)
+    self:SetDamageAmount(value)
   elseif(iname == "Force") then
     -- TODO: Force for pushing props
   end

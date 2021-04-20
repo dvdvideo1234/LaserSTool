@@ -1,6 +1,9 @@
-LaserLib = {} -- Initialize the global variable of the library
+LaserLib = LaserLib or {} -- Initialize the global variable of the library
 
 local DATA = {}
+
+local gnSVF = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
+DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "5", gnSVF, "Maximum surface bounces for the laser beam", 0, 1000)
 
 DATA.CLS = {
   -- [1] Item true class [2] Spawn class from entities
@@ -30,21 +33,21 @@ DATA.COLOR = {
 
 DATA.TOOL = "laseremitter"
 
-DATA.REFLECT = {
+DATA.REFLECT = { -- Reflection data descriptor
   [1] = "cubemap", -- Cube maps textures
-  [1] = "shiny"  , -- All shiny stuff reflect
-  [2] = "chrome" , -- Chrome stuff reflect
+  [2] = "shiny"  , -- All shiny stuff reflect
+  [3] = "chrome" , -- Chrome stuff reflect
   -- Used for prop updates and checks
   ["#"]                                = "debug/env_cubemap_model",
-  ["debug/env_cubemap_model"]          = true,
+  ["debug/env_cubemap_model"]          = 0.999,
   -- User for general class control
-  ["shiny"]                            = true,
-  ["chrome"]                           = true,
-  ["cubemap"]                          = true,
+  ["shiny"]                            = 0.854,
+  ["chrome"]                           = 0.955,
+  ["cubemap"]                          = 0.999,
   -- Materials that are overriden and directly hash searched
-  ["phoenix_storms/pack2/bluelight"]   = true,
-  ["phoenix_storms/window"]            = true,
-  ["sprops/trans/wheels/wheel_d_rim1"] = true
+  ["phoenix_storms/pack2/bluelight"]   = 0.681,
+  ["phoenix_storms/window"]            = 0.854,
+  ["sprops/trans/wheels/wheel_d_rim1"] = 0.943
 }; DATA.REFLECT.__size = #DATA.REFLECT
 
 DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
@@ -53,24 +56,24 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [3] = "water", -- Glass enumerator index
   -- Used for prop updates and chec
   ["#"]                                         = "models/props_combine/health_charger_glass",
-  ["models/props_combine/health_charger_glass"] = 1.55, -- Used for prop updates
+  ["models/props_combine/health_charger_glass"] = 1.552, -- Used for prop updates
   -- User for general class control
-  ["air"]                                       = 1.00, -- Air refraction index
-  ["glass"]                                     = 1.52, -- Ordinary glass
-  ["water"]                                     = 1.33, -- Water refraction index
+  ["air"]                                       = 1.000, -- Air refraction index
+  ["glass"]                                     = 1.521, -- Ordinary glass
+  ["water"]                                     = 1.333, -- Water refraction index
   -- Materials that are overriden and directly hash searched
-  ["Models/effects/vol_light001"]               = 1.00, -- Transperent air
-  ["models/props_combine/com_shield001a"]       = 1.57,
-  ["models/props_combine/combine_door01_glass"] = 1.58, -- Bit darker glass
-  ["models/airboat/airboat_blur02"]             = 1.64, -- Non pure glass 1
-  ["models/dog/eyeglass"]                       = 1.61, -- Non pure glass 2
-  ["models/effects/comball_glow2"]              = 1.53, -- Glass with some impurites
-  ["models/props_combine/combine_fenceglow"]    = 1.63, -- Glass with decent impurites
-  ["models/props_lab/xencrystal_sheet"]         = 1.55, -- Amber refraction index
-  ["models/shadertest/predator"]                = 1.33, -- Water refraction index
-  ["models/shadertest/shader3"]                 = 1.33, -- Water refraction index
-  ["models/spawn_effect"]                       = 1.33, -- Water refraction index
-  ["models/shadertest/shader4"]                 = 1.38  -- Water with some impurites
+  ["Models/effects/vol_light001"]               = 1.000, -- Transperent air
+  ["models/props_combine/com_shield001a"]       = 1.573,
+  ["models/props_combine/combine_door01_glass"] = 1.583, -- Bit darker glass
+  ["models/airboat/airboat_blur02"]             = 1.647, -- Non pure glass 1
+  ["models/dog/eyeglass"]                       = 1.612, -- Non pure glass 2
+  ["models/effects/comball_glow2"]              = 1.536, -- Glass with some impurites
+  ["models/props_combine/combine_fenceglow"]    = 1.638, -- Glass with decent impurites
+  ["models/props_lab/xencrystal_sheet"]         = 1.555, -- Amber refraction index
+  ["models/shadertest/predator"]                = 1.333, -- Water refraction index
+  ["models/shadertest/shader3"]                 = 1.333, -- Water refraction index
+  ["models/spawn_effect"]                       = 1.333, -- Water refraction index
+  ["models/shadertest/shader4"]                 = 1.385  -- Water with some impurites
 }; DATA.REFRACT.__size = #DATA.REFRACT
 
 function LaserLib.GetTool()
@@ -109,6 +112,10 @@ function LaserLib.UpdateRB(base, vec, func)
   base.z = func(base.z, vec.z)
 end
 
+function LaserLib.GetBeamWidth(width)
+  return math.Clamp(width, 0.1, 100)
+end
+
 if(SERVER) then
 
   AddCSLuaFile("autorun/laserlib.lua")
@@ -130,8 +137,8 @@ if(SERVER) then
     laserEnt.NextLaserDamage = laserEnt.NextLaserDamage or CurTime()
 
     if(pushProps and target:GetPhysicsObject():IsValid()) then
-      target:GetPhysicsObject():ApplyForceCenter(beamDir * 1600)
-    end -- TODO: Laser must be able to adjust the push prop force
+      target:GetPhysicsObject():ApplyForceCenter(beamDir * pushProps)
+    end
 
     if(CurTime() >= laserEnt.NextLaserDamage) then
       if(target:IsVehicle() and target:GetDriver():IsValid()) then
@@ -177,49 +184,44 @@ if(SERVER) then
     end
   end
 
-  local gsUnit = LaserLib.GetTool()
-  local gsLaseremCls = LaserLib.GetClass(1, 1)
-  function LaserLib.New(ply, pos, ang, model, angleOffset, key, width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, Vel, aVel, frozen)
-    if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
-    if(not ply:CheckLimit(gsUnit.."s")) then return nil end
+  function LaserLib.New(ply        , pos         , ang         , model     ,
+                        angleOffset, key         , width       , length    ,
+                        damage     , material    , dissolveType, startSound,
+                        stopSound  , killSound   , toggle      , startOn   ,
+                        pushProps  , endingEffect, reflectRate , frozen)
 
-    local laser = ents.Create(gsLaseremCls)
+    local unit = LaserLib.GetTool()
+    if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
+    if(not ply:CheckLimit(unit.."s")) then return nil end
+
+    local laser = ents.Create(LaserLib.GetClass(1, 1))
     if(not (laser and laser:IsValid())) then return nil end
 
     laser:SetPos(pos)
     laser:SetAngles(ang)
     laser:SetModel(Model(model))
     laser:SetAngleOffset(angleOffset)
+    laser:EnableMotion(not frozen)
     laser:Spawn()
-    laser:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, false)
+    laser:SetCreator(ply)
+    laser:Setup(width       , length    , damage   , material    ,
+                dissolveType, startSound, stopSound, killSound   ,
+                toggle      , startOn   , pushProps, endingEffect,
+                reflectRate , false)
 
-    ply:AddCount(gsUnit.."s", laser)
+    ply:AddCount(unit.."s", laser)
     numpad.OnDown(ply, key, "Laser_On", laser)
     numpad.OnUp(ply, key, "Laser_Off", laser)
 
-    local ttable   = {
-      ply          = ply,
-      key          = key,
-      width        = width,
-      length       = length,
-      damage       = damage,
-      material     = material,
-      dissolveType = dissolveType,
-      startSound   = startSound,
-      stopSound    = stopSound,
-      killSound    = killSound,
-      toggle       = toggle,
-      startOn      = startOn,
-      pushProps    = pushProps,
-      endingEffect = endingEffect,
-      angleOffset  = angleOffset
-    }
-
-    table.Merge(laser:GetTable(), ttable)
+    table.Merge(self:GetTable(), {
+      ply         = ply,
+      key         = key,
+      angleOffset = angleOffset,
+      frozen      = frozen
+    })
 
     return laser
   end
-
 end
 
 --[[
@@ -279,25 +281,32 @@ Traces a laser beam from the entity provided
  * origin > Inititial ray origin position vector
  * direct > Inititial ray world direction vector
  * length > Total beam length to be traced
- * bounce > Maximum amount of reflector bounces
+ * width  > The amout of themage the beam does
+ * damage > The amout of themage the beam does
+ * userfe > Use surface material reflecting efficiency
 ]]
-function LaserLib.DoBeam(entity, origin, direct, length, bounce)
+function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
   local data, trace = {}
   -- Configure data structure
   data.Tracing  = false
   data.TeFilter = entity
+  data.TvPoints = {Size = 0}
   data.VrOrigin = Vector(origin)
   data.VrDirect = Vector(direct)
-  data.TvPoints = {}; table.insert(data.TvPoints, Vector(origin))
-  data.TreIndex = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
-  data.MxBounce = math.floor(math.max(tonumber(bounce) or 0, 0))
-  data.CrBounce = 0 -- All the bounces the loop made so far
   data.BmLength = math.max(tonumber(length) or 0, 0)
+  data.NvDamage = math.max(tonumber(damage) or 0, 0)
+  data.NvWidth  = math.max(tonumber(width ) or 0, 0)
+  data.TreIndex = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
+  data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
+  data.CrBounce, data.NvLength = data.MxBounce, data.BmLength
 
   if(data.BmLength <= 0) then return end
   if(not data.TeFilter) then return end
   if(not data.TeFilter:IsValid()) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
+
+  table.insert(data.TvPoints, {Vector(origin), data.NvWidth, data.NvDamage})
+  data.TvPoints.Size = data.TvPoints.Size + 1
 
   repeat
     if(StarGate) then
@@ -305,17 +314,26 @@ function LaserLib.DoBeam(entity, origin, direct, length, bounce)
     else
       trace = util.QuickTrace(data.VrOrigin, data.VrDirect:GetNormalized() * data.BmLength, data.TeFilter)
     end
+    local reflect = LaserLib.GetSetting(trace.Entity, DATA.REFLECT)
+    local refract = LaserLib.GetSetting(trace.Entity, DATA.REFRACT)
 
-    table.insert(data.TvPoints, trace.HitPos)
+    table.insert(data.TvPoints, {trace.HitPos, data.NvWidth, data.NvDamage})
+    data.TvPoints.Size = data.TvPoints.Size + 1
 
     if(trace.Entity and trace.Entity:IsValid()) then
-      if(LaserLib.GetSetting(trace.Entity, DATA.REFLECT)) then
+      if(reflect) then
         data.Tracing = true
         data.VrOrigin:Set(trace.HitPos)
         data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
         data.BmLength = data.BmLength - data.BmLength * trace.Fraction
-        data.CrBounce = data.CrBounce + 1
-      elseif(LaserLib.GetSetting(trace.Entity, DATA.REFRACT)) then
+        data.CrBounce = data.CrBounce - 1
+        if(userfe) then
+          local info = data.TvPoints[data.TvPoints.Size]
+          data.NvWidth  = LaserLib.GetBeamWidth(reflect * data.NvWidth)
+          data.NvDamage = reflect * data.NvDamage
+          info[2], info[3] = data.NvWidth, data.NvDamage
+        end
+      elseif(refract) then
         data.Tracing = false -- Temporaty prevent inifinite looks when refracting the beam
       else
         data.Tracing = false
@@ -324,7 +342,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, bounce)
       data.Tracing = false
     end
 
-  until(not data.Tracing or data.CrBounce > data.MxBounce)
+  until(not data.Tracing or data.CrBounce <= 0)
+
+  if(SERVER) then
+    if(trace.Entity and
+       trace.Entity:IsValid() and
+       trace.Entity:GetClass() == LaserLib.GetClass(2, 1)) then
+      trace.Entity:InsertSource(entity, data)
+    end
+  end
 
   return trace, data
 end

@@ -6,52 +6,25 @@ if (WireLib) then
 else
   ENT.Base          = "base_entity"
 end
-ENT.WireDebugName  = "Laser"
 ENT.Author         = "MadJawa"
-ENT.Information    = ""
 ENT.Category       = ""
 ENT.Spawnable      = false
 ENT.AdminSpawnable = false
+ENT.Information    = ENT.PrintName
 
-local gnSVF = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
-local varMaxBounces = CreateConVar("laseremitter_maxbounces", "5", gnSVF, "Maximum surface bounces for the laser beam", 0, 1000)
-
-function ENT:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, update)
-  self:SetBeamWidth(width)
-  self.defaultWidth = width
-  self:SetBeamLength(length)
-  self.defaultLength = length
-  self:SetDamageAmmount(damage)
-  self:SetBeamMaterial(material)
-  self:SetDissolveType(dissolveType)
-  self:SetStartSound(startSound)
-  self:SetStopSound(stopSound)
-  self:SetKillSound(killSound)
-  self:SetToggle(toggle)
-  if((not toggle and update) or (not update)) then self:SetOn(startOn) end
-  self:SetPushProps(pushProps)
-  self:SetEndingEffect(endingEffect)
-
-  if(update) then
-    local ttable   = {
-      width        = width,
-      length       = length,
-      damage       = damage,
-      material     = material,
-      dissolveType = dissolveType,
-      startSound   = startSound,
-      stopSound    = stopSound,
-      killSound    = killSound,
-      toggle       = toggle,
-      startOn      = startOn,
-      pushProps    = pushProps,
-      endingEffect = endingEffect
-    }
-    table.Merge(self:GetTable(), ttable)
-  end
+function ENT:SetupBeamOrigin()
+  local forwd = self:GetBeamDirection()
+        forwd:Add(self:GetPos())
+        forwd:Set(self:WorldToLocal(forwd))
+  local obcen = self:OBBCenter()
+  local obdir = self:OBBMaxs()
+        obdir:Sub(self:OBBMins())
+  local kmulv = math.abs(obdir:Dot(forwd))
+        forwd:Mul(kmulv / 2)
+        obcen:Add(forwd)
+  self:SetNWVector("Origin", obcen)
 end
 
--- FIXME : find a way to dynamically get the laser unit vector according the angle offset of bad oriented models
 function ENT:GetBeamDirection()
   local aos = self:GetAngleOffset()
   if    (aos ==  90) then return self:GetForward()
@@ -60,11 +33,59 @@ function ENT:GetBeamDirection()
   else return self:GetUp() end
 end
 
+function ENT:Setup(width       , length    , damage   , material    ,
+                   dissolveType, startSound, stopSound, killSound   ,
+                   toggle      , startOn   , pushProps, endingEffect,
+                   reflectRate)
+  self:SetBeamWidth(width)
+  self.defaultWidth = width
+  self:SetBeamLength(length)
+  self.defaultLength = length
+  self:SetDamageAmount(damage)
+  self:SetBeamMaterial(material)
+  self:SetDissolveType(dissolveType)
+  self:SetStartSound(startSound)
+  self:SetStopSound(stopSound)
+  self:SetKillSound(killSound)
+  self:SetToggle(toggle)
+  self:SetPushProps(pushProps)
+  self:SetEndingEffect(endingEffect)
+  self:SetReflectionRate(reflectRate)
+  self:SetupBeamOrigin()
+
+  table.Merge(self:GetTable(), {
+    width        = width,
+    model        = model,
+    length       = length,
+    damage       = damage,
+    material     = material,
+    dissolveType = dissolveType,
+    startSound   = startSound,
+    stopSound    = stopSound,
+    killSound    = killSound,
+    toggle       = toggle,
+    startOn      = startOn,
+    pushProps    = pushProps,
+    endingEffect = endingEffect,
+    reflectRate  = reflectRate
+  })
+
+  if((not update) or
+    (not toggle and update))
+  then self:SetOn(startOn) end
+
+  return self
+end
+
+function ENT:GetBeamOrigin()
+  return self:LocalToWorld(self:GetNWVector("Origin"))
+end
+
 --[[ ----------------------
   Width
 ---------------------- ]]
 function ENT:SetBeamWidth(num)
-  local width = math.Clamp(num, 1, 100)
+  local width = LaserLib.GetBeamWidth(num)
   self:SetNWInt("Width", width)
   if(WireLib) then
     WireLib.TriggerOutput(self, "Width", width)
@@ -93,22 +114,22 @@ end
 --[[ ----------------------
   Damage
 ---------------------- ]]
-function ENT:SetDamageAmmount(num)
-  local damage = math.Round(num)
+function ENT:SetDamageAmount(num)
+  local damage = math.abs(num)
   self:SetNWInt("Damage", damage)
   if(WireLib) then
     WireLib.TriggerOutput(self, "Damage", damage)
   end
 end
 
-function ENT:GetDamageAmmount()
+function ENT:GetDamageAmount()
   return self:GetNWInt("Damage")
 end
 
 --[[ ----------------------
      Model Offset
 ---------------------- ]]
-function ENT:SetAngleOffset( offset )
+function ENT:SetAngleOffset(offset)
   self:SetNWInt("AngleOffset", offset)
 end
 
@@ -148,7 +169,7 @@ end
 ---------------------- ]]
 -- FIXME : Well, not really something to fix, but it seems that I can't set networked strings with a length higher than 39 (not ideal for sounds)
 function ENT:SetStartSound(snd)
-  self.startSound = snd
+  self.startSound = tostring(snd or "")
 end
 
 function ENT:GetStartSound()
@@ -156,7 +177,7 @@ function ENT:GetStartSound()
 end
 
 function ENT:SetStopSound(snd)
-  self.stopSound = snd
+  self.stopSound = tostring(snd or "")
 end
 
 function ENT:GetStopSound()
@@ -164,7 +185,7 @@ function ENT:GetStopSound()
 end
 
 function ENT:SetKillSound(snd)
-  self.killSound = snd
+  self.killSound = tostring(snd or "")
 end
 
 function ENT:GetKillSound()
@@ -175,7 +196,8 @@ end
   Toggle
 ---------------------- ]]
 function ENT:SetToggle(bool)
-  self:SetNWBool("Toggle", bool)
+  local togg = tobool(bool)
+  self:SetNWBool("Toggle", togg)
 end
 
 function ENT:GetToggle()
@@ -208,21 +230,34 @@ end
 --[[ ----------------------
       Prop pushing
 ---------------------- ]]
-function ENT:SetPushProps(bool)
-  self:SetNWBool("PushProps", bool)
+function ENT:SetPushProps(num)
+  self:SetNWFloat("PushProps", num)
 end
 
 function ENT:GetPushProps()
-  return self:GetNWBool("PushProps")
+  return self:GetNWFloat("PushProps")
 end
 
 --[[ ----------------------
      Ending Effect
 ---------------------- ]]
 function ENT:SetEndingEffect(bool)
-  self:SetNWBool("EndingEffect", bool)
+  local eeff = tobool(bool)
+  self:SetNWBool("EndingEffect", eeff)
 end
 
 function ENT:GetEndingEffect()
   return self:GetNWBool("EndingEffect")
+end
+
+--[[ ----------------------
+  Surface reflect efficiency
+---------------------- ]]
+function ENT:SetReflectionRate(bool)
+  local reff = tobool(bool)
+  self:SetNWBool("ReflectRate", reff)
+end
+
+function ENT:GetReflectionRate()
+  return self:GetNWBool("ReflectRate")
 end

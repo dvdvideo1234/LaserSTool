@@ -1,5 +1,4 @@
 local gsUnit = LaserLib.GetTool()
-local gcBaseWhite = LaserLib.GetColor("WHITE")
 local gsLaseremCls = LaserLib.GetClass(1, 1)
 local gsCrystalCls = LaserLib.GetClass(2, 1)
 local gsReflectCls = LaserLib.GetClass(3, 1)
@@ -25,14 +24,14 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".toggle", "Starts the laser when the button is hit")
   language.Add("tool."..gsUnit..".starton_con", "Start on creation")
   language.Add("tool."..gsUnit..".starton", "Starts the laser on when gets created")
-  language.Add("tool."..gsUnit..".pushprops_con", "Push props")
-  language.Add("tool."..gsUnit..".pushprops", "Seutp the laser beam to push props")
-  language.Add("tool."..gsUnit..".pushprops_con", "Push props")
+  language.Add("tool."..gsUnit..".pushprops_con", "Push props:")
   language.Add("tool."..gsUnit..".pushprops", "Seutp the laser beam to push props")
   language.Add("tool."..gsUnit..".endingeffect_con", "Ending effect")
   language.Add("tool."..gsUnit..".endingeffect", "Allow showing ending effects")
   language.Add("tool."..gsUnit..".worldweld_con", "Weld to surface")
   language.Add("tool."..gsUnit..".worldweld", "Welds the laser to the trace surface")
+  language.Add("tool."..gsUnit..".reflectrate_con", "Surface type reflection")
+  language.Add("tool."..gsUnit..".reflectrate", "Reflect the amount of power according to the surface type")
   language.Add("Cleanup_"..gsUnit, "Lasers")
   language.Add("Cleaned_"..gsUnit, "Cleaned up all Lasers")
   language.Add("Undone_"..gsUnit, "Undone Laser Emitter")
@@ -56,7 +55,7 @@ end
 
 if(CLIENT) then
   language.Add(gsLaseremCls, "Laser Emiter") -- Relative to materials
-  killicon.Add(gsLaseremCls, "vgui/entities/gmod_laser_killicon", gcBaseWhite)
+  killicon.Add(gsLaseremCls, "vgui/entities/gmod_laser_killicon", LaserLib.GetColor("WHITE"))
 
   language.Add(gsCrystalCls, "Laser Crystal")
   killicon.AddAlias(gsCrystalCls, gsLaseremCls)
@@ -81,10 +80,11 @@ TOOL.ClientConVar =
   [ "killsound"    ] = "ambient/levels/citadel/weapon_disintegrate1.wav",
   [ "toggle"       ] = 0,
   [ "starton"      ] = 0,
-  [ "pushprops"    ] = 1,
+  [ "pushprops"    ] = 100,
   [ "endingeffect" ] = 1,
   [ "worldweld"    ] = 0,
-  [ "angleoffset"  ] = 270
+  [ "angleoffset"  ] = 270,
+  [ "reflectrate"  ] = 1
 }
 
 list.Set("LaserEmitterModels", "models/props_combine/headcrabcannister01a_skybox.mdl", {laseremitter_angleoffset = 270})
@@ -184,33 +184,41 @@ function TOOL:LeftClick(trace)
   if(trace.Entity:IsPlayer()) then return false end
   if(not self:GetSWEP():CheckLimit(gsUnit.."s")) then return false end
 
-  local ply          = self:GetOwner()
   local key          = self:GetClientNumber("key")
   local width        = self:GetClientNumber("width")
   local length       = self:GetClientNumber("length")
   local damage       = self:GetClientNumber("damage")
+  local pushprops    = self:GetClientNumber("pushprops")
   local model        = self:GetClientInfo("model")
   local material     = self:GetClientInfo("material")
-  local stopSound    = self:GetClientInfo("stopsound")
-  local killSound    = self:GetClientInfo("killsound")
-  local startSound   = self:GetClientInfo("startsound")
-  local dissolveType = self:GetClientInfo("dissolvetype")
-  local angleOffset  = self:GetClientNumber("angleoffset")
+  local stopsound    = self:GetClientInfo("stopsound")
+  local killsound    = self:GetClientInfo("killsound")
+  local startsound   = self:GetClientInfo("startsound")
+  local dissolvetype = self:GetClientInfo("dissolvetype")
+  local angleoffset  = self:GetClientNumber("angleoffset")
   local toggle       = (self:GetClientNumber("toggle") ~= 0)
-  local startOn      = (self:GetClientNumber("starton") ~= 0)
-  local pushProps    = (self:GetClientNumber("pushprops") ~= 0)
-  local worldWeld    = (self:GetClientNumber("worldweld") ~= 0)
-  local endingEffect = (self:GetClientNumber("endingeffect") ~= 0)
+  local starton      = (self:GetClientNumber("starton") ~= 0)
+  local worldweld    = (self:GetClientNumber("worldweld") ~= 0)
+  local reflectrate  = (self:GetClientNumber("reflectrate") ~= 0)
+  local endingeffect = (self:GetClientNumber("endingeffect") ~= 0)
+  local ply, ent     = self:GetOwner(), trace.Entity
+  local pos, ang     = trace.HitPos   , trace.HitNormal:Angle()
 
-  if(trace.Entity:IsValid() and
-     trace.Entity:GetClass() == gsLaseremCls)
+  if(ent:IsValid() and
+     ent:GetClass() == gsLaseremCls)
   then
-    trace.Entity:Setup(width, length, damage, material, dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect, true)
+    ent:Setup(width       , length    , damage   , material    ,
+              dissolvetype, startsound, stopsound, killsound   ,
+              toggle      , starton   , pushprops, endingeffect,
+              reflectrate , true)
     return true
   end
 
-  local laser = LaserLib.New(ply, trace.HitPos, trace.HitNormal:Angle(), model, angleOffset, key, width, length, damage, material,
-                  dissolveType, startSound, stopSound, killSound, toggle, startOn, pushProps, endingEffect)
+  local laser = LaserLib.New(ply        , pos         , ang         , model     ,
+                             angleoffset, key         , width       , length    ,
+                             damage     , material    , dissolvetype, startsound,
+                             stopsound  , killsound   , toggle      , starton   ,
+                             pushprops  , endingeffect, reflectrate , frozen)
 
   if(not (laser and laser:IsValid())) then return false end
 
@@ -218,12 +226,12 @@ function TOOL:LeftClick(trace)
 
   undo.Create("LaserEmitter")
     undo.AddEntity(laser)
-    if(trace.Entity:IsValid() or worldWeld) then
-      local weld = constraint.Weld(laser, trace.Entity, trace.PhysicsBone, 0, 0)
+    if(ent:IsValid() or worldweld) then
+      local weld = constraint.Weld(laser, ent, trace.PhysicsBone, 0, 0)
       if(weld and weld:IsValid()) then
         undo.AddEntity(weld) -- Inser the weld in the undo list
         laser:DeleteOnRemove(weld) -- Remove the weld with the laser
-        trace.Entity:DeleteOnRemove(weld) -- Remove weld with the anchor
+        ent:DeleteOnRemove(weld) -- Remove weld with the anchor
       end
     end
     undo.SetPlayer(ply)
@@ -246,15 +254,35 @@ function TOOL:Reload(trace)
   if(not ent:IsValid())  then return false end
   if(ent:IsPlayer()) then return false end
   if(ply:KeyDown(IN_SPEED)) then
-    trace.Entity:SetMaterial(LaserLib.GetRefract())
+    ent:SetMaterial(LaserLib.GetRefract())
   else
-    trace.Entity:SetMaterial(LaserLib.GetReflect())
+    ent:SetMaterial(LaserLib.GetReflect())
   end
   return true
 end
 
 if(SERVER) then
-  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New, "pos", "ang", "model", "angleOffset", "key", "width", "length","damage", "material", "dissolveType", "startSound", "stopSound", "killSound", "toggle", "startOn","pushProps", "endingEffect", "Vel", "aVel", "frozen")
+  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New,
+    "ply",
+    "pos",
+    "ang",
+    "model",
+    "angleOffset",
+    "key",
+    "width",
+    "length",
+    "damage",
+    "material",
+    "dissolveType",
+    "startSound",
+    "stopSound",
+    "killSound",
+    "toggle",
+    "startOn",
+    "pushProps",
+    "endingEffect",
+    "reflectRate",
+    "frozen")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -296,7 +324,7 @@ local gtConvarList = TOOL:BuildConVarList()
 
 -- Enter `spawnmenu_reload` in the console to reload the panel
 function TOOL.BuildCPanel(panel)
-  panel:ClearControls()
+  panel:ClearControls(); panel:DockPadding(5, 0, 5, 10)
   panel:SetName(language.GetPhrase("tool."..gsUnit..".name"))
   panel:Help   (language.GetPhrase("tool."..gsUnit..".desc"))
 
@@ -318,6 +346,8 @@ function TOOL.BuildCPanel(panel)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".length"))
   pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".damage_con"), gsUnit.."_damage", 0, 5000, 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".damage"))
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".pushprops_con"), gsUnit.."_pushprops", 0, 50000, 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushprops"))
 
   panel:AddControl( "MatSelect", {  Label = "Material:",
                     Height = 1,
@@ -350,14 +380,14 @@ function TOOL.BuildCPanel(panel)
                   Command = gsUnit.."_killsound",
                   Options = list.Get( "LaserKillSounds" ) } )
 
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".worldweld_con"), gsUnit.."_worldweld")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".worldweld"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".toggle_con"), gsUnit.."_toggle")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".toggle"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".starton_con"), gsUnit.."_starton")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".starton"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".pushprops_con"), gsUnit.."_pushprops")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushprops"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".endingeffect_con"), gsUnit.."_endingeffect")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".endingeffect"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".worldweld_con"), gsUnit.."_worldweld")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".worldweld"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".reflectrate_con"), gsUnit.."_reflectrate")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".reflectrate"))
 end

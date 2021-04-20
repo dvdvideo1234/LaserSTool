@@ -10,17 +10,12 @@ ENT.Type           = "anim"
 ENT.PrintName      = "Laser Crystal"
 ENT.Base           = LaserLib.GetClass(1, 1)
 ENT.Author         = "MadJawa"
-ENT.Information    = ENT.PrintName
 ENT.Category       = "Other"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
+ENT.Information    = ENT.PrintName
 
 function ENT:GetBeamDirection()
   -- Crystal always cast the beam in the same direction
-	return self.Entity:GetUp()
-end
-
-function ENT:GetBeamStart()
-  -- FIXME: make it not start in the middle of the prop
-	return Vector(0, 0, 0)
+  return self.Entity:GetUp()
 end

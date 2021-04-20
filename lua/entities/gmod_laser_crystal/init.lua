@@ -10,167 +10,187 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-local varMaxBounces = GetConVar("laseremitter_maxbounces")
-local gsCrystalMod = LaserLib.GetModel(2, 1)
-local gsCrystalCls = LaserLib.GetClass(2, 2)
-local gsCrystalMat = LaserLib.GetMaterial(2, 1)
+function ENT:Initialize()
+  self:SetSolid(SOLID_VPHYSICS)
+  self:PhysicsInit(SOLID_VPHYSICS)
+  self:SetMoveType(MOVETYPE_VPHYSICS)
 
-function ENT:SpawnFunction(ply, tr)
- 	if(not tr.Hit) then return end
-  -- Sets the right angle at spawn. Thanks to aVoN!
- 	local pos = tr.HitPos + tr.HitNormal * 35
-  local yaw = (ply:GetAimVector():Angle().y + 180) % 360
- 	local ent = ents.Create(gsCrystalCls)
-	ent:SetModel(gsCrystalMod)
-	ent:SetMaterial(gsCrystalMat)
-	ent:SetPos(pos)
-	ent:SetAngles(Angle(0, yaw, 0))
- 	ent:Spawn()
- 	ent:Activate()
-	return ent
+  local phys = self:GetPhysicsObject()
+  if(phys:IsValid()) then phys:Wake() end
+
+  self:SetupSources()
+  self:SetBeamWidth(0)
+  self:SetBeamLength(0)
+  self:SetDamageAmount(0)
+  self:SetStartSound("ambient/energy/weld1.wav")
+  self:SetStopSound("ambient/energy/weld2.wav")
+  self:SetBeamMaterial("cable/physbeam")
+
+  if(WireLib) then
+    WireLib.CreateSpecialOutputs(self, {"Focusing", "Hit"})
+  end
 end
 
-function ENT:Initialize()
+function ENT:SpawnFunction(ply, tr)
+  if(not tr.Hit) then return end
+  -- Sets the right angle at spawn. Thanks to aVoN!
+  local pos = tr.HitPos + tr.HitNormal * 35
+  local yaw = (ply:GetAimVector():Angle().y + 180) % 360
+  local ent = ents.Create(LaserLib.GetClass(2, 2))
+  ent:SetModel(LaserLib.GetModel(2, 1))
+  ent:SetMaterial(LaserLib.GetMaterial(2, 1))
+  ent:SetPos(pos)
+  ent:SetAngles(Angle(0, yaw, 0))
+  ent:Spawn()
+  ent:Activate()
+  ent:SetupBeamOrigin()
+  return ent
+end
 
-	self.Entity:PhysicsInit(SOLID_VPHYSICS)
-	self.Entity:SetMoveType(MOVETYPE_VPHYSICS)
-	self.Entity:SetSolid(SOLID_VPHYSICS)
+function ENT:SetupSources()
+  if(self.Sources) then
+    table.Empty(self.Sources)
+  else self.Sources = {} end
+  self.Size, self.Hits = 0, 0
+  return self
+end
 
-	local phys = self.Entity:GetPhysicsObject()
-	if(phys:IsValid()) then phys:Wake() end
+function ENT:IsSource(ent)
+  if(not ent) then return false end
+  if(not ent:IsValid()) then return false end
+  if(ent == self) then return false end
+  return (self.Sources[ent] ~= nil)
+end
 
-	self.Targets = {}
-	self.Hits    = {}
+function ENT:ClearSources()
+  for ent, data in pairs(self.Sources) do
+    self.Sources[ent] = nil
+  end; return self
+end
 
-	self:SetBeamLength(0)
-	self:SetBeamWidth(0, true)
-	self:SetDamageAmmount(0)
-	self:SetBeamMaterial("cable/physbeam")
+function ENT:CountSources()
+  self.Hits = 0
+  for ent, data in pairs(self.Sources) do
+    if(self:IsSource(ent)) then
+      self.Hits = self.Hits + 1
+    end
+  end; return self.Hits
+end
 
-	if(WireLib) then
-		WireLib.CreateSpecialOutputs(self.Entity, {"Focusing", "Hit"})
-	end
+function ENT:InsertSource(ent, data)
+  if(self:IsSource(ent)) then
+    self.Sources[ent] = data
+  else
+    self.Size = self.Size + 1
+    self.Sources[ent] = data
+  end
+  return self
+end
+
+function ENT:IsInfinite(ent)
+  if(ent == self) then return true end
+  local class = LaserLib.GetClass(2, 1)
+  if(ent:GetClass() == class) then
+    local flag = false -- Assume for no infinite loop
+    for k, v in pairs(ent.Sources) do -- Check sources
+      if(v) then -- Crystal has been hyt by other crystal
+        if(k:GetClass() == class) then -- Check sources
+          flag = k:IsInfinite(ent)
+        else -- The source of the other one is not crystal
+          flag = false
+        end
+        if(flag) then return true end
+      end
+    end
+  else -- The entity is laser
+    return false
+  end
+end
+
+function ENT:UpdateDominant(ent)
+  -- We set the same non-addable properties
+  -- The most powerful laser (biggest damage/width)
+  if(self:IsSource(ent)) then
+    local user = (ent.ply or ent.player)
+    self:SetPushProps(ent:GetPushProps())
+    self:SetStopSound(ent:SetStopSound())
+    self:SetKillSound(ent:GetKillSound())
+    self:SetStartSound(ent:SetStartSound())
+    self:SetBeamMaterial(ent:GetBeamMaterial())
+    self:SetDissolveType(ent:GetDissolveType())
+    self:SetEndingEffect(ent:GetEndingEffect())
+    if(user and
+       user:IsValid() and
+       user:IsPlayer())
+    then
+      self.ply    = user
+      self.player = user
+      self:SetPlayer(user)
+    end
+  end
+  return self
+end
+
+function ENT:UpdateBeam()
+  local size = self.Size
+  local width , length, damage    = 0, 0, 0
+  local opower, npower , dominant = 0, 0, 1
+
+  if(size and size > 0) then
+    for ent, data in pairs(self.Sources) do
+      if(data and not self:IsInfinite(ent)) then
+        width  = width  + data.NvWidth
+        length = length + data.NvLength
+        damage = damage + data.NvDamage
+        npower = 3 * data.NvWidth + data.NvDamage
+
+        if(npower > opower) then
+          dominant, opower = ent, npower
+        end
+      end
+    end
+    width = LaserLib.GetBeamWidth(width)
+    self:SetBeamWidth(width)
+    self:SetBeamLength(length)
+    self:SetDamageAmount(damage)
+    self:UpdateDominant(dominant)
+  end
 end
 
 function ENT:Think()
+  local count = self:CountSources()
 
-	local isUpdate
-
-	for k, v in pairs(self.Hits) do
-		local lastTarget
-		if v then lastTarget = v.Targets[#v.Targets]
-		else lastTarget = nil end
-
-		if(not lastTarget or lastTarget ~= self) then
-			table.remove(self.Hits, k)
-			isUpdate = true
-		elseif(v and v.IsModified) then
-			isUpdate = true
-			v.IsModified = false
-		end
-	end
-
-	if(isUpdate) then
-    self:UpdateLaserProperties()
-  end
-
-	if(#self.Hits > 0) then
+  if(count > 0) then
+    self:UpdateBeam()
     self:SetOn(true)
+
+    if(self:GetOn()) then
+
+      local trace, data = self:DoBeam()
+
+      if(WireLib) then
+        if(trace.Entity and trace.Entity:IsValid()) then
+
+          self:DoDamage(trace, data)
+
+          WireLib.TriggerOutput(self, "Hit", 1)
+        else
+          WireLib.TriggerOutput(self, "Hit", 0)
+        end
+      end
+    end
+
   else
     self:SetOn(false)
-    self.Hits = {}
+    self:SetupSources()
   end
 
-	if(WireLib) then
-    WireLib.TriggerOutput(self.Entity, "Focusing", #self.Hits)
+  if(WireLib) then
+    WireLib.TriggerOutput(self, "Focusing", count)
   end
 
-	if(self:GetOn()) then
-		local trace = LaserLib.DoBeam(self.Entity,
-                                  self:GetBeamStart(),
-                                  self:GetBeamDirection(),
-                                  self:GetBeamLength(),
-                                  varMaxBounces:GetInt())
+  self:ClearSources()
+  self:NextThink(CurTime())
 
-		if(WireLib) then
-			if(trace.Entity and trace.Entity:IsValid()) then
-				WireLib.TriggerOutput(self.Entity, "Hit", 1)
-			else
-				WireLib.TriggerOutput(self.Entity, "Hit", 0)
-			end
-		end
-	end
-
-	self.Entity:NextThink(CurTime())
-
-	return true
-end
-
-function ENT:UpdateLaserProperties()
-	local width   , length, damage       = 0, 0, 0
-  local oldpower, power , mostPowerful = 0, 0, 1
-
-	if(#self.Hits > 0) then
-		for k, v in pairs(self.Hits) do
-			local laserWidth = v:GetBeamWidth()
-      local laserDmg   = v:GetDamageAmmount()
-			length = length + v:GetBeamLength()
-			width  = width  + laserWidth
-			damage = damage + laserDmg
-
-			power = 3 * laserWidth + laserDmg
-			if(power > oldpower) then
-				mostPowerful = k
-				oldpower = power
-			end
-		end
-
-		self:SetBeamWidth(math.Clamp(width, 1, 100))
-		self:SetBeamLength(length)
-		self:SetDamageAmmount(damage)
-
-		-- We set the same non-addable properties as the most powerful laser (biggest damage/width)
-		self:SetBeamMaterial(self.Hits[mostPowerful]:GetBeamMaterial())
-		self:SetDissolveType(self.Hits[mostPowerful]:GetDissolveType())
-		self:SetEndingEffect(self.Hits[mostPowerful]:GetEndingEffect())
-		self:SetPushProps(self.Hits[mostPowerful]:GetPushProps())
-		self:SetKillSound(self.Hits[mostPowerful]:GetKillSound())
-		self.ply = self.Hits[mostPowerful].ply
-
-		self.IsModified = true
-	end
-end
-
-function ENT:UpdateBounceCount(ent)
-	if(not table.HasValue(self.Hits, ent) and
-     not (ent:GetClass() == gsCrystalCls and self:IsInfiniteLaserLoop(ent)))
-  then
-		table.insert(self.Hits, ent)
-		if(not ent.IsModified) then
-      self:UpdateLaserProperties()
-    end -- When modified is true, it will update the laser on the next think
-	end
-end
-
-function ENT:IsInfiniteLaserLoop(ent)
-	if(ent == self) then return true end
-
-	local crystals = {ent}
-
-	repeat
-		newCrystals = {}
-		for k, v in pairs(crystals) do
-			for j, w in pairs(v.Hits) do
-				if(w:GetClass() == gsCrystalCls) then
-          -- This crystal is being hit by ours : infinite loop
-					if(w == self or table.HasValue(w.Hits, self)) then return true
-					else table.insert(newCrystals, w) -- If not, we add it to the table
-					end
-				end
-			end
-		end
-		crystals = table.Copy(newCrystals)
-	until(#crystals == 0)
-
-	return false
+  return true
 end

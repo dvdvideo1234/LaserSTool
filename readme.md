@@ -19,9 +19,15 @@ Just clone this repo in your addons folder and you are done.
 3. Implement reflection based on the traced texture ( `DONE` )
 4. Code refurbish and made in tone with GM13 ( `DONE` )
 5. Optimize and fix the think and draw routines ( `DONE` )
-6. Develop a way to use props as mirrors ( `DONE` )
-7. Fix the crystal power converge entity ( `WIP` )
-8. Develop a way to use props as and refractors ( `WIP` )
+6. Develop a system which uses props as mirrors ( `DONE` )
+7. Fix the crystal power converge entity ( `DONE` )
+8. Fix crystals output not get affected by the source [reflection rate][ref-reflect-rate] ( `DONE` )
+![][ref-reflect-rate]
+
+9. Develop a way to use props as refraction meduims via texture [refractors][ref-refract] ( `WIP` )
+10. Develop [refract][ref-refract] rate similar as [reflect rate][ref-reflect-rate] ( `WIP` )
+11. Develop senior [refracted][ref-refract] ray and minor [reflected][ref-reflect] ray on medium change (`WIP`)
+12. Develop [total internal reflection][ref-total-reflect] at the medium boundary (`WIP`)
 
 ### Workshop
 No. I see many copies of this tool everywhere, but still, there is none that
@@ -32,4 +38,8 @@ tool. Go ahead and install it, but do not ask me to put it into the workshop.
 ### Pull requests
 I am a fan of this tool, so any help I get will be appreciated.
 
+[ref-total-reflect]: https://en.wikipedia.org/wiki/Total_internal_reflection
+[ref-reflect]: https://en.wikipedia.org/wiki/Reflection_(physics)
+[ref-refract]: https://en.wikipedia.org/wiki/Refraction
 [ref-screenshot]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/screenshot.jpg
+[ref-reflect-rate]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/reflect_rate.jpg
