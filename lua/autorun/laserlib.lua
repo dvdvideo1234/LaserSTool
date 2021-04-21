@@ -129,17 +129,15 @@ end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
 function GetCollectionData(key, set)
-  local idx, out = DATA.KEYD
+  local idx = DATA.KEYD
   if(idx == key) then
-    def = set[idx]
-    out = set[def]
+    return set[set[idx]]
   else
-    out = set[key]
+    local out = set[key]
     if(not out) then
-      def = set[idx]
-      out = set[def]
-    end
-  end; return out
+      out = set[set[idx]]
+    end; return out
+  end
 end
 
 function LaserLib.GetDissolveType(disstype)
@@ -159,16 +157,18 @@ function GetMaterialData(ent, set)
   if(not ent) then return nil end
   if(not ent:IsValid()) then return nil end
   local mat = ent:GetMaterial()
-  if(mat == "") then
+  if(mat == "") then -- No override
     mat = ent:GetMaterials()[1]
-  end
-  -- Protect hesh indexing by nil
+  end -- Read the first entry from table
+  -- Protect hash indexing by nil
   if(not mat) then return nil end
+  -- Check for overriding with default
+  if(mat == DATA.KEYD) then return set[set[mat]] end
   -- Check for element overrides
   if(set[mat]) then return set[mat] end
   -- Check for emement category
-  for i = 1, set.__size do
-    local key = set[i]
+  for idx = 1, set.__size do
+    local key = set[idx]
     if(mat:find(key, 1, true)) then
       return set[key]
     end
