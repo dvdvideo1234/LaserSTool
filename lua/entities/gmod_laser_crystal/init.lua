@@ -122,19 +122,19 @@ function ENT:UpdateDominant(ent)
     if(user and
        user:IsValid() and
        user:IsPlayer())
-    then
+    then -- For prop protection addons
       self.ply    = user
       self.player = user
-      self:SetPlayer(user)
+      self:SetCreator(user)
     end
   end
   return self
 end
 
 function ENT:UpdateBeam()
-  local size = self.Size
-  local width , length, damage    = 0, 0, 0
-  local opower, npower , dominant = 0, 0, 1
+  local opower, npower = 0, 0
+  local size  , dominant = self.Size
+  local width , length, damage = 0, 0, 0
 
   if(size and size > 0) then
     for ent, data in pairs(self.Sources) do

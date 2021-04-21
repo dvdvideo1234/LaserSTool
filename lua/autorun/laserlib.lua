@@ -231,15 +231,15 @@ if(SERVER) then
     end
   end
 
-  function LaserLib.New(ply        , pos         , ang         , model     ,
+  function LaserLib.New(user       , pos         , ang         , model     ,
                         angleOffset, key         , width       , length    ,
                         damage     , material    , dissolveType, startSound,
                         stopSound  , killSound   , toggle      , startOn   ,
                         pushProps  , endingEffect, reflectRate , frozen)
 
     local unit = LaserLib.GetTool()
-    if(not (ply and ply:IsValid() and ply:IsPlayer())) then return nil end
-    if(not ply:CheckLimit(unit.."s")) then return nil end
+    if(not (user and user:IsValid() and user:IsPlayer())) then return nil end
+    if(not user:CheckLimit(unit.."s")) then return nil end
 
     local laser = ents.Create(LaserLib.GetClass(1, 1))
     if(not (laser and laser:IsValid())) then return nil end
@@ -250,18 +250,19 @@ if(SERVER) then
     laser:SetAngleOffset(angleOffset)
     laser:EnableMotion(not frozen)
     laser:Spawn()
-    laser:SetCreator(ply)
+    laser:SetCreator(user)
     laser:Setup(width       , length    , damage   , material    ,
                 dissolveType, startSound, stopSound, killSound   ,
                 toggle      , startOn   , pushProps, endingEffect,
                 reflectRate , false)
 
-    ply:AddCount(unit.."s", laser)
-    numpad.OnDown(ply, key, "Laser_On", laser)
-    numpad.OnUp(ply, key, "Laser_Off", laser)
+    user:AddCount(unit.."s", laser)
+    numpad.OnDown(user, key, "Laser_On", laser)
+    numpad.OnUp(user, key, "Laser_Off", laser)
 
     table.Merge(self:GetTable(), {
-      ply         = ply,
+      ply         = user,
+      player      = user, -- For prop protection addons
       key         = key,
       angleOffset = angleOffset,
       frozen      = frozen
@@ -337,9 +338,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
   data.TreIndex = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
   data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
-  data.CrBounce, data.NvLength = data.MxBounce, data.BmLength
+  data.NvBounce, data.NvLength = data.MxBounce, data.BmLength
 
-  if(data.BmLength <= 0) then return end
+  if(data.NvLength <= 0) then return end
   if(not data.TeFilter) then return end
   if(not data.TeFilter:IsValid()) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
@@ -349,9 +350,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
 
   repeat
     if(StarGate) then
-      trace = StarGate.Trace:New(data.VrOrigin, data.VrDirect:GetNormalized() * data.BmLength, data.TeFilter)
+      trace = StarGate.Trace:New(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
     else
-      trace = util.QuickTrace(data.VrOrigin, data.VrDirect:GetNormalized() * data.BmLength, data.TeFilter)
+      trace = util.QuickTrace(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
     end
     local reflect = LaserLib.GetSetting(trace.Entity, DATA.REFLECT)
     local refract = LaserLib.GetSetting(trace.Entity, DATA.REFRACT)
@@ -364,8 +365,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
         data.Tracing = true
         data.VrOrigin:Set(trace.HitPos)
         data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
-        data.BmLength = data.BmLength - data.BmLength * trace.Fraction
-        data.CrBounce = data.CrBounce - 1
+        data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+        data.NvBounce = data.NvBounce - 1
         if(userfe) then
           local info = data.TvPoints[data.TvPoints.Size]
           data.NvWidth  = LaserLib.GetBeamWidth(reflect * data.NvWidth)
@@ -381,7 +382,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
       data.Tracing = false
     end
 
-  until(not data.Tracing or data.CrBounce <= 0)
+  until(not data.Tracing or data.NvBounce <= 0)
 
   if(SERVER) then
     if(trace.Entity and
