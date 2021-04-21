@@ -5,6 +5,8 @@ local DATA = {}
 local gnSVF = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
 DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "5", gnSVF, "Maximum surface bounces for the laser beam", 0, 1000)
 
+DATA.TOOL = "laseremitter"
+
 DATA.CLS = {
   -- [1] Item true class [2] Spawn class from entities
   {"gmod_laser"},
@@ -31,7 +33,13 @@ DATA.COLOR = {
   ["WHITE"] = Color(255, 255, 255, 255)
 }
 
-DATA.TOOL = "laseremitter"
+DATA.DISTYPE = {
+  ["#"]         = "coreffect",
+  ["energy"]    = 0,
+  ["heavyelec"] = 1,
+  ["lightelec"] = 2,
+  ["coreffect"] = 3
+}
 
 DATA.REFLECT = { -- Reflection data descriptor
   [1] = "cubemap", -- Cube maps textures
@@ -116,20 +124,59 @@ function LaserLib.GetBeamWidth(width)
   return math.Clamp(width, 0.1, 100)
 end
 
+-- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
+function LaserLib.GetDissolveType(distype)
+  local out = DATA.DISTYPE[distype]
+  if(not out) then
+    local key = DATA.DISTYPE["#"]
+          out = DATA.DISTYPE[key]
+  end; return out
+end
+
+function LaserLib.GetReflect()
+  return DATA.REFLECT["#"]
+end
+
+function LaserLib.GetRefract()
+  return DATA.REFRACT["#"]
+end
+
+--[[
+ * Calculates the local beam origin offset
+ * according tho the base entity and direction provided
+ * base   > Base entity to calculate the vector for
+ * direct > Worls space direction vaector to match
+ * Returns the local entity origin offcet vector
+ * obcen  > The local entity origin vector
+]]
+function LaserLib.GetBeamOrigin(base, direct)
+  if(not (base and base:IsValid())) then return Vector(0,0,0) end
+        direct:Add(self:GetPos())
+        direct:Set(self:WorldToLocal(direct))
+  local obcen = self:OBBCenter()
+  local obdir = self:OBBMaxs()
+        obdir:Sub(self:OBBMins())
+  local kmulv = math.abs(obdir:Dot(direct))
+        direct:Mul(kmulv / 2)
+        obcen:Add(direct)
+  return obcen
+end
+
 if(SERVER) then
 
   AddCSLuaFile("autorun/laserlib.lua")
 
-  function LaserLib.SpawnDissolver(ent, position, attacker, disstype)
-    local dissolver = ents.Create("env_entity_dissolver")
-    if(not (dissolver and dissolver:IsValid())) then return nil end
-    dissolver.Target = "laserdissolve"..ent:EntIndex()
-    dissolver:SetKeyValue("dissolvetype", disstype)
-    dissolver:SetKeyValue("magnitude", 0)
-    dissolver:SetPos(position)
-    dissolver:SetPhysicsAttacker(attacker)
-    dissolver:Spawn()
-    return dissolver
+  -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
+  function LaserLib.SpawnDissolver(base, position, attacker, disstype)
+    local ent = ents.Create("env_entity_dissolver")
+    if(not (ent and ent:IsValid())) then return nil end
+    ent.Target = "laserdissolve"..base:EntIndex()
+    ent:SetKeyValue("dissolvetype", disstype)
+    ent:SetKeyValue("magnitude", 0)
+    ent:SetPos(position)
+    ent:SetPhysicsAttacker(attacker)
+    ent:Spawn()
+    return ent
   end
 
   function LaserLib.DoDamage(target, hitPos, normal, beamDir, damage, attacker, dissolveType, pushProps, killSound, laserEnt)
@@ -154,23 +201,23 @@ if(SERVER) then
 
       if(target:Health() <= damage) then
         if(target:IsNPC() or target:IsPlayer()) then
-          local dissolverEnt = LaserLib.SpawnDissolver(laserEnt, target:GetPos(), attacker, dissolveType)
+          local dissolver = LaserLib.SpawnDissolver(laserEnt, target:GetPos(), attacker, dissolveType)
 
           if(target:IsPlayer()) then
             target:TakeDamage(damage, attacker, laserEnt)
             -- We need to kill the player first to get his ragdoll
             if(not target:GetRagdollEntity() or not target:GetRagdollEntity():IsValid()) then return end
             -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way
-            target:GetRagdollEntity():SetName(dissolverEnt.Target)
+            target:GetRagdollEntity():SetName(dissolver.Target)
           else
-            target:SetName(dissolverEnt.Target)
+            target:SetName(dissolver.Target)
             if(target:GetActiveWeapon():IsValid()) then
-              target:GetActiveWeapon():SetName(dissolverEnt.Target)
+              target:GetActiveWeapon():SetName(dissolver.Target)
             end
           end
 
-          dissolverEnt:Fire("Dissolve", dissolverEnt.Target, 0)
-          dissolverEnt:Fire("Kill", "", 0.1)
+          dissolver:Fire("Dissolve", dissolver.Target, 0)
+          dissolver:Fire("Kill", "", 0.1)
         end
 
         if(killSound ~= nil and (target:Health() ~= 0 or target:IsPlayer())) then
@@ -247,14 +294,6 @@ function LaserLib.GetSetting(ent, set)
       return set[key]
     end
   end; return nil
-end
-
-function LaserLib.GetReflect()
-  return DATA.REFLECT["#"]
-end
-
-function LaserLib.GetRefract()
-  return DATA.REFRACT["#"]
 end
 
 --[[

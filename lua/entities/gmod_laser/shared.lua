@@ -12,25 +12,18 @@ ENT.Spawnable      = false
 ENT.AdminSpawnable = false
 ENT.Information    = ENT.PrintName
 
-function ENT:SetupBeamOrigin()
-  local forwd = self:GetBeamDirection()
-        forwd:Add(self:GetPos())
-        forwd:Set(self:WorldToLocal(forwd))
-  local obcen = self:OBBCenter()
-  local obdir = self:OBBMaxs()
-        obdir:Sub(self:OBBMins())
-  local kmulv = math.abs(obdir:Dot(forwd))
-        forwd:Mul(kmulv / 2)
-        obcen:Add(forwd)
-  self:SetNWVector("Origin", obcen)
-end
-
 function ENT:GetBeamDirection()
   local aos = self:GetAngleOffset()
   if    (aos ==  90) then return self:GetForward()
   elseif(aos == 180) then return (-1 * self:GetUp())
   elseif(aos == 270) then return (-1 * self:GetForward())
   else return self:GetUp() end
+end
+
+function ENT:SetupBeamOrigin()
+  local direct = self:GetBeamDirection()
+  local origin = LaserLib.GetBeamOrigin(self, direct)
+  self:SetNWVector("Origin", origin); return self
 end
 
 function ENT:Setup(width       , length    , damage   , material    ,
@@ -151,17 +144,12 @@ end
 --[[ ----------------------
       Dissolve type
 ---------------------- ]]
-function ENT:SetDissolveType( dissolvetype )
+function ENT:SetDissolveType(dissolvetype)
   self:SetNWString("DissolveType", dissolvetype)
 end
 
 function ENT:GetDissolveType()
-  local dissolvetype = self:GetNWString("DissolveType")
-
-  if(dissolvetype == "energy") then return 0
-  elseif(dissolvetype == "lightelec") then return 2
-  elseif(dissolvetype == "heavyelec") then return 1
-  else return 3 end
+  return LaserLib.GetDissolveType(self:GetNWString("DissolveType"))
 end
 
 --[[ ----------------------
