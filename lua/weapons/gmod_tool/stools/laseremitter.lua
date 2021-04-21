@@ -319,7 +319,7 @@ function TOOL:Think()
   self:UpdateGhostLaserEmitter(self.GhostEntity, self:GetOwner())
 end
 
--- FIXME: Remove `AddControl` and code a proper preset handler
+-- TODO: Remove `AddControl` and code a proper preset handler
 local gtConvarList = TOOL:BuildConVarList()
 
 -- Enter `spawnmenu_reload` in the console to reload the panel

@@ -2,7 +2,7 @@ include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
--- FIXME : Beam is not rendered whn hits the back of the player
+-- TODO : Beam is not rendered wehn hits the back of the player
 
 function ENT:DrawEndingEffect(trace)
   self.NextEffect = self.NextEffect or CurTime()

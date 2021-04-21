@@ -2,10 +2,16 @@ LaserLib = LaserLib or {} -- Initialize the global variable of the library
 
 local DATA = {}
 
-local gnSVF = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
-DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "5", gnSVF, "Maximum surface bounces for the laser beam", 0, 1000)
+-- Server controlled flags for console variables
+DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
+
+-- Library internal variables
+DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "10", DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 
 DATA.TOOL = "laseremitter"
+
+-- The default key in a collection point to take when not found
+DATA.KEYD = "#"
 
 DATA.CLS = {
   -- [1] Item true class [2] Spawn class from entities
@@ -29,12 +35,13 @@ DATA.MAT = {
 }
 
 DATA.COLOR = {
-  ["BLACK"] = Color( 0 ,  0 ,  0 , 255),
-  ["WHITE"] = Color(255, 255, 255, 255)
+  [DATA.KEYD] = "BLACK",
+  ["BLACK"]   = Color( 0 ,  0 ,  0 , 255),
+  ["WHITE"]   = Color(255, 255, 255, 255)
 }
 
 DATA.DISTYPE = {
-  ["#"]         = "coreffect",
+  [DATA.KEYD]   = "coreffect",
   ["energy"]    = 0,
   ["heavyelec"] = 1,
   ["lightelec"] = 2,
@@ -46,7 +53,7 @@ DATA.REFLECT = { -- Reflection data descriptor
   [2] = "shiny"  , -- All shiny stuff reflect
   [3] = "chrome" , -- Chrome stuff reflect
   -- Used for prop updates and checks
-  ["#"]                                = "debug/env_cubemap_model",
+  [DATA.KEYD]                          = "debug/env_cubemap_model",
   ["debug/env_cubemap_model"]          = 0.999,
   -- User for general class control
   ["shiny"]                            = 0.854,
@@ -63,7 +70,7 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [2] = "glass", -- Glass enumerator index
   [3] = "water", -- Glass enumerator index
   -- Used for prop updates and chec
-  ["#"]                                         = "models/props_combine/health_charger_glass",
+  [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
   ["models/props_combine/health_charger_glass"] = 1.552, -- Used for prop updates
   -- User for general class control
   ["air"]                                       = 1.000, -- Air refraction index
@@ -86,10 +93,6 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
 
 function LaserLib.GetTool()
   return DATA.TOOL
-end
-
-function LaserLib.GetColor(iK)
-  return DATA.COLOR[iK]
 end
 
 function LaserLib.GetClass(iK, iD)
@@ -125,20 +128,59 @@ function LaserLib.GetBeamWidth(width)
 end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
-function LaserLib.GetDissolveType(distype)
-  local out = DATA.DISTYPE[distype]
-  if(not out) then
-    local key = DATA.DISTYPE["#"]
-          out = DATA.DISTYPE[key]
+function GetCollectionData(key, set)
+  local idx, out = DATA.KEYD
+  if(idx == key) then
+    def = set[idx]
+    out = set[def]
+  else
+    out = set[key]
+    if(not out) then
+      def = set[idx]
+      out = set[def]
+    end
   end; return out
 end
 
+function LaserLib.GetDissolveType(disstype)
+  return GetCollectionData(disstype, DATA.DISTYPE)
+end
+
+function LaserLib.GetColor(color)
+  return GetCollectionData(color, DATA.COLOR)
+end
+
+--[[
+Checks when the entity has reflective mirror texture
+ * ent > Entity to retrieve the setting for
+ * set > The dedicated parameeters setting to check
+]]
+function GetMaterialData(ent, set)
+  if(not ent) then return nil end
+  if(not ent:IsValid()) then return nil end
+  local mat = ent:GetMaterial()
+  if(mat == "") then
+    mat = ent:GetMaterials()[1]
+  end
+  -- Protect hesh indexing by nil
+  if(not mat) then return nil end
+  -- Check for element overrides
+  if(set[mat]) then return set[mat] end
+  -- Check for emement category
+  for i = 1, set.__size do
+    local key = set[i]
+    if(mat:find(key, 1, true)) then
+      return set[key]
+    end
+  end; return nil
+end
+
 function LaserLib.GetReflect()
-  return DATA.REFLECT["#"]
+  return DATA.REFLECT[DATA.KEYD]
 end
 
 function LaserLib.GetRefract()
-  return DATA.REFRACT["#"]
+  return DATA.REFRACT[DATA.KEYD]
 end
 
 --[[
@@ -162,6 +204,25 @@ function LaserLib.GetBeamOrigin(base, direct)
   return obcen
 end
 
+--[[
+ * Projects the OBB onto the ray defined by position and direction
+ * base   > Base entity to calculate the vector for
+ * direct > Worls space direction vaector to match
+ * Returns the projected position as the beam position
+ * obcen  > The local entity origin vector
+]]
+function LaserLib.GetBeamRay(base, direct)
+  local pos = Vector(base:GetPos())
+  local obb = base:LocalToWorld(base:OBBCenter())
+        obb:Sub(pos)
+  local ofs = obb:Dot(direct)
+        obb:Set(direct)
+        obb:Normalize()
+        obb:Mul(ofs)
+        pos:Add(obb)
+  return pos
+end
+
 if(SERVER) then
 
   AddCSLuaFile("autorun/laserlib.lua")
@@ -183,20 +244,26 @@ if(SERVER) then
 
     laserEnt.NextLaserDamage = laserEnt.NextLaserDamage or CurTime()
 
-    if(pushProps and target:GetPhysicsObject():IsValid()) then
-      target:GetPhysicsObject():ApplyForceCenter(beamDir * pushProps)
+    local tarphys = target:GetPhysicsObject()
+
+    if(pushProps and tarphys and tarphys:IsValid()) then
+      tarphys:ApplyForceCenter(beamDir * pushProps)
     end
 
     if(CurTime() >= laserEnt.NextLaserDamage) then
-      if(target:IsVehicle() and target:GetDriver():IsValid()) then
-        target = target:GetDriver() -- We must kill the driver!
-        target:Kill() -- Take damage doesn't seem to work on a player inside a vehicle
+      if(target:IsVehicle() then
+        local tardriver = target:GetDriver()
+        -- Take damage doesn't work on player inside a vehicle.
+        if(tardriver and tardriver:IsValid()) then
+          target = tardriver; target:Kill()
+        end -- We must kill the driver!
       end
 
       if(target:GetClass() == "shield") then
-        target:Hit(laserEnt, hitPos, math.Clamp(damage / 2500 * 3, 0, 4), -1 * normal)
+        local tardmg = math.Clamp(damage / 2500 * 3, 0, 4)
+        target:Hit(laserEnt, hitPos, tardmg, -1 * normal)
         laserEnt.NextLaserDamage = CurTime() + 0.3
-        return -- We stop here because we hit a shield
+        return -- We stop here because we hit a shield!
       end
 
       if(target:Health() <= damage) then
@@ -205,14 +272,18 @@ if(SERVER) then
 
           if(target:IsPlayer()) then
             target:TakeDamage(damage, attacker, laserEnt)
-            -- We need to kill the player first to get his ragdoll
-            if(not target:GetRagdollEntity() or not target:GetRagdollEntity():IsValid()) then return end
-            -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way
-            target:GetRagdollEntity():SetName(dissolver.Target)
+
+            local tardoll = target:GetRagdollEntity()
+            -- We need to kill the player first to get his ragdoll.
+            if(not (tardoll and tardoll:IsValid())) then return end
+            -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way.
+            tardoll:SetName(dissolver.Target)
           else
             target:SetName(dissolver.Target)
-            if(target:GetActiveWeapon():IsValid()) then
-              target:GetActiveWeapon():SetName(dissolver.Target)
+
+            local tarwep = target:GetActiveWeapon()
+            if(tarwep and tarwep:IsValid()) then
+              tarwep:SetName(dissolver.Target)
             end
           end
 
@@ -220,13 +291,14 @@ if(SERVER) then
           dissolver:Fire("Kill", "", 0.1)
         end
 
-        if(killSound ~= nil and (target:Health() ~= 0 or target:IsPlayer())) then
+        if(killSound ~= nil and (target:Health() > 0 or target:IsPlayer())) then
           sound.Play(killSound, target:GetPos())
           target:EmitSound(Sound(killSound))
         end
       else
         laserEnt.NextLaserDamage = CurTime() + 0.3
       end
+
       target:TakeDamage(damage, attacker, laserEnt)
     end
   end
@@ -257,8 +329,8 @@ if(SERVER) then
                 reflectRate , false)
 
     user:AddCount(unit.."s", laser)
-    numpad.OnDown(user, key, "Laser_On", laser)
     numpad.OnUp(user, key, "Laser_Off", laser)
+    numpad.OnDown(user, key, "Laser_On", laser)
 
     table.Merge(self:GetTable(), {
       ply         = user,
@@ -270,49 +342,6 @@ if(SERVER) then
 
     return laser
   end
-end
-
---[[
-Checks when the entity has reflective mirror texture
- * ent > Entity to retrieve the setting for
- * set > The dedicated parameeters setting to check
-]]
-function LaserLib.GetSetting(ent, set)
-  if(not ent) then return nil end
-  if(not ent:IsValid()) then return nil end
-  local mat = ent:GetMaterial()
-  if(mat == "") then
-    mat = ent:GetMaterials()[1]
-  end
-  -- Protect hesh indexing by nil
-  if(not mat) then return nil end
-  -- Check for element overrides
-  if(set[mat]) then return set[mat] end
-  -- Check for emement category
-  for i = 1, set.__size do
-    local key = set[i]
-    if(mat:find(key, 1, true)) then
-      return set[key]
-    end
-  end; return nil
-end
-
---[[
-Projects the OBB onto the ray defined by position and direction
-Returns the projected position as the beam position
- * ent > The laser entity
- * dir > The beam direction
-]]
-function LaserLib.GetBeamPos(ent, dir)
-  local pos = Vector(ent:GetPos())
-  local obb = ent:LocalToWorld(ent:OBBCenter())
-        obb:Sub(pos)
-  local ofs = obb:Dot(dir)
-        obb:Set(dir)
-        obb:Normalize()
-        obb:Mul(ofs)
-        pos:Add(obb)
-  return pos
 end
 
 --[[
@@ -351,11 +380,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
   repeat
     if(StarGate) then
       trace = StarGate.Trace:New(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
-    else
+    else -- TODO: Suppose pre-allocated trace data with output pointing to trace result is faster...
       trace = util.QuickTrace(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
     end
-    local reflect = LaserLib.GetSetting(trace.Entity, DATA.REFLECT)
-    local refract = LaserLib.GetSetting(trace.Entity, DATA.REFRACT)
+    local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
+    local refract = GetMaterialData(trace.Entity, DATA.REFRACT)
 
     table.insert(data.TvPoints, {trace.HitPos, data.NvWidth, data.NvDamage})
     data.TvPoints.Size = data.TvPoints.Size + 1

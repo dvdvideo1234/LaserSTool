@@ -155,7 +155,6 @@ end
 --[[ ----------------------
           Sounds
 ---------------------- ]]
--- FIXME : Well, not really something to fix, but it seems that I can't set networked strings with a length higher than 39 (not ideal for sounds)
 function ENT:SetStartSound(snd)
   self.startSound = tostring(snd or "")
 end

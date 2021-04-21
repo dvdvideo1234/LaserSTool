@@ -47,7 +47,7 @@ function ENT:Initialize()
 end
 
 function ENT:DoDamage(trace, data)
-  -- FIXME : Make the owner of the mirror get the kill instead of the owner of the laser
+  -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
   if(self:GetDamageAmount() > 0 and trace) then
     local trent = trace.Entity
     if(trent and trent:IsValid() and
