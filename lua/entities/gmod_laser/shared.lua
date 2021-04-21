@@ -26,50 +26,6 @@ function ENT:SetupBeamOrigin()
   self:SetNWVector("Origin", origin); return self
 end
 
-function ENT:Setup(width       , length    , damage   , material    ,
-                   dissolveType, startSound, stopSound, killSound   ,
-                   toggle      , startOn   , pushProps, endingEffect,
-                   reflectRate)
-  self:SetBeamWidth(width)
-  self.defaultWidth = width
-  self:SetBeamLength(length)
-  self.defaultLength = length
-  self:SetDamageAmount(damage)
-  self:SetBeamMaterial(material)
-  self:SetDissolveType(dissolveType)
-  self:SetStartSound(startSound)
-  self:SetStopSound(stopSound)
-  self:SetKillSound(killSound)
-  self:SetToggle(toggle)
-  self:SetPushProps(pushProps)
-  self:SetEndingEffect(endingEffect)
-  self:SetReflectionRate(reflectRate)
-  self:SetupBeamOrigin()
-
-  table.Merge(self:GetTable(), {
-    width        = width,
-    model        = model,
-    length       = length,
-    damage       = damage,
-    material     = material,
-    dissolveType = dissolveType,
-    startSound   = startSound,
-    stopSound    = stopSound,
-    killSound    = killSound,
-    toggle       = toggle,
-    startOn      = startOn,
-    pushProps    = pushProps,
-    endingEffect = endingEffect,
-    reflectRate  = reflectRate
-  })
-
-  if((not update) or
-    (not toggle and update))
-  then self:SetOn(startOn) end
-
-  return self
-end
-
 function ENT:GetBeamOrigin()
   return self:LocalToWorld(self:GetNWVector("Origin"))
 end
@@ -108,7 +64,7 @@ end
   Damage
 ---------------------- ]]
 function ENT:SetDamageAmount(num)
-  local damage = math.abs(num)
+  local damage = math.max(num, 0)
   self:SetNWInt("Damage", damage)
   if(WireLib) then
     WireLib.TriggerOutput(self, "Damage", damage)
@@ -217,12 +173,16 @@ end
 --[[ ----------------------
       Prop pushing
 ---------------------- ]]
-function ENT:SetPushProps(num)
-  self:SetNWFloat("PushProps", num)
+function ENT:SetPushForce(num)
+  local force = math.max(num, 0)
+  self:SetNWFloat("PushForce", force)
+  if(WireLib) then
+    WireLib.TriggerOutput(self, "Force", force)
+  end
 end
 
-function ENT:GetPushProps()
-  return self:GetNWFloat("PushProps")
+function ENT:GetPushForce()
+  return self:GetNWFloat("PushForce")
 end
 
 --[[ ----------------------
@@ -247,4 +207,64 @@ end
 
 function ENT:GetReflectionRate()
   return self:GetNWBool("ReflectRate")
+end
+
+--[[ ----------------------
+  Surface reflect efficiency
+---------------------- ]]
+function ENT:SetRefractionRate(bool)
+  local reff = tobool(bool)
+  self:SetNWBool("RefractRate", reff)
+end
+
+function ENT:GetRefractionRate()
+  return self:GetNWBool("RefractRate")
+end
+
+function ENT:Setup(width       , length     , damage   , material    ,
+                   dissolveType, startSound , stopSound, killSound   ,
+                   toggle      , startOn    , pushForce, endingEffect,
+                   reflectRate , refractRate, update)
+  self:SetBeamWidth(width)
+  self.defaultWidth = width -- Used when wire is disconnected
+  self:SetBeamLength(length)
+  self.defaultLength = length -- Used when wire is disconnected
+  self:SetDamageAmount(damage)
+  self.defaultDamage = damage
+  self:SetPushForce(pushForce)
+  self.defaultForce = pushForce
+  self:SetBeamMaterial(material)
+  self:SetDissolveType(dissolveType)
+  self:SetStartSound(startSound)
+  self:SetStopSound(stopSound)
+  self:SetKillSound(killSound)
+  self:SetToggle(toggle)
+  self:SetEndingEffect(endingEffect)
+  self:SetReflectionRate(reflectRate)
+  self:SetRefractionRate(refractRate)
+  self:SetupBeamOrigin()
+
+  table.Merge(self:GetTable(), {
+    width        = width,
+    model        = model,
+    length       = length,
+    damage       = damage,
+    material     = material,
+    dissolveType = dissolveType,
+    startSound   = startSound,
+    stopSound    = stopSound,
+    killSound    = killSound,
+    toggle       = toggle,
+    startOn      = startOn,
+    pushForce    = pushForce,
+    endingEffect = endingEffect,
+    reflectRate  = reflectRate,
+    refractRate  = refractRate
+  })
+
+  if((not update) or
+    (not toggle and update))
+  then self:SetOn(startOn) end
+
+  return self
 end

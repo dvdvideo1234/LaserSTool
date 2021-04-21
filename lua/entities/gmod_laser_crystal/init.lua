@@ -112,7 +112,7 @@ function ENT:UpdateDominant(ent)
   -- The most powerful laser (biggest damage/width)
   if(self:IsSource(ent)) then
     local user = (ent.ply or ent.player)
-    self:SetPushProps(ent:GetPushProps())
+    self:SetPushForce(ent:GetPushForce())
     self:SetStopSound(ent:SetStopSound())
     self:SetKillSound(ent:GetKillSound())
     self:SetStartSound(ent:SetStartSound())

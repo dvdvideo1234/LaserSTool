@@ -5,10 +5,25 @@ local gsReflectCls = LaserLib.GetClass(3, 1)
 local gsReflectMod = LaserLib.GetModel(3, 1)
 
 if(CLIENT) then
+
+  TOOL.Information = {
+    {name = "info"      , icon = "gui/info"   , icon2 = ""},
+    {name = "left"      , icon = "gui/lmb.png", icon2 = ""},
+    {name = "right"     , icon = "gui/rmb.png", icon2 = ""},
+    {name = "reload"    , icon = "gui/r.png"  , icon2 = ""},
+    {name = "reload_use", icon = "gui/r.png"  , icon2 = "gui/e.png"},
+  }
+
   language.Add("tool."..gsUnit..".name", "Laser Spawner")
-  language.Add("tool."..gsUnit..".desc", "Spawn a very dangerous laser. Do not look into beam with remaining eye!")
-  language.Add("tool."..gsUnit..".0", "Primary: Create/Update a laser where you are aiming")
-  language.Add("tool."..gsUnit..".key_con", "Key:")
+  language.Add("tool."..gsUnit..".desc", "Spawn very dangerous lasers!")
+  language.Add("tool."..gsUnit..".0", "Do not look into beam with remaining eye!")
+  language.Add("tool."..gsUnit..".left", "Create/Update a laser where you are aiming")
+  language.Add("tool."..gsUnit..".right", "Retrieve laser settings form trace entity")
+  language.Add("tool."..gsUnit..".reload", "Reset material. Hold SHIFT to make prop mirror")
+  language.Add("tool."..gsUnit..".reload_use", "Turn the prop texture to glass")
+  language.Add("tool."..gsUnit..".frozen_con", "Freeze on creation")
+  language.Add("tool."..gsUnit..".frozen", "Freezes the laser when created")
+  language.Add("tool."..gsUnit..".key_con", "Control key")
   language.Add("tool."..gsUnit..".key", "Numpad key that controls the laser trigger")
   language.Add("tool."..gsUnit..".width_con", "Width:")
   language.Add("tool."..gsUnit..".width", "Controls laser beam width")
@@ -16,22 +31,25 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".length", "Controls laser beam maximum length")
   language.Add("tool."..gsUnit..".damage_con", "Damage:")
   language.Add("tool."..gsUnit..".damage", "Controls laser beam damage amount")
-  language.Add("tool."..gsUnit..".model_con", "Model:")
-  language.Add("tool."..gsUnit..".model", "Select laser entity visual model")
+  language.Add("tool."..gsUnit..".material", "Select laser beam material form the ones shown here")
+  language.Add("tool."..gsUnit..".model_con", "Laser entity model:")
+  language.Add("tool."..gsUnit..".model", "Select laser visual model form the ones shown here")
   language.Add("tool."..gsUnit..".dissolvetype_con", "Dissolve type:")
   language.Add("tool."..gsUnit..".dissolvetype", "Controls what visuals are used when dissolving players")
-  language.Add("tool."..gsUnit..".toggle_con", "Toggle")
+  language.Add("tool."..gsUnit..".toggle_con", "Toggled operation")
   language.Add("tool."..gsUnit..".toggle", "Starts the laser when the button is hit")
   language.Add("tool."..gsUnit..".starton_con", "Start on creation")
   language.Add("tool."..gsUnit..".starton", "Starts the laser on when gets created")
-  language.Add("tool."..gsUnit..".pushprops_con", "Push props:")
-  language.Add("tool."..gsUnit..".pushprops", "Seutp the laser beam to push props")
+  language.Add("tool."..gsUnit..".pushforce_con", "Push props:")
+  language.Add("tool."..gsUnit..".pushforce", "Seutp the laser beam to push props")
   language.Add("tool."..gsUnit..".endingeffect_con", "Ending effect")
   language.Add("tool."..gsUnit..".endingeffect", "Allow showing ending effects")
   language.Add("tool."..gsUnit..".worldweld_con", "Weld to surface")
   language.Add("tool."..gsUnit..".worldweld", "Welds the laser to the trace surface")
-  language.Add("tool."..gsUnit..".reflectrate_con", "Surface type reflection")
-  language.Add("tool."..gsUnit..".reflectrate", "Reflect the amount of power according to the surface type")
+  language.Add("tool."..gsUnit..".reflectrate_con", "Use reflection ratio")
+  language.Add("tool."..gsUnit..".reflectrate", "Reflect the amount of power according to the surface material type")
+  language.Add("tool."..gsUnit..".refractrate_con", "Use refraction ratio")
+  language.Add("tool."..gsUnit..".refractrate", "refract the amount of power according to the medium material type")
   language.Add("Cleanup_"..gsUnit, "Lasers")
   language.Add("Cleaned_"..gsUnit, "Cleaned up all Lasers")
   language.Add("Undone_"..gsUnit, "Undone Laser Emitter")
@@ -80,30 +98,17 @@ TOOL.ClientConVar =
   [ "killsound"    ] = "ambient/levels/citadel/weapon_disintegrate1.wav",
   [ "toggle"       ] = 0,
   [ "starton"      ] = 0,
-  [ "pushprops"    ] = 100,
+  [ "pushforce"    ] = 100,
   [ "endingeffect" ] = 1,
   [ "worldweld"    ] = 0,
   [ "angleoffset"  ] = 270,
-  [ "reflectrate"  ] = 1
+  [ "reflectrate"  ] = 1,
+  [ "refractrate"  ] = 1,
+  [ "frozen"       ] = 1 -- The cold never bothered me anyway
 }
 
-list.Set("LaserEmitterModels", "models/props_combine/headcrabcannister01a_skybox.mdl", {laseremitter_angleoffset = 270})
-list.Set("LaserEmitterModels", "models/props_combine/breenlight.mdl", {laseremitter_angleoffset = 180})
-list.Set("LaserEmitterModels", "models/props_junk/flare.mdl", {laseremitter_angleoffset = 0 })
-list.Set("LaserEmitterModels", "models/props_lab/tpplug.mdl", {laseremitter_angleoffset = 90 })
-list.Set("LaserEmitterModels", "models/props_junk/TrafficCone001a.mdl", {laseremitter_angleoffset = 0})
-list.Set("LaserEmitterModels", "models/props_junk/PopCan01a.mdl", {laseremitter_angleoffset = 0})
-if(WireLib) then -- Make these model available only if the player has Wire
-  list.Set("LaserEmitterModels", "models/jaanus/wiretool/wiretool_beamcaster.mdl", {laseremitter_angleoffset = 0})
-end
-
-list.Set("LaserEmitterMaterials", "cable/redlaser", "cable/redlaser")
-list.Set("LaserEmitterMaterials", "effects/redlaser1", "effects/redlaser1")
-list.Set("LaserEmitterMaterials", "cable/physbeam", "cable/physbeam")
-list.Set("LaserEmitterMaterials", "cable/xbeam", "cable/xbeam")
-list.Set("LaserEmitterMaterials", "cable/blue_elec", "cable/blue_elec")
-list.Set("LaserEmitterMaterials", "cable/hydra", "cable/hydra")
-list.Set("LaserEmitterMaterials", "cable/crystal_beam1", "cable/crystal_beam1")
+LaserLib.SetupModels()
+LaserLib.SetupMaterials()
 
 if(CLIENT) then
   language.Add("DissolveType_Energy", "AR2 style")
@@ -188,7 +193,7 @@ function TOOL:LeftClick(trace)
   local width        = self:GetClientNumber("width")
   local length       = self:GetClientNumber("length")
   local damage       = self:GetClientNumber("damage")
-  local pushprops    = self:GetClientNumber("pushprops")
+  local pushforce    = self:GetClientNumber("pushforce")
   local model        = self:GetClientInfo("model")
   local material     = self:GetClientInfo("material")
   local stopsound    = self:GetClientInfo("stopsound")
@@ -197,9 +202,11 @@ function TOOL:LeftClick(trace)
   local dissolvetype = self:GetClientInfo("dissolvetype")
   local angleoffset  = self:GetClientNumber("angleoffset")
   local toggle       = (self:GetClientNumber("toggle") ~= 0)
+  local frozen       = (self:GetClientNumber("frozen") ~= 0)
   local starton      = (self:GetClientNumber("starton") ~= 0)
   local worldweld    = (self:GetClientNumber("worldweld") ~= 0)
   local reflectrate  = (self:GetClientNumber("reflectrate") ~= 0)
+  local refractrate  = (self:GetClientNumber("refractrate") ~= 0)
   local endingeffect = (self:GetClientNumber("endingeffect") ~= 0)
   local ply, ent     = self:GetOwner(), trace.Entity
   local pos, ang     = trace.HitPos   , trace.HitNormal:Angle()
@@ -207,18 +214,18 @@ function TOOL:LeftClick(trace)
   if(ent:IsValid() and
      ent:GetClass() == gsLaseremCls)
   then
-    ent:Setup(width       , length    , damage   , material    ,
-              dissolvetype, startsound, stopsound, killsound   ,
-              toggle      , starton   , pushprops, endingeffect,
-              reflectrate , true)
+    ent:Setup(width       , length     , damage   , material    ,
+              dissolvetype, startsound , stopsound, killsound   ,
+              toggle      , starton    , pushforce, endingeffect,
+              reflectrate , refractrate, true)
     return true
   end
 
-  local laser = LaserLib.New(ply        , pos         , ang         , model     ,
-                             angleoffset, key         , width       , length    ,
-                             damage     , material    , dissolvetype, startsound,
-                             stopsound  , killsound   , toggle      , starton   ,
-                             pushprops  , endingeffect, reflectrate , frozen)
+  local laser = LaserLib.New(ply        , pos         , ang         , model       ,
+                             angleoffset, key         , width       , length      ,
+                             damage     , material    , dissolvetype, startsound  ,
+                             stopsound  , killsound   , toggle      , starton     ,
+                             pushforce  , endingeffect, reflectrate , refractrate , frozen)
 
   if(not (laser and laser:IsValid())) then return false end
 
@@ -253,36 +260,23 @@ function TOOL:Reload(trace)
   local ply, ent = self:GetOwner(), trace.Entity
   if(not ent:IsValid())  then return false end
   if(ent:IsPlayer()) then return false end
-  if(ply:KeyDown(IN_SPEED)) then
-    ent:SetMaterial(LaserLib.GetRefract())
+  if(ply:KeyDown(IN_USE)) then
+    LaserLib.SetMaterial(ply, ent, LaserLib.GetRefract())
+  elseif(ply:KeyDown(IN_SPEED)) then
+    LaserLib.SetMaterial(ply, ent, LaserLib.GetReflect())
   else
-    ent:SetMaterial(LaserLib.GetReflect())
+    LaserLib.SetMaterial(ply, ent)
   end
   return true
 end
 
 if(SERVER) then
-  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New,
-    "ply",
-    "pos",
-    "ang",
-    "model",
-    "angleOffset",
-    "key",
-    "width",
-    "length",
-    "damage",
-    "material",
-    "dissolveType",
-    "startSound",
-    "stopSound",
-    "killSound",
-    "toggle",
-    "startOn",
-    "pushProps",
-    "endingEffect",
-    "reflectRate",
-    "frozen")
+  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New     ,
+    --[[  ply  ]]  "pos"         , "ang"         , "model"      ,
+    "angleOffset", "key"         , "width"       , "length"     ,
+    "damage"     , "material"    , "dissolveType", "startSound" ,
+    "stopSound"  , "killSound"   , "toggle"      , "startOn"    ,
+    "pushForce"  , "endingEffect", "reflectRate" , "refractRate", "frozen")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -309,29 +303,31 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
 end
 
 function TOOL:Think()
+  local model = self:GetClientInfo("model")
+  -- TODO: Use library vector/angle (0,0,0)
   if(not self.GhostEntity or
      not self.GhostEntity:IsValid() or
-         self.GhostEntity:GetModel() ~= self:GetClientInfo("Model"))
+         self.GhostEntity:GetModel() ~= model)
   then
-    self:MakeGhostEntity(self:GetClientInfo("Model"), Vector(0, 0, 0), Angle(0, 0, 0))
+    self:MakeGhostEntity(model, Vector(0, 0, 0), Angle(0, 0, 0))
   end
 
   self:UpdateGhostLaserEmitter(self.GhostEntity, self:GetOwner())
 end
 
--- TODO: Remove `AddControl` and code a proper preset handler
+-- TODO: Remove `AddControl` and code a proper preset handler ( not required )
 local gtConvarList = TOOL:BuildConVarList()
 
 -- Enter `spawnmenu_reload` in the console to reload the panel
-function TOOL.BuildCPanel(panel)
+function TOOL.BuildCPanel(panel) local pItem
   panel:ClearControls(); panel:DockPadding(5, 0, 5, 10)
   panel:SetName(language.GetPhrase("tool."..gsUnit..".name"))
   panel:Help   (language.GetPhrase("tool."..gsUnit..".desc"))
 
-  local pItem = vgui.Create("ControlPresets", panel)
-        pItem:SetPreset(gsUnit)
-        pItem:AddOption("Default", gtConvarList)
-        for key, val in pairs(table.GetKeys(gtConvarList)) do pItem:AddConVar(val) end
+  pItem = vgui.Create("ControlPresets", panel)
+  pItem:SetPreset(gsUnit)
+  pItem:AddOption("Default", gtConvarList)
+  for key, val in pairs(table.GetKeys(gtConvarList)) do pItem:AddConVar(val) end
   panel:AddItem(pItem)
 
   pItem = vgui.Create("CtrlNumPad", panel)
@@ -346,42 +342,67 @@ function TOOL.BuildCPanel(panel)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".length"))
   pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".damage_con"), gsUnit.."_damage", 0, 5000, 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".damage"))
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".pushprops_con"), gsUnit.."_pushprops", 0, 50000, 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushprops"))
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".pushforce_con"), gsUnit.."_pushforce", 0, 50000, 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushforce"))
 
-  panel:AddControl( "MatSelect", {  Label = "Material:",
-                    Height = 1,
-                    ItemWidth = 24,
-                    ItemHeight = 64,
-                    ConVar = gsUnit.."_material",
-                    Options = list.Get( "LaserEmitterMaterials" ) } )
+  panel:AddControl("MatSelect",{
+    Label = language.GetPhrase("tool."..gsUnit..".material_con"),
+    Height = 2,
+    ItemWidth = 24,
+    ItemHeight = 64,
+    ConVar = gsUnit.."_material",
+    Options = list.GetForEdit("LaserEmitterMaterials")
+  }):SetTooltip(language.GetPhrase("tool."..gsUnit..".material"))
 
-  panel:AddControl( "PropSelect", { Label = "Model:",
-                    ConVar = ""..gsUnit.."_model",
-                    Models = list.Get( "LaserEmitterModels" ) } )
+  --[[
+    pItem = panel:MatSelect(gsUnit.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.25, 0.25 )
+    pItem.Label:SetText(language.GetPhrase("tool."..gsUnit..".material_con"))
+    pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".material"))
+  ]]
+
+  panel:AddControl("PropSelect",{
+    Label = language.GetPhrase("tool."..gsUnit..".model_con"),
+    ConVar = gsUnit.."_model",
+    Models = list.GetForEdit("LaserEmitterModels")
+  }):SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
+
+  --[[
+    pItem = vgui.Create("PropSelect", panel)
+    if(not IsValid(pItem)) then return end
+    pItem:ControlValues({
+      ConVar = gsUnit.."_model",
+      Label  = language.GetPhrase("tool."..gsUnit..".model_con"),
+      Models = list.Get("LaserEmitterModels")
+    })
+    pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
+    panel:AddPanel(pItem)
+  ]]
+
 
   panel:AddControl( "ComboBox", { Label = "Dissolve type:",
                   MenuButton = "0",
                   Command = ""..gsUnit.."_dissolvetype",
-                  Options = list.Get( "LaserDissolveTypes" ) } )
+                  Options = list.GetForEdit( "LaserDissolveTypes" ) } )
 
   panel:AddControl( "ComboBox", { Label = "Start sound:",
                   MenuButton = "0",
                   Command = gsUnit.."_startsound",
-                  Options = list.Get( "LaserStartSounds" ) } )
+                  Options = list.GetForEdit( "LaserStartSounds" ) } )
 
   panel:AddControl( "ComboBox", { Label = "Stop sound:",
                   MenuButton = "0",
                   Command = gsUnit.."_stopsound",
-                  Options = list.Get( "LaserStopSounds" ) } )
+                  Options = list.GetForEdit( "LaserStopSounds" ) } )
 
   panel:AddControl( "ComboBox", { Label = "Kill sound:",
                   MenuButton = "0",
                   Command = gsUnit.."_killsound",
-                  Options = list.Get( "LaserKillSounds" ) } )
+                  Options = list.GetForEdit( "LaserKillSounds" ) } )
 
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".worldweld_con"), gsUnit.."_worldweld")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".worldweld"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".frozen_con"), gsUnit.."_frozen")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".frozen"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".toggle_con"), gsUnit.."_toggle")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".toggle"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".starton_con"), gsUnit.."_starton")
@@ -390,4 +411,6 @@ function TOOL.BuildCPanel(panel)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".endingeffect"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".reflectrate_con"), gsUnit.."_reflectrate")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".reflectrate"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".refractrate_con"), gsUnit.."_refractrate")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".refractrate"))
 end

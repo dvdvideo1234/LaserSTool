@@ -148,6 +148,17 @@ function LaserLib.GetColor(color)
   return GetCollectionData(color, DATA.COLOR)
 end
 
+function LaserLib.SetMaterial(ply, ent, mat)
+  if(not ply) then return end
+  if(not ent) then return end
+  if(not ent:IsValid()) then return end
+  if(not ply:IsValid()) then return end
+  if(not ply:IsPlayer()) then return end
+  local data = {MaterialOverride = tostring(mat or "")}
+  ent:SetMaterial(data.MaterialOverride)
+  duplicator.StoreEntityModifier(ent, "material", data)
+end
+
 --[[
 Checks when the entity has reflective mirror texture
  * ent > Entity to retrieve the setting for
@@ -193,11 +204,11 @@ end
 ]]
 function LaserLib.GetBeamOrigin(base, direct)
   if(not (base and base:IsValid())) then return Vector(0,0,0) end
-        direct:Add(self:GetPos())
-        direct:Set(self:WorldToLocal(direct))
-  local obcen = self:OBBCenter()
-  local obdir = self:OBBMaxs()
-        obdir:Sub(self:OBBMins())
+        direct:Add(base:GetPos())
+        direct:Set(base:WorldToLocal(direct))
+  local obcen = base:OBBCenter()
+  local obdir = base:OBBMaxs()
+        obdir:Sub(base:OBBMins())
   local kmulv = math.abs(obdir:Dot(direct))
         direct:Mul(kmulv / 2)
         obcen:Add(direct)
@@ -240,35 +251,35 @@ if(SERVER) then
     return ent
   end
 
-  function LaserLib.DoDamage(target, hitPos, normal, beamDir, damage, attacker, dissolveType, pushProps, killSound, laserEnt)
+  function LaserLib.DoDamage(target   , hitPos  , normal      , beamDir  ,
+                             damage   , attacker, dissolveType, pushForce,
+                             killSound, laserEnt)
+    laserEnt.NextDamage = laserEnt.NextDamage or CurTime()
 
-    laserEnt.NextLaserDamage = laserEnt.NextLaserDamage or CurTime()
-
-    local tarphys = target:GetPhysicsObject()
-
-    if(pushProps and tarphys and tarphys:IsValid()) then
-      tarphys:ApplyForceCenter(beamDir * pushProps)
+    local ophys = target:GetPhysicsObject()
+    if(pushForce and ophys and ophys:IsValid()) then
+      ophys:ApplyForceOffset(beamDir * pushForce, hitPos)
     end
 
-    if(CurTime() >= laserEnt.NextLaserDamage) then
-      if(target:IsVehicle() then
-        local tardriver = target:GetDriver()
+    if(CurTime() >= laserEnt.NextDamage) then
+      if(target:IsVehicle()) then
+        local odriver = target:GetDriver()
         -- Take damage doesn't work on player inside a vehicle.
-        if(tardriver and tardriver:IsValid()) then
-          target = tardriver; target:Kill()
+        if(odriver and odriver:IsValid()) then
+          target = odriver; target:Kill()
         end -- We must kill the driver!
       end
 
       if(target:GetClass() == "shield") then
-        local tardmg = math.Clamp(damage / 2500 * 3, 0, 4)
-        target:Hit(laserEnt, hitPos, tardmg, -1 * normal)
-        laserEnt.NextLaserDamage = CurTime() + 0.3
+        local odamage = math.Clamp(damage / 2500 * 3, 0, 4)
+        target:Hit(laserEnt, hitPos, odamage, -1 * normal)
+        laserEnt.NextDamage = CurTime() + 0.3
         return -- We stop here because we hit a shield!
       end
 
       if(target:Health() <= damage) then
         if(target:IsNPC() or target:IsPlayer()) then
-          local dissolver = LaserLib.SpawnDissolver(laserEnt, target:GetPos(), attacker, dissolveType)
+          local odissolve = LaserLib.SpawnDissolver(laserEnt, target:GetPos(), attacker, dissolveType)
 
           if(target:IsPlayer()) then
             target:TakeDamage(damage, attacker, laserEnt)
@@ -277,18 +288,18 @@ if(SERVER) then
             -- We need to kill the player first to get his ragdoll.
             if(not (tardoll and tardoll:IsValid())) then return end
             -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way.
-            tardoll:SetName(dissolver.Target)
+            tardoll:SetName(odissolve.Target)
           else
-            target:SetName(dissolver.Target)
+            target:SetName(odissolve.Target)
 
             local tarwep = target:GetActiveWeapon()
             if(tarwep and tarwep:IsValid()) then
-              tarwep:SetName(dissolver.Target)
+              tarwep:SetName(odissolve.Target)
             end
           end
 
-          dissolver:Fire("Dissolve", dissolver.Target, 0)
-          dissolver:Fire("Kill", "", 0.1)
+          odissolve:Fire("Dissolve", odissolve.Target, 0)
+          odissolve:Fire("Kill", "", 0.1)
         end
 
         if(killSound ~= nil and (target:Health() > 0 or target:IsPlayer())) then
@@ -303,11 +314,11 @@ if(SERVER) then
     end
   end
 
-  function LaserLib.New(user       , pos         , ang         , model     ,
-                        angleOffset, key         , width       , length    ,
-                        damage     , material    , dissolveType, startSound,
-                        stopSound  , killSound   , toggle      , startOn   ,
-                        pushProps  , endingEffect, reflectRate , frozen)
+  function LaserLib.New(user       , pos         , ang         , model      ,
+                        angleOffset, key         , width       , length     ,
+                        damage     , material    , dissolveType, startSound ,
+                        stopSound  , killSound   , toggle      , startOn    ,
+                        pushForce  , endingEffect, reflectRate , refractRate, frozen)
 
     local unit = LaserLib.GetTool()
     if(not (user and user:IsValid() and user:IsPlayer())) then return nil end
@@ -320,21 +331,23 @@ if(SERVER) then
     laser:SetAngles(ang)
     laser:SetModel(Model(model))
     laser:SetAngleOffset(angleOffset)
-    laser:EnableMotion(not frozen)
     laser:Spawn()
     laser:SetCreator(user)
-    laser:Setup(width       , length    , damage   , material    ,
-                dissolveType, startSound, stopSound, killSound   ,
-                toggle      , startOn   , pushProps, endingEffect,
-                reflectRate , false)
+    laser:Setup(width       , length     , damage   , material    ,
+                dissolveType, startSound , stopSound, killSound   ,
+                toggle      , startOn    , pushForce, endingEffect,
+                reflectRate , refractRate, false)
+
+    local phys = laser:GetPhysicsObject()
+    if(phys and phys:IsValid()) then
+      phys:EnableMotion(not frozen)
+    end
 
     user:AddCount(unit.."s", laser)
     numpad.OnUp(user, key, "Laser_Off", laser)
     numpad.OnDown(user, key, "Laser_On", laser)
 
-    table.Merge(self:GetTable(), {
-      ply         = user,
-      player      = user, -- For prop protection addons
+    table.Merge(laser:GetTable(), {
       key         = key,
       angleOffset = angleOffset,
       frozen      = frozen
@@ -422,4 +435,61 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
   end
 
   return trace, data
+end
+
+-- https://github.com/Facepunch/garrysmod/tree/master/garrysmod/resource/localization/en
+function LaserLib.SetupMaterials()
+  if(SERVER) then return end
+
+  language.Add("cable.crystal_beam1", "Crystal Beam Cable" )
+  language.Add("cable.cable1"       , "Cable Class 1"      )
+  language.Add("cable.cable2"       , "Cable Class 2"      )
+
+  table.Empty(list.GetForEdit("LaserEmitterMaterials"))
+  list.Set("LaserEmitterMaterials", "#cable.cable1"          , "cable/cable"        )
+  list.Set("LaserEmitterMaterials", "#cable.cable2"          , "cable/cable2"       )
+  list.Set("LaserEmitterMaterials", "#ropematerial.rope"     , "cable/rope"         )
+  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"    , "cable/xbeam"        )
+  list.Set("LaserEmitterMaterials", "#ropematerial.redlaser" , "cable/redlaser"     )
+  list.Set("LaserEmitterMaterials", "#ropematerial.blue_elec", "cable/blue_elec"    )
+  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam" , "cable/physbeam"     )
+  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"    , "cable/hydra"        )
+  list.Set("LaserEmitterMaterials", "#cable.crystal_beam1"   , "cable/crystal_beam1")
+  list.Set("LaserEmitterMaterials", "#trail.plasma"          , "trails/plasma"      )
+  list.Set("LaserEmitterMaterials", "#trail.tube"            , "trails/tube"        )
+  list.Set("LaserEmitterMaterials", "#trail.electric"        , "trails/electric"    )
+  list.Set("LaserEmitterMaterials", "#trail.smoke"           , "trails/smoke"       )
+  list.Set("LaserEmitterMaterials", "#trail.laser"           , "trails/laser"       )
+  list.Set("LaserEmitterMaterials", "#trail.physbeam"        , "trails/physbeam"    )
+  list.Set("LaserEmitterMaterials", "#trail.love"            , "trails/love"        )
+  list.Set("LaserEmitterMaterials", "#trail.lol"             , "trails/lol"         )
+  list.Set("LaserEmitterMaterials", "#effects.redlaser1"     , "effects/redlaser1"  )
+end
+
+function LaserLib.SetupModels()
+  local data = {
+    {"models/props_junk/flare.mdl"},
+    {"models/props_junk/PopCan01a.mdl"},
+    {"models/props_junk/TrafficCone001a.mdl"},
+    -- With angle offset as a second table argument
+    {"models/props_lab/tpplug.mdl", 90},
+    {"models/props_combine/breenlight.mdl", 180},
+    {"models/props_combine/headcrabcannister01a_skybox.mdl", 270}
+  }
+
+  if(WireLib) then -- Make these model available only if the player has Wire
+    table.insert(data, {"models/jaanus/wiretool/wiretool_beamcaster.mdl"})
+  end
+
+  -- Automatic data population. Add models in the list above
+  table.Empty(list.GetForEdit("LaserEmitterModels"))
+  for idx = 1, #data do
+    local rec = data[idx]
+    local mod = tostring(rec[1] or "")
+    local ang = (tonumber(rec[2]) or 0)
+    table.Empty(rec)
+    rec[DATA.TOOL.."_model"      ] = mod
+    rec[DATA.TOOL.."_angleoffset"] = ang
+    list.Set("LaserEmitterModels", mod, rec)
+  end
 end

@@ -41,8 +41,8 @@ function ENT:Initialize()
   if(phys:IsValid()) then phys:Wake() end
 
   if(WireLib)then
-    WireLib.CreateSpecialInputs(self, {"On", "Length", "Width", "Damage"})
-    WireLib.CreateSpecialOutputs(self, {"On", "Length", "Width", "Damage"})
+    WireLib.CreateSpecialInputs(self, {"On", "Length", "Width", "Damage", "Force"})
+    WireLib.CreateSpecialOutputs(self, {"On", "Length", "Width", "Damage", "Force"})
   end
 end
 
@@ -62,7 +62,7 @@ function ENT:DoDamage(trace, data)
                         data.NvDamage,
                         self.ply,
                         self:GetDissolveType(),
-                        self:GetPushProps(),
+                        self:GetPushForce(),
                         self:GetKillSound(),
                         self)
     end
@@ -115,9 +115,11 @@ function ENT:TriggerInput(iname, value)
     if(value == 0) then value = self.defaultWidth end
     self:SetBeamWidth(value)
   elseif(iname == "Damage") then
+    if(value == 0) then value = self.defaultDamage end
     self:SetDamageAmount(value)
   elseif(iname == "Force") then
-    -- TODO: Force for pushing props
+    if(value == 0) then value = self.defaultForce end
+    self:SetPushForce(value)
   end
 end
 
