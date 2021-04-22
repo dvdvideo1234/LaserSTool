@@ -3,33 +3,16 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-function ENT:ApplyDupeInfo(ply, ent, info, entid)
-  if(WireLib) then
-    WireLib.ApplyDupeInfo(ply, ent, info, entid)
-  end
-end
-
 function ENT:PreEntityCopy()
-  if(WireLib) then
-    duplicator.StoreEntityModifier(self, "WireDupeInfo", WireLib.BuildDupeInfo(self))
-  end
-end
-
-local function EntityLookup(created)
-  return function(id, default)
-    if(id == nil) then return default
-    elseif(id == 0) then return game.GetWorld() end
-    local ent = created[id] or (isnumber(id) and ents.GetByIndex(id))
-    if(IsValid(ent)) then return ent else return default end
-  end
+  self:WirePreEntityCopy()
 end
 
 function ENT:PostEntityPaste(ply, ent, created)
-  if(ent.EntityMods and ent.EntityMods.WireDupeInfo) then
-    if(WireLib) then
-      WireLib.ApplyDupeInfo(ply, ent, ent.EntityMods.WireDupeInfo, EntityLookup(created))
-    end
-  end
+  self:WirePostEntityPaste(ply, ent, created)
+end
+
+function ENT:ApplyDupeInfo(ply, ent, info, fentid)
+  self:WireApplyDupeInfo(ply, ent, info, fentid)
 end
 
 function ENT:Initialize()
@@ -37,34 +20,54 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
   self:SetSolid(SOLID_VPHYSICS)
 
+  self:WireCreateInputs(
+    {"On"    , "NORMAL", "Turns the laser on/off" },
+    {"Length", "NORMAL", "Updates the beam length"},
+    {"Width" , "NORMAL", "Updates the beam width" },
+    {"Damage", "NORMAL", "Updates the beam damage"},
+    {"Force" , "NORMAL", "Updates the beam force" }
+  ):WireCreateOutputs(
+    {"On"    , "NORMAL", "Laser entiy status"     },
+    {"Hit"   , "NORMAL", "Laser entity hit"       },
+    {"Length", "NORMAL", "Updates the beam length"},
+    {"Width" , "NORMAL", "Updates the beam width" },
+    {"Damage", "NORMAL", "Updates the beam damage"},
+    {"Force" , "NORMAL", "Updates the beam force" },
+    {"Target", "ENTITY", "Laser entity target"    },
+    {"Entity", "ENTITY", "Laser entity itself"    }
+  )
+
   local phys = self:GetPhysicsObject()
   if(phys:IsValid()) then phys:Wake() end
 
-  if(WireLib)then
-    WireLib.CreateSpecialInputs(self, {"On", "Length", "Width", "Damage", "Force"})
-    WireLib.CreateSpecialOutputs(self, {"On", "Length", "Width", "Damage", "Force"})
-  end
+  self:WireWrite("Entity", self)
 end
 
 function ENT:DoDamage(trace, data)
   -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
-  if(self:GetDamageAmount() > 0 and trace) then
+  if(trace) then
     local trent = trace.Entity
+
     if(trent and trent:IsValid() and
        trent:GetClass() ~= LaserLib.GetClass(1, 1) and
        trent:GetClass() ~= LaserLib.GetClass(2, 1) and
        trent:GetModel() ~= LaserLib.GetModel(3, 1))
     then
+      self:WireWrite("Hit", 1)
+      self:WireWrite("Target", trent)
+
       LaserLib.DoDamage(trent,
                         trace.HitPos,
                         trace.Normal,
                         data.VrDirect,
                         data.NvDamage,
-                        self.ply,
+                        self:GetCreator(),
                         self:GetDissolveType(),
                         self:GetPushForce(),
                         self:GetKillSound(),
                         self)
+    else
+      self:WireWrite("Hit", 0)
     end
   end
 
@@ -76,21 +79,22 @@ function ENT:DoBeam()
   local length = self:GetBeamLength()
   local damage = self:GetDamageAmount()
   local direct = self:GetBeamDirection()
-  local userfe = self:GetReflectionRate()
+  local usrfle = self:GetReflectionRate()
+  local usrfre = self:GetRefractionRate()
   local trace, data = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
                                       length,
                                       0, -- Width is not used
                                       damage,
-                                      userfe)
+                                      usrfle,
+                                      usrfre)
   return trace, data
 end
 
 function ENT:Think()
   if(self:GetOn()) then
-    local trace, data = self:DoBeam()
-    self:DoDamage(trace, data)
+    self:DoDamage(self:DoBeam())
   end
 
   self:NextThink(CurTime())
@@ -98,28 +102,24 @@ function ENT:Think()
 end
 
 function ENT:OnRemove()
-  if(WireLib) then WireLib.Remove(self) end
+  self:WireRemove()
 end
 
 function ENT:OnRestore()
-  if(WireLib) then WireLib.Restored(self) end
+  self:WireRestored()
 end
 
 function ENT:TriggerInput(iname, value)
   if(iname == "On") then
-    self:SetOn(tobool(value))
+    self:SetOn(value)
   elseif(iname == "Length") then
-    if(value == 0) then value = self.defaultLength end
-    self:SetBeamLength(value)
+    self:SetBeamLength(self:WireRead("Length", true) or self.defaultLength)
   elseif(iname == "Width") then
-    if(value == 0) then value = self.defaultWidth end
-    self:SetBeamWidth(value)
+    self:SetBeamWidth(self:WireRead("Width", true) or self.defaultWidth)
   elseif(iname == "Damage") then
-    if(value == 0) then value = self.defaultDamage end
-    self:SetDamageAmount(value)
+    self:SetDamageAmount(self:WireRead("Damage", true) or self.defaultDamage)
   elseif(iname == "Force") then
-    if(value == 0) then value = self.defaultForce end
-    self:SetPushForce(value)
+    self:SetPushForce(self:WireRead("Force", true) or self.defaultForce)
   end
 end
 

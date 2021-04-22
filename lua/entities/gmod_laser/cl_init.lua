@@ -24,23 +24,23 @@ function ENT:DrawEndingEffect(trace)
 end
 
 function ENT:Draw()
-
   self:DrawModel()
-
   if(self:GetOn()) then
     local white  = LaserLib.GetColor("WHITE")
     local width  = self:GetBeamWidth()
     local length = self:GetBeamLength()
     local origin = self:GetBeamOrigin()
     local direct = self:GetBeamDirection()
-    local userfe = self:GetReflectionRate()
+    local usrfle = self:GetReflectionRate()
+    local usrfre = self:GetRefractionRate()
     local trace, data = LaserLib.DoBeam(self,
                                         origin,
                                         direct,
                                         length,
                                         width,
                                         0, -- Damage is not used
-                                        userfe)
+                                        usrfle,
+                                        usrfre)
     if(trace) then
       local prev  = origin
       local bbmin = self:LocalToWorld(self:OBBMins())

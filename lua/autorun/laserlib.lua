@@ -9,6 +9,11 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "10", DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 
 DATA.TOOL = "laseremitter"
+DATA.ICON = "icon16/%s.png"
+
+-- Store zero angle and vector
+DATA.AZERO = Angle()
+DATA.VZERO = Vector()
 
 -- The default key in a collection point to take when not found
 DATA.KEYD = "#"
@@ -45,7 +50,7 @@ DATA.DISTYPE = {
   ["energy"]    = 0,
   ["heavyelec"] = 1,
   ["lightelec"] = 2,
-  ["coreffect"] = 3
+  ["core"]      = 3
 }
 
 DATA.REFLECT = { -- Reflection data descriptor
@@ -63,7 +68,7 @@ DATA.REFLECT = { -- Reflection data descriptor
   ["phoenix_storms/pack2/bluelight"]   = 0.681,
   ["phoenix_storms/window"]            = 0.854,
   ["sprops/trans/wheels/wheel_d_rim1"] = 0.943
-}; DATA.REFLECT.__size = #DATA.REFLECT
+}; DATA.REFLECT.Size = #DATA.REFLECT
 
 DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [1] = "air"  , -- Air enumerator index
@@ -89,10 +94,34 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/shadertest/shader3"]                 = 1.333, -- Water refraction index
   ["models/spawn_effect"]                       = 1.333, -- Water refraction index
   ["models/shadertest/shader4"]                 = 1.385  -- Water with some impurites
-}; DATA.REFRACT.__size = #DATA.REFRACT
+}; DATA.REFRACT.Size = #DATA.REFRACT
+
+function LaserLib.GetIcon(icon)
+  return DATA.ICON:format(tostring(icon or ""))
+end
 
 function LaserLib.GetTool()
   return DATA.TOOL
+end
+
+function LaserLib.GetZeroVector()
+  return DATA.VZERO
+end
+
+function LaserLib.GetZeroAngle()
+  return DATA.AZERO
+end
+
+function LaserLib.GetZeroTransform()
+  return LaserLib.GetZeroVector(),
+         LaserLib.GetZeroAngle()
+end
+
+function LaserLib.VecNegate(vec)
+  vec.x = -vec.x
+  vec.y = -vec.y
+  vec.z = -vec.z
+  return vec
 end
 
 function LaserLib.GetClass(iK, iD)
@@ -178,7 +207,7 @@ function GetMaterialData(ent, set)
   -- Check for element overrides
   if(set[mat]) then return set[mat] end
   -- Check for emement category
-  for idx = 1, set.__size do
+  for idx = 1, set.Size do
     local key = set[idx]
     if(mat:find(key, 1, true)) then
       return set[key]
@@ -198,23 +227,61 @@ end
  * Calculates the local beam origin offset
  * according tho the base entity and direction provided
  * base   > Base entity to calculate the vector for
- * direct > Worls space direction vaector to match
+ * direct > Local direction vector according to `base`
  * Returns the local entity origin offcet vector
  * obcen  > The local entity origin vector
 ]]
 function LaserLib.GetBeamOrigin(base, direct)
-  if(not (base and base:IsValid())) then return Vector(0,0,0) end
-        direct:Add(base:GetPos())
-        direct:Set(base:WorldToLocal(direct))
+  if(not (base and base:IsValid())) then return Vector(DATA.VZERO) end
+  local vbeam = Vector(direct)
   local obcen = base:OBBCenter()
   local obdir = base:OBBMaxs()
         obdir:Sub(base:OBBMins())
-  local kmulv = math.abs(obdir:Dot(direct))
-        direct:Mul(kmulv / 2)
-        obcen:Add(direct)
+  local kmulv = math.abs(obdir:Dot(vbeam))
+        vbeam:Mul(kmulv / 2)
+        obcen:Add(vbeam)
   return obcen
 end
 
+--[[
+ * Calculates the beam direction according to the
+ * angle provided as a regular number. Rotates around Y
+ * base  > Base entity to calculate the direction for
+ * angle > Amount to rotate the entity angle in degrees
+]]
+function LaserLib.GetBeamDirection(base, angle)
+  if(not (base and base:IsValid())) then return Angle(DATA.AZERO) end
+  local aent = base:GetAngles()
+  local rang, arot = aent:Right(), (tonumber(angle) or 0)
+        aent:RotateAroundAxis(rang, arot)
+  local pent = base:GetPos(); pent:Add(aent:Forward())
+  return base:WorldToLocal(pent)
+end
+
+--[[
+ * Projects the OBB onto the ray defined by position and direction
+ * base  > Base entity to calculate the snapping for
+ * hitp  > The position of the surface to snap the laser on
+ * norm  > World normal direction vector defining the snap plane
+ * angle > The model offset beam angling parameterization
+]]
+function LaserLib.SnapUpSurface(base, hitp, norm, angle)
+  local ang = norm:Angle()
+        ang:RotateAroundAxis(ang:Right(), -angle)
+  local dir = LaserLib.GetBeamDirection(base, angle)
+  local org = LaserLib.GetBeamOrigin(base, dir)
+  local obb = base:OBBCenter()
+        org:Sub(obb)
+        LaserLib.VecNegate(org)
+        org:Add(obb)
+  local pos = base:LocalToWorld(org)
+        org:Set(base:WorldToLocal(pos))
+        pos:Set(norm)
+        pos:Mul(math.abs(org:Dot(dir)))
+        pos:Add(hitp)
+  base:SetPos(pos)
+  base:SetAngles(ang)
+end
 --[[
  * Projects the OBB onto the ray defined by position and direction
  * base   > Base entity to calculate the vector for
@@ -307,7 +374,7 @@ if(SERVER) then
           target:EmitSound(Sound(killSound))
         end
       else
-        laserEnt.NextLaserDamage = CurTime() + 0.3
+        laserEnt.NextDamage = CurTime() + 0.3
       end
 
       target:TakeDamage(damage, attacker, laserEnt)
@@ -318,7 +385,8 @@ if(SERVER) then
                         angleOffset, key         , width       , length     ,
                         damage     , material    , dissolveType, startSound ,
                         stopSound  , killSound   , toggle      , startOn    ,
-                        pushForce  , endingEffect, reflectRate , refractRate, frozen)
+                        pushForce  , endingEffect, reflectRate , refractRate,
+                        forceCenter, frozen)
 
     local unit = LaserLib.GetTool()
     if(not (user and user:IsValid() and user:IsPlayer())) then return nil end
@@ -336,7 +404,7 @@ if(SERVER) then
     laser:Setup(width       , length     , damage   , material    ,
                 dissolveType, startSound , stopSound, killSound   ,
                 toggle      , startOn    , pushForce, endingEffect,
-                reflectRate , refractRate, false)
+                reflectRate , refractRate, forceCenter, false)
 
     local phys = laser:GetPhysicsObject()
     if(phys and phys:IsValid()) then
@@ -348,6 +416,8 @@ if(SERVER) then
     numpad.OnDown(user, key, "Laser_On", laser)
 
     table.Merge(laser:GetTable(), {
+      ply         = user,
+      player      = user,
       key         = key,
       angleOffset = angleOffset,
       frozen      = frozen
@@ -365,12 +435,13 @@ Traces a laser beam from the entity provided
  * length > Total beam length to be traced
  * width  > The amout of themage the beam does
  * damage > The amout of themage the beam does
- * userfe > Use surface material reflecting efficiency
+ * usrfle > Use surface material reflecting efficiency
+ * usrfre > Use surface material refracting efficiency
 ]]
-function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
+function LaserLib.DoBeam(entity, origin, direct, length, width, damage, usrfle, usrfre)
   local data, trace = {}
   -- Configure data structure
-  data.Tracing  = false
+  data.IsTrace  = false
   data.TeFilter = entity
   data.TvPoints = {Size = 0}
   data.VrOrigin = Vector(origin)
@@ -404,27 +475,32 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, userfe)
 
     if(trace.Entity and trace.Entity:IsValid()) then
       if(reflect) then
-        data.Tracing = true
+        data.IsTrace = true
         data.VrOrigin:Set(trace.HitPos)
         data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
         data.NvLength = data.NvLength - data.NvLength * trace.Fraction
         data.NvBounce = data.NvBounce - 1
-        if(userfe) then
+        if(usrfle) then
           local info = data.TvPoints[data.TvPoints.Size]
           data.NvWidth  = LaserLib.GetBeamWidth(reflect * data.NvWidth)
           data.NvDamage = reflect * data.NvDamage
           info[2], info[3] = data.NvWidth, data.NvDamage
         end
       elseif(refract) then
-        data.Tracing = false -- Temporaty prevent inifinite looks when refracting the beam
+        data.IsTrace = false -- Temporaty prevent inifinite looks when refracting the beam
+        if(usrfre) then
+          -- New stuff for refraction
+        end
       else
-        data.Tracing = false
+        data.IsTrace = false
       end
     else
-      data.Tracing = false
+      data.IsTrace = false
     end
 
-  until(not data.Tracing or data.NvBounce <= 0)
+  until(not data.IsTrace or data.NvBounce <= 0)
+
+  data.TeTarget = trace -- Update trace entity target to be accessible by crystals
 
   if(SERVER) then
     if(trace.Entity and
@@ -467,18 +543,48 @@ function LaserLib.SetupMaterials()
 end
 
 function LaserLib.SetupModels()
+  if(SERVER) then return end
+
   local data = {
-    {"models/props_junk/flare.mdl"},
-    {"models/props_junk/PopCan01a.mdl"},
-    {"models/props_junk/TrafficCone001a.mdl"},
+    {"models/props_junk/flare.mdl",90},
+    {"models/props_lab/jar01a.mdl",90},
+    {"models/props_lab/jar01b.mdl",90},
+    {"models/props_junk/PopCan01a.mdl",90},
+    {"models/props_c17/pottery01a.mdl",90},
+    {"models/props_c17/pottery02a.mdl",90},
+    {"models/props_c17/pottery04a.mdl",90},
+    {"models/props_c17/pottery05a.mdl",90},
+    {"models/props_junk/TrafficCone001a.mdl",90},
     -- With angle offset as a second table argument
-    {"models/props_lab/tpplug.mdl", 90},
-    {"models/props_combine/breenlight.mdl", 180},
-    {"models/props_combine/headcrabcannister01a_skybox.mdl", 270}
+    {"models/props_lab/tpplug.mdl"},
+    {"models/props_combine/breenlight.mdl",-90},
+    {"models/props_combine/headcrabcannister01a_skybox.mdl",180}
   }
 
+  if(IsMounted("portal")) then -- Portal is mounted
+    table.insert(data, {"models/props_bts/rocket.mdl"})
+    table.insert(data, {"models/props/cake/cake.mdl",90})
+    table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
+  end
+
+  if(IsMounted("hl2")) then -- Portal is mounted
+    table.insert(data, {"models/Items/AR2_Grenade.mdl"})
+    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",-90})
+    table.insert(data, {"models/Items/combine_rifle_ammo01.mdl",90})
+    table.insert(data, {"models/Items/combine_rifle_cartridge01.mdl",90})
+  end
+
+  if(IsMounted("dod")) then
+    table.insert(data, {"models/weapons/w_smoke_ger.mdl",-90})
+  end
+
   if(WireLib) then -- Make these model available only if the player has Wire
-    table.insert(data, {"models/jaanus/wiretool/wiretool_beamcaster.mdl"})
+    table.insert(data, {"models/led2.mdl", 90})
+    table.insert(data, {"models/venompapa/wirecdlock.mdl", 90})
+    table.insert(data, {"models/jaanus/wiretool/wiretool_siren.mdl", 90})
+    table.insert(data, {"models/jaanus/wiretool/wiretool_range.mdl", 90})
+    table.insert(data, {"models/jaanus/wiretool/wiretool_beamcaster.mdl", 90})
+    table.insert(data, {"models/jaanus/wiretool/wiretool_grabber_forcer.mdl", 90})
   end
 
   -- Automatic data population. Add models in the list above
@@ -492,4 +598,83 @@ function LaserLib.SetupModels()
     rec[DATA.TOOL.."_angleoffset"] = ang
     list.Set("LaserEmitterModels", mod, rec)
   end
+end
+
+-- http://www.famfamfam.com/lab/icons/silk/preview.php
+function LaserLib.SetupDissolveTypes()
+  if(SERVER) then return end
+
+  language.Add("dissolvetype.energy"       , "AR2 style")
+  language.Add("dissolvetype.heavyelectric", "Heavy electrical")
+  language.Add("dissolvetype.lightelectric", "Light electrical")
+  language.Add("dissolvetype.core"         , "Core Effect")
+
+  table.Empty(list.GetForEdit("LaserDissolveTypes"))
+  list.Set("LaserDissolveTypes", "#dissolvetype.energy"       , {name = "energy"   , icon = "lightning"})
+  list.Set("LaserDissolveTypes", "#dissolvetype.heavyElectric", {name = "heavyelec", icon = "joystick" })
+  list.Set("LaserDissolveTypes", "#dissolvetype.lightElectric", {name = "lightelec", icon = "package"  })
+  list.Set("LaserDissolveTypes", "#dissolvetype.core"         , {name = "core"     , icon = "ruby"     })
+end
+
+function LaserLib.SetupSoundEffects()
+  if(SERVER) then return end
+
+  language.Add("sound.none"              , "None")
+  language.Add("sound.alyxemp"           , "Alyx EMP")
+  language.Add("sound.weld1"             , "Weld 1")
+  language.Add("sound.weld2"             , "Weld 2")
+  language.Add("sound.electricexplosion1", "Electric Explosion 1")
+  language.Add("sound.electricexplosion2", "Electric Explosion 2")
+  language.Add("sound.electricexplosion3", "Electric Explosion 3")
+  language.Add("sound.electricexplosion4", "Electric Explosion 4")
+  language.Add("sound.electricexplosion5", "Electric Explosion 5")
+  language.Add("sound.disintegrate1"     , "Disintegrate 1")
+  language.Add("sound.disintegrate2"     , "Disintegrate 2")
+  language.Add("sound.disintegrate3"     , "Disintegrate 3")
+  language.Add("sound.disintegrate4"     , "Disintegrate 4")
+  language.Add("sound.zapper"            , "Zapper")
+
+  table.Empty(list.GetForEdit("LaserSounds"))
+  list.Set("LaserSounds", "#sound.none"              , "")
+  list.Set("LaserSounds", "#sound.alyxemp"           , "AlyxEMP.Charge")
+  list.Set("LaserSounds", "#sound.weld1"             , "ambient/energy/weld1.wav")
+  list.Set("LaserSounds", "#sound.weld2"             , "ambient/energy/weld2.wav")
+  list.Set("LaserSounds", "#sound.electricexplosion1", "ambient/levels/labs/electric_explosion1.wav")
+  list.Set("LaserSounds", "#sound.electricexplosion2", "ambient/levels/labs/electric_explosion2.wav")
+  list.Set("LaserSounds", "#sound.electricexplosion3", "ambient/levels/labs/electric_explosion3.wav")
+  list.Set("LaserSounds", "#sound.electricexplosion4", "ambient/levels/labs/electric_explosion4.wav")
+  list.Set("LaserSounds", "#sound.electricexplosion5", "ambient/levels/labs/electric_explosion5.wav")
+  list.Set("LaserSounds", "#sound.disintegrate1"     , "ambient/levels/citadel/weapon_disintegrate1.wav")
+  list.Set("LaserSounds", "#sound.disintegrate2"     , "ambient/levels/citadel/weapon_disintegrate2.wav")
+  list.Set("LaserSounds", "#sound.disintegrate3"     , "ambient/levels/citadel/weapon_disintegrate3.wav")
+  list.Set("LaserSounds", "#sound.disintegrate4"     , "ambient/levels/citadel/weapon_disintegrate4.wav")
+  list.Set("LaserSounds", "#sound.zapper"            , "ambient/levels/citadel/zapper_warmup1.wav")
+
+  table.Empty(list.GetForEdit("LaserStartSounds"))
+  table.Empty(list.GetForEdit("LaserStopSounds"))
+  table.Empty(list.GetForEdit("LaserKillSounds"))
+  for key, val in pairs(list.Get("LaserSounds")) do
+    list.Set("LaserStartSounds", key, {name = val, icon = "sound_add"   })
+    list.Set("LaserStopSounds" , key, {name = val, icon = "sound_delete"})
+    list.Set("LaserKillSounds" , key, {name = val, icon = "sound_mute"  })
+  end
+
+  table.Empty(list.GetForEdit("LaserSounds"))
+end
+
+function LaserLib.ComboBoxString(panel, convar, nameset)
+  local unit = LaserLib.GetTool()
+  local data = GetConVar(unit.."_"..convar):GetString()
+  local base = language.GetPhrase("tool."..unit.."."..convar.."_con")
+  local hint = language.GetPhrase("tool."..unit.."."..convar)
+  local item, name = panel:ComboBox(base, unit.."_"..convar)
+  item:SetTooltip(hint)
+  name:SetTooltip(hint)
+  item:SetSortItems(true)
+  item:Dock(TOP) -- Setting tallness gets ingnored otherwise
+  item:SetTall(22)
+  for key, val in pairs(list.GetForEdit(nameset)) do
+    local icon = LaserLib.GetIcon(val.icon)
+    item:AddChoice(key, val.name, (data == val.name), icon) end
+  panel:AddPanel(item); return item, name
 end
