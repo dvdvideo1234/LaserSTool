@@ -26,8 +26,9 @@ end
 function ENT:Draw()
   self:DrawModel()
   if(self:GetOn()) then
-    local white  = LaserLib.GetColor("WHITE")
-    local width  = self:GetBeamWidth()
+    local white = LaserLib.GetColor("WHITE")
+    local width = self:GetBeamWidth()
+          width = LaserLib.ClampWidth(width)
     local length = self:GetBeamLength()
     local origin = self:GetBeamOrigin()
     local direct = self:GetBeamDirection()
@@ -39,6 +40,7 @@ function ENT:Draw()
                                         length,
                                         width,
                                         0, -- Damage is not used
+                                        0, -- Force is not used
                                         usrfle,
                                         usrfre)
     if(trace) then

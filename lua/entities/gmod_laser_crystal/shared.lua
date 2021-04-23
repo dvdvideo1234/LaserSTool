@@ -14,8 +14,3 @@ ENT.Category       = "Other"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
-
-function ENT:GetBeamDirection()
-  -- Crystal always cast the beam in the same direction
-  return self.Entity:GetUp()
-end

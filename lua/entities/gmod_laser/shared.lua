@@ -37,7 +37,7 @@ end
   Width
 ---------------------- ]]
 function ENT:SetBeamWidth(num)
-  local width = LaserLib.GetBeamWidth(num)
+  local width = math.max(num, 0)
   self:SetNWInt("Width", width)
   self:WireWrite("Width", width)
 end
@@ -75,8 +75,8 @@ end
 --[[ ----------------------
      Model Offset
 ---------------------- ]]
-function ENT:SetAngleOffset(offset)
-  self:SetNWInt("AngleOffset", offset)
+function ENT:SetAngleOffset(angle)
+  self:SetNWInt("AngleOffset", angle)
 end
 
 function ENT:GetAngleOffset()
@@ -95,7 +95,7 @@ function ENT:GetBeamMaterial()
 end
 
 --[[ ----------------------
-      Dissolve type
+      Dissolve type. Write string! Read number!
 ---------------------- ]]
 function ENT:SetDissolveType(dissolvetype)
   self:SetNWString("DissolveType", dissolvetype)
@@ -233,7 +233,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self.defaultDamage = damage -- Used when wire is disconnected
   self:SetPushForce(pushForce)
   self.defaultForce = pushForce -- Used when wire is disconnected
-  
+
   -- These are not controlled by wire and are stored in the laser itself
   self:SetForceCenter(forceCenter)
   self:SetBeamMaterial(material)

@@ -75,6 +75,8 @@ function ENT:DoDamage(trace, data)
 end
 
 function ENT:DoBeam()
+  local force  = self:GetPushForce()
+  local width  = self:GetBeamWidth()
   local origin = self:GetBeamOrigin()
   local length = self:GetBeamLength()
   local damage = self:GetDamageAmount()
@@ -85,8 +87,9 @@ function ENT:DoBeam()
                                       origin,
                                       direct,
                                       length,
-                                      0, -- Width is not used
+                                      width,
                                       damage,
+                                      force,
                                       usrfle,
                                       usrfre)
   return trace, data

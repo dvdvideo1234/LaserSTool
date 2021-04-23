@@ -10,6 +10,8 @@ DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "10", DATA.FGSRVCN, "Maxi
 
 DATA.TOOL = "laseremitter"
 DATA.ICON = "icon16/%s.png"
+DATA.NOAV = "N/A"
+DATA.TOLD = SysTime()
 
 -- Store zero angle and vector
 DATA.AZERO = Angle()
@@ -46,7 +48,7 @@ DATA.COLOR = {
 }
 
 DATA.DISTYPE = {
-  [DATA.KEYD]   = "coreffect",
+  [DATA.KEYD]   = "core",
   ["energy"]    = 0,
   ["heavyelec"] = 1,
   ["lightelec"] = 2,
@@ -95,6 +97,12 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/spawn_effect"]                       = 1.333, -- Water refraction index
   ["models/shadertest/shader4"]                 = 1.385  -- Water with some impurites
 }; DATA.REFRACT.Size = #DATA.REFRACT
+
+function LaserLib.Print(time, func, ...)
+  local tnew = SysTime()
+  if((tnew - DATA.TOLD) > time)
+    then func(...); DATA.TOLD = tnew end
+end
 
 function LaserLib.GetIcon(icon)
   return DATA.ICON:format(tostring(icon or ""))
@@ -152,21 +160,21 @@ function LaserLib.UpdateRB(base, vec, func)
   base.z = func(base.z, vec.z)
 end
 
-function LaserLib.GetBeamWidth(width)
-  return math.Clamp(width, 0.1, 100)
+-- when zero return zero. Otherwise clamp
+function LaserLib.ClampWidth(width)
+  local out = math.max(width, 0.1)
+  return ((width > 0) and out or 0)
 end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
 function GetCollectionData(key, set)
   local idx = DATA.KEYD
-  if(idx == key) then
-    return set[set[idx]]
-  else
-    local out = set[key]
-    if(not out) then
-      out = set[set[idx]]
-    end; return out
-  end
+  local def = set[set[idx]]
+  if(not key) then return def end
+  if(key == idx) then return def end
+  local out = set[key] -- Try to index
+  if(not out) then return def end
+  return out -- Return indexed OK
 end
 
 function LaserLib.GetDissolveType(disstype)
@@ -433,12 +441,13 @@ Traces a laser beam from the entity provided
  * origin > Inititial ray origin position vector
  * direct > Inititial ray world direction vector
  * length > Total beam length to be traced
- * width  > The amout of themage the beam does
- * damage > The amout of themage the beam does
+ * width  > Beam starting width from the origin
+ * damage > The amout of damage the beam does
+ * force  > The amout of force the beam does
  * usrfle > Use surface material reflecting efficiency
  * usrfre > Use surface material refracting efficiency
 ]]
-function LaserLib.DoBeam(entity, origin, direct, length, width, damage, usrfle, usrfre)
+function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre)
   local data, trace = {}
   -- Configure data structure
   data.IsTrace  = false
@@ -449,6 +458,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, usrfle, 
   data.BmLength = math.max(tonumber(length) or 0, 0)
   data.NvDamage = math.max(tonumber(damage) or 0, 0)
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
+  data.NvForce  = math.max(tonumber(force ) or 0, 0)
   data.TreIndex = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
   data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce, data.NvLength = data.MxBounce, data.BmLength
@@ -481,9 +491,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, usrfle, 
         data.NvLength = data.NvLength - data.NvLength * trace.Fraction
         data.NvBounce = data.NvBounce - 1
         if(usrfle) then
-          local info = data.TvPoints[data.TvPoints.Size]
           data.NvWidth  = LaserLib.GetBeamWidth(reflect * data.NvWidth)
           data.NvDamage = reflect * data.NvDamage
+          data.NvForce  = reflect * data.NvForce
+          -- Update the parameters used for drawing the beam trace
+          local info = data.TvPoints[data.TvPoints.Size]
           info[2], info[3] = data.NvWidth, data.NvDamage
         end
       elseif(refract) then
@@ -511,6 +523,37 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, usrfle, 
   end
 
   return trace, data
+end
+
+function LaserLib.GetTerm(str, def)
+  local txt = tostring(str or "")
+        txt = ((txt == "") and tostring(def or "") or txt)
+  return ((txt == "") and DATA.NOAV or txt)
+end
+
+function LaserLib.ComboBoxString(panel, convar, nameset)
+  local unit = LaserLib.GetTool()
+  local data = GetConVar(unit.."_"..convar):GetString()
+  local base = language.GetPhrase("tool."..unit.."."..convar.."_con")
+  local hint = language.GetPhrase("tool."..unit.."."..convar)
+  local item, name = panel:ComboBox(base, unit.."_"..convar)
+  item:SetTooltip(hint); name:SetTooltip(hint)
+  item:SetSortItems(true); item:Dock(TOP); item:SetTall(22)
+  for key, val in pairs(list.GetForEdit(nameset)) do
+    local icon = LaserLib.GetIcon(val.icon)
+    item:AddChoice(key, val.name, (data == val.name), icon)
+  end
+  item.DoRightClick = function(pnSelf)
+    local sN = DATA.NOAV
+    local vV = pnSelf:GetValue()
+    local iD = pnSelf:GetSelectedID()
+    local vT = pnSelf:GetOptionText(iD)
+    SetClipboardText(LaserLib.GetTerm(vT, vV))
+  end
+  name.DoRightClick = function(pnSelf)
+    SetClipboardText(pnSelf:GetText())
+  end
+  return item, name
 end
 
 -- https://github.com/Facepunch/garrysmod/tree/master/garrysmod/resource/localization/en
@@ -549,12 +592,12 @@ function LaserLib.SetupModels()
     {"models/props_junk/flare.mdl",90},
     {"models/props_lab/jar01a.mdl",90},
     {"models/props_lab/jar01b.mdl",90},
-    {"models/props_junk/PopCan01a.mdl",90},
+    {"models/props_junk/popcan01a.mdl",90},
     {"models/props_c17/pottery01a.mdl",90},
     {"models/props_c17/pottery02a.mdl",90},
     {"models/props_c17/pottery04a.mdl",90},
     {"models/props_c17/pottery05a.mdl",90},
-    {"models/props_junk/TrafficCone001a.mdl",90},
+    {"models/props_junk/trafficcone001a.mdl",90},
     -- With angle offset as a second table argument
     {"models/props_lab/tpplug.mdl"},
     {"models/props_combine/breenlight.mdl",-90},
@@ -564,18 +607,23 @@ function LaserLib.SetupModels()
   if(IsMounted("portal")) then -- Portal is mounted
     table.insert(data, {"models/props_bts/rocket.mdl"})
     table.insert(data, {"models/props/cake/cake.mdl",90})
+    table.insert(data, {"models/Weapons/w_portalgun.mdl",180})
     table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
   end
 
   if(IsMounted("hl2")) then -- Portal is mounted
-    table.insert(data, {"models/Items/AR2_Grenade.mdl"})
-    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",-90})
-    table.insert(data, {"models/Items/combine_rifle_ammo01.mdl",90})
-    table.insert(data, {"models/Items/combine_rifle_cartridge01.mdl",90})
+    table.insert(data, {"models/items/ar2_grenade.mdl"})
+    table.insert(data, {"models/items/combine_rifle_ammo01.mdl",90})
+    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",90})
+    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",90})
   end
 
   if(IsMounted("dod")) then
     table.insert(data, {"models/weapons/w_smoke_ger.mdl",-90})
+  end
+
+  if(IsMounted("cstrike")) then
+    table.insert(data, {"models/props/de_nuke/emergency_lighta.mdl",90})
   end
 
   if(WireLib) then -- Make these model available only if the player has Wire
@@ -660,21 +708,4 @@ function LaserLib.SetupSoundEffects()
   end
 
   table.Empty(list.GetForEdit("LaserSounds"))
-end
-
-function LaserLib.ComboBoxString(panel, convar, nameset)
-  local unit = LaserLib.GetTool()
-  local data = GetConVar(unit.."_"..convar):GetString()
-  local base = language.GetPhrase("tool."..unit.."."..convar.."_con")
-  local hint = language.GetPhrase("tool."..unit.."."..convar)
-  local item, name = panel:ComboBox(base, unit.."_"..convar)
-  item:SetTooltip(hint)
-  name:SetTooltip(hint)
-  item:SetSortItems(true)
-  item:Dock(TOP) -- Setting tallness gets ingnored otherwise
-  item:SetTall(22)
-  for key, val in pairs(list.GetForEdit(nameset)) do
-    local icon = LaserLib.GetIcon(val.icon)
-    item:AddChoice(key, val.name, (data == val.name), icon) end
-  panel:AddPanel(item); return item, name
 end
