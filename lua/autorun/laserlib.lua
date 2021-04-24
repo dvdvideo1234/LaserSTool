@@ -28,20 +28,21 @@ DATA.CLS = {
   -- [1] Item true class [2] Spawn class from entities
   {"gmod_laser"},
   {"gmod_laser_crystal"  , "gmod_laser_crystal"},
-  {"gmod_laser_reflector", "prop_physics"      }
+  {"prop_physics"        , "prop_physics"      }
 }
 
 DATA.MOD = {
   -- [1] Model used by the entities menu
   {""}, -- Laser model is changed via laser tool
-  {"models/Combine_Helicopter/helicopter_bomb01.mdl"},
+  -- Portal cube: models/props/reflection_cube.mdl
+  {"models/props_c17/pottery02a.mdl"},
   {"models/madjawa/laser_reflector.mdl"}
 }
 
 DATA.MAT = {
   -- [1] Model used by the entities menu
   {""}, -- Laser material is changed with the model
-  {"models/props_combine/health_charger_glass"},
+  {"models/props_lab/xencrystal_sheet"},
   {"debug/env_cubemap_model"}
 }
 
@@ -63,10 +64,10 @@ DATA.REFLECT = { -- Reflection data descriptor
   [1] = "cubemap", -- Cube maps textures
   [2] = "chrome" , -- Chrome stuff reflect
   [3] = "shiny"  , -- All shiny stuff reflect
-  [3] = "metal"  , -- All shiny metal reflect
+  [4] = "metal"  , -- All shiny metal reflect
   -- Used for prop updates and checks
   [DATA.KEYD]                          = "debug/env_cubemap_model",
-  ["debug/env_cubemap_model"]          = 0.999,
+  ["debug/env_cubemap_model"]          = 0.999, -- There is no perfect mirror
   -- User for general class control
   ["shiny"]                            = 0.854,
   ["chrome"]                           = 0.955,
@@ -446,8 +447,8 @@ if(SERVER) then
     numpad.OnDown(user, key, "Laser_On", laser)
 
     table.Merge(laser:GetTable(), {
-      ply         = user,
-      player      = user,
+      ply         = laser:GetCreator(),
+      player      = laser:GetCreator(),
       key         = key,
       angleOffset = angleOffset,
       frozen      = frozen
@@ -617,6 +618,7 @@ function LaserLib.SetupModels()
   if(SERVER) then return end
 
   local data = {
+    {"models/props_lab/tpplug.mdl"},
     {"models/props_junk/flare.mdl",90},
     {"models/props_lab/jar01a.mdl",90},
     {"models/props_lab/jar01b.mdl",90},
@@ -625,10 +627,9 @@ function LaserLib.SetupModels()
     {"models/props_c17/pottery02a.mdl",90},
     {"models/props_c17/pottery04a.mdl",90},
     {"models/props_c17/pottery05a.mdl",90},
-    {"models/props_junk/trafficcone001a.mdl",90},
-    -- With angle offset as a second table argument
-    {"models/props_lab/tpplug.mdl"},
     {"models/props_combine/breenlight.mdl",-90},
+    {"models/props_junk/trafficcone001a.mdl",90},
+    {"models/props_wasteland/laundry_washer003.mdl"},
     {"models/props_combine/headcrabcannister01a_skybox.mdl",180}
   }
 
@@ -639,8 +640,10 @@ function LaserLib.SetupModels()
     table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
   end
 
-  if(IsMounted("hl2")) then -- Portal is mounted
+  if(IsMounted("hl2")) then -- HL2 is mounted
     table.insert(data, {"models/items/ar2_grenade.mdl"})
+    table.insert(data, {"models/weapons/w_missile_closed.mdl"})
+    table.insert(data, {"models/weapons/w_missile_launch.mdl"})
     table.insert(data, {"models/props_c17/canister01a.mdl",90})
     table.insert(data, {"models/props_combine/weaponstripper.mdl"})
     table.insert(data, {"models/items/combine_rifle_ammo01.mdl",90})
@@ -650,11 +653,11 @@ function LaserLib.SetupModels()
     table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",-90})
   end
 
-  if(IsMounted("dod")) then
+  if(IsMounted("dod")) then -- DoD is mounted
     table.insert(data, {"models/weapons/w_smoke_ger.mdl",-90})
   end
 
-  if(IsMounted("cstrike")) then
+  if(IsMounted("cstrike")) then -- Counter-Strike is mounted
     table.insert(data, {"models/props/de_nuke/emergency_lighta.mdl",90})
   end
 

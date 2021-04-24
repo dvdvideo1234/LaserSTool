@@ -20,7 +20,8 @@ function ENT:SetupBeamTransform()
   local direct = LaserLib.GetBeamDirection(self, angle)
   local origin = LaserLib.GetBeamOrigin(self, direct)
   self:SetNWVector("Origin", origin)
-  self:SetNWVector("Direct", direct); return self
+  self:SetNWVector("Direct", direct)
+  return self
 end
 
 function ENT:GetBeamOrigin()
@@ -40,6 +41,7 @@ function ENT:SetBeamWidth(num)
   local width = math.max(num, 0)
   self:SetNWInt("Width", width)
   self:WireWrite("Width", width)
+  return self
 end
 
 function ENT:GetBeamWidth()
@@ -53,6 +55,7 @@ function ENT:SetBeamLength(num)
   local length = math.abs(num)
   self:SetNWInt("Length", length)
   self:WireWrite("Length", length)
+  return self
 end
 
 function ENT:GetBeamLength()
@@ -66,6 +69,7 @@ function ENT:SetDamageAmount(num)
   local damage = math.max(num, 0)
   self:SetNWInt("Damage", damage)
   self:WireWrite("Damage", damage)
+  return self
 end
 
 function ENT:GetDamageAmount()
@@ -75,8 +79,9 @@ end
 --[[ ----------------------
      Model Offset
 ---------------------- ]]
-function ENT:SetAngleOffset(angle)
-  self:SetNWInt("AngleOffset", angle)
+function ENT:SetAngleOffset(ang)
+  self:SetNWInt("AngleOffset", ang)
+  return self
 end
 
 function ENT:GetAngleOffset()
@@ -86,19 +91,33 @@ end
 --[[ ----------------------
   Material
 ---------------------- ]]
-function ENT:SetBeamMaterial(material)
-  self:SetNWString("Material", material)
+function ENT:SetBeamMaterial(mat)
+  self:SetNWString("Material", mat)
+  return self
 end
 
-function ENT:GetBeamMaterial()
-  return self:GetNWString("Material")
+function ENT:GetBeamMaterial(bool)
+  local mat = self:GetNWString("Material")
+  if(bool) then
+    if(not self.materCached) then
+      self.materCached = Material(mat)
+    else
+      if(self.materCached:GetName() ~= mat) then
+        self.materCached = Material(mat)
+      end
+    end
+    return self.materCached
+  else
+    return self:GetNWString("Material")
+  end
 end
 
 --[[ ----------------------
       Dissolve type. Write string! Read number!
 ---------------------- ]]
-function ENT:SetDissolveType(dissolvetype)
-  self:SetNWString("DissolveType", dissolvetype)
+function ENT:SetDissolveType(distype)
+  self:SetNWString("DissolveType", distype)
+  return self
 end
 
 function ENT:GetDissolveType()
@@ -110,6 +129,7 @@ end
 ---------------------- ]]
 function ENT:SetStartSound(snd)
   self.startSound = tostring(snd or "")
+  return self
 end
 
 function ENT:GetStartSound()
@@ -118,6 +138,7 @@ end
 
 function ENT:SetStopSound(snd)
   self.stopSound = tostring(snd or "")
+  return self
 end
 
 function ENT:GetStopSound()
@@ -126,6 +147,7 @@ end
 
 function ENT:SetKillSound(snd)
   self.killSound = tostring(snd or "")
+  return self
 end
 
 function ENT:GetKillSound()
@@ -137,6 +159,7 @@ end
 ---------------------- ]]
 function ENT:SetToggle(bool)
   self:SetNWBool("Toggle", tobool(bool))
+  return self
 end
 
 function ENT:GetToggle()
@@ -158,6 +181,7 @@ function ENT:SetOn(bool)
 
   self:SetNWBool("On", state)
   self:WireWrite("On", (state and 1 or 0))
+  return self
 end
 
 function ENT:GetOn()
@@ -171,6 +195,7 @@ function ENT:SetPushForce(num)
   local force = math.max(num, 0)
   self:SetNWFloat("PushForce", force)
   self:WireWrite("Force", force)
+  return self
 end
 
 function ENT:GetPushForce()
@@ -182,6 +207,7 @@ end
 ---------------------- ]]
 function ENT:SetEndingEffect(bool)
   self:SetNWBool("EndingEffect", tobool(bool))
+  return self
 end
 
 function ENT:GetEndingEffect()
@@ -193,6 +219,7 @@ end
 ---------------------- ]]
 function ENT:SetReflectionRate(bool)
   self:SetNWBool("ReflectRate", tobool(bool))
+  return self
 end
 
 function ENT:GetReflectionRate()
@@ -204,6 +231,7 @@ end
 ---------------------- ]]
 function ENT:SetRefractionRate(bool)
   self:SetNWBool("RefractRate", tobool(bool))
+  return self
 end
 
 function ENT:GetRefractionRate()
@@ -215,6 +243,7 @@ end
 ---------------------- ]]
 function ENT:SetForceCenter(bool)
   self:SetNWBool("ForceCenter", tobool(bool))
+  return self
 end
 
 function ENT:GetForceCenter()

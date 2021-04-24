@@ -10,6 +10,22 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
+function ENT:SetupSources()
+  if(self.Sources) then
+    table.Empty(self.Sources)
+    table.Empty(self.Array)
+  else
+    self.Sources = {} -- Sources in notation `[ent] = true`
+    self.Array   = {} -- Array to output for wiremod
+  end
+  self.Size = 0       -- Amount of sources to have
+  return self
+end
+
+function ENT:SetSource(ent)
+  self.Sources[ent] = true; return self
+end
+
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
   self:PhysicsInit(SOLID_VPHYSICS)
@@ -54,55 +70,56 @@ end
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
-  local pos = tr.HitPos + tr.HitNormal * 35
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
   local ent = ents.Create(LaserLib.GetClass(2, 2))
   ent:SetModel(LaserLib.GetModel(2, 1))
   ent:SetMaterial(LaserLib.GetMaterial(2, 1))
-  ent:SetPos(pos)
-  ent:SetAngles(Angle(0, yaw, 0))
   ent:Spawn()
   ent:Activate()
   ent:SetupBeamTransform()
+  local pos = Vector(tr.HitNormal)
+        pos:Mul(ent:BoundingRadius())
+        pos:Add(tr.HitPos)
+  ent:SetPos(pos) -- Use baounding radius instead of constant
+  ent:SetAngles(Angle(0, yaw, 0)) -- Appy angle after spawn
   return ent
 end
 
-function ENT:SetupSources()
-  if(self.Sources) then
-    table.Empty(self.Sources)
-    table.Empty(self.Array)
-  else
-    self.Sources = {} -- Sources in notation `[ent] = data`
-    self.Array   = {} -- Array to output for wiremod
-  end
-  self.Size = 0     -- Amount of sources to have
-  return self
-end
-
-function ENT:SetSource(ent)
-  self.Sources[ent] = true; return self
-end
-
+--[[
+ * Checks for infinite loops when the source `ent`
+ * is powered by other crystals powered by self
+ * self > The root of the tree propagated
+ * ent  > The entity of the source checked
+]]
 function ENT:IsInfinite(ent)
   if(ent == self) then return true end
   local class = LaserLib.GetClass(2, 1)
   if(ent:GetClass() == class) then
-    local flag = false -- Assume for no infinite loop
-    for k, v in pairs(ent.Sources) do -- Check sources
-      if(v) then -- Crystal has been hyt by other crystal
-        if(k:GetClass() == class) then -- Check sources
-          flag = k:IsInfinite(ent)
-        else -- The source of the other one is not crystal
-          flag = false
-        end
-        if(flag) then return true end
-      end
-    end
+    for iD = 1, ent.Size do local src = ent.Array[iD]
+      if(src == self) then return true end -- Other hits and we are in its sources
+      if(src and src:IsValid()) then -- Crystal has been hit by other crystal
+        if(src:GetClass() == class) then -- Check calss to propagade the tree
+          if(self:IsInfinite(src)) then return true end end
+      end -- Cascadely propagate trough the crystal sources from `self`
+    end; return false
   else -- The entity is laser
     return false
   end
 end
 
+function ENT:CleanSources()
+  local iD = (self.Size + 1) -- Remove the residuals
+  while(self.Array[iD]) do -- Table end check
+    self.Array[iD] = nil -- Wipe cirrent item
+    iD = (iD + 1) -- Wipe the rest until empty
+  end; return self
+end
+
+--[[
+ Checks whenever the entity argument hits us
+ * self > The crystal to be checked
+ * ent  > Source entity to be checked
+]]
 function ENT:IsSource(ent)
   if(ent == self) then return false end -- Our source
   if(not LaserLib.IsSource(ent)) then return false end
@@ -116,18 +133,13 @@ end
 function ENT:CountSources()
   self.Size = 0 -- Add sources in array
   for ent, stat in pairs(self.Sources) do
-    if(self:IsSource(ent)) then
-      self.Size = self.Size + 1
-      self.Array[self.Size] = ent
-    else -- When not a source. Clear the slot
+    if(self:IsSource(ent)) then -- Check the thing
+      self.Size = self.Size + 1 -- Point to next slot
+      self.Array[self.Size] = ent -- Store source
+    else -- When not a source. Delete the slot
       self.Sources[ent] = nil -- Wipe out the entry
     end -- The sources order does not matter
-  end -- Sources are located in the table hash part
-  local iD = (self.Size + 1) -- Remove the residuals
-  while(self.Array[iD]) do -- Table end check
-    self.Array[iD] = nil -- Wipe cirrent item
-    iD = iD + 1 -- Wipe the rest until empty
-  end; return self
+  end; return self -- Sources are located in the table hash part
 end
 
 function ENT:UpdateDominant(ent)
@@ -170,37 +182,46 @@ function ENT:UpdateBeam()
     for iD = 1, self.Size do
       local ent = self.Array[iD]
       if(ent and ent:IsValid()) then
-        local trace, data = ent:GetHitReport()
-        if(data and not self:IsInfinite(ent)) then
-          width  = width  + data.NvWidth
-          length = length + data.NvLength
-          damage = damage + data.NvDamage
-          force  = force  + data.NvForce
-          npower = LaserLib.RatePower(data.NvWidth, data.NvDamage)
+        if(not self:IsInfinite(ent)) then
+          local trace, data = ent:GetHitReport()
+          if(data) then
+            width  = width  + data.NvWidth
+            length = length + data.NvLength
+            damage = damage + data.NvDamage
+            force  = force  + data.NvForce
+            npower = LaserLib.RatePower(data.NvWidth, data.NvDamage)
 
-          if(npower > opower) then
-            dominant, opower = ent, npower
+            if(npower > opower) then
+              dominant, opower = ent, npower
+            end
           end
         end
       end
     end
-    self:UpdateDominant(dominant)
+
+    if(npower > 0) then
+      self:SetPushForce(force)
+      self:SetBeamWidth(width)
+      self:SetBeamLength(length)
+      self:SetDamageAmount(damage)
+      self:UpdateDominant(dominant)
+    else
+      self:SetHitReport()
+    end
   end
 
-  self:SetPushForce(force)
-  self:SetBeamWidth(width)
-  self:SetBeamLength(length)
-  self:SetDamageAmount(damage)
+  return self
 end
 
 function ENT:Think()
   self:CountSources()
+  self:CleanSources()
 
   if(self.Size > 0) then
-    self:UpdateBeam()
     self:SetOn(true)
 
     if(self:GetOn()) then
+      self:UpdateBeam()
       self:DoDamage(self:DoBeam())
     end
   else

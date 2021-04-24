@@ -2,24 +2,28 @@ include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
--- TODO : Beam is not rendered wehn hits the back of the player
+--[[
+* This is actually faster than stuffing all the beams
+* information for every laser in a dedicated table and
+* draw the table elemeents one by one at once.
+]]
 
 function ENT:DrawEndingEffect(trace)
-  self.NextEffect = self.NextEffect or CurTime()
+  self.nextEffect = self.nextEffect or CurTime()
 
   if(trace and not trace.HitSky and
      self:GetEndingEffect() and
-     CurTime() >= self.NextEffect)
+     CurTime() >= self.nextEffect)
   then
-    if(not self.DataEffect) then
-      self.DataEffect = EffectData()
+    if(not self.beamEffect) then
+      self.beamEffect = EffectData()
     end -- Allocate effect data class
-    self.DataEffect:SetStart(trace.HitPos)
-    self.DataEffect:SetOrigin(trace.HitPos)
-    self.DataEffect:SetNormal(trace.HitNormal)
-    self.DataEffect:SetScale(1)
-    util.Effect("AR2Impact", self.DataEffect)
-    self.NextEffect = CurTime() + 0.1
+    self.beamEffect:SetStart(trace.HitPos)
+    self.beamEffect:SetOrigin(trace.HitPos)
+    self.beamEffect:SetNormal(trace.HitNormal)
+    self.beamEffect:SetScale(1)
+    util.Effect("AR2Impact", self.beamEffect)
+    self.nextEffect = CurTime() + 0.1
   end
 end
 
@@ -44,12 +48,15 @@ function ENT:Draw()
                                           usrfle,
                                           usrfre)
       if(trace) then
-        local prev  = origin
+        local vprev = origin
+        local white = LaserLib.GetColor("WHITE")
+        local ushit = LocalPlayer():GetEyeTrace().HitPos
         local bbmin = self:LocalToWorld(self:OBBMins())
         local bbmax = self:LocalToWorld(self:OBBMaxs())
 
-        -- Material must not be cached. Updated with left click setup
-        render.SetMaterial(Material(self:GetBeamMaterial()))
+        -- Material must be cached and pdated with left click setup
+        local mat = self:GetBeamMaterial(true)
+        if(mat) then render.SetMaterial(mat) end
 
         for idx = 1, data.TvPoints.Size do
           local val = data.TvPoints[idx]
@@ -60,19 +67,22 @@ function ENT:Draw()
           LaserLib.UpdateRB(bbmax, vtx, math.max)
 
           -- Draw the actual beam texture
-          if(prev ~= vtx) then
+          if(vprev ~= vtx) then
             local dtm = 13 * CurTime()
-            local len = (vtx - prev):Length()
-            render.DrawBeam(prev,
+            local len = (vtx - vprev):Length()
+            render.DrawBeam(vprev,
                             vtx,
                             wid,
                             dtm,
                             dtm - len / 9,
-                            LaserLib.GetColor("WHITE"))
-          end; prev = vtx
+                            white)
+          end; vprev = vtx
         end
 
-        -- Adjust the render bounds with local coordinates
+        LaserLib.UpdateRB(bbmin, ushit, math.min)
+        LaserLib.UpdateRB(bbmax, ushit, math.max)
+
+        -- Adjust the render bounds with world-space coordinates
         self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
 
         self:DrawEndingEffect(trace)
