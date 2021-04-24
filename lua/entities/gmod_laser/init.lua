@@ -65,9 +65,11 @@ function ENT:DoDamage(trace, data)
                         self:GetDissolveType(),
                         self:GetPushForce(),
                         self:GetKillSound(),
+                        self:GetForceCenter(),
                         self)
     else
       self:WireWrite("Hit", 0)
+      self:WireWrite("Target")
     end
   end
 
@@ -124,6 +126,20 @@ function ENT:TriggerInput(iname, value)
   elseif(iname == "Force") then
     self:SetPushForce(self:WireRead("Force", true) or self.defaultForce)
   end
+end
+
+function ENT:SetHitReport(trace, data)
+  if(not self.hitReport) then self.hitReport = {} end
+  self.hitReport["DT"] = data
+  self.hitReport["TR"] = trace
+  return self
+end
+
+function ENT:GetHitReport()
+  if(not self.hitReport) then return end
+  local data  = self.hitReport["DT"]
+  local trace = self.hitReport["TR"]
+  return trace, data
 end
 
 local function On(ply, ent)

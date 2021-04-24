@@ -26,56 +26,57 @@ end
 function ENT:Draw()
   self:DrawModel()
   if(self:GetOn()) then
-    local white = LaserLib.GetColor("WHITE")
     local width = self:GetBeamWidth()
           width = LaserLib.ClampWidth(width)
     local length = self:GetBeamLength()
-    local origin = self:GetBeamOrigin()
-    local direct = self:GetBeamDirection()
-    local usrfle = self:GetReflectionRate()
-    local usrfre = self:GetRefractionRate()
-    local trace, data = LaserLib.DoBeam(self,
-                                        origin,
-                                        direct,
-                                        length,
-                                        width,
-                                        0, -- Damage is not used
-                                        0, -- Force is not used
-                                        usrfle,
-                                        usrfre)
-    if(trace) then
-      local prev  = origin
-      local bbmin = self:LocalToWorld(self:OBBMins())
-      local bbmax = self:LocalToWorld(self:OBBMaxs())
+    if(width > 0 and length > 0) then
+      local origin = self:GetBeamOrigin()
+      local direct = self:GetBeamDirection()
+      local usrfle = self:GetReflectionRate()
+      local usrfre = self:GetRefractionRate()
+      local trace, data = LaserLib.DoBeam(self,
+                                          origin,
+                                          direct,
+                                          length,
+                                          width,
+                                          0, -- Damage is not used
+                                          0, -- Force is not used
+                                          usrfle,
+                                          usrfre)
+      if(trace) then
+        local prev  = origin
+        local bbmin = self:LocalToWorld(self:OBBMins())
+        local bbmax = self:LocalToWorld(self:OBBMaxs())
 
-      -- Material must not be cached. Updated with left click setup
-      render.SetMaterial(Material(self:GetBeamMaterial()))
+        -- Material must not be cached. Updated with left click setup
+        render.SetMaterial(Material(self:GetBeamMaterial()))
 
-      for idx = 1, data.TvPoints.Size do
-        local val = data.TvPoints[idx]
-        local vtx, wid = val[1], val[2]
+        for idx = 1, data.TvPoints.Size do
+          local val = data.TvPoints[idx]
+          local vtx, wid = val[1], val[2]
 
-        -- Make sure the coordinates are conveted to world ones
-        LaserLib.UpdateRB(bbmin, vtx, math.min)
-        LaserLib.UpdateRB(bbmax, vtx, math.max)
+          -- Make sure the coordinates are conveted to world ones
+          LaserLib.UpdateRB(bbmin, vtx, math.min)
+          LaserLib.UpdateRB(bbmax, vtx, math.max)
 
-        -- Draw the actual beam texture
-        if(prev ~= vtx) then
-          local dtm = 13 * CurTime()
-          local len = (vtx - prev):Length()
-          render.DrawBeam(prev,
-                          vtx,
-                          wid,
-                          dtm,
-                          dtm - len / 9,
-                          white)
-        end; prev = vtx
+          -- Draw the actual beam texture
+          if(prev ~= vtx) then
+            local dtm = 13 * CurTime()
+            local len = (vtx - prev):Length()
+            render.DrawBeam(prev,
+                            vtx,
+                            wid,
+                            dtm,
+                            dtm - len / 9,
+                            LaserLib.GetColor("WHITE"))
+          end; prev = vtx
+        end
+
+        -- Adjust the render bounds with local coordinates
+        self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+
+        self:DrawEndingEffect(trace)
       end
-
-      -- Adjust the render bounds with local coordinates
-      self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
-
-      self:DrawEndingEffect(trace)
     end
   end
 end

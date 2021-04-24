@@ -8,10 +8,11 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 -- Library internal variables
 DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "10", DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 
-DATA.TOOL = "laseremitter"
-DATA.ICON = "icon16/%s.png"
-DATA.NOAV = "N/A"
-DATA.TOLD = SysTime()
+DATA.TOOL = "laseremitter"  -- Tool name for internal use
+DATA.ICON = "icon16/%s.png" -- Format to convert icons
+DATA.NOAV = "N/A"           -- Not available as string
+DATA.TOLD = SysTime()       -- Reduce debug function calls
+DATA.POWL = 0.001           -- Lowest bounds of laser power
 
 -- Store zero angle and vector
 DATA.AZERO = Angle()
@@ -21,6 +22,9 @@ DATA.VZERO = Vector()
 DATA.KEYD = "#"
 
 DATA.CLS = {
+  -- Class haches enabled for creating hit reports
+  ["gmod_laser"        ] = true,
+  ["gmod_laser_crystal"] = true,
   -- [1] Item true class [2] Spawn class from entities
   {"gmod_laser"},
   {"gmod_laser_crystal"  , "gmod_laser_crystal"},
@@ -57,8 +61,9 @@ DATA.DISTYPE = {
 
 DATA.REFLECT = { -- Reflection data descriptor
   [1] = "cubemap", -- Cube maps textures
-  [2] = "shiny"  , -- All shiny stuff reflect
-  [3] = "chrome" , -- Chrome stuff reflect
+  [2] = "chrome" , -- Chrome stuff reflect
+  [3] = "shiny"  , -- All shiny stuff reflect
+  [3] = "metal"  , -- All shiny metal reflect
   -- Used for prop updates and checks
   [DATA.KEYD]                          = "debug/env_cubemap_model",
   ["debug/env_cubemap_model"]          = 0.999,
@@ -66,9 +71,10 @@ DATA.REFLECT = { -- Reflection data descriptor
   ["shiny"]                            = 0.854,
   ["chrome"]                           = 0.955,
   ["cubemap"]                          = 0.999,
+  ["metal"]                            = 0.347,
   -- Materials that are overriden and directly hash searched
-  ["phoenix_storms/pack2/bluelight"]   = 0.681,
-  ["phoenix_storms/window"]            = 0.854,
+  ["phoenix_storms/pack2/bluelight"]   = 0.843,
+  ["phoenix_storms/window"]            = 0.897,
   ["sprops/trans/wheels/wheel_d_rim1"] = 0.943
 }; DATA.REFLECT.Size = #DATA.REFLECT
 
@@ -84,6 +90,7 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["glass"]                                     = 1.521, -- Ordinary glass
   ["water"]                                     = 1.333, -- Water refraction index
   -- Materials that are overriden and directly hash searched
+  ["models/spawn_effect"]                       = 1.333, -- Water refraction index
   ["Models/effects/vol_light001"]               = 1.000, -- Transperent air
   ["models/props_combine/com_shield001a"]       = 1.573,
   ["models/props_combine/combine_door01_glass"] = 1.583, -- Bit darker glass
@@ -120,6 +127,13 @@ function LaserLib.GetZeroAngle()
   return DATA.AZERO
 end
 
+function LaserLib.IsSource(ent)
+  if(not ent) then return false end
+  if(ent == NULL) then return false end
+  if(not ent:IsValid()) then return false end
+  return DATA.CLS[ent:GetClass()]
+end
+
 function LaserLib.GetZeroTransform()
   return LaserLib.GetZeroVector(),
          LaserLib.GetZeroAngle()
@@ -133,17 +147,17 @@ function LaserLib.VecNegate(vec)
 end
 
 function LaserLib.GetClass(iK, iD)
-  local tI = DATA.CLS[iK]
+  local tI = DATA.CLS[tonumber(iK)]
   return (tI and (tI[iD] or tI[1]) or nil)
 end
 
 function LaserLib.GetModel(iK, iD)
-  local tI = DATA.MOD[iK]
+  local tI = DATA.MOD[tonumber(iK)]
   return (tI and (tI[iD] or tI[1]) or nil)
 end
 
 function LaserLib.GetMaterial(iK, iD)
-  local tI = DATA.MAT[iK]
+  local tI = DATA.MAT[tonumber(iK)]
   return (tI and (tI[iD] or tI[1]) or nil)
 end
 
@@ -164,6 +178,10 @@ end
 function LaserLib.ClampWidth(width)
   local out = math.max(width, 0.1)
   return ((width > 0) and out or 0)
+end
+
+function LaserLib.RatePower(width, damage)
+  return (5 * width + damage)
 end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
@@ -326,14 +344,18 @@ if(SERVER) then
     return ent
   end
 
-  function LaserLib.DoDamage(target   , hitPos  , normal      , beamDir  ,
-                             damage   , attacker, dissolveType, pushForce,
-                             killSound, laserEnt)
+  function LaserLib.DoDamage(target   , hitPos     , normal      , beamDir  ,
+                             damage   , attacker   , dissolveType, pushForce,
+                             killSound, forceCenter, laserEnt)
     laserEnt.NextDamage = laserEnt.NextDamage or CurTime()
 
     local ophys = target:GetPhysicsObject()
     if(pushForce and ophys and ophys:IsValid()) then
-      ophys:ApplyForceOffset(beamDir * pushForce, hitPos)
+      if(forceCenter) then
+        ophys:ApplyForceCenter(beamDir * pushForce)
+      else
+        ophys:ApplyForceOffset(beamDir * pushForce, hitPos)
+      end
     end
 
     if(CurTime() >= laserEnt.NextDamage) then
@@ -468,7 +490,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   if(not data.TeFilter:IsValid()) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
 
-  table.insert(data.TvPoints, {Vector(origin), data.NvWidth, data.NvDamage})
+  table.insert(data.TvPoints, {Vector(origin), data.NvWidth, data.NvDamage, data.NvForce})
   data.TvPoints.Size = data.TvPoints.Size + 1
 
   repeat
@@ -477,14 +499,19 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     else -- TODO: Suppose pre-allocated trace data with output pointing to trace result is faster...
       trace = util.QuickTrace(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
     end
-    local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
     local refract = GetMaterialData(trace.Entity, DATA.REFRACT)
+    local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
 
-    table.insert(data.TvPoints, {trace.HitPos, data.NvWidth, data.NvDamage})
+    table.insert(data.TvPoints, {trace.HitPos, data.NvWidth, data.NvDamage, data.NvForce})
     data.TvPoints.Size = data.TvPoints.Size + 1
 
     if(trace.Entity and trace.Entity:IsValid()) then
-      if(reflect) then
+      if(refract) then
+        if(usrfre) then
+          -- New stuff for refraction
+        end
+        data.IsTrace = false -- Temporaty prevent inifinite looks when refracting the beam
+      elseif(reflect) then
         data.IsTrace = true
         data.VrOrigin:Set(trace.HitPos)
         data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
@@ -497,11 +524,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Update the parameters used for drawing the beam trace
           local info = data.TvPoints[data.TvPoints.Size]
           info[2], info[3] = data.NvWidth, data.NvDamage
-        end
-      elseif(refract) then
-        data.IsTrace = false -- Temporaty prevent inifinite looks when refracting the beam
-        if(usrfre) then
-          -- New stuff for refraction
+          -- Check out power rankings so the trace absorbed everything
+          if(data.NvWidth > 0 and data.NvDamage > 0 and
+            LaserLib.RatePower(data.NvWidth, data.NvDamage) < DATA.POWL)
+          then data.IsTrace = false end -- Entity absorbed the remaining light
         end
       else
         data.IsTrace = false
@@ -512,23 +538,25 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
   until(not data.IsTrace or data.NvBounce <= 0)
 
-  data.TeTarget = trace -- Update trace entity target to be accessible by crystals
-
-  if(SERVER) then
-    if(trace.Entity and
-       trace.Entity:IsValid() and
-       trace.Entity:GetClass() == LaserLib.GetClass(2, 1)) then
-      trace.Entity:InsertSource(entity, data)
+  if(SERVER and LaserLib.IsSource(entity)) then
+    -- Register the source to the concentator
+    if(trace.Entity and trace.Entity:IsValid()) then
+      if(trace.Entity:GetClass() == LaserLib.GetClass(2, 1)) then
+        trace.Entity:SetSource(entity)
+      end
     end
+    -- Update the current beam source hit report
+    entity:SetHitReport(trace, data)
   end
 
   return trace, data
 end
 
 function LaserLib.GetTerm(str, def)
-  local txt = tostring(str or "")
-        txt = ((txt == "") and tostring(def or "") or txt)
-  return ((txt == "") and DATA.NOAV or txt)
+  local str = tostring(str or "")
+  local def = tostring(def or "")
+        str = ((str == "") and def or str)
+  return ((str == "") and DATA.NOAV or str)
 end
 
 function LaserLib.ComboBoxString(panel, convar, nameset)
@@ -613,9 +641,13 @@ function LaserLib.SetupModels()
 
   if(IsMounted("hl2")) then -- Portal is mounted
     table.insert(data, {"models/items/ar2_grenade.mdl"})
+    table.insert(data, {"models/props_c17/canister01a.mdl",90})
+    table.insert(data, {"models/props_combine/weaponstripper.mdl"})
     table.insert(data, {"models/items/combine_rifle_ammo01.mdl",90})
-    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",90})
-    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",90})
+    table.insert(data, {"models/props_borealis/bluebarrel001.mdl",90})
+    table.insert(data, {"models/props_c17/canister_propane01a.mdl",90})
+    table.insert(data, {"models/props_borealis/door_wheel001a.mdl",180})
+    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",-90})
   end
 
   if(IsMounted("dod")) then

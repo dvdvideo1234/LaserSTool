@@ -79,12 +79,8 @@ function ENT:SetupSources()
   return self
 end
 
-function ENT:InsertSource(ent, data)
-  self.Sources[ent] = data; return self
-end
-
-function ENT:RemoveSource(ent, data)
-  self.Sources[ent] = nil; return self
+function ENT:SetSource(ent)
+  self.Sources[ent] = true; return self
 end
 
 function ENT:IsInfinite(ent)
@@ -108,38 +104,30 @@ function ENT:IsInfinite(ent)
 end
 
 function ENT:IsSource(ent)
-  if(not ent) then return false end
-  if(not ent:IsValid()) then return false end
-  if(ent == self) then return false end
-  local data = self.Sources[ent] -- Read source item
-  if(not data) then return false end
-  local trace = data.TeTarget -- Check source trace
-  if(not trace) then return false end
-  if(not trace.Hit) then return false end
-  local ehit = trace.Entity -- Check source entity
-  if(not ehit) then return false end
-  if(not ehit:IsValid()) then return false end
-  return (ehit == self) -- With traces hitting this
-end
-
-function ENT:ClearSources()
-  table.Empty(self.Array)
-  self.Size = 0; return self
+  if(ent == self) then return false end -- Our source
+  if(not LaserLib.IsSource(ent)) then return false end
+  if(not self.Sources[ent]) then return false end
+  local trace, data = ent:GetHitReport() -- Read reports
+  if(not trace) then return false end -- Validate trace
+  if(not trace.Hit) then return false end -- Validate hit
+  return (self == trace.Entity) -- Check source entity
 end
 
 function ENT:CountSources()
   self.Size = 0 -- Add sources in array
-  for ent, data in pairs(self.Sources) do
-    local src = self:IsSource(ent)
-    LaserLib.Print(1, print, ent, data, src)
-    if(src) then
+  for ent, stat in pairs(self.Sources) do
+    if(self:IsSource(ent)) then
       self.Size = self.Size + 1
       self.Array[self.Size] = ent
     else -- When not a source. Clear the slot
       self.Sources[ent] = nil -- Wipe out the entry
     end -- The sources order does not matter
   end -- Sources are located in the table hash part
-  self:WireWrite("Array", self.Array)
+  local iD = (self.Size + 1) -- Remove the residuals
+  while(self.Array[iD]) do -- Table end check
+    self.Array[iD] = nil -- Wipe cirrent item
+    iD = iD + 1 -- Wipe the rest until empty
+  end; return self
 end
 
 function ENT:UpdateDominant(ent)
@@ -179,16 +167,20 @@ function ENT:UpdateBeam()
   local dominant -- Stores the dominant source
 
   if(self.Size > 0) then
-    for ent, data in pairs(self.Sources) do
-      if(data and not self:IsInfinite(ent)) then
-        width  = width  + data.NvWidth
-        length = length + data.NvLength
-        damage = damage + data.NvDamage
-        force  = force  + data.NvForce
-        npower = 3 * data.NvWidth + data.NvDamage
+    for iD = 1, self.Size do
+      local ent = self.Array[iD]
+      if(ent and ent:IsValid()) then
+        local trace, data = ent:GetHitReport()
+        if(data and not self:IsInfinite(ent)) then
+          width  = width  + data.NvWidth
+          length = length + data.NvLength
+          damage = damage + data.NvDamage
+          force  = force  + data.NvForce
+          npower = LaserLib.RatePower(data.NvWidth, data.NvDamage)
 
-        if(npower > opower) then
-          dominant, opower = ent, npower
+          if(npower > opower) then
+            dominant, opower = ent, npower
+          end
         end
       end
     end
@@ -215,9 +207,8 @@ function ENT:Think()
     self:SetOn(false)
   end
 
+  self:WireWrite("Array", self.Array)
   self:WireWrite("Focusing", self.Size)
-
-  self:ClearSources()
   self:NextThink(CurTime())
 
   return true
