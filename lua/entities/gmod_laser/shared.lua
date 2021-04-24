@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.PrintName      = "Laser"
-if (WireLib) then
+if(WireLib) then
   ENT.Base          = "base_wire_entity"
   ENT.WireDebugName = ENT.PrintName
 else
@@ -12,33 +12,34 @@ ENT.Spawnable      = false
 ENT.AdminSpawnable = false
 ENT.Information    = ENT.PrintName
 
-function ENT:GetBeamDirection()
-  local aos = self:GetAngleOffset()
-  if    (aos ==  90) then return self:GetForward()
-  elseif(aos == 180) then return (-1 * self:GetUp())
-  elseif(aos == 270) then return (-1 * self:GetForward())
-  else return self:GetUp() end
-end
+AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
+include(LaserLib.GetTool().."/wire_wrapper.lua")
 
-function ENT:SetupBeamOrigin()
-  local direct = self:GetBeamDirection()
+function ENT:SetupBeamTransform()
+  local angle  = self:GetAngleOffset()
+  local direct = LaserLib.GetBeamDirection(self, angle)
   local origin = LaserLib.GetBeamOrigin(self, direct)
-  self:SetNWVector("Origin", origin); return self
+  self:SetNWVector("Origin", origin)
+  self:SetNWVector("Direct", direct); return self
 end
 
 function ENT:GetBeamOrigin()
   return self:LocalToWorld(self:GetNWVector("Origin"))
 end
 
+function ENT:GetBeamDirection()
+  local direct = Vector(self:GetNWVector("Direct"))
+        direct:Rotate(self:GetAngles())
+  return direct
+end
+
 --[[ ----------------------
   Width
 ---------------------- ]]
 function ENT:SetBeamWidth(num)
-  local width = LaserLib.GetBeamWidth(num)
+  local width = math.max(num, 0)
   self:SetNWInt("Width", width)
-  if(WireLib) then
-    WireLib.TriggerOutput(self, "Width", width)
-  end
+  self:WireWrite("Width", width)
 end
 
 function ENT:GetBeamWidth()
@@ -51,9 +52,7 @@ end
 function ENT:SetBeamLength(num)
   local length = math.abs(num)
   self:SetNWInt("Length", length)
-  if(WireLib) then
-    WireLib.TriggerOutput(self, "Length", length)
-  end
+  self:WireWrite("Length", length)
 end
 
 function ENT:GetBeamLength()
@@ -66,9 +65,7 @@ end
 function ENT:SetDamageAmount(num)
   local damage = math.max(num, 0)
   self:SetNWInt("Damage", damage)
-  if(WireLib) then
-    WireLib.TriggerOutput(self, "Damage", damage)
-  end
+  self:WireWrite("Damage", damage)
 end
 
 function ENT:GetDamageAmount()
@@ -78,8 +75,8 @@ end
 --[[ ----------------------
      Model Offset
 ---------------------- ]]
-function ENT:SetAngleOffset(offset)
-  self:SetNWInt("AngleOffset", offset)
+function ENT:SetAngleOffset(angle)
+  self:SetNWInt("AngleOffset", angle)
 end
 
 function ENT:GetAngleOffset()
@@ -98,7 +95,7 @@ function ENT:GetBeamMaterial()
 end
 
 --[[ ----------------------
-      Dissolve type
+      Dissolve type. Write string! Read number!
 ---------------------- ]]
 function ENT:SetDissolveType(dissolvetype)
   self:SetNWString("DissolveType", dissolvetype)
@@ -139,8 +136,7 @@ end
   Toggle
 ---------------------- ]]
 function ENT:SetToggle(bool)
-  local togg = tobool(bool)
-  self:SetNWBool("Toggle", togg)
+  self:SetNWBool("Toggle", tobool(bool))
 end
 
 function ENT:GetToggle()
@@ -151,19 +147,17 @@ end
   On/Off
 ---------------------- ]]
 function ENT:SetOn(bool)
-  if(bool ~= self:GetOn()) then
-    if(bool) then
+  local state = tobool(bool)
+  if(state ~= self:GetOn()) then
+    if(state) then
       self:EmitSound(Sound(self:GetStartSound()))
     else
       self:EmitSound(Sound(self:GetStopSound()))
     end
   end
 
-  self:SetNWBool("On", bool)
-
-  if(WireLib) then
-    WireLib.TriggerOutput(self, "On", (bool and 1 or 0))
-  end
+  self:SetNWBool("On", state)
+  self:WireWrite("On", (state and 1 or 0))
 end
 
 function ENT:GetOn()
@@ -176,9 +170,7 @@ end
 function ENT:SetPushForce(num)
   local force = math.max(num, 0)
   self:SetNWFloat("PushForce", force)
-  if(WireLib) then
-    WireLib.TriggerOutput(self, "Force", force)
-  end
+  self:WireWrite("Force", force)
 end
 
 function ENT:GetPushForce()
@@ -189,8 +181,7 @@ end
      Ending Effect
 ---------------------- ]]
 function ENT:SetEndingEffect(bool)
-  local eeff = tobool(bool)
-  self:SetNWBool("EndingEffect", eeff)
+  self:SetNWBool("EndingEffect", tobool(bool))
 end
 
 function ENT:GetEndingEffect()
@@ -201,8 +192,7 @@ end
   Surface reflect efficiency
 ---------------------- ]]
 function ENT:SetReflectionRate(bool)
-  local reff = tobool(bool)
-  self:SetNWBool("ReflectRate", reff)
+  self:SetNWBool("ReflectRate", tobool(bool))
 end
 
 function ENT:GetReflectionRate()
@@ -213,26 +203,39 @@ end
   Surface reflect efficiency
 ---------------------- ]]
 function ENT:SetRefractionRate(bool)
-  local reff = tobool(bool)
-  self:SetNWBool("RefractRate", reff)
+  self:SetNWBool("RefractRate", tobool(bool))
 end
 
 function ENT:GetRefractionRate()
   return self:GetNWBool("RefractRate")
 end
 
-function ENT:Setup(width       , length     , damage   , material    ,
-                   dissolveType, startSound , stopSound, killSound   ,
-                   toggle      , startOn    , pushForce, endingEffect,
-                   reflectRate , refractRate, update)
+--[[ ----------------------
+  Surface reflect efficiency
+---------------------- ]]
+function ENT:SetForceCenter(bool)
+  self:SetNWBool("ForceCenter", tobool(bool))
+end
+
+function ENT:GetForceCenter()
+  return self:GetNWBool("ForceCenter")
+end
+
+function ENT:Setup(width       , length     , damage     , material    ,
+                   dissolveType, startSound , stopSound  , killSound   ,
+                   toggle      , startOn    , pushForce  , endingEffect,
+                   reflectRate , refractRate, forceCenter, update)
   self:SetBeamWidth(width)
   self.defaultWidth = width -- Used when wire is disconnected
   self:SetBeamLength(length)
   self.defaultLength = length -- Used when wire is disconnected
   self:SetDamageAmount(damage)
-  self.defaultDamage = damage
+  self.defaultDamage = damage -- Used when wire is disconnected
   self:SetPushForce(pushForce)
-  self.defaultForce = pushForce
+  self.defaultForce = pushForce -- Used when wire is disconnected
+
+  -- These are not controlled by wire and are stored in the laser itself
+  self:SetForceCenter(forceCenter)
   self:SetBeamMaterial(material)
   self:SetDissolveType(dissolveType)
   self:SetStartSound(startSound)
@@ -242,7 +245,7 @@ function ENT:Setup(width       , length     , damage   , material    ,
   self:SetEndingEffect(endingEffect)
   self:SetReflectionRate(reflectRate)
   self:SetRefractionRate(refractRate)
-  self:SetupBeamOrigin()
+  self:SetupBeamTransform()
 
   table.Merge(self:GetTable(), {
     width        = width,
@@ -259,7 +262,8 @@ function ENT:Setup(width       , length     , damage   , material    ,
     pushForce    = pushForce,
     endingEffect = endingEffect,
     reflectRate  = reflectRate,
-    refractRate  = refractRate
+    refractRate  = refractRate,
+    forceCenter  = forceCenter
   })
 
   if((not update) or

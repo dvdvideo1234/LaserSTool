@@ -15,7 +15,10 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
 
-function ENT:GetBeamDirection()
-  -- Crystal always cast the beam in the same direction
-  return self.Entity:GetUp()
+-- Override the beam transormation
+function ENT:SetupBeamTransform()
+  local direct = Vector(0,0,1) -- Local Direction
+  local origin = LaserLib.GetBeamOrigin(self, direct)
+  self:SetNWVector("Origin", origin)
+  self:SetNWVector("Direct", direct); return self
 end

@@ -15,20 +15,40 @@ function ENT:Initialize()
   self:PhysicsInit(SOLID_VPHYSICS)
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
+  self:WireCreateOutputs(
+    {"On"      , "NORMAL", "Concentrator working state"  },
+    {"Width"   , "NORMAL", "Concentrator beam width"     },
+    {"Length"  , "NORMAL", "Concentrator length width"   },
+    {"Damage"  , "NORMAL", "Concentrator damage width"   },
+    {"Force"   , "NORMAL", "Concentrator force amount"   },
+    {"Focusing", "NORMAL", "How many sources are focused"},
+    {"Hit"     , "NORMAL", "Indicates entity crystal hit"},
+    {"Entity"  , "ENTITY", "Concentrator crystal entity" },
+    {"Dominant", "ENTITY", "Concentrator dominant entity"},
+    {"Target"  , "ENTITY", "Concentrator target entity"  },
+    {"Array"   , "ARRAY" , "Concentrated sources array"  }
+  )
+
   local phys = self:GetPhysicsObject()
   if(phys:IsValid()) then phys:Wake() end
 
+  -- Detup default configuration
   self:SetupSources()
+  self:SetPushForce(0)
   self:SetBeamWidth(0)
   self:SetBeamLength(0)
   self:SetDamageAmount(0)
-  self:SetStartSound("ambient/energy/weld1.wav")
-  self:SetStopSound("ambient/energy/weld2.wav")
-  self:SetBeamMaterial("cable/physbeam")
+  self:SetStartSound("")
+  self:SetStopSound("")
+  self:SetKillSound("")
+  self:SetBeamMaterial("")
+  self:SetDissolveType("")
+  self:SetEndingEffect(false)
+  self:SetReflectionRate(false)
+  self:SetRefractionRate(false)
+  self:SetForceCenter(false)
 
-  if(WireLib) then
-    WireLib.CreateSpecialOutputs(self, {"Focusing", "Hit"})
-  end
+  self:WireWrite("Entity", self)
 end
 
 function ENT:SpawnFunction(ply, tr)
@@ -43,48 +63,24 @@ function ENT:SpawnFunction(ply, tr)
   ent:SetAngles(Angle(0, yaw, 0))
   ent:Spawn()
   ent:Activate()
-  ent:SetupBeamOrigin()
+  ent:SetupBeamTransform()
   return ent
 end
 
 function ENT:SetupSources()
   if(self.Sources) then
     table.Empty(self.Sources)
-  else self.Sources = {} end
-  self.Size, self.Hits = 0, 0
-  return self
-end
-
-function ENT:IsSource(ent)
-  if(not ent) then return false end
-  if(not ent:IsValid()) then return false end
-  if(ent == self) then return false end
-  return (self.Sources[ent] ~= nil)
-end
-
-function ENT:ClearSources()
-  for ent, data in pairs(self.Sources) do
-    self.Sources[ent] = nil
-  end; return self
-end
-
-function ENT:CountSources()
-  self.Hits = 0
-  for ent, data in pairs(self.Sources) do
-    if(self:IsSource(ent)) then
-      self.Hits = self.Hits + 1
-    end
-  end; return self.Hits
-end
-
-function ENT:InsertSource(ent, data)
-  if(self:IsSource(ent)) then
-    self.Sources[ent] = data
+    table.Empty(self.Array)
   else
-    self.Size = self.Size + 1
-    self.Sources[ent] = data
+    self.Sources = {} -- Sources in notation `[ent] = data`
+    self.Array   = {} -- Array to output for wiremod
   end
+  self.Size = 0     -- Amount of sources to have
   return self
+end
+
+function ENT:SetSource(ent)
+  self.Sources[ent] = true; return self
 end
 
 function ENT:IsInfinite(ent)
@@ -107,89 +103,112 @@ function ENT:IsInfinite(ent)
   end
 end
 
+function ENT:IsSource(ent)
+  if(ent == self) then return false end -- Our source
+  if(not LaserLib.IsSource(ent)) then return false end
+  if(not self.Sources[ent]) then return false end
+  local trace, data = ent:GetHitReport() -- Read reports
+  if(not trace) then return false end -- Validate trace
+  if(not trace.Hit) then return false end -- Validate hit
+  return (self == trace.Entity) -- Check source entity
+end
+
+function ENT:CountSources()
+  self.Size = 0 -- Add sources in array
+  for ent, stat in pairs(self.Sources) do
+    if(self:IsSource(ent)) then
+      self.Size = self.Size + 1
+      self.Array[self.Size] = ent
+    else -- When not a source. Clear the slot
+      self.Sources[ent] = nil -- Wipe out the entry
+    end -- The sources order does not matter
+  end -- Sources are located in the table hash part
+  local iD = (self.Size + 1) -- Remove the residuals
+  while(self.Array[iD]) do -- Table end check
+    self.Array[iD] = nil -- Wipe cirrent item
+    iD = iD + 1 -- Wipe the rest until empty
+  end; return self
+end
+
 function ENT:UpdateDominant(ent)
+  if(not ent) then return self end
+  if(not ent:IsValid()) then return self end
   -- We set the same non-addable properties
   -- The most powerful laser (biggest damage/width)
-  if(self:IsSource(ent)) then
-    local user = (ent.ply or ent.player)
-    self:SetPushForce(ent:GetPushForce())
-    self:SetStopSound(ent:SetStopSound())
-    self:SetKillSound(ent:GetKillSound())
-    self:SetStartSound(ent:SetStartSound())
-    self:SetBeamMaterial(ent:GetBeamMaterial())
-    self:SetDissolveType(ent:GetDissolveType())
-    self:SetEndingEffect(ent:GetEndingEffect())
-    if(user and
-       user:IsValid() and
-       user:IsPlayer())
-    then -- For prop protection addons
-      self.ply    = user
-      self.player = user
-      self:SetCreator(user)
-    end
+  local user = (ent.ply or ent.player)
+  self:SetPushForce(ent:GetPushForce())
+  self:SetStopSound(ent:SetStopSound())
+  self:SetKillSound(ent:GetKillSound())
+  self:SetStartSound(ent:SetStartSound())
+  self:SetBeamMaterial(ent:GetBeamMaterial())
+  self:SetDissolveType(ent:GetDissolveType())
+  self:SetEndingEffect(ent:GetEndingEffect())
+  self:SetReflectionRate(ent:GetReflectionRate())
+  self:SetRefractionRate(ent:GetRefractionRate())
+  self:SetForceCenter(ent:GetForceCenter())
+
+  self:WireWrite("Dominant", ent)
+
+  if(user and
+     user:IsValid() and
+     user:IsPlayer())
+  then -- TODO: Is this OK with prop protection addons?
+    self.ply    = user
+    self.player = user
+    self:SetCreator(user)
   end
+
   return self
 end
 
 function ENT:UpdateBeam()
-  local opower, npower = 0, 0
-  local size  , dominant = self.Size
+  local opower, npower, force  = 0, 0, 0
   local width , length, damage = 0, 0, 0
+  local dominant -- Stores the dominant source
 
-  if(size and size > 0) then
-    for ent, data in pairs(self.Sources) do
-      if(data and not self:IsInfinite(ent)) then
-        width  = width  + data.NvWidth
-        length = length + data.NvLength
-        damage = damage + data.NvDamage
-        npower = 3 * data.NvWidth + data.NvDamage
+  if(self.Size > 0) then
+    for iD = 1, self.Size do
+      local ent = self.Array[iD]
+      if(ent and ent:IsValid()) then
+        local trace, data = ent:GetHitReport()
+        if(data and not self:IsInfinite(ent)) then
+          width  = width  + data.NvWidth
+          length = length + data.NvLength
+          damage = damage + data.NvDamage
+          force  = force  + data.NvForce
+          npower = LaserLib.RatePower(data.NvWidth, data.NvDamage)
 
-        if(npower > opower) then
-          dominant, opower = ent, npower
+          if(npower > opower) then
+            dominant, opower = ent, npower
+          end
         end
       end
     end
-    width = LaserLib.GetBeamWidth(width)
-    self:SetBeamWidth(width)
-    self:SetBeamLength(length)
-    self:SetDamageAmount(damage)
     self:UpdateDominant(dominant)
   end
+
+  self:SetPushForce(force)
+  self:SetBeamWidth(width)
+  self:SetBeamLength(length)
+  self:SetDamageAmount(damage)
 end
 
 function ENT:Think()
-  local count = self:CountSources()
+  self:CountSources()
 
-  if(count > 0) then
+  if(self.Size > 0) then
     self:UpdateBeam()
     self:SetOn(true)
 
     if(self:GetOn()) then
-
-      local trace, data = self:DoBeam()
-
-      if(WireLib) then
-        if(trace.Entity and trace.Entity:IsValid()) then
-
-          self:DoDamage(trace, data)
-
-          WireLib.TriggerOutput(self, "Hit", 1)
-        else
-          WireLib.TriggerOutput(self, "Hit", 0)
-        end
-      end
+      self:DoDamage(self:DoBeam())
     end
-
   else
     self:SetOn(false)
-    self:SetupSources()
   end
 
-  if(WireLib) then
-    WireLib.TriggerOutput(self, "Focusing", count)
-  end
-
-  self:ClearSources()
+  self:WireWrite("Array", self.Array)
+  self:WireWrite("Focusing", self.Size)
   self:NextThink(CurTime())
 
   return true
