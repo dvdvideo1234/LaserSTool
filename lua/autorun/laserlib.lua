@@ -13,6 +13,7 @@ DATA.ICON = "icon16/%s.png" -- Format to convert icons
 DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.POWL = 0.001           -- Lowest bounds of laser power
+DATA.NMAR = 0.00001         -- Margin amount to push vectors with
 
 -- Store zero angle and vector
 DATA.AZERO = Angle()
@@ -67,7 +68,7 @@ DATA.REFLECT = { -- Reflection data descriptor
   [4] = "metal"  , -- All shiny metal reflect
   -- Used for prop updates and checks
   [DATA.KEYD]                          = "debug/env_cubemap_model",
-  ["debug/env_cubemap_model"]          = 0.999, -- There is no perfect mirror
+  ["debug/env_cubemap_model"]          = 1.000, -- There is no perfect mirror
   -- User for general class control
   ["shiny"]                            = 0.854,
   ["chrome"]                           = 0.955,
@@ -85,26 +86,56 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [3] = "water", -- Glass enumerator index
   -- Used for prop updates and chec
   [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
-  ["models/props_combine/health_charger_glass"] = 1.552, -- Used for prop updates
+  ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Used for prop updates
   -- User for general class control
-  ["air"]                                       = 1.000, -- Air refraction index
-  ["glass"]                                     = 1.521, -- Ordinary glass
-  ["water"]                                     = 1.333, -- Water refraction index
+  -- [1] : Medium refraction index for the material specified
+  -- [2] : Medium refraction rating when the beam goes trough reduces its power
+  ["air"]                                       = {1.000, 1.000}, -- Air refraction index
+  ["glass"]                                     = {1.521, 0.999}, -- Ordinary glass
+  ["water"]                                     = {1.333, 0.955}, -- Water refraction index
   -- Materials that are overriden and directly hash searched
-  ["models/spawn_effect"]                       = 1.333, -- Water refraction index
-  ["Models/effects/vol_light001"]               = 1.000, -- Transperent air
-  ["models/props_combine/com_shield001a"]       = 1.573,
-  ["models/props_combine/combine_door01_glass"] = 1.583, -- Bit darker glass
-  ["models/airboat/airboat_blur02"]             = 1.647, -- Non pure glass 1
-  ["models/dog/eyeglass"]                       = 1.612, -- Non pure glass 2
-  ["models/effects/comball_glow2"]              = 1.536, -- Glass with some impurites
-  ["models/props_combine/combine_fenceglow"]    = 1.638, -- Glass with decent impurites
-  ["models/props_lab/xencrystal_sheet"]         = 1.555, -- Amber refraction index
-  ["models/shadertest/predator"]                = 1.333, -- Water refraction index
-  ["models/shadertest/shader3"]                 = 1.333, -- Water refraction index
-  ["models/spawn_effect"]                       = 1.333, -- Water refraction index
-  ["models/shadertest/shader4"]                 = 1.385  -- Water with some impurites
+  ["Models/effects/vol_light001"]               = {1.000, 1.000}, -- Transperent air
+  ["models/spawn_effect"]                       = {1.333, 0.955}, -- Water refraction index
+  ["models/props_combine/com_shield001a"]       = {1.573, 0.853},
+  ["models/props_combine/combine_door01_glass"] = {1.583, 0.841}, -- Bit darker glass
+  ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
+  ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
+  ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurites
+  ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurites
+  ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
+  ["models/shadertest/predator"]                = {1.333, 0.721}, -- Water refraction index
+  ["models/shadertest/shader3"]                 = {1.333, 0.832}, -- Water refraction index
+  ["models/spawn_effect"]                       = {1.333, 0.954}, -- Water refraction index
+  ["models/shadertest/shader4"]                 = {1.385, 0.922}  -- Water with some impurites
 }; DATA.REFRACT.Size = #DATA.REFRACT
+
+DATA.TRACE = {
+  start          = Vector(),
+  endpos         = Vector(),
+  filter         = nil,
+  mask           = MASK_SOLID,
+  collisiongroup = COLLISION_GROUP_NONE,
+  ignoreworld    = false,
+  output         = nil
+}
+
+function LaserLib.Trace(origin, direct, length, filter, result)
+  DATA.TRACE.start:Set(origin)
+  DATA.TRACE.endpos:Set(direct)
+  DATA.TRACE.endpos:Normalize()
+  DATA.TRACE.endpos:Mul(length)
+  DATA.TRACE.endpos:Add(origin)
+  DATA.TRACE.filter = filter
+  if(result) then
+    DATA.TRACE.output = result
+    util.TraceLine(DATA.TRACE)
+    DATA.TRACE.output = nil
+    return result
+  else
+    DATA.TRACE.output = nil
+    return util.TraceLine(DATA.TRACE)
+  end
+end
 
 function LaserLib.Print(time, func, ...)
   local tnew = SysTime()
@@ -169,6 +200,24 @@ function LaserLib.GetReflected(incident, normal)
   return reflect
 end
 
+--[[
+ * Refracts a beam across two mediums by returning the refracted vector
+ * incident > The incident direction vector. Must be normalized
+ * normal   > Serface normal vector like `trace.HitNormal` ( normalized )
+ * medium   > A set containing the definition for two meduims
+      [1]   > Meduim the beam comes from
+      [2]   > Medium the beam enters to
+]]
+function LaserLib.GetRefracted(incident, normal, medium)
+  local nrm = Vector(normal) -- Initialized on spawn ( must be  )
+  local vcr = incident:Cross(LaserLib.VecNegate(nrm))
+  local ang = nrm:AngleEx(vcr)
+  local arg = (vcr:Length() * medium[1][1]) / medium[2][1]
+  local deg = math.deg(math.asin(arg))
+        ang:RotateAroundAxis(vcr, -deg)
+  return ang:Forward()
+end
+
 function LaserLib.UpdateRB(base, vec, func)
   base.x = func(base.x, vec.x)
   base.y = func(base.y, vec.y)
@@ -216,7 +265,7 @@ function LaserLib.SetMaterial(ply, ent, mat)
 end
 
 --[[
-Checks when the entity has reflective mirror texture
+ * Checks when the entity has reflective mirror texture
  * ent > Entity to retrieve the setting for
  * set > The dedicated parameeters setting to check
 ]]
@@ -234,12 +283,9 @@ function GetMaterialData(ent, set)
   -- Check for element overrides
   if(set[mat]) then return set[mat] end
   -- Check for emement category
-  for idx = 1, set.Size do
-    local key = set[idx]
-    if(mat:find(key, 1, true)) then
-      return set[key]
-    end
-  end; return nil
+  for idx = 1, set.Size do local key = set[idx]
+    if(mat:find(key, 1, true)) then return set[key] end
+  end; return nil -- Return nothing when not found
 end
 
 function LaserLib.GetReflect()
@@ -260,13 +306,10 @@ end
 ]]
 function LaserLib.GetBeamOrigin(base, direct)
   if(not (base and base:IsValid())) then return Vector(DATA.VZERO) end
-  local vbeam = Vector(direct)
-  local obcen = base:OBBCenter()
-  local obdir = base:OBBMaxs()
-        obdir:Sub(base:OBBMins())
+  local vbeam, obcen = Vector(direct), base:OBBCenter()
+  local obdir = base:OBBMaxs(); obdir:Sub(base:OBBMins())
   local kmulv = math.abs(obdir:Dot(vbeam))
-        vbeam:Mul(kmulv / 2)
-        obcen:Add(vbeam)
+        vbeam:Mul(kmulv / 2); obcen:Add(vbeam)
   return obcen
 end
 
@@ -282,7 +325,8 @@ function LaserLib.GetBeamDirection(base, angle)
   local rang, arot = aent:Right(), (tonumber(angle) or 0)
         aent:RotateAroundAxis(rang, arot)
   local pent = base:GetPos(); pent:Add(aent:Forward())
-  return base:WorldToLocal(pent)
+  local dent = base:WorldToLocal(pent)
+        dent:Normalize(); return dent
 end
 
 --[[
@@ -292,7 +336,7 @@ end
  * norm  > World normal direction vector defining the snap plane
  * angle > The model offset beam angling parameterization
 ]]
-function LaserLib.SnapUpSurface(base, hitp, norm, angle)
+function LaserLib.SnapNormal(base, hitp, norm, angle)
   local ang = norm:Angle()
         ang:RotateAroundAxis(ang:Right(), -angle)
   local dir = LaserLib.GetBeamDirection(base, angle)
@@ -308,24 +352,6 @@ function LaserLib.SnapUpSurface(base, hitp, norm, angle)
         pos:Add(hitp)
   base:SetPos(pos)
   base:SetAngles(ang)
-end
---[[
- * Projects the OBB onto the ray defined by position and direction
- * base   > Base entity to calculate the vector for
- * direct > Worls space direction vaector to match
- * Returns the projected position as the beam position
- * obcen  > The local entity origin vector
-]]
-function LaserLib.GetBeamRay(base, direct)
-  local pos = Vector(base:GetPos())
-  local obb = base:LocalToWorld(base:OBBCenter())
-        obb:Sub(pos)
-  local ofs = obb:Dot(direct)
-        obb:Set(direct)
-        obb:Normalize()
-        obb:Mul(ofs)
-        pos:Add(obb)
-  return pos
 end
 
 if(SERVER) then
@@ -345,8 +371,8 @@ if(SERVER) then
     return ent
   end
 
-  function LaserLib.DoDamage(target   , hitPos     , normal      , beamDir  ,
-                             damage   , attacker   , dissolveType, pushForce,
+  function LaserLib.DoDamage(target   , hitPos     , normal  , beamDir     ,
+                             damage   , pushForce  , attacker, dissolveType,
                              killSound, forceCenter, laserEnt)
     laserEnt.NextDamage = laserEnt.NextDamage or CurTime()
 
@@ -443,8 +469,8 @@ if(SERVER) then
     end
 
     user:AddCount(unit.."s", laser)
-    numpad.OnUp(user, key, "Laser_Off", laser)
-    numpad.OnDown(user, key, "Laser_On", laser)
+    numpad.OnUp  (user, key, "Laser_Off", laser)
+    numpad.OnDown(user, key, "Laser_On" , laser)
 
     table.Merge(laser:GetTable(), {
       ply         = laser:GetCreator(),
@@ -482,7 +508,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvDamage = math.max(tonumber(damage) or 0, 0)
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
   data.NvForce  = math.max(tonumber(force ) or 0, 0)
-  data.TreIndex = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
+  data.TrMedium = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
   data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce, data.NvLength = data.MxBounce, data.BmLength
 
@@ -497,21 +523,32 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   repeat
     if(StarGate) then
       trace = StarGate.Trace:New(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
-    else -- TODO: Suppose pre-allocated trace data with output pointing to trace result is faster...
-      trace = util.QuickTrace(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
+    else
+      trace = LaserLib.Trace(data.VrOrigin, data.VrDirect, data.NvLength, data.TeFilter)
     end
-    local refract = GetMaterialData(trace.Entity, DATA.REFRACT)
-    local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
 
     table.insert(data.TvPoints, {trace.HitPos, data.NvWidth, data.NvDamage, data.NvForce})
     data.TvPoints.Size = data.TvPoints.Size + 1
 
-    if(trace.Entity and trace.Entity:IsValid()) then
+    if(trace.Entity and trace.Entity:IsValid() and
+       trace.Entity:GetClass() ~= LaserLib.GetClass(2, 1)) then
+      -- Refresh medium pass trough information
+      data.TrMedium[1] = data.TrMedium[2]
+      data.TrMedium[2] = GetMaterialData(trace.Entity, DATA.REFRACT)
+
+      local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
+      local refract = (data.TrMedium[1] and data.TrMedium[2])
+
       if(refract) then
+        data.IsTrace = true
+        data.VrDirect:Set(LaserLib.GetRefracted(data.VrDirect, trace.HitNormal, data.TrMedium))
+        data.VrOrigin:Set(trace.HitPos)
+        data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+        data.NvBounce = data.NvBounce - 1
+        data.TeFilter = trace.Entity
         if(usrfre) then
           -- New stuff for refraction
         end
-        data.IsTrace = false -- Temporaty prevent inifinite looks when refracting the beam
       elseif(reflect) then
         data.IsTrace = true
         data.VrOrigin:Set(trace.HitPos)
@@ -540,14 +577,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   until(not data.IsTrace or data.NvBounce <= 0)
 
   if(SERVER and LaserLib.IsSource(entity)) then
-    -- Register the source to the concentator
-    if(trace.Entity and trace.Entity:IsValid()) then
-      if(trace.Entity:GetClass() == LaserLib.GetClass(2, 1)) then
-        trace.Entity:SetSource(entity)
-      end
-    end
     -- Update the current beam source hit report
     entity:SetHitReport(trace, data)
+    -- This is done to know what we just hit
   end
 
   return trace, data

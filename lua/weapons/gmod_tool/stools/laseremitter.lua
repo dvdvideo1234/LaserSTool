@@ -131,7 +131,7 @@ Adjusts the custom model angle and calculates the touch position
 ]]
 function TOOL:ApplySpawn(ent, trace)
   local ang = self:GetClientNumber("angleoffset")
-  LaserLib.SnapUpSurface(ent, trace.HitPos, trace.HitNormal, ang)
+  LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, ang)
 end
 
 function TOOL:LeftClick(trace)

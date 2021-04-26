@@ -10,7 +10,7 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-function ENT:SetupSources()
+function ENT:InitSources()
   if(self.Sources) then
     table.Empty(self.Sources)
     table.Empty(self.Array)
@@ -49,14 +49,15 @@ function ENT:Initialize()
   if(phys:IsValid()) then phys:Wake() end
 
   -- Detup default configuration
-  self:SetupSources()
+  self:InitSources()
   self:SetPushForce(0)
   self:SetBeamWidth(0)
   self:SetBeamLength(0)
+  self:SetAngleOffset(0)
   self:SetDamageAmount(0)
-  self:SetStartSound("")
   self:SetStopSound("")
   self:SetKillSound("")
+  self:SetStartSound("")
   self:SetBeamMaterial("")
   self:SetDissolveType("")
   self:SetEndingEffect(false)
@@ -122,8 +123,9 @@ end
 ]]
 function ENT:IsSource(ent)
   if(ent == self) then return false end -- Our source
-  if(not LaserLib.IsSource(ent)) then return false end
   if(not self.Sources[ent]) then return false end
+  if(not LaserLib.IsSource(ent)) then return false end
+  if(not ent:GetOn()) then return false end
   local trace, data = ent:GetHitReport() -- Read reports
   if(not trace) then return false end -- Validate trace
   if(not trace.Hit) then return false end -- Validate hit

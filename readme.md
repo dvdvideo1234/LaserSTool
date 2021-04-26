@@ -24,10 +24,12 @@ Just clone this repo in your addons folder and you are done.
 8. Fix crystals output not get affected by the source [reflection rate][ref-reflect-rate] ( `DONE` )
 ![][ref-reflect-rate]
 
-9. Develop a way to use props as refraction meduims via texture [refractors][ref-refract] ( `WIP` )
-10. Develop [refract][ref-refract] rate similar as [reflect rate][ref-reflect-rate] ( `WIP` )
-11. Develop senior [refracted][ref-refract] ray and minor [reflected][ref-reflect] ray on medium change (`WIP`)
-12. Develop [total internal reflection][ref-total-reflect] at the medium boundary (`WIP`)
+9. Develop a way to use props as refraction meduims via texture [refractors][ref-refract] ( `DONE` )
+10. Develop [refract][ref-refract] rate similar as [reflect rate][ref-reflect-rate] ( `DONE` )
+![][ref-refract-pic]
+
+11. Develop [total internal reflection][ref-total-reflect] at the medium boundary (`WIP`)
+12. Develop senior [refracted][ref-refract] ray and minor [reflected][ref-reflect] ray on medium change (`ASK`)
 
 ### Workshop
 No. I see many copies of this tool everywhere, but still, there is none that
@@ -43,3 +45,4 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-refract]: https://en.wikipedia.org/wiki/Refraction
 [ref-screenshot]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/screenshot.jpg
 [ref-reflect-rate]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/reflect_rate.jpg
+[ref-refract-pic]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/refract.jpg
