@@ -119,14 +119,29 @@ DATA.TRACE = {
   output         = nil
 }
 
-function LaserLib.Trace(origin, direct, length, filter, result)
+function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
   DATA.TRACE.start:Set(origin)
   DATA.TRACE.endpos:Set(direct)
   DATA.TRACE.endpos:Normalize()
   DATA.TRACE.endpos:Mul(length)
   DATA.TRACE.endpos:Add(origin)
   DATA.TRACE.filter = filter
-  if(result) then
+  if(mask ~= nil) then
+    DATA.TRACE.mask = mask
+  else -- Default trace mask
+    DATA.TRACE.mask = MASK_SOLID
+  end
+  if(iworld ~= nil) then
+    DATA.TRACE.ignoreworld = iworld
+  else -- Default world ignore
+    DATA.TRACE.ignoreworld = false
+  end
+  if(colgrp ~= nil) then
+    DATA.TRACE.collisiongroup = colgrp
+  else -- Default collision group
+    DATA.TRACE.collisiongroup = COLLISION_GROUP_NONE
+  end
+  if(result ~= nil) then
     DATA.TRACE.output = result
     util.TraceLine(DATA.TRACE)
     DATA.TRACE.output = nil
@@ -193,31 +208,54 @@ function LaserLib.GetMaterial(iK, iD)
   return (tI and (tI[iD] or tI[1]) or nil)
 end
 
+--[[
+ * Reflects a beam from a surface with material override
+ * incident > The incident direction vector ( normalized )
+ * normal   > Surface normal vector trace.HitNormal ( normalized )
+]]
 function LaserLib.GetReflected(incident, normal)
-  local reflect = Vector(normal)
-        reflect:Mul(-2 * normal:Dot(incident))
-        reflect:Add(incident)
-  return reflect
+  local ref = Vector(normal); ref:Normalize()
+  local inc = Vector(incident); inc:Normalize()
+        ref:Mul(-2 * ref:Dot(inc))
+        ref:Add(inc)
+  return ref
 end
 
 --[[
  * Refracts a beam across two mediums by returning the refracted vector
- * incident > The incident direction vector. Must be normalized
- * normal   > Serface normal vector like `trace.HitNormal` ( normalized )
+ * incident > The incident direction vector ( normalized )
+ * normal   > Surface normal vector trace.HitNormal ( normalized )
  * medium   > A set containing the definition for two meduims
       [1]   > Meduim the beam comes from
       [2]   > Medium the beam enters to
 ]]
 function LaserLib.GetRefracted(incident, normal, medium)
-  local nrm = Vector(normal) -- Initialized on spawn ( must be  )
-  local vcr = incident:Cross(LaserLib.VecNegate(nrm))
-  local ang = nrm:AngleEx(vcr)
-  local arg = (vcr:Length() * medium[1][1]) / medium[2][1]
-  local deg = math.deg(math.asin(arg))
-        ang:RotateAroundAxis(vcr, -deg)
-  return ang:Forward()
+  local inc = incident:GetNormalized()
+  local nrm = Vector(normal); nrm:Normalize()
+  local vcr = inc:Cross(LaserLib.VecNegate(nrm))
+  local ang, sii, deg = nrm:AngleEx(vcr), vcr:Length(), 0
+  local rni, rno = medium[1][1], medium[2][1]
+  if(origin and CLIENT) then
+    render.DrawLine(origin, origin + 20 * inc, Color(255,0,0))
+    render.DrawLine(origin, origin + 20 * nrm, Color(0,255,0))
+    render.DrawLine(origin, origin + 20 * vcr, Color(0,0,255))
+  end -- Put origin as input argument to debig
+  local sio = math.asin(sii / (rno / rni))
+  if(sio ~= sio) then -- Arg sine is undefined so reflect
+    return LaserLib.GetReflected(incident, normal)
+  else -- Arg sine is defined so refract
+    deg = math.deg(math.asin(sio))
+    ang:RotateAroundAxis(ang:Up(), -deg)
+    return ang:Forward()
+  end
 end
 
+--[[
+ * Updates a vector by calling a function
+ * base > Vector to be updated
+ * vec  > Vector the base must be updated with
+ * func > The cinction to be called. Either max or min
+]]
 function LaserLib.UpdateRB(base, vec, func)
   base.x = func(base.x, vec.x)
   base.y = func(base.y, vec.y)
@@ -275,16 +313,20 @@ function GetMaterialData(ent, set)
   local mat = ent:GetMaterial()
   if(mat == "") then -- No override
     mat = ent:GetMaterials()[1]
-  end -- Read the first entry from table
+  end
   -- Protect hash indexing by nil
   if(not mat) then return nil end
+  -- Read the first entry from table
+  local key, val = mat, set[mat]
   -- Check for overriding with default
-  if(mat == DATA.KEYD) then return set[set[mat]] end
+  if(mat == DATA.KEYD) then return set[val], val end
   -- Check for element overrides
-  if(set[mat]) then return set[mat] end
+  if(val) then return val, key end
   -- Check for emement category
-  for idx = 1, set.Size do local key = set[idx]
-    if(mat:find(key, 1, true)) then return set[key] end
+  for idx = 1, set.Size do key = set[idx]
+    if(mat:find(key, 1, true)) then
+      return set[key], key -- Compare the entry
+    end -- Read and compare the next entry
   end; return nil -- Return nothing when not found
 end
 
@@ -485,7 +527,25 @@ if(SERVER) then
 end
 
 --[[
-Traces a laser beam from the entity provided
+ * Setups the beam power ratio when requested
+ * data   > Internal beam manipulation data
+ * rate   > The ratio to apply on the last node
+]]
+function LaserLib.SetPowerRatio(data, rate)
+  data.NvWidth  = LaserLib.ClampWidth(rate * data.NvWidth)
+  data.NvDamage = rate * data.NvDamage
+  data.NvForce  = rate * data.NvForce
+  -- Update the parameters used for drawing the beam trace
+  local info = data.TvPoints[data.TvPoints.Size]
+  info[2], info[3], info[4] = data.NvWidth, data.NvDamage, data.NvForce
+  -- Check out power rankings so the trace absorbed everything
+  if(data.NvWidth > 0 and data.NvDamage > 0 and
+    LaserLib.RatePower(data.NvWidth, data.NvDamage) < DATA.POWL)
+  then data.IsTrace = false end -- Entity absorbed the remaining light
+end
+
+--[[
+ * Traces a laser beam from the entity provided
  * entity > Entity origin to trace the beam from
  * origin > Inititial ray origin position vector
  * direct > Inititial ray world direction vector
@@ -501,6 +561,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Configure data structure
   data.IsTrace  = false
   data.TeFilter = entity
+  data.NvMask   = nil
+  data.NvCGroup = nil
+  data.NvIWorld = false
+  data.IsRfract = false
   data.TvPoints = {Size = 0}
   data.VrOrigin = Vector(origin)
   data.VrDirect = Vector(direct)
@@ -521,59 +585,70 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.TvPoints.Size = data.TvPoints.Size + 1
 
   repeat
-    if(StarGate) then
-      trace = StarGate.Trace:New(data.VrOrigin, data.VrDirect:GetNormalized() * data.NvLength, data.TeFilter)
-    else
-      trace = LaserLib.Trace(data.VrOrigin, data.VrDirect, data.NvLength, data.TeFilter)
-    end
+    trace = LaserLib.Trace(data.VrOrigin, data.VrDirect, data.NvLength, data.TeFilter, data.NvMask, data.NvCGroup, data.NvIWorld)
 
     table.insert(data.TvPoints, {trace.HitPos, data.NvWidth, data.NvDamage, data.NvForce})
     data.TvPoints.Size = data.TvPoints.Size + 1
 
-    if(trace.Entity and trace.Entity:IsValid() and
-       trace.Entity:GetClass() ~= LaserLib.GetClass(2, 1)) then
+    if(trace.Entity and trace.Entity:IsValid() and not LaserLib.IsSource(trace.Entity)) then
       -- Refresh medium pass trough information
-      data.TrMedium[1] = data.TrMedium[2]
-      data.TrMedium[2] = GetMaterialData(trace.Entity, DATA.REFRACT)
+      data.NvBounce = data.NvBounce - 1
 
-      local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
-      local refract = (data.TrMedium[1] and data.TrMedium[2])
-
-      if(refract) then
-        data.IsTrace = true
-        data.VrDirect:Set(LaserLib.GetRefracted(data.VrDirect, trace.HitNormal, data.TrMedium))
+      if(data.IsRfract) then
+        -- Lower refraction flag
+        data.IsRfract = false
+        data.IsTrace  = true
+        -- Substract the path trough the glass
+        local vtop = data.TvPoints[data.TvPoints.Size - 0][1]
+        local vund = data.TvPoints[data.TvPoints.Size - 1][1]
+        -- Update the beam length
+        data.NvLength = data.NvLength - (vtop - vund):Length()
+        -- Switch-a-roo the mediums
+        data.TrMedium[1] = data.TrMedium[2]
+        data.TrMedium[2] = DATA.REFRACT["air"]
+        -- Restore the filter and hit world
+        data.TeFilter = nil
+        data.NvIWorld = false
+        -- Produce next ray
+        LaserLib.VecNegate(data.VrDirect)
+        data.VrDirect:Set(LaserLib.GetRefracted(data.VrDirect, -1 * trace.HitNormal, data.TrMedium, trace.HitPos))
         data.VrOrigin:Set(trace.HitPos)
-        data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-        data.NvBounce = data.NvBounce - 1
-        data.TeFilter = trace.Entity
-        if(usrfre) then
-          -- New stuff for refraction
-        end
-      elseif(reflect) then
-        data.IsTrace = true
-        data.VrOrigin:Set(trace.HitPos)
-        data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
-        data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-        data.NvBounce = data.NvBounce - 1
-        if(usrfle) then
-          data.NvWidth  = LaserLib.GetBeamWidth(reflect * data.NvWidth)
-          data.NvDamage = reflect * data.NvDamage
-          data.NvForce  = reflect * data.NvForce
-          -- Update the parameters used for drawing the beam trace
-          local info = data.TvPoints[data.TvPoints.Size]
-          info[2], info[3] = data.NvWidth, data.NvDamage
-          -- Check out power rankings so the trace absorbed everything
-          if(data.NvWidth > 0 and data.NvDamage > 0 and
-            LaserLib.RatePower(data.NvWidth, data.NvDamage) < DATA.POWL)
-          then data.IsTrace = false end -- Entity absorbed the remaining light
-        end
       else
-        data.IsTrace = false
+        data.IsTrace  = true -- Still tracing the beam
+        local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
+        local refract, key = GetMaterialData(trace.Entity, DATA.REFRACT)
+        if(refract) then -- Needs to be refracted
+          -- Switch mediums and calcu
+          data.TrMedium[1] = data.TrMedium[2]
+          data.TrMedium[2] = refract
+          -- Substact traced lenght from total length
+          data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+          -- Calculated refraction ray. Reflect when not possible
+          data.VrDirect:Set(LaserLib.GetRefracted(data.VrDirect, trace.HitNormal, data.TrMedium, trace.HitPos))
+          -- Get the trace tready to check the other side and point and register the location
+          data.VrOrigin:Set(data.VrDirect)
+          data.VrOrigin:Mul(2 * trace.Entity:BoundingRadius())
+          data.VrOrigin:Add(trace.HitPos)
+          LaserLib.VecNegate(data.VrDirect)
+          -- Must trace only this entity otherwise invalid
+          data.TeFilter = function(ent) return (ent == trace.Entity) end
+          data.NvIWorld = true -- Ignore world too for precision
+          data.IsRfract = true -- Raise the bounce off refract flag
+          if(usrfre) then
+            LaserLib.SetPowerRatio(data, refract[2])
+          end
+        elseif(reflect) then -- Just call reflection and get done with it..
+          data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
+          data.VrOrigin:Set(trace.HitPos)
+          data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+          if(usrfle) then
+            LaserLib.SetPowerRatio(data, reflect)
+          end
+        end
       end
     else
       data.IsTrace = false
     end
-
   until(not data.IsTrace or data.NvBounce <= 0)
 
   if(SERVER and LaserLib.IsSource(entity)) then

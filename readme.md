@@ -26,10 +26,8 @@ Just clone this repo in your addons folder and you are done.
 
 9. Develop a way to use props as refraction meduims via texture [refractors][ref-refract] ( `DONE` )
 10. Develop [refract][ref-refract] rate similar as [reflect rate][ref-reflect-rate] ( `DONE` )
+11. Develop [total internal reflection][ref-total-reflect] at the medium boundary (`DONE`)
 ![][ref-refract-pic]
-
-11. Develop [total internal reflection][ref-total-reflect] at the medium boundary (`WIP`)
-12. Develop senior [refracted][ref-refract] ray and minor [reflected][ref-reflect] ray on medium change (`ASK`)
 
 ### Workshop
 No. I see many copies of this tool everywhere, but still, there is none that
