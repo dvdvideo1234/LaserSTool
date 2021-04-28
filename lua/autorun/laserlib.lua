@@ -212,6 +212,8 @@ end
  * Reflects a beam from a surface with material override
  * incident > The incident direction vector ( normalized )
  * normal   > Surface normal vector trace.HitNormal ( normalized )
+ * Return the refracted ray and beam status
+  [1] > The refracted ray direction vector
 ]]
 function LaserLib.GetReflected(incident, normal)
   local ref = Vector(normal); ref:Normalize()
@@ -228,6 +230,9 @@ end
  * medium   > A set containing the definition for two meduims
       [1]   > Meduim the beam comes from
       [2]   > Medium the beam enters to
+ * Return the refracted ray and beam status
+  [1] > The refracted ray direction vector
+  [2] > Will the beam go out of the medium
 ]]
 function LaserLib.GetRefracted(incident, normal, medium)
   local inc = incident:GetNormalized()
@@ -239,14 +244,13 @@ function LaserLib.GetRefracted(incident, normal, medium)
     render.DrawLine(origin, origin + 20 * inc, Color(255,0,0))
     render.DrawLine(origin, origin + 20 * nrm, Color(0,255,0))
     render.DrawLine(origin, origin + 20 * vcr, Color(0,0,255))
-  end -- Put origin as input argument to debig
+  end -- Put origin as input argument to debug
   local sio = math.asin(sii / (rno / rni))
   if(sio ~= sio) then -- Arg sine is undefined so reflect
-    return LaserLib.GetReflected(incident, normal)
-  else -- Arg sine is defined so refract
-    deg = math.deg(math.asin(sio))
-    ang:RotateAroundAxis(ang:Up(), -deg)
-    return ang:Forward()
+    return LaserLib.GetReflected(incident, normal), false
+  else -- Arg sine is defined so refract. Exit medium
+    ang:RotateAroundAxis(ang:Up(), -math.deg(sio))
+    return ang:Forward(), true
   end
 end
 
@@ -311,9 +315,6 @@ function GetMaterialData(ent, set)
   if(not ent) then return nil end
   if(not ent:IsValid()) then return nil end
   local mat = ent:GetMaterial()
-  if(mat == "") then -- No override
-    mat = ent:GetMaterials()[1]
-  end
   -- Protect hash indexing by nil
   if(not mat) then return nil end
   -- Read the first entry from table
@@ -514,6 +515,7 @@ if(SERVER) then
     numpad.OnUp  (user, key, "Laser_Off", laser)
     numpad.OnDown(user, key, "Laser_On" , laser)
 
+    -- These do not change when laser is updated
     table.Merge(laser:GetTable(), {
       ply         = laser:GetCreator(),
       player      = laser:GetCreator(),
@@ -572,7 +574,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvDamage = math.max(tonumber(damage) or 0, 0)
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
   data.NvForce  = math.max(tonumber(force ) or 0, 0)
-  data.TrMedium = {DATA.REFRACT["air"], DATA.REFRACT["air"]}
+  data.TrMedium = {Key = "air", DATA.REFRACT["air"], DATA.REFRACT["air"]}
   data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce, data.NvLength = data.MxBounce, data.BmLength
 
@@ -595,47 +597,70 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       data.NvBounce = data.NvBounce - 1
 
       if(data.IsRfract) then
-        -- Lower refraction flag
-        data.IsRfract = false
-        data.IsTrace  = true
+        -- Well the beam is still tracing
+        data.IsTrace = true
         -- Substract the path trough the glass
         local vtop = data.TvPoints[data.TvPoints.Size - 0][1]
         local vund = data.TvPoints[data.TvPoints.Size - 1][1]
         -- Update the beam length
         data.NvLength = data.NvLength - (vtop - vund):Length()
-        -- Switch-a-roo the mediums
-        data.TrMedium[1] = data.TrMedium[2]
-        data.TrMedium[2] = DATA.REFRACT["air"]
-        -- Restore the filter and hit world
-        data.TeFilter = nil
-        data.NvIWorld = false
         -- Produce next ray
-        LaserLib.VecNegate(data.VrDirect)
-        data.VrDirect:Set(LaserLib.GetRefracted(data.VrDirect, -1 * trace.HitNormal, data.TrMedium, trace.HitPos))
-        data.VrOrigin:Set(trace.HitPos)
+        local vdir, bout = LaserLib.GetRefracted(-1 * data.VrDirect,
+                                                 -1 * trace.HitNormal,
+                                                 data.TrMedium,
+                                                 trace.HitPos)
+        if(bout) then -- When the beam bets out of the medium
+          -- Lower refraction flag ( Not full internal reflaection )
+          data.IsRfract = false
+          -- Restore the filter and hit world for tracing something else
+          data.TeFilter = nil
+          data.NvIWorld = false
+          -- Appy origin and direction when beam exits the medium
+          data.VrDirect:Set(vdir)
+          data.VrOrigin:Set(trace.HitPos)
+        else -- Get the trace ready to check the other side and register the location
+          data.VrDirect:Set(vdir)
+          data.VrOrigin:Set(vdir)
+          data.VrOrigin:Mul(3 * trace.Entity:BoundingRadius())
+          data.VrOrigin:Add(trace.HitPos)
+          LaserLib.VecNegate(data.VrDirect)
+        end
+        if(usrfre) then
+          LaserLib.SetPowerRatio(data, data.TrMedium[1][2])
+        end
       else
         data.IsTrace  = true -- Still tracing the beam
         local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
         local refract, key = GetMaterialData(trace.Entity, DATA.REFRACT)
-        if(refract) then -- Needs to be refracted
+        if(refract and key ~= data.TrMedium.Key) then -- Needs to be refracted
           -- Switch mediums and calcu
-          data.TrMedium[1] = data.TrMedium[2]
-          data.TrMedium[2] = refract
+          data.TrMedium.Key = key
+          data.TrMedium[1]  = data.TrMedium[2]
+          data.TrMedium[2]  = refract
           -- Substact traced lenght from total length
           data.NvLength = data.NvLength - data.NvLength * trace.Fraction
           -- Calculated refraction ray. Reflect when not possible
-          data.VrDirect:Set(LaserLib.GetRefracted(data.VrDirect, trace.HitNormal, data.TrMedium, trace.HitPos))
-          -- Get the trace tready to check the other side and point and register the location
-          data.VrOrigin:Set(data.VrDirect)
-          data.VrOrigin:Mul(2 * trace.Entity:BoundingRadius())
+          local rent = trace.Entity -- Refraction entity
+          local vdir = LaserLib.GetRefracted(data.VrDirect,
+                                             trace.HitNormal,
+                                             data.TrMedium,
+                                             trace.HitPos)
+           -- Get the trace tready to check the other side and point and register the location
+          data.VrDirect:Set(vdir)
+          data.VrOrigin:Set(vdir)
+          data.VrOrigin:Mul(3 * trace.Entity:BoundingRadius())
           data.VrOrigin:Add(trace.HitPos)
           LaserLib.VecNegate(data.VrDirect)
           -- Must trace only this entity otherwise invalid
-          data.TeFilter = function(ent) return (ent == trace.Entity) end
+          data.TeFilter = function(ent) return (ent == rent) end
           data.NvIWorld = true -- Ignore world too for precision
           data.IsRfract = true -- Raise the bounce off refract flag
+          -- Switch-a-roo the mediums so we can see where it will go out
+          data.TrMedium.Key = "air"
+          data.TrMedium[1]  = data.TrMedium[2]
+          data.TrMedium[2]  = DATA.REFRACT["air"]
           if(usrfre) then
-            LaserLib.SetPowerRatio(data, refract[2])
+            LaserLib.SetPowerRatio(data, data.TrMedium[1][2])
           end
         elseif(reflect) then -- Just call reflection and get done with it..
           data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
