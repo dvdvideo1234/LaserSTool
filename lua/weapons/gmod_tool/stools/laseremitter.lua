@@ -166,6 +166,7 @@ function TOOL:LeftClick(trace)
   if(ent:IsValid() and
      ent:GetClass() == gsLaseremCls)
   then
+    LaserLib.Notify(ply, "Paste settings !", "UNDO")
     ent:Setup(width       , length     , damage     , material    ,
               dissolvetype, startsound , stopsound  , killsound   ,
               toggle      , starton    , pushforce  , endingeffect,
@@ -197,13 +198,50 @@ function TOOL:LeftClick(trace)
     undo.SetPlayer(ply)
   undo.Finish()
 
+  LaserLib.Notify(ply, "Laser created !", "GENERIC")
   ply:AddCleanup(gsUnit.."s", laser)
 
   return true
 end
 
 function TOOL:RightClick(trace)
-  return false
+  if(CLIENT) then return true end
+  if(not trace) then return false end
+  local ply, ent = self:GetOwner(), trace.Entity
+
+  if(not ent) then return false end
+  if(not ent:IsValid()) then return false end
+
+  if(ent:GetClass() == gsLaseremCls) then
+    LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
+    LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
+    LaserLib.ConCommand(ply, "damage"      , ent:GetDamageAmount())
+    LaserLib.ConCommand(ply, "material"    , ent:GetBeamMaterial())
+    LaserLib.ConCommand(ply, "dissolvetype", ent:GetDissolveType())
+    LaserLib.ConCommand(ply, "startsound"  , ent:SetStartSound())
+    LaserLib.ConCommand(ply, "stopsound"   , ent:SetStopSound())
+    LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
+    LaserLib.ConCommand(ply, "pushforce"   , ent:GetPushForce())
+    LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
+    LaserLib.ConCommand(ply, "toggle"      , (ent:GetToggle() and 1 or 0))
+    LaserLib.ConCommand(ply, "forcecenter" , (ent:GetForceCenter() and 1 or 0))
+    LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
+    LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectionRate() and 1 or 0))
+    LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractionRate() and 1 or 0))
+    LaserLib.Notify(ply, "Copy settings !", "UNDO")
+  else
+    local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
+                           math.Round(trace.HitNormal:Dot(ent:GetForward()), 3))
+    local mod, ang = ent:GetModel(), math.deg(ang)
+    LaserLib.ConCommand(ply, "model", mod)
+    LaserLib.ConCommand(ply, "angleoffset", ang)
+    LaserLib.Notify(ply, "Pick: "..mod.." ["..ang.."]", "UNDO")
+    if(ply:KeyDown(IN_SPEED)) then -- Easy export export
+      print("table.insert(data, {\""..mod.."\","..ang.."})")
+    end
+  end
+
+  return true
 end
 
 function TOOL:Reload(trace)

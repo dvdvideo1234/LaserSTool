@@ -45,14 +45,14 @@ end
 
 function ENT:DoDamage(trace, data)
   -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
-  if(trace.Hit) then
-    self:WireWrite("Hit", 1)
-  else
-    self:WireWrite("Hit", 0)
-  end
-
   if(trace) then
     local trent = trace.Entity
+
+    if(trace.Hit) then
+      self:WireWrite("Hit", 1)
+    else
+      self:WireWrite("Hit", 0)
+    end
 
     if(trent and trent:IsValid()) then
       self:WireWrite("Target", trent)
@@ -64,6 +64,7 @@ function ENT:DoDamage(trace, data)
         end
         -- When the trace is not a source we try to kill it
       else
+        local dissolveType = self:GetDissolveType()
         LaserLib.DoDamage(trent,
                           trace.HitPos,
                           trace.Normal,
@@ -71,12 +72,13 @@ function ENT:DoDamage(trace, data)
                           data.NvDamage,
                           data.NvForce,
                           self:GetCreator(),
-                          self:GetDissolveType(),
+                          LaserLib.GetDissolveID(dissolveType),
                           self:GetKillSound(),
                           self:GetForceCenter(),
                           self)
       end
     else
+      self:WireWrite("Hit", 0)
       self:WireWrite("Target")
     end
   end

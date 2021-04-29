@@ -121,7 +121,7 @@ function ENT:SetDissolveType(distype)
 end
 
 function ENT:GetDissolveType()
-  return LaserLib.GetDissolveType(self:GetNWString("DissolveType"))
+  return self:GetNWString("DissolveType")
 end
 
 --[[ ----------------------
