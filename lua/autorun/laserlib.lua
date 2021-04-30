@@ -4,9 +4,11 @@ local DATA = {}
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
+-- Independently controlled flags for console variables
+DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
 -- Library internal variables
-DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", "10", DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
 DATA.ICON = "icon16/%s.png" -- Format to convert icons
@@ -261,11 +263,6 @@ function LaserLib.GetRefracted(incident, normal, medium)
   local vcr = inc:Cross(LaserLib.VecNegate(nrm))
   local ang, sii, deg = nrm:AngleEx(vcr), vcr:Length(), 0
   local rni, rno = medium[1][1], medium[2][1]
-  if(origin and CLIENT) then
-    render.DrawLine(origin, origin + 20 * inc, Color(255,0,0))
-    render.DrawLine(origin, origin + 20 * nrm, Color(0,255,0))
-    render.DrawLine(origin, origin + 20 * vcr, Color(0,0,255))
-  end -- Put origin as input argument to debug
   local sio = math.asin(sii / (rno / rni))
   if(sio ~= sio) then -- Arg sine is undefined so reflect (NaN)
     return LaserLib.GetReflected(incident, normal), false
@@ -288,12 +285,12 @@ function LaserLib.UpdateRB(base, vec, func)
 end
 
 -- when zero return zero. Otherwise clamp
-function LaserLib.ClampWidth(width)
+function LaserLib.GetWidth(width)
   local out = math.max(width, 0.1)
   return ((width > 0) and out or 0)
 end
 
-function LaserLib.RatePower(width, damage)
+function LaserLib.GetPower(width, damage)
   return (5 * width + damage)
 end
 
@@ -316,12 +313,9 @@ function LaserLib.GetColor(color)
   return GetCollectionData(color, DATA.COLOR)
 end
 
-function LaserLib.SetMaterial(ply, ent, mat)
-  if(not ply) then return end
+function LaserLib.SetMaterial(ent, mat)
   if(not ent) then return end
   if(not ent:IsValid()) then return end
-  if(not ply:IsValid()) then return end
-  if(not ply:IsPlayer()) then return end
   local data = {MaterialOverride = tostring(mat or "")}
   ent:SetMaterial(data.MaterialOverride)
   duplicator.StoreEntityModifier(ent, "material", data)
@@ -555,7 +549,7 @@ end
  * rate   > The ratio to apply on the last node
 ]]
 function LaserLib.SetPowerRatio(data, rate)
-  data.NvWidth  = LaserLib.ClampWidth(rate * data.NvWidth)
+  data.NvWidth  = LaserLib.GetWidth(rate * data.NvWidth)
   data.NvDamage = rate * data.NvDamage
   data.NvForce  = rate * data.NvForce
   -- Update the parameters used for drawing the beam trace
@@ -563,7 +557,7 @@ function LaserLib.SetPowerRatio(data, rate)
   info[2], info[3], info[4] = data.NvWidth, data.NvDamage, data.NvForce
   -- Check out power rankings so the trace absorbed everything
   if(data.NvWidth > 0 and data.NvDamage > 0 and
-    LaserLib.RatePower(data.NvWidth, data.NvDamage) < DATA.POWL)
+    LaserLib.GetPower(data.NvWidth, data.NvDamage) < DATA.POWL)
   then data.IsTrace = false end -- Entity absorbed the remaining light
 end
 
@@ -612,7 +606,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   if(not data.TeFilter:IsValid()) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
 
-  LaserLib.RegisterNode(data, Vector(origin), data.NvWidth, data.NvDamage, data.NvForce)
+  LaserLib.RegisterNode(data, origin, data.NvWidth, data.NvDamage, data.NvForce)
 
   repeat
     trace = LaserLib.Trace(data.VrOrigin,
@@ -623,7 +617,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            data.NvCGroup,
                            data.NvIWorld)
 
-    LaserLib.RegisterNode(data, Vector(trace.HitPos), data.NvWidth, data.NvDamage, data.NvForce)
+    LaserLib.RegisterNode(data, trace.HitPos, data.NvWidth, data.NvDamage, data.NvForce)
 
     if(trace.Entity and trace.Entity:IsValid() and not LaserLib.IsSource(trace.Entity)) then
       -- Refresh medium pass trough information
@@ -640,8 +634,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         LaserLib.VecNegate(trace.HitNormal)
         local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                                  trace.HitNormal,
-                                                 data.TrMedium,
-                                                 trace.HitPos)
+                                                 data.TrMedium)
         if(bout) then -- When the beam gets out of the medium
           -- Lower refraction flag ( Not full internal reflection )
           data.IsRfract = false
@@ -676,8 +669,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           local rent = trace.Entity -- Refraction entity
           local vdir = LaserLib.GetRefracted(data.VrDirect,
                                              trace.HitNormal,
-                                             data.TrMedium,
-                                             trace.HitPos)
+                                             data.TrMedium)
            -- Get the trace tready to check the other side and point and register the location
           data.DmRfract = 2 * trace.Entity:BoundingRadius()
           data.VrDirect:Set(vdir)
@@ -712,10 +704,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   until(not data.IsTrace or data.NvBounce <= 0 or data.NvLength <= 0)
 
   if(data.NvLength < 0) then
-    local prv = data.TvPoints[data.TvPoints.Size - 1][1]
-    local nxt = data.TvPoints[data.TvPoints.Size - 0][1]
+    local top = data.TvPoints.Size
+    local prv = data.TvPoints[top - 1][1]
+    local nxt = data.TvPoints[top - 0][1]
     local dir = (nxt - prv); dir:Normalize()
-    dir:Mul(data.NvLength); nxt:Add(dir); return nil, data
+    dir:Mul(data.NvLength); nxt:Add(dir)
+    data.NvLength = 0; return nil, data
   end -- The beam ends inside transperent medium
 
   if(SERVER and LaserLib.IsSource(entity)) then
@@ -754,7 +748,7 @@ function LaserLib.ComboBoxString(panel, convar, nameset)
     SetClipboardText(LaserLib.GetTerm(vT, vV))
   end
   name.DoRightClick = function(pnSelf)
-    SetClipboardText(pnSelf:GetText())
+    SetClipboardText(pnSelf:GetValue())
   end
   return item, name
 end
@@ -803,7 +797,6 @@ function LaserLib.SetupModels()
     {"models/props_c17/pottery05a.mdl",90},
     {"models/props_combine/breenlight.mdl",-90},
     {"models/props_junk/trafficcone001a.mdl",90},
-    {"models/props_wasteland/laundry_washer003.mdl"},
     {"models/props_combine/headcrabcannister01a_skybox.mdl",180}
   }
 

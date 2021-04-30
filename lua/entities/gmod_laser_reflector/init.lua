@@ -16,11 +16,13 @@ function ENT:SpawnFunction(ply, tr)
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
   local pos = tr.HitPos + tr.HitNormal * 35
   local ent = ents.Create(LaserLib.GetClass(3, 2))
-  ent:SetModel(LaserLib.GetModel(3, 1))
-  ent:SetMaterial(LaserLib.GetMaterial(3, 1))
-  ent:SetPos(pos)
-  ent:Spawn()
-  ent:Activate()
-  ent:SetAngles(Angle(0, yaw, 0))
-  return ent
+  if(ent and ent:IsValid()) then
+    ent:SetModel(LaserLib.GetModel(3, 1))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(3, 1))
+    ent:SetPos(pos)
+    ent:Spawn()
+    ent:Activate()
+    ent:SetAngles(Angle(0, yaw, 0))
+    return ent
+  end; return nil
 end

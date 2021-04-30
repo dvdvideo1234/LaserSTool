@@ -18,24 +18,29 @@ function ENT:DrawEndingEffect(trace, data)
     if(not self.beamEffectData) then
       self.beamEffectData = EffectData()
     end -- Allocate effect data class
-    if(trace.Hit) then local trEnt = trace.Entity
-      self.beamEffectData:SetStart(trace.HitPos)
-      self.beamEffectData:SetOrigin(trace.HitPos)
-      self.beamEffectData:SetNormal(trace.HitNormal)
-      self.beamEffectData:SetScale(1)
-      util.Effect("AR2Impact", self.beamEffectData)
-      -- Draw particle effects
-      if(data.NvDamage > 0) then
-        if(not (trEnt:IsPlayer() or trEnt:IsNPC())) then
-          local dir = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
-          self.beamEffectData:SetNormal(dir)
-          if(data.NvDamage > 3500) then
-            util.Effect("ManhackSparks", self.beamEffectData)
+    if(trace.Hit) then
+      local ent = trace.Entity
+      local eff = self.beamEffectData
+      if(not LaserLib.IsSource(ent)) then
+        eff:SetStart(trace.HitPos)
+        eff:SetOrigin(trace.HitPos)
+        eff:SetNormal(trace.HitNormal)
+        eff:SetScale(1)
+        util.Effect("AR2Impact", eff)
+        -- Draw particle effects
+        if(data.NvDamage > 0) then
+          if(not (ent:IsPlayer() or ent:IsNPC())) then
+            local dir = LaserLib.GetReflected(data.VrDirect,
+                                              trace.HitNormal)
+            eff:SetNormal(dir)
+            if(data.NvDamage > 3500) then
+              util.Effect("ManhackSparks", eff)
+            else
+              util.Effect("MetalSpark", eff)
+            end
           else
-            util.Effect("MetalSpark", self.beamEffectData)
+            util.Effect("BloodImpact", eff)
           end
-        else
-          util.Effect("BloodImpact", self.beamEffectData)
         end
       end
     end
@@ -47,15 +52,15 @@ function ENT:Draw()
   self:DrawModel()
   if(self:GetOn()) then
     local width = self:GetBeamWidth()
-          width = LaserLib.ClampWidth(width)
+          width = LaserLib.GetWidth(width)
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
       local force  = self:GetPushForce()
       local origin = self:GetBeamOrigin()
       local damage = self:GetDamageAmount()
       local direct = self:GetBeamDirection()
-      local usrfle = self:GetReflectionRate()
-      local usrfre = self:GetRefractionRate()
+      local usrfle = self:GetReflectRatio()
+      local usrfre = self:GetRefractRatio()
       local trace, data = LaserLib.DoBeam(self,
                                           origin,
                                           direct,
@@ -66,7 +71,7 @@ function ENT:Draw()
                                           usrfle,
                                           usrfre)
       if(data) then
-        local white = LaserLib.GetColor("WHITE")
+        local color = self:GetBeamColor()
         local ushit = LocalPlayer():GetEyeTrace().HitPos
         local bbmin = self:LocalToWorld(self:OBBMins())
         local bbmax = self:LocalToWorld(self:OBBMaxs())
@@ -98,12 +103,11 @@ function ENT:Draw()
                           nwd,
                           dtm,
                           dtm - len / 9,
-                          white)
-
+                          color:ToColor())
         end
         -- Adjust the render bounds with world-space coordinates
         self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
-
+        -- Handle drawing the effects when have to be drawwn
         self:DrawEndingEffect(trace, data)
       end
     end

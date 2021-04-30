@@ -78,9 +78,11 @@ function ENT:DoDamage(trace, data)
                           self)
       end
     else
-      self:WireWrite("Hit", 0)
       self:WireWrite("Target")
     end
+  else
+    self:WireWrite("Hit", 0)
+    self:WireWrite("Target")
   end
 
   return self
@@ -93,8 +95,8 @@ function ENT:DoBeam()
   local length = self:GetBeamLength()
   local damage = self:GetDamageAmount()
   local direct = self:GetBeamDirection()
-  local usrfle = self:GetReflectionRate()
-  local usrfre = self:GetRefractionRate()
+  local usrfle = self:GetReflectRatio()
+  local usrfre = self:GetRefractRatio()
   local trace, data = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
@@ -163,7 +165,7 @@ local function Off(ply, ent)
   if(not ent) then return end
   if(ent == NULL) then return end
   if(not ent:IsValid()) then return end
-  if(ent:GetToggle()) then return end
+  if(ent:GetStartToggle()) then return end
   ent:SetOn(not ent:GetOn())
 end
 

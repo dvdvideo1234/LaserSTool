@@ -1,33 +1,32 @@
 # LaserSTool
 
-![LaserSTool][ref-screenshot]
+[![](https://img.youtube.com/vi/QCbQLuknN9Y/0.jpg)](http://www.youtube.com/watch?v=QCbQLuknN9Y "")
 
 ### Description
-This the `LaserSTool` I've originally ported to GM13 since then I am
+This is the `LaserSTool` I've originally ported to GM13 since then I am
 constantly improving it. My goal is making it behave as simiar to a
 real laser beam. The original creator is `MadJawa`, and his repositoty
 is [located here](https://svn.madjawa.net/lua/LaserSTOOL/). I cannot
 tell you that the orinal autor will still supports this repo in the
 future, but we can clearly see no commits are made since `2009`.
 
+![LaserSTool][ref-screenshot]
+
 ### Installation
 Just clone this repo in your addons folder and you are done.
 
-### Planned roadmap
-1. Fix the laser entity ( `DONE` )
-2. Fix the reflector entity ( `DONE` )
-3. Implement reflection based on the traced texture ( `DONE` )
-4. Code refurbish and made in tone with GM13 ( `DONE` )
-5. Optimize and fix the think and draw routines ( `DONE` )
-6. Develop a system which uses props as mirrors ( `DONE` )
-7. Fix the crystal power converge entity ( `DONE` )
-8. Fix crystals output not get affected by the source [reflection rate][ref-reflect-rate] ( `DONE` )
-![][ref-reflect-rate]
-
-9. Develop a way to use props as refraction meduims via texture [refractors][ref-refract] ( `DONE` )
-10. Develop [refract][ref-refract] rate similar as [reflect rate][ref-reflect-rate] ( `DONE` )
-11. Develop [total internal reflection][ref-total-reflect] at the medium boundary (`DONE`)
-![][ref-refract-pic]
+### Features
+1. Very stable [crystal][ref-crystal] calculating routine and beam trace
+2. [Reflect][ref-reflect] beam traces via hit surface material override
+3. [Refract][ref-refract-pic] beam traces via hit surface material override
+4. Calculate [full internal reflection][ref-total-reflect] according to medium boundary
+5. Code base and updates in tone with Garry's mod 13
+6. Supports [wire][ref-wire] and every element supports advanced duplicator
+7. [Wire inputs][ref-wire] override internals when connected
+8. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
+9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [abortion][ref-reflect-rate]
+10. Better model for the crystal entity not to get confused where is forward
+11. Material override can be saved with advanced duplicator
 
 ### Workshop
 No. I see many copies of this tool everywhere, but still, there is none that
@@ -44,3 +43,6 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-screenshot]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/screenshot.jpg
 [ref-reflect-rate]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/reflect_rate.jpg
 [ref-refract-pic]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/refract.jpg
+[ref-crystal]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/crystal.jpg
+[ref-wire]: https://github.com/wiremod/wire
+[ref-wire-wrap]: https://github.com/dvdvideo1234/LaserSTool/blob/main/lua/laseremitter/wire_wrapper.lua

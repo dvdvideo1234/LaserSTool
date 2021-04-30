@@ -6,6 +6,7 @@ if(WireLib) then
 else
   ENT.Base          = "base_entity"
 end
+ENT.Editable       = true
 ENT.Author         = "MadJawa"
 ENT.Category       = ""
 ENT.Spawnable      = false
@@ -15,21 +16,36 @@ ENT.Information    = ENT.PrintName
 AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 
-function ENT:SetupBeamTransform()
+function ENT:SetupDataTables()
+  local val, opt = {}, list.GetForEdit("LaserDissolveTypes")
+  for k, v in pairs(opt) do val[k] = v.name end
+  self:NetworkVar("Vector", 0, "OriginLocal" , {KeyName = "originlocal" , Edit = {category = "General" , order = 1, type = "Vector"}})
+  self:NetworkVar("Vector", 1, "DirectLocal" , {KeyName = "directlocal" , Edit = {category = "General" , order = 2, type = "Vector"}})
+  self:NetworkVar("Float" , 0, "AngleOffset" , {KeyName = "angleoffset" , Edit = {category = "General" , order = 3, type = "Float", min = -180, max = 180}})
+  self:NetworkVar("Bool"  , 0, "StartToggle" , {KeyName = "starttoggle" , Edit = {category = "General" , order = 4, type = "Bool"}})
+  self:NetworkVar("Bool"  , 1, "ForceCenter" , {KeyName = "forcecenter" , Edit = {category = "General" , order = 5, type = "Bool"}})
+  self:NetworkVar("Bool"  , 2, "ReflectRatio", {KeyName = "reflectrate" , Edit = {category = "Material", order = 6, type = "Bool"}})
+  self:NetworkVar("Bool"  , 3, "RefractRatio", {KeyName = "refractrate" , Edit = {category = "Material", order = 7, type = "Bool"}})
+  self:NetworkVar("Bool"  , 4, "EndingEffect", {KeyName = "endingeffect", Edit = {category = "Visuals" , order = 8, type = "Bool"}})
+  self:NetworkVar("Vector", 2, "BeamColor"   , {KeyName = "beamcolor"   , Edit = {category = "Visuals" , order = 9, type = "VectorColor"}})
+  self:NetworkVar("String", 0, "DissolveType", {KeyName = "dissolvetype", Edit = {category = "Visuals" , order = 10, type = "Combo", values = val}})
+end
+
+function ENT:SetBeamTransform()
   local angle  = self:GetAngleOffset()
   local direct = LaserLib.GetBeamDirection(self, angle)
   local origin = LaserLib.GetBeamOrigin(self, direct)
-  self:SetNWVector("Origin", origin)
-  self:SetNWVector("Direct", direct)
+  self:SetOriginLocal(origin)
+  self:SetDirectLocal(direct)
   return self
 end
 
 function ENT:GetBeamOrigin()
-  return self:LocalToWorld(self:GetNWVector("Origin"))
+  return self:LocalToWorld(self:GetOriginLocal())
 end
 
 function ENT:GetBeamDirection()
-  local direct = Vector(self:GetNWVector("Direct"))
+  local direct = Vector(self:GetDirectLocal())
         direct:Rotate(self:GetAngles())
   return direct
 end
@@ -77,18 +93,6 @@ function ENT:GetDamageAmount()
 end
 
 --[[ ----------------------
-     Model Offset
----------------------- ]]
-function ENT:SetAngleOffset(ang)
-  self:SetNWInt("AngleOffset", ang)
-  return self
-end
-
-function ENT:GetAngleOffset()
-  return self:GetNWInt("AngleOffset")
-end
-
---[[ ----------------------
   Material
 ---------------------- ]]
 function ENT:SetBeamMaterial(mat)
@@ -113,23 +117,15 @@ function ENT:GetBeamMaterial(bool)
 end
 
 --[[ ----------------------
-      Dissolve type. Write string! Read number!
----------------------- ]]
-function ENT:SetDissolveType(distype)
-  self:SetNWString("DissolveType", distype)
-  return self
-end
-
-function ENT:GetDissolveType()
-  return self:GetNWString("DissolveType")
-end
-
---[[ ----------------------
           Sounds
 ---------------------- ]]
 function ENT:SetStartSound(snd)
-  self.startSound = tostring(snd or "")
-  return self
+  local snd = tostring(snd or "")
+  if(self.startSound ~= snd) then
+    self.startSound = Sound(snd)
+  else
+    self.startSound = snd
+  end; return self
 end
 
 function ENT:GetStartSound()
@@ -137,8 +133,12 @@ function ENT:GetStartSound()
 end
 
 function ENT:SetStopSound(snd)
-  self.stopSound = tostring(snd or "")
-  return self
+  local snd = tostring(snd or "")
+  if(self.stopSound ~= snd) then
+    self.stopSound = Sound(snd)
+  else
+    self.stopSound = snd
+  end; return self
 end
 
 function ENT:GetStopSound()
@@ -146,24 +146,16 @@ function ENT:GetStopSound()
 end
 
 function ENT:SetKillSound(snd)
-  self.killSound = tostring(snd or "")
-  return self
+  local snd = tostring(snd or "")
+  if(self.killSound ~= snd) then
+    self.killSound = Sound(snd)
+  else
+    self.killSound = snd
+  end; return self
 end
 
 function ENT:GetKillSound()
   return self.killSound
-end
-
---[[ ----------------------
-  Toggle
----------------------- ]]
-function ENT:SetToggle(bool)
-  self:SetNWBool("Toggle", tobool(bool))
-  return self
-end
-
-function ENT:GetToggle()
-  return self:GetNWBool("Toggle")
 end
 
 --[[ ----------------------
@@ -173,9 +165,9 @@ function ENT:SetOn(bool)
   local state = tobool(bool)
   if(state ~= self:GetOn()) then
     if(state) then
-      self:EmitSound(Sound(self:GetStartSound()))
+      self:EmitSound(self:GetStartSound())
     else
-      self:EmitSound(Sound(self:GetStopSound()))
+      self:EmitSound(self:GetStopSound())
     end
   end
 
@@ -202,54 +194,6 @@ function ENT:GetPushForce()
   return self:GetNWFloat("PushForce")
 end
 
---[[ ----------------------
-     Ending Effect
----------------------- ]]
-function ENT:SetEndingEffect(bool)
-  self:SetNWBool("EndingEffect", tobool(bool))
-  return self
-end
-
-function ENT:GetEndingEffect()
-  return self:GetNWBool("EndingEffect")
-end
-
---[[ ----------------------
-  Surface reflect efficiency
----------------------- ]]
-function ENT:SetReflectionRate(bool)
-  self:SetNWBool("ReflectRate", tobool(bool))
-  return self
-end
-
-function ENT:GetReflectionRate()
-  return self:GetNWBool("ReflectRate")
-end
-
---[[ ----------------------
-  Surface reflect efficiency
----------------------- ]]
-function ENT:SetRefractionRate(bool)
-  self:SetNWBool("RefractRate", tobool(bool))
-  return self
-end
-
-function ENT:GetRefractionRate()
-  return self:GetNWBool("RefractRate")
-end
-
---[[ ----------------------
-  Surface reflect efficiency
----------------------- ]]
-function ENT:SetForceCenter(bool)
-  self:SetNWBool("ForceCenter", tobool(bool))
-  return self
-end
-
-function ENT:GetForceCenter()
-  return self:GetNWBool("ForceCenter")
-end
-
 function ENT:Setup(width       , length     , damage     , material    ,
                    dissolveType, startSound , stopSound  , killSound   ,
                    toggle      , startOn    , pushForce  , endingEffect,
@@ -264,17 +208,18 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self.defaultForce = pushForce -- Used when wire is disconnected
 
   -- These are not controlled by wire and are stored in the laser itself
+  self:SetBeamColor(Vector(1,1,1))
   self:SetForceCenter(forceCenter)
   self:SetBeamMaterial(material)
   self:SetDissolveType(dissolveType)
   self:SetStartSound(startSound)
   self:SetStopSound(stopSound)
   self:SetKillSound(killSound)
-  self:SetToggle(toggle)
+  self:SetStartToggle(toggle)
   self:SetEndingEffect(endingEffect)
-  self:SetReflectionRate(reflectRate)
-  self:SetRefractionRate(refractRate)
-  self:SetupBeamTransform()
+  self:SetReflectRatio(reflectRate)
+  self:SetRefractRatio(refractRate)
+  self:SetBeamTransform()
 
   table.Merge(self:GetTable(), {
     width        = width,

@@ -19,9 +19,10 @@ ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
 
 -- Override the beam transormation
-function ENT:SetupBeamTransform()
+function ENT:SetBeamTransform()
   local direct = Vector(0,0,1) -- Local Direction
   local origin = LaserLib.GetBeamOrigin(self, direct)
-  self:SetNWVector("Origin", origin)
-  self:SetNWVector("Direct", direct); return self
+  self:SetOriginLocal(origin)
+  self:SetDirectLocal(direct)
+  return self
 end

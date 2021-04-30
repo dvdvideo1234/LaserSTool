@@ -61,9 +61,10 @@ function ENT:Initialize()
   self:SetBeamMaterial("")
   self:SetDissolveType("")
   self:SetEndingEffect(false)
-  self:SetReflectionRate(false)
-  self:SetRefractionRate(false)
+  self:SetReflectRatio(false)
+  self:SetRefractRatio(false)
   self:SetForceCenter(false)
+  self:SetBeamColor(Vector(1,1,1))
 
   self:WireWrite("Entity", self)
 end
@@ -73,17 +74,19 @@ function ENT:SpawnFunction(ply, tr)
   -- Sets the right angle at spawn. Thanks to aVoN!
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
   local ent = ents.Create(LaserLib.GetClass(2, 2))
-  ent:SetModel(LaserLib.GetModel(2, 1))
-  ent:SetMaterial(LaserLib.GetMaterial(2, 1))
-  ent:Spawn()
-  ent:Activate()
-  ent:SetupBeamTransform()
-  local pos = Vector(tr.HitNormal)
-        pos:Mul(ent:BoundingRadius())
-        pos:Add(tr.HitPos)
-  ent:SetPos(pos) -- Use baounding radius instead of constant
-  ent:SetAngles(Angle(0, yaw, 0)) -- Appy angle after spawn
-  return ent
+  if(ent and ent:IsValid()) then
+    ent:SetModel(LaserLib.GetModel(2, 1))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(2, 1))
+    ent:Spawn()
+    ent:Activate()
+    ent:SetBeamTransform()
+    local pos = Vector(tr.HitNormal)
+          pos:Mul(ent:BoundingRadius())
+          pos:Add(tr.HitPos)
+    ent:SetPos(pos) -- Use baounding radius instead of constant
+    ent:SetAngles(Angle(0, yaw, 0)) -- Appy angle after spawn
+    return ent
+  end; return nil
 end
 
 --[[
@@ -153,12 +156,13 @@ function ENT:UpdateDominant(ent)
   self:SetPushForce(ent:GetPushForce())
   self:SetStopSound(ent:SetStopSound())
   self:SetKillSound(ent:GetKillSound())
+  self:SetBeamColor(ent:GetBeamColor())
   self:SetStartSound(ent:SetStartSound())
   self:SetBeamMaterial(ent:GetBeamMaterial())
   self:SetDissolveType(ent:GetDissolveType())
   self:SetEndingEffect(ent:GetEndingEffect())
-  self:SetReflectionRate(ent:GetReflectionRate())
-  self:SetRefractionRate(ent:GetRefractionRate())
+  self:SetReflectRatio(ent:GetReflectRatio())
+  self:SetRefractRatio(ent:GetRefractRatio())
   self:SetForceCenter(ent:GetForceCenter())
 
   self:WireWrite("Dominant", ent)
@@ -191,8 +195,8 @@ function ENT:UpdateBeam()
             length = length + data.NvLength
             damage = damage + data.NvDamage
             force  = force  + data.NvForce
-            npower = LaserLib.RatePower(data.NvWidth, data.NvDamage)
-
+            npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
+            -- Chose the dominant here otherwise gets unstable
             if(npower > opower) then
               dominant, opower = ent, npower
             end

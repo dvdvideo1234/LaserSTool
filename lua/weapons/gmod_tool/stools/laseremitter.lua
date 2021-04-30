@@ -38,9 +38,9 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".dissolvetype", "Controls visuals used when dissolving players")
   language.Add("tool."..gsUnit..".startsound_con", "Start sound:")
   language.Add("tool."..gsUnit..".startsound", "Controls sounds used when starting the laser")
-  language.Add("tool."..gsUnit..".stopsound_con", "Start sound:")
+  language.Add("tool."..gsUnit..".stopsound_con", "Stop sound:")
   language.Add("tool."..gsUnit..".stopsound", "Controls sounds used when stopping the laser")
-  language.Add("tool."..gsUnit..".killsound_con", "Start sound:")
+  language.Add("tool."..gsUnit..".killsound_con", "Kill sound:")
   language.Add("tool."..gsUnit..".killsound", "Controls sounds used when killing players or NPC")
   language.Add("tool."..gsUnit..".toggle_con", "Toggled operation")
   language.Add("tool."..gsUnit..".toggle", "Starts the laser when the button is hit")
@@ -223,11 +223,11 @@ function TOOL:RightClick(trace)
     LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
     LaserLib.ConCommand(ply, "pushforce"   , ent:GetPushForce())
     LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
-    LaserLib.ConCommand(ply, "toggle"      , (ent:GetToggle() and 1 or 0))
+    LaserLib.ConCommand(ply, "toggle"      , (ent:GetStartToggle() and 1 or 0))
     LaserLib.ConCommand(ply, "forcecenter" , (ent:GetForceCenter() and 1 or 0))
     LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
-    LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectionRate() and 1 or 0))
-    LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractionRate() and 1 or 0))
+    LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
+    LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
     LaserLib.Notify(ply, "Copy settings !", "UNDO")
   else
     local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
@@ -252,11 +252,11 @@ function TOOL:Reload(trace)
   if(not ent:IsValid())  then return false end
   if(ent:IsPlayer()) then return false end
   if(ply:KeyDown(IN_USE)) then
-    LaserLib.SetMaterial(ply, ent, LaserLib.GetRefract())
+    LaserLib.SetMaterial(ent, LaserLib.GetRefract())
   elseif(ply:KeyDown(IN_SPEED)) then
-    LaserLib.SetMaterial(ply, ent, LaserLib.GetReflect())
+    LaserLib.SetMaterial(ent, LaserLib.GetReflect())
   else
-    LaserLib.SetMaterial(ply, ent)
+    LaserLib.SetMaterial(ent)
   end
   return true
 end
