@@ -14,15 +14,19 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
-  local pos = tr.HitPos + tr.HitNormal * 35
   local ent = ents.Create(LaserLib.GetClass(3, 2))
   if(ent and ent:IsValid()) then
-    ent:SetModel(LaserLib.GetModel(3, 1))
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(3, 1))
-    ent:SetPos(pos)
+    LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
+    ent:SetAngles(Angle(0, yaw, 0))
+    ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+    ent:SetSolid(SOLID_VPHYSICS)
+    ent:SetMoveType(MOVETYPE_VPHYSICS)
+    ent:SetNotSolid(false)
+    ent:SetModel(LaserLib.GetModel(3, 1))
     ent:Spawn()
     ent:Activate()
-    ent:SetAngles(Angle(0, yaw, 0))
+    ent:PhysWake()
     return ent
   end; return nil
 end

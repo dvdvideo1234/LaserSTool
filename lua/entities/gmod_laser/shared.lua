@@ -17,18 +17,23 @@ AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 
 function ENT:SetupDataTables()
-  local val, opt = {}, list.GetForEdit("LaserDissolveTypes")
-  for k, v in pairs(opt) do val[k] = v.name end
-  self:NetworkVar("Vector", 0, "OriginLocal" , {KeyName = "originlocal" , Edit = {category = "General" , order = 1, type = "Vector"}})
-  self:NetworkVar("Vector", 1, "DirectLocal" , {KeyName = "directlocal" , Edit = {category = "General" , order = 2, type = "Vector"}})
-  self:NetworkVar("Float" , 0, "AngleOffset" , {KeyName = "angleoffset" , Edit = {category = "General" , order = 3, type = "Float", min = -180, max = 180}})
-  self:NetworkVar("Bool"  , 0, "StartToggle" , {KeyName = "starttoggle" , Edit = {category = "General" , order = 4, type = "Bool"}})
-  self:NetworkVar("Bool"  , 1, "ForceCenter" , {KeyName = "forcecenter" , Edit = {category = "General" , order = 5, type = "Bool"}})
-  self:NetworkVar("Bool"  , 2, "ReflectRatio", {KeyName = "reflectrate" , Edit = {category = "Material", order = 6, type = "Bool"}})
-  self:NetworkVar("Bool"  , 3, "RefractRatio", {KeyName = "refractrate" , Edit = {category = "Material", order = 7, type = "Bool"}})
-  self:NetworkVar("Bool"  , 4, "EndingEffect", {KeyName = "endingeffect", Edit = {category = "Visuals" , order = 8, type = "Bool"}})
-  self:NetworkVar("Vector", 2, "BeamColor"   , {KeyName = "beamcolor"   , Edit = {category = "Visuals" , order = 9, type = "VectorColor"}})
-  self:NetworkVar("String", 0, "DissolveType", {KeyName = "dissolvetype", Edit = {category = "Visuals" , order = 10, type = "Combo", values = val}})
+  self:NetworkVar("Vector", 0, "OriginLocal"   , {KeyName = "originlocal"   , Edit = {category = "General"  , order = 1 , type = "Vector"}})
+  self:NetworkVar("Vector", 1, "DirectLocal"   , {KeyName = "directlocal"   , Edit = {category = "General"  , order = 2 , type = "Vector"}})
+  self:NetworkVar("Float" , 0, "AngleOffset"   , {KeyName = "angleoffset"   , Edit = {category = "General"  , order = 3 , type = "Float", min = -180, max = 180}})
+  self:NetworkVar("Bool"  , 0, "StartToggle"   , {KeyName = "starttoggle"   , Edit = {category = "General"  , order = 4 , type = "Bool"}})
+  self:NetworkVar("Bool"  , 1, "ForceCenter"   , {KeyName = "forcecenter"   , Edit = {category = "General"  , order = 5 , type = "Bool"}})
+  self:NetworkVar("Bool"  , 2, "ReflectRatio"  , {KeyName = "reflectrate"   , Edit = {category = "Material" , order = 6 , type = "Bool"}})
+  self:NetworkVar("Bool"  , 3, "RefractRatio"  , {KeyName = "refractrate"   , Edit = {category = "Material" , order = 7 , type = "Bool"}})
+  self:NetworkVar("Bool"  , 4, "InPowerOn"     , {KeyName = "inpoweron"     , Edit = {category = "Internals", order = 8 , type = "Bool"}})
+  self:NetworkVar("Float" , 1, "InBeamWidth"   , {KeyName = "inbeamwidth"   , Edit = {category = "Internals", order = 9 , type = "Float", min = 0, max = 30}})
+  self:NetworkVar("Float" , 2, "InBeamLength"  , {KeyName = "inbeamlength"  , Edit = {category = "Internals", order = 10 , type = "Float", min = 0, max = 50000}})
+  self:NetworkVar("Float" , 3, "InDamageAmount", {KeyName = "indamageamount", Edit = {category = "Internals", order = 11, type = "Float", min = 0, max = 5000}})
+  self:NetworkVar("Float" , 4, "InPushForce"   , {KeyName = "inpushforce"   , Edit = {category = "Internals", order = 12 , type = "Float", min = 0, max = 50000}})
+  self:NetworkVar("String", 0, "InBeamMaterial", {KeyName = "inbeammaterial", Edit = {category = "Internals", order = 13, type = "Combo", values = list.GetForEdit("LaserEmitterMaterials")}})
+  self:NetworkVar("Bool"  , 5, "EndingEffect"  , {KeyName = "endingeffect"  , Edit = {category = "Visuals"  , order = 14, type = "Bool"}})
+  self:NetworkVar("Vector", 2, "BeamColor"     , {KeyName = "beamcolor"     , Edit = {category = "Visuals"  , order = 15, type = "VectorColor"}})
+  local val = {}; for k, v in pairs(list.GetForEdit("LaserDissolveTypes")) do val[k] = v.name end
+  self:NetworkVar("String", 1, "DissolveType"  , {KeyName = "dissolvetype"  , Edit = {category = "Visuals"  , order = 16, type = "Combo", values = val}})
 end
 
 function ENT:SetBeamTransform()
@@ -55,13 +60,13 @@ end
 ---------------------- ]]
 function ENT:SetBeamWidth(num)
   local width = math.max(num, 0)
-  self:SetNWInt("Width", width)
+  self:SetInBeamWidth(width)
   self:WireWrite("Width", width)
   return self
 end
 
 function ENT:GetBeamWidth()
-  return self:GetNWInt("Width")
+  return self:GetInBeamWidth()
 end
 
 --[[ ----------------------
@@ -69,13 +74,13 @@ end
 ---------------------- ]]
 function ENT:SetBeamLength(num)
   local length = math.abs(num)
-  self:SetNWInt("Length", length)
+  self:SetInBeamLength(length)
   self:WireWrite("Length", length)
   return self
 end
 
 function ENT:GetBeamLength()
-  return self:GetNWInt("Length")
+  return self:GetInBeamLength()
 end
 
 --[[ ----------------------
@@ -83,36 +88,36 @@ end
 ---------------------- ]]
 function ENT:SetDamageAmount(num)
   local damage = math.max(num, 0)
-  self:SetNWInt("Damage", damage)
+  self:SetInDamageAmount(damage)
   self:WireWrite("Damage", damage)
   return self
 end
 
 function ENT:GetDamageAmount()
-  return self:GetNWInt("Damage")
+  return self:GetInDamageAmount()
 end
 
 --[[ ----------------------
   Material
 ---------------------- ]]
 function ENT:SetBeamMaterial(mat)
-  self:SetNWString("Material", mat)
+  self:SetInBeamMaterial(mat)
   return self
 end
 
 function ENT:GetBeamMaterial(bool)
-  local mat = self:GetNWString("Material")
+  local mat = self:GetInBeamMaterial()
   if(bool) then
-    if(not self.materCached) then
-      self.materCached = Material(mat)
-    else
+    if(self.materCached) then
       if(self.materCached:GetName() ~= mat) then
         self.materCached = Material(mat)
       end
+    else
+      self.materCached = Material(mat)
     end
     return self.materCached
   else
-    return self:GetNWString("Material")
+    return mat
   end
 end
 
@@ -171,13 +176,13 @@ function ENT:SetOn(bool)
     end
   end
 
-  self:SetNWBool("On", state)
+  self:SetInPowerOn(state)
   self:WireWrite("On", (state and 1 or 0))
   return self
 end
 
 function ENT:GetOn()
-  return self:GetNWBool("On")
+  return self:GetInPowerOn()
 end
 
 --[[ ----------------------
@@ -185,13 +190,13 @@ end
 ---------------------- ]]
 function ENT:SetPushForce(num)
   local force = math.max(num, 0)
-  self:SetNWFloat("PushForce", force)
+  self:SetInPushForce(force)
   self:WireWrite("Force", force)
   return self
 end
 
 function ENT:GetPushForce()
-  return self:GetNWFloat("PushForce")
+  return self:GetInPushForce()
 end
 
 function ENT:Setup(width       , length     , damage     , material    ,

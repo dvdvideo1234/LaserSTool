@@ -75,16 +75,18 @@ function ENT:SpawnFunction(ply, tr)
   local yaw = (ply:GetAimVector():Angle().y + 180) % 360
   local ent = ents.Create(LaserLib.GetClass(2, 2))
   if(ent and ent:IsValid()) then
-    ent:SetModel(LaserLib.GetModel(2, 1))
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(2, 1))
+    LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
+    ent:SetAngles(Angle(0, yaw, 0)) -- Appy angle after spawn
+    ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+    ent:SetSolid(SOLID_VPHYSICS)
+    ent:SetMoveType(MOVETYPE_VPHYSICS)
+    ent:SetNotSolid(false)
+    ent:SetModel(LaserLib.GetModel(2, 1))
+    ent:SetBeamTransform()
     ent:Spawn()
     ent:Activate()
-    ent:SetBeamTransform()
-    local pos = Vector(tr.HitNormal)
-          pos:Mul(ent:BoundingRadius())
-          pos:Add(tr.HitPos)
-    ent:SetPos(pos) -- Use baounding radius instead of constant
-    ent:SetAngles(Angle(0, yaw, 0)) -- Appy angle after spawn
+    ent:PhysWake()
     return ent
   end; return nil
 end
@@ -153,7 +155,6 @@ function ENT:UpdateDominant(ent)
   -- We set the same non-addable properties
   -- The most powerful laser (biggest damage/width)
   local user = (ent.ply or ent.player)
-  self:SetPushForce(ent:GetPushForce())
   self:SetStopSound(ent:SetStopSound())
   self:SetKillSound(ent:GetKillSound())
   self:SetBeamColor(ent:GetBeamColor())
@@ -164,7 +165,6 @@ function ENT:UpdateDominant(ent)
   self:SetReflectRatio(ent:GetReflectRatio())
   self:SetRefractRatio(ent:GetRefractRatio())
   self:SetForceCenter(ent:GetForceCenter())
-
   self:WireWrite("Dominant", ent)
 
   if(user and
@@ -182,38 +182,45 @@ end
 function ENT:UpdateBeam()
   local opower, npower, force  = 0, 0, 0
   local width , length, damage = 0, 0, 0
-  local dominant -- Stores the dominant source
+  local apower, doment = 0 -- Dominant source
 
   if(self.Size > 0) then
     for iD = 1, self.Size do
       local ent = self.Array[iD]
       if(ent and ent:IsValid()) then
-        if(not self:IsInfinite(ent)) then
-          local trace, data = ent:GetHitReport()
-          if(data) then
+        local trace, data = ent:GetHitReport()
+        if(data) then
+          npower = LaserLib.GetPower(data.NvWidth,
+                                     data.NvDamage)
+          if(not self:IsInfinite(ent)) then
             width  = width  + data.NvWidth
             length = length + data.NvLength
             damage = damage + data.NvDamage
             force  = force  + data.NvForce
-            npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-            -- Chose the dominant here otherwise gets unstable
-            if(npower > opower) then
-              dominant, opower = ent, npower
-            end
+            apower = apower + npower
+          end
+          if(npower > opower) then
+            doment, opower = ent, npower
           end
         end
       end
     end
 
-    if(npower > 0) then
+    -- This must always produce a dominant
+    if(apower > 0) then -- Summed settings
       self:SetPushForce(force)
       self:SetBeamWidth(width)
       self:SetBeamLength(length)
       self:SetDamageAmount(damage)
-      self:UpdateDominant(dominant)
-    else
-      self:SetHitReport()
+    else -- Utilize the dominant for settings
+      self:SetHitReport() -- Clear target report
+      self:SetPushForce(doment:GetPushForce())
+      self:SetBeamWidth(doment:GetBeamWidth())
+      self:SetBeamLength(doment:GetBeamLength())
+      self:SetDamageAmount(doment:GetDamageAmount())
     end
+
+    self:UpdateDominant(doment)
   end
 
   return self
@@ -232,6 +239,7 @@ function ENT:Think()
     end
   else
     self:SetOn(false)
+    self:WireWrite("Dominant")
   end
 
   self:WireWrite("Array", self.Array)

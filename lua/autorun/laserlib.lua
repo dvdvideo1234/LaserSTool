@@ -100,12 +100,13 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["glass"]                                     = {1.521, 0.999}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955}, -- Water refraction index
   -- Materials that are overriden and directly hash searched
-  ["Models/effects/vol_light001"]               = {1.000, 1.000}, -- Transperent air
+  ["models/effects/vol_light001"]               = {1.000, 1.000}, -- Transperent air
   ["models/spawn_effect"]                       = {1.333, 0.955}, -- Water refraction index
   ["models/props_combine/com_shield001a"]       = {1.573, 0.853},
   ["models/props_combine/combine_door01_glass"] = {1.583, 0.841}, -- Bit darker glass
   ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
+  ["models/props_c17/fisheyelens"]              = {1.521, 0.999}, -- Ordinary glass
   ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurites
   ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurites
   ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
@@ -757,29 +758,45 @@ end
 function LaserLib.SetupMaterials()
   if(SERVER) then return end
 
-  language.Add("cable.crystal_beam1", "Crystal Beam Cable" )
-  language.Add("cable.cable1"       , "Cable Class 1"      )
-  language.Add("cable.cable2"       , "Cable Class 2"      )
+  language.Add("laser.cable.crystal_beam1"   , "Crystal Beam Cable")
+  language.Add("laser.cable.cable1"          , "Cable Class 1"     )
+  language.Add("laser.cable.cable2"          , "Cable Class 2"     )
+  language.Add("laser.effects.emptool"       , "Alyx EMP"          )
+  language.Add("laser.splodearc.sheet"       , "Splodearc Sheet"   )
+  language.Add("laser.tprings.globe"         , "Tprings Globe"     )
+  language.Add("laser.warp.sheet"            , "Warp Sheet"        )
+  language.Add("laser.comball.sphere"        , "Comball Sphere"    )
+  language.Add("laser.stasisfield.beam"      , "Stasisfield Beam"  )
+  language.Add("laser.combine.sheet"         , "Combine Sheet"     )
+  language.Add("laser.ropematerial.redlaser" , "Rope Red Laser"    )
+  language.Add("laser.ropematerial.blue_elec", "Rope Blue Electric")
+  language.Add("laser.effects.redlaser1"     , "Red Laser Effect"  )
 
   table.Empty(list.GetForEdit("LaserEmitterMaterials"))
-  list.Set("LaserEmitterMaterials", "#cable.cable1"          , "cable/cable"        )
-  list.Set("LaserEmitterMaterials", "#cable.cable2"          , "cable/cable2"       )
-  list.Set("LaserEmitterMaterials", "#ropematerial.rope"     , "cable/rope"         )
-  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"    , "cable/xbeam"        )
-  list.Set("LaserEmitterMaterials", "#ropematerial.redlaser" , "cable/redlaser"     )
-  list.Set("LaserEmitterMaterials", "#ropematerial.blue_elec", "cable/blue_elec"    )
-  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam" , "cable/physbeam"     )
-  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"    , "cable/hydra"        )
-  list.Set("LaserEmitterMaterials", "#cable.crystal_beam1"   , "cable/crystal_beam1")
-  list.Set("LaserEmitterMaterials", "#trail.plasma"          , "trails/plasma"      )
-  list.Set("LaserEmitterMaterials", "#trail.tube"            , "trails/tube"        )
-  list.Set("LaserEmitterMaterials", "#trail.electric"        , "trails/electric"    )
-  list.Set("LaserEmitterMaterials", "#trail.smoke"           , "trails/smoke"       )
-  list.Set("LaserEmitterMaterials", "#trail.laser"           , "trails/laser"       )
-  list.Set("LaserEmitterMaterials", "#trail.physbeam"        , "trails/physbeam"    )
-  list.Set("LaserEmitterMaterials", "#trail.love"            , "trails/love"        )
-  list.Set("LaserEmitterMaterials", "#trail.lol"             , "trails/lol"         )
-  list.Set("LaserEmitterMaterials", "#effects.redlaser1"     , "effects/redlaser1"  )
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , "cable/cable"                             )
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , "cable/cable2"                            )
+  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , "models/effects/splodearc_sheet"          )
+  list.Set("LaserEmitterMaterials", "#laser.tprings.globe"         , "models/props_combine/tprings_globe"      )
+  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , "models/props_lab/warp_sheet"             )
+  list.Set("LaserEmitterMaterials", "#laser.comball.sphere"        , "models/effects/comball_sphere"           )
+  list.Set("LaserEmitterMaterials", "#laser.stasisfield.beam"      , "models/props_combine/stasisfield_beam"   )
+  list.Set("LaserEmitterMaterials", "#combine.sheet"               , "models/props_combine/portalball001_sheet")
+  list.Set("LaserEmitterMaterials", "#ropematerial.rope"           , "cable/rope"                              )
+  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , "cable/xbeam"                             )
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , "cable/redlaser"                          )
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", "cable/blue_elec"                         )
+  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam"       , "cable/physbeam"                          )
+  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"          , "cable/hydra"                             )
+  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , "cable/crystal_beam1"                     )
+  list.Set("LaserEmitterMaterials", "#trail.plasma"                , "trails/plasma"                           )
+  list.Set("LaserEmitterMaterials", "#trail.tube"                  , "trails/tube"                             )
+  list.Set("LaserEmitterMaterials", "#trail.electric"              , "trails/electric"                         )
+  list.Set("LaserEmitterMaterials", "#trail.smoke"                 , "trails/smoke"                            )
+  list.Set("LaserEmitterMaterials", "#trail.laser"                 , "trails/laser"                            )
+  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , "models/alyx/emptool_glow"                )
+  list.Set("LaserEmitterMaterials", "#trail.love"                  , "trails/love"                             )
+  list.Set("LaserEmitterMaterials", "#trail.lol"                   , "trails/lol"                              )
+  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , "effects/redlaser1"                       )
 end
 
 function LaserLib.SetupModels()

@@ -50,6 +50,7 @@ end
 
 function ENT:Draw()
   self:DrawModel()
+  self:DrawShadow(false)
   if(self:GetOn()) then
     local width = self:GetBeamWidth()
           width = LaserLib.GetWidth(width)
@@ -96,13 +97,13 @@ function ENT:Draw()
           LaserLib.UpdateRB(bbmax, ntx, math.max)
 
           -- Draw the actual beam texture
-          local dtm = 13 * CurTime()
           local len = (ntx - otx):Length()
+          local dtm = -(15 * CurTime())
           render.DrawBeam(otx,
                           ntx,
                           nwd,
                           dtm,
-                          dtm - len / 9,
+                          (dtm + len / 24),
                           color:ToColor())
         end
         -- Adjust the render bounds with world-space coordinates
