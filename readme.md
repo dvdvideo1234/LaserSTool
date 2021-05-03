@@ -21,12 +21,13 @@ Just clone this repo in your addons folder and you are done.
 3. [Refract][ref-refract-pic] beam traces via hit surface material override
 4. Calculate [full internal reflection][ref-total-reflect] according to medium boundary
 5. Code base and updates in tone with Garry's mod 13
-6. Supports [wire][ref-wire] and every element supports advanced duplicator
+6. Supports [wire][ref-wire] and every element supports advanced duplicator 1 and 2
 7. [Wire inputs][ref-wire] override internals when connected
 8. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
-9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [abortion][ref-reflect-rate]
-10. Better model for the crystal entity not to get confused where is forward
-11. Material override can be saved with advanced duplicator
+9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
+10. Better model for the crystal entity not to get confused where beam comes out
+11. [Material override][ref-mat-override] can be saved and restored with advanced duplicator 1 and 2
+12. [Editable entity][ref-ent-edit] support option for changing every aspect of the laser and crystal
 
 ### Workshop
 No. I see many copies of this tool everywhere, but still, there is none that
@@ -46,3 +47,5 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-crystal]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/crystal.jpg
 [ref-wire]: https://github.com/wiremod/wire
 [ref-wire-wrap]: https://github.com/dvdvideo1234/LaserSTool/blob/main/lua/laseremitter/wire_wrapper.lua
+[ref-ent-edit]: https://wiki.facepunch.com/gmod/Editable_Entities
+[ref-mat-override]: https://wiki.facepunch.com/gmod/Entity:SetMaterial
