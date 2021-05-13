@@ -763,11 +763,7 @@ function LaserLib.SetupMaterials()
   language.Add("laser.cable.cable2"          , "Cable Class 2"     )
   language.Add("laser.effects.emptool"       , "Alyx EMP"          )
   language.Add("laser.splodearc.sheet"       , "Splodearc Sheet"   )
-  language.Add("laser.tprings.globe"         , "Tprings Globe"     )
   language.Add("laser.warp.sheet"            , "Warp Sheet"        )
-  language.Add("laser.comball.sphere"        , "Comball Sphere"    )
-  language.Add("laser.stasisfield.beam"      , "Stasisfield Beam"  )
-  language.Add("laser.combine.sheet"         , "Combine Sheet"     )
   language.Add("laser.ropematerial.redlaser" , "Rope Red Laser"    )
   language.Add("laser.ropematerial.blue_elec", "Rope Blue Electric")
   language.Add("laser.effects.redlaser1"     , "Red Laser Effect"  )
@@ -776,12 +772,7 @@ function LaserLib.SetupMaterials()
   list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , "cable/cable"                             )
   list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , "cable/cable2"                            )
   list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , "models/effects/splodearc_sheet"          )
-  list.Set("LaserEmitterMaterials", "#laser.tprings.globe"         , "models/props_combine/tprings_globe"      )
   list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , "models/props_lab/warp_sheet"             )
-  list.Set("LaserEmitterMaterials", "#laser.comball.sphere"        , "models/effects/comball_sphere"           )
-  list.Set("LaserEmitterMaterials", "#laser.stasisfield.beam"      , "models/props_combine/stasisfield_beam"   )
-  list.Set("LaserEmitterMaterials", "#combine.sheet"               , "models/props_combine/portalball001_sheet")
-  list.Set("LaserEmitterMaterials", "#ropematerial.rope"           , "cable/rope"                              )
   list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , "cable/xbeam"                             )
   list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , "cable/redlaser"                          )
   list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", "cable/blue_elec"                         )
@@ -789,7 +780,6 @@ function LaserLib.SetupMaterials()
   list.Set("LaserEmitterMaterials", "#ropematerial.hydra"          , "cable/hydra"                             )
   list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , "cable/crystal_beam1"                     )
   list.Set("LaserEmitterMaterials", "#trail.plasma"                , "trails/plasma"                           )
-  list.Set("LaserEmitterMaterials", "#trail.tube"                  , "trails/tube"                             )
   list.Set("LaserEmitterMaterials", "#trail.electric"              , "trails/electric"                         )
   list.Set("LaserEmitterMaterials", "#trail.smoke"                 , "trails/smoke"                            )
   list.Set("LaserEmitterMaterials", "#trail.laser"                 , "trails/laser"                            )
@@ -804,6 +794,7 @@ function LaserLib.SetupModels()
 
   local data = {
     {"models/props_lab/tpplug.mdl"},
+    {"models/hunter/plates/plate.mdl"},
     {"models/props_junk/flare.mdl",90},
     {"models/props_lab/jar01a.mdl",90},
     {"models/props_lab/jar01b.mdl",90},
@@ -812,8 +803,11 @@ function LaserLib.SetupModels()
     {"models/props_c17/pottery02a.mdl",90},
     {"models/props_c17/pottery04a.mdl",90},
     {"models/props_c17/pottery05a.mdl",90},
+    {"models/jaanus/thruster_flat.mdl",90},
     {"models/props_combine/breenlight.mdl",-90},
     {"models/props_junk/trafficcone001a.mdl",90},
+    {"models/hunter/blocks/cube025x025x025.mdl"},
+    {"models/props_phx2/garbage_metalcan001a.mdl",-90},
     {"models/props_combine/headcrabcannister01a_skybox.mdl",180}
   }
 

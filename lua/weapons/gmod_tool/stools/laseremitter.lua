@@ -336,16 +336,18 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".damage"))
   pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".pushforce_con"), gsUnit.."_pushforce", 0, 50000, 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushforce"))
-  pItem = panel:MatSelect(gsUnit.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.30)
+  pItem = panel:MatSelect(gsUnit.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
   pItem.Label:SetText(language.GetPhrase("tool."..gsUnit..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".material"))
 
-  -- TODO: Remove `AddControl` and code a proper preset handler ( not required )
-  panel:AddControl("PropSelect",{
-    Label = language.GetPhrase("tool."..gsUnit..".model_con"),
-    ConVar = gsUnit.."_model",
-    Models = list.GetForEdit("LaserEmitterModels")
-  }):SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
+  pItem = vgui.Create("PropSelect", panel)
+  pItem:Dock(TOP); pItem:SetTall(150)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
+  pItem:ControlValues({
+    convar = gsUnit.."_model",
+    models = list.GetForEdit("LaserEmitterModels"),
+    label  = language.GetPhrase("tool."..gsUnit..".model_con")
+  }); panel:AddItem(pItem)
 
   LaserLib.ComboBoxString(panel, "dissolvetype", "LaserDissolveTypes")
   LaserLib.ComboBoxString(panel, "startsound"  , "LaserStartSounds"  )
