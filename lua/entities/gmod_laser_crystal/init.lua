@@ -72,17 +72,17 @@ end
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
-  local yaw = (ply:GetAimVector():Angle().y + 180) % 360
-  local ent = ents.Create(LaserLib.GetClass(2, 2))
+  local ang = LaserLib.GetAngleSF(ply)
+  local ent = ents.Create(LaserLib.GetClass(2))
   if(ent and ent:IsValid()) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(2, 1))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(2))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
-    ent:SetAngles(Angle(0, yaw, 0)) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    ent:SetModel(LaserLib.GetModel(2, 1))
+    ent:SetModel(LaserLib.GetModel(2))
     ent:SetBeamTransform()
     ent:Spawn()
     ent:Activate()
@@ -99,7 +99,7 @@ end
 ]]
 function ENT:IsInfinite(ent)
   if(ent == self) then return true end
-  local class = LaserLib.GetClass(2, 1)
+  local class = LaserLib.GetClass(2)
   if(ent:GetClass() == class) then
     for iD = 1, ent.Size do local src = ent.Array[iD]
       if(src == self) then return true end -- Other hits and we are in its sources

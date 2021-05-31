@@ -1,8 +1,8 @@
 local gsUnit = LaserLib.GetTool()
-local gsLaseremCls = LaserLib.GetClass(1, 1)
-local gsCrystalCls = LaserLib.GetClass(2, 1)
-local gsReflectCls = LaserLib.GetClass(3, 1)
-local gsReflectMod = LaserLib.GetModel(3, 1)
+local gsLaseremCls = LaserLib.GetClass(1)
+local gsCrystalCls = LaserLib.GetClass(2)
+local gsReflectCls = LaserLib.GetClass(3)
+local gsReflectMod = LaserLib.GetModel(3)
 
 if(CLIENT) then
 
@@ -20,7 +20,7 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".left", "Create/Update a laser where you are aiming")
   language.Add("tool."..gsUnit..".right", "Retrieve laser settings form trace entity")
   language.Add("tool."..gsUnit..".reload", "Reset material. Hold SHIFT to make prop mirror")
-  language.Add("tool."..gsUnit..".reload_use", "Turn the prop texture to glass")
+  language.Add("tool."..gsUnit..".reload_use", "Apply transparent texture to trace prop")
   language.Add("tool."..gsUnit..".frozen_con", "Freeze on creation")
   language.Add("tool."..gsUnit..".frozen", "Freezes the laser when created")
   language.Add("tool."..gsUnit..".key_con", "Control key")
@@ -58,10 +58,66 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".reflectrate", "Reflect the amount of power according to the surface material type")
   language.Add("tool."..gsUnit..".refractrate_con", "Refraction power ratio")
   language.Add("tool."..gsUnit..".refractrate", "Refract the amount of power according to the medium material type")
+  language.Add("tool."..gsUnit..".openmaterial", "Default material override manager for: ")
   language.Add("Cleanup_"..gsUnit, "Lasers")
   language.Add("Cleaned_"..gsUnit, "Cleaned up all Lasers")
   language.Add("Undone_"..gsUnit, "Undone Laser Emitter")
   language.Add("SBoxLimit_"..gsUnit.."s", "You've hit the Laser emiters limit!")
+
+  concommand.Add(gsUnit.."_openmaterial",
+    function(ply, cmd, args)
+      local ratM, datM = LaserLib.GetRatio()
+      local keyM = tostring(args[1] or ""):upper()
+      if(keyM == "REFLECT") then
+        datM = LaserLib.DataReflect("*")
+      elseif(keyM == "REFRACT") then
+        datM = LaserLib.DataRefract("*")
+      else
+        return nil
+      end
+      local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
+      local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
+      pnFrame:DockMargin(5, 5, 5, 5)
+      pnFrame:SetTitle(language.GetPhrase("tool."..gsUnit..".openmaterial")..keyM)
+      pnFrame:SetVisible(false)
+      pnFrame:SetDraggable(true)
+      pnFrame:SetDeleteOnClose(false)
+      pnFrame:SetPos(0, 0)
+      pnFrame:SetSize(scrW / (2 * ratM), scrH / (2 * ratM))
+      local pnMat = vgui.Create("MatSelect", pnFrame)
+            pnMat:SetParent(pnFrame)
+            pnMat:DockMargin(5, 5, 5, 5)
+            pnMat:Dock(FILL)
+            pnFrame:InvalidateLayout()
+      for key, val in pairs(datM) do
+        if(type(val) == "table" and tostring(key):find("/")) then
+          local matL = "{"..table.concat(val, "|").."} "..key
+          local matB = vgui.Create("DImageButton", pnMat)
+                matB:SetParent(pnMat)
+                matB:SetOnViewMaterial(key, "models/wireframe")
+                matB.AutoSize, matB.Value = true, key
+                matB:SetSize(50, 50)
+                matB:SetTooltip(matL)
+                matB.DoClick = function(button)
+                  LaserLib.ConCommand(nil, keyM:lower().."used", key)
+                end
+                matB.DoRightClick = function(button)
+                  local matM = DermaMenu()
+                  matM:AddOption("#spawnmenu.menu.copy",
+                    function() SetClipboardText(key) end):SetIcon("icon16/page_copy.png")
+                  matM:Open()
+                end
+              pnMat.List:AddItem(matB)
+              table.insert(pnMat.Controls, matB)
+              pnMat:InvalidateLayout()
+              pnMat.List:InvalidateLayout()
+        end
+      end
+      pnMat:InvalidateChildren()
+      pnFrame:Center()
+      pnFrame:SetVisible(true)
+      pnFrame:MakePopup()
+    end)
 end
 
 TOOL.Category = "Construction"
@@ -112,6 +168,8 @@ TOOL.ClientConVar =
   [ "angleoffset"  ] = 270,
   [ "reflectrate"  ] = 1,
   [ "refractrate"  ] = 1,
+  [ "reflectused"  ] = LaserLib.DataReflect(),
+  [ "refractused"  ] = LaserLib.DataRefract(),
   [ "forcecenter"  ] = 0,
   [ "frozen"       ] = 1 -- The cold never bothered me anyway
 }
@@ -247,17 +305,26 @@ end
 function TOOL:Reload(trace)
   if(CLIENT) then return true end
   if(not trace) then return false end
-  if(not trace.Entity)  then return false end
   local ply, ent = self:GetOwner(), trace.Entity
-  if(not ent:IsValid())  then return false end
-  if(ent:IsPlayer()) then return false end
-  if(ply:KeyDown(IN_USE)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetRefract())
-  elseif(ply:KeyDown(IN_SPEED)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetReflect())
+  if(trace.HitWorld) then
+    if(ply:KeyDown(IN_USE)) then
+      LaserLib.ConCommand(ply, "openmaterial", "refract")
+    elseif(ply:KeyDown(IN_SPEED)) then
+      LaserLib.ConCommand(ply, "openmaterial", "reflect")
+    end
   else
-    LaserLib.SetMaterial(ent)
+    if(not trace.Entity)  then return false end
+    if(not ent:IsValid())  then return false end
+    if(ent:IsPlayer()) then return false end
+    if(ply:KeyDown(IN_USE)) then
+      LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
+    elseif(ply:KeyDown(IN_SPEED)) then
+      LaserLib.SetMaterial(ent, self:GetClientInfo("reflectused"))
+    else
+      LaserLib.SetMaterial(ent)
+    end
   end
+
   return true
 end
 

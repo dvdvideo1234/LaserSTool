@@ -59,7 +59,7 @@ function ENT:DoDamage(trace, data)
 
       if(LaserLib.IsSource(trent)) then
         -- Register the source to the concentator
-        if(trent:GetClass() == LaserLib.GetClass(2, 1)) then
+        if(trent:GetClass() == LaserLib.GetClass(2)) then
           trent:SetSource(self)
         end
         -- When the trace is not a source we try to kill it

@@ -8,7 +8,7 @@ in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD 
 
 ENT.Type           = "anim"
 ENT.PrintName      = "Laser Crystal"
-ENT.Base           = LaserLib.GetClass(1, 1)
+ENT.Base           = LaserLib.GetClass(1)
 if(WireLib) then
   ENT.WireDebugName = ENT.PrintName
 end

@@ -10,6 +10,7 @@ DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 -- Library internal variables
 DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 
+DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
 DATA.ICON = "icon16/%s.png" -- Format to convert icons
 DATA.NOAV = "N/A"           -- Not available as string
@@ -27,30 +28,29 @@ DATA.VZERO = Vector()
 
 -- The default key in a collection point to take when not found
 DATA.KEYD = "#"
+DATA.KEYA = "*"
 
 DATA.CLS = {
   -- Class haches enabled for creating hit reports
   ["gmod_laser"        ] = true,
   ["gmod_laser_crystal"] = true,
-  -- [1] Item true class [2] Spawn class from entities
-  {"gmod_laser"},
-  {"gmod_laser_crystal"  , "gmod_laser_crystal"},
-  {"prop_physics"        , "prop_physics"      }
+  "gmod_laser"        , -- Laser entity calss
+  "gmod_laser_crystal", -- Laser crysytal class
+  "prop_physics"        -- Base class for reflectors
 }
 
 DATA.MOD = {
-  -- [1] Model used by the entities menu
-  {""}, -- Laser model is changed via laser tool
+  -- Model used by the entities menu
+  "", -- Laser model is changed via laser tool
   -- Portal cube: models/props/reflection_cube.mdl
-  {"models/props_c17/pottery02a.mdl"},
-  {"models/madjawa/laser_reflector.mdl"}
+  "models/props_c17/pottery02a.mdl",
+  "models/madjawa/laser_reflector.mdl"
 }
 
 DATA.MAT = {
-  -- [1] Model used by the entities menu
-  {""}, -- Laser material is changed with the model
-  {"models/props_lab/xencrystal_sheet"},
-  {"debug/env_cubemap_model"}
+  "", -- Laser material is changed with the model
+  "models/props_lab/xencrystal_sheet",
+  "debug/env_cubemap_model"
 }
 
 DATA.COLOR = {
@@ -73,17 +73,32 @@ DATA.REFLECT = { -- Reflection data descriptor
   [3] = "shiny"  , -- All shiny stuff reflect
   [4] = "metal"  , -- All shiny metal reflect
   -- Used for prop updates and checks
-  [DATA.KEYD]                          = "debug/env_cubemap_model",
-  ["debug/env_cubemap_model"]          = 1.000, -- There is no perfect mirror
+  [DATA.KEYD]                            = "debug/env_cubemap_model",
+  ["debug/env_cubemap_model"]            = {1.000}, -- There is no perfect mirror
   -- User for general class control
-  ["shiny"]                            = 0.854,
-  ["chrome"]                           = 0.955,
-  ["cubemap"]                          = 0.999,
-  ["metal"]                            = 0.347,
+  ["shiny"]                              = {0.854},
+  ["chrome"]                             = {0.955},
+  ["cubemap"]                            = {0.999},
+  ["metal"]                              = {0.347},
   -- Materials that are overriden and directly hash searched
-  ["phoenix_storms/pack2/bluelight"]   = 0.843,
-  ["phoenix_storms/window"]            = 0.897,
-  ["sprops/trans/wheels/wheel_d_rim1"] = 0.943
+  ["models/shiny"]                       = {0.873},
+  ["phoenix_storms/fender_white"]        = {0.625},
+  ["wtp/chrome_1"]                       = {0.955},
+  ["wtp/chrome_2"]                       = {0.955},
+  ["wtp/chrome_3"]                       = {0.955},
+  ["wtp/chrome_4"]                       = {0.955},
+  ["wtp/chrome_5"]                       = {0.955},
+  ["wtp/chrome_6"]                       = {0.955},
+  ["wtp/chrome_7"]                       = {0.955},
+  ["bobsters_trains/chrome"]             = {0.955},
+  ["bobsters_trains/chrome_dirty_black"] = {0.537},
+  ["models/materials/chchrome"]          = {0.864},
+  ["phoenix_storms/grey_chrome"]         = {0.757},
+  ["sprops/textures/sprops_chrome"]      = {0.757},
+  ["sprops/textures/sprops_chrome2"]     = {0.657},
+  ["phoenix_storms/pack2/bluelight"]     = {0.734},
+  ["phoenix_storms/window"]              = {0.897},
+  ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943}
 }; DATA.REFLECT.Size = #DATA.REFLECT
 
 DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
@@ -100,6 +115,9 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["glass"]                                     = {1.521, 0.999}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955}, -- Water refraction index
   -- Materials that are overriden and directly hash searched
+  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
+  ["phoenix_storms/pack2/glass"]                = {1.521, 0.999}, -- Ordinary glass
+  ["phoenix_storms/glass"]                      = {1.521, 0.999}, -- Ordinary glass
   ["models/effects/vol_light001"]               = {1.000, 1.000}, -- Transperent air
   ["models/spawn_effect"]                       = {1.333, 0.955}, -- Water refraction index
   ["models/props_combine/com_shield001a"]       = {1.573, 0.853},
@@ -172,7 +190,7 @@ end
 function LaserLib.ConCommand(user, name, value)
   local key = DATA.TOOL.."_"..name
   if(user and user:IsValid()) then
-    user:ConCommand(key.."\""..tostring(value or "").."\"\n")
+    user:ConCommand(key.." \""..tostring(value or "").."\"\n")
   else RunConsoleCommand(key, tostring(value or "")) end
 end
 
@@ -198,6 +216,10 @@ function LaserLib.GetZeroAngle()
   return DATA.AZERO
 end
 
+function LaserLib.GetRatio()
+  return DATA.GRAT
+end
+
 function LaserLib.IsSource(ent)
   if(not ent) then return false end
   if(ent == NULL) then return false end
@@ -217,19 +239,29 @@ function LaserLib.VecNegate(vec)
   return vec
 end
 
-function LaserLib.GetClass(iK, iD)
-  local tI = DATA.CLS[tonumber(iK)]
-  return (tI and (tI[iD] or tI[1]) or nil)
+function LaserLib.GetClass(iK)
+  local sC = DATA.CLS[tonumber(iK)]
+  return (sC and sC or nil)
 end
 
-function LaserLib.GetModel(iK, iD)
-  local tI = DATA.MOD[tonumber(iK)]
-  return (tI and (tI[iD] or tI[1]) or nil)
+function LaserLib.GetModel(iK)
+  local sM = DATA.MOD[tonumber(iK)]
+  return (sM and sM or nil)
 end
 
-function LaserLib.GetMaterial(iK, iD)
-  local tI = DATA.MAT[tonumber(iK)]
-  return (tI and (tI[iD] or tI[1]) or nil)
+function LaserLib.GetMaterial(iK)
+  local sT = DATA.MAT[tonumber(iK)]
+  return (sT and sT or nil)
+end
+
+--[[
+ * Returns the yaw angle for the spawn function
+ * ply > Player to calc the angle for
+   [1] > The calculated yaw result angle
+]]
+function LaserLib.GetAngleSF(ply)
+  local yaw = (ply:GetAimVector():Angle().y + 180) % 360
+  return Angle(0, yaw, 0)
 end
 
 --[[
@@ -323,7 +355,7 @@ function LaserLib.SetMaterial(ent, mat)
 end
 
 --[[
- * Checks when the entity has reflective mirror texture
+ * Checks when the entity has interactive material
  * ent > Entity to retrieve the setting for
  * set > The dedicated parameeters setting to check
 ]]
@@ -347,12 +379,17 @@ function GetMaterialData(ent, set)
   end; return nil -- Return nothing when not found
 end
 
-function LaserLib.GetReflect()
-  return DATA.REFLECT[DATA.KEYD]
+local function GetInteractIndex(iK, data)
+  if(iK == DATA.KEYA) then return data end
+  return (data[iK] or data[DATA.KEYD])
 end
 
-function LaserLib.GetRefract()
-  return DATA.REFRACT[DATA.KEYD]
+function LaserLib.DataReflect(iK)
+  return GetInteractIndex(iK, DATA.REFLECT)
+end
+
+function LaserLib.DataRefract(iK)
+  return GetInteractIndex(iK, DATA.REFRACT)
 end
 
 --[[
@@ -508,7 +545,7 @@ if(SERVER) then
     if(not (user and user:IsValid() and user:IsPlayer())) then return nil end
     if(not user:CheckLimit(unit.."s")) then return nil end
 
-    local laser = ents.Create(LaserLib.GetClass(1, 1))
+    local laser = ents.Create(LaserLib.GetClass(1))
     if(not (laser and laser:IsValid())) then return nil end
 
     laser:SetPos(pos)
@@ -695,7 +732,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           data.VrOrigin:Set(trace.HitPos)
           data.NvLength = data.NvLength - data.NvLength * trace.Fraction
           if(usrfle) then
-            LaserLib.SetPowerRatio(data, reflect)
+            LaserLib.SetPowerRatio(data, reflect[1])
           end
         end
       end
