@@ -72,17 +72,17 @@ DATA.REFLECT = { -- Reflection data descriptor
   [2] = "chrome" , -- Chrome stuff reflect
   [3] = "shiny"  , -- All shiny stuff reflect
   [4] = "metal"  , -- All shiny metal reflect
+  [5] = "white"  , -- All general white paint
   -- Used for prop updates and checks
   [DATA.KEYD]                            = "debug/env_cubemap_model",
-  ["debug/env_cubemap_model"]            = {1.000}, -- There is no perfect mirror
   -- User for general class control
   ["shiny"]                              = {0.854},
   ["chrome"]                             = {0.955},
   ["cubemap"]                            = {0.999},
   ["metal"]                              = {0.347},
+  ["white"]                              = {0.115},
   -- Materials that are overriden and directly hash searched
   ["models/shiny"]                       = {0.873},
-  ["phoenix_storms/fender_white"]        = {0.625},
   ["wtp/chrome_1"]                       = {0.955},
   ["wtp/chrome_2"]                       = {0.955},
   ["wtp/chrome_3"]                       = {0.955},
@@ -90,15 +90,17 @@ DATA.REFLECT = { -- Reflection data descriptor
   ["wtp/chrome_5"]                       = {0.955},
   ["wtp/chrome_6"]                       = {0.955},
   ["wtp/chrome_7"]                       = {0.955},
+  ["phoenix_storms/window"]              = {0.897},
   ["bobsters_trains/chrome"]             = {0.955},
-  ["bobsters_trains/chrome_dirty_black"] = {0.537},
+  ["debug/env_cubemap_model"]            = {1.000}, -- There is no perfect mirror
   ["models/materials/chchrome"]          = {0.864},
   ["phoenix_storms/grey_chrome"]         = {0.757},
+  ["phoenix_storms/fender_white"]        = {0.625},
   ["sprops/textures/sprops_chrome"]      = {0.757},
   ["sprops/textures/sprops_chrome2"]     = {0.657},
   ["phoenix_storms/pack2/bluelight"]     = {0.734},
-  ["phoenix_storms/window"]              = {0.897},
-  ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943}
+  ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943},
+  ["bobsters_trains/chrome_dirty_black"] = {0.537}
 }; DATA.REFLECT.Size = #DATA.REFLECT
 
 DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
@@ -107,7 +109,6 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [3] = "water", -- Glass enumerator index
   -- Used for prop updates and chec
   [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
-  ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Used for prop updates
   -- User for general class control
   -- [1] : Medium refraction index for the material specified
   -- [2] : Medium refraction rating when the beam goes trough reduces its power
@@ -115,23 +116,24 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["glass"]                                     = {1.521, 0.999}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955}, -- Water refraction index
   -- Materials that are overriden and directly hash searched
-  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
-  ["phoenix_storms/pack2/glass"]                = {1.521, 0.999}, -- Ordinary glass
-  ["phoenix_storms/glass"]                      = {1.521, 0.999}, -- Ordinary glass
-  ["models/effects/vol_light001"]               = {1.000, 1.000}, -- Transperent air
-  ["models/spawn_effect"]                       = {1.333, 0.955}, -- Water refraction index
-  ["models/props_combine/com_shield001a"]       = {1.573, 0.853},
-  ["models/props_combine/combine_door01_glass"] = {1.583, 0.841}, -- Bit darker glass
-  ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
+  ["models/spawn_effect"]                       = {1.333, 0.954}, -- Water refraction index
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
+  ["models/spawn_effect"]                       = {1.333, 0.955}, -- Water refraction index
+  ["phoenix_storms/glass"]                      = {1.521, 0.999}, -- Ordinary glass
+  ["models/shadertest/shader3"]                 = {1.333, 0.832}, -- Water refraction index
+  ["models/shadertest/shader4"]                 = {1.385, 0.922}, -- Water with some impurites
+  ["models/shadertest/predator"]                = {1.333, 0.721}, -- Water refraction index
+  ["phoenix_storms/pack2/glass"]                = {1.521, 0.999}, -- Ordinary glass
+  ["models/effects/vol_light001"]               = {1.000, 1.000}, -- Transperent air
   ["models/props_c17/fisheyelens"]              = {1.521, 0.999}, -- Ordinary glass
   ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurites
-  ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurites
+  ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
   ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
-  ["models/shadertest/predator"]                = {1.333, 0.721}, -- Water refraction index
-  ["models/shadertest/shader3"]                 = {1.333, 0.832}, -- Water refraction index
-  ["models/spawn_effect"]                       = {1.333, 0.954}, -- Water refraction index
-  ["models/shadertest/shader4"]                 = {1.385, 0.922}  -- Water with some impurites
+  ["models/props_combine/com_shield001a"]       = {1.573, 0.853},
+  ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurites
+  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
+  ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles glass
+  ["models/props_combine/combine_door01_glass"] = {1.583, 0.841}  -- Bit darker glass
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
 DATA.TRACE = {
@@ -374,6 +376,7 @@ function GetMaterialData(ent, set)
   -- Check for emement category
   for idx = 1, set.Size do key = set[idx]
     if(mat:find(key, 1, true)) then
+      set[mat] = set[key]  -- Cache the material
       return set[key], key -- Compare the entry
     end -- Read and compare the next entry
   end; return nil -- Return nothing when not found

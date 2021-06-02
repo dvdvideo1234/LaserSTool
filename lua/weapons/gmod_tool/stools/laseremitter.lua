@@ -77,26 +77,26 @@ if(CLIENT) then
       end
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
-      pnFrame:DockMargin(5, 5, 5, 5)
       pnFrame:SetTitle(language.GetPhrase("tool."..gsUnit..".openmaterial")..keyM)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(false)
       pnFrame:SetPos(0, 0)
-      pnFrame:SetSize(scrW / (2 * ratM), scrH / (2 * ratM))
-      local pnMat = vgui.Create("MatSelect", pnFrame)
+      pnFrame:SetSize(scrW / (1.4 * ratM), scrH / (1.4 * ratM))
+      local pnMat = vgui.Create("MatSelect"); if(not IsValid(pnMat)) then return nil end
             pnMat:SetParent(pnFrame)
-            pnMat:DockMargin(5, 5, 5, 5)
+            pnMat:DockPadding(3, 3, 3, 3)
             pnMat:Dock(FILL)
-            pnFrame:InvalidateLayout()
+            pnMat:SetItemWidth(0.16)
+            pnMat:SetItemHeight(0.22)
+            pnMat:InvalidateLayout(true)
       for key, val in pairs(datM) do
         if(type(val) == "table" and tostring(key):find("/")) then
           local matL = "{"..table.concat(val, "|").."} "..key
-          local matB = vgui.Create("DImageButton", pnMat)
+          local matB = vgui.Create("DImageButton"); if(not IsValid(matB)) then return nil end
                 matB:SetParent(pnMat)
                 matB:SetOnViewMaterial(key, "models/wireframe")
-                matB.AutoSize, matB.Value = true, key
-                matB:SetSize(50, 50)
+                matB.AutoSize, matB.Value = false, key
                 matB:SetTooltip(matL)
                 matB.DoClick = function(button)
                   LaserLib.ConCommand(nil, keyM:lower().."used", key)
@@ -109,11 +109,11 @@ if(CLIENT) then
                 end
               pnMat.List:AddItem(matB)
               table.insert(pnMat.Controls, matB)
-              pnMat:InvalidateLayout()
-              pnMat.List:InvalidateLayout()
+              pnMat:InvalidateLayout(true)
+              pnMat.List:InvalidateLayout(true)
         end
       end
-      pnMat:InvalidateChildren()
+      pnMat:InvalidateChildren(true)
       pnFrame:Center()
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()
@@ -411,7 +411,6 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem:Dock(TOP); pItem:SetTall(150)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
   pItem:ControlValues({
-    convar = gsUnit.."_model",
     models = list.GetForEdit("LaserEmitterModels"),
     label  = language.GetPhrase("tool."..gsUnit..".model_con")
   }); panel:AddItem(pItem)
