@@ -76,11 +76,12 @@ DATA.REFLECT = { -- Reflection data descriptor
   -- Used for prop updates and checks
   [DATA.KEYD]                            = "debug/env_cubemap_model",
   -- User for general class control
+  [""]                                   = false, -- Disable empty materials
   ["shiny"]                              = {0.854},
+  ["metal"]                              = {0.107},
+  ["white"]                              = {0.342},
   ["chrome"]                             = {0.955},
   ["cubemap"]                            = {0.999},
-  ["metal"]                              = {0.347},
-  ["white"]                              = {0.115},
   -- Materials that are overriden and directly hash searched
   ["models/shiny"]                       = {0.873},
   ["wtp/chrome_1"]                       = {0.955},
@@ -112,6 +113,7 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   -- User for general class control
   -- [1] : Medium refraction index for the material specified
   -- [2] : Medium refraction rating when the beam goes trough reduces its power
+  [""]                                          = false, -- Disable empty materials
   ["air"]                                       = {1.000, 1.000}, -- Air refraction index
   ["glass"]                                     = {1.521, 0.999}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955}, -- Water refraction index
@@ -360,13 +362,18 @@ end
  * Checks when the entity has interactive material
  * ent > Entity to retrieve the setting for
  * set > The dedicated parameeters setting to check
+ * org > Enable using original materials
 ]]
-function GetMaterialData(ent, set)
+function GetMaterialData(ent, set, org)
   if(not ent) then return nil end
   if(not ent:IsValid()) then return nil end
   local mat = ent:GetMaterial()
-  -- Protect hash indexing by nil
-  if(not mat) then return nil end
+  -- No override is available use original
+  if(mat == "" and org) then -- Enabled
+    -- Physobj has a single surfacetype related to model
+    mat = ent:GetMaterials()[1] -- Just grab the first
+    -- Gmod can not simply decide which material is hit
+  end -- Read the dominating material
   -- Read the first entry from table
   local key, val = mat, set[mat]
   -- Check for overriding with default
@@ -379,7 +386,8 @@ function GetMaterialData(ent, set)
       set[mat] = set[key]  -- Cache the material
       return set[key], key -- Compare the entry
     end -- Read and compare the next entry
-  end; return nil -- Return nothing when not found
+  end; set[mat] = false -- Undefined material
+  return nil -- Return nothing when not found
 end
 
 local function GetInteractIndex(iK, data)
@@ -542,7 +550,7 @@ if(SERVER) then
                         damage     , material    , dissolveType, startSound ,
                         stopSound  , killSound   , toggle      , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
-                        forceCenter, frozen)
+                        forceCenter, frozen      , enOnverMater)
 
     local unit = LaserLib.GetTool()
     if(not (user and user:IsValid() and user:IsPlayer())) then return nil end
@@ -557,10 +565,10 @@ if(SERVER) then
     laser:SetAngleOffset(angleOffset)
     laser:Spawn()
     laser:SetCreator(user)
-    laser:Setup(width       , length     , damage   , material    ,
-                dissolveType, startSound , stopSound, killSound   ,
-                toggle      , startOn    , pushForce, endingEffect,
-                reflectRate , refractRate, forceCenter, false)
+    laser:Setup(width       , length     , damage     , material    ,
+                dissolveType, startSound , stopSound  , killSound   ,
+                toggle      , startOn    , pushForce  , endingEffect,
+                reflectRate , refractRate, forceCenter, enOnverMater, false)
 
     local phys = laser:GetPhysicsObject()
     if(phys and phys:IsValid()) then
@@ -618,8 +626,9 @@ end
  * force  > The amout of force the beam does
  * usrfle > Use surface material reflecting efficiency
  * usrfre > Use surface material refracting efficiency
+ * noverm > Enable interactions with no material override
 ]]
-function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre)
+function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm)
   local data, trace = {}
   -- Configure data structure
   data.IsTrace  = false
@@ -697,8 +706,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         end
       else
         data.IsTrace  = true -- Still tracing the beam
-        local reflect = GetMaterialData(trace.Entity, DATA.REFLECT)
-        local refract, key = GetMaterialData(trace.Entity, DATA.REFRACT)
+        local reflect = GetMaterialData(trace.Entity, DATA.REFLECT, noverm)
+        local refract, key = GetMaterialData(trace.Entity, DATA.REFRACT, noverm)
         if(refract and key ~= data.TrMedium.Key) then -- Needs to be refracted
           -- Switch mediums and calcu
           data.TrMedium.Key = key

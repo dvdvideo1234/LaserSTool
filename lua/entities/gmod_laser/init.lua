@@ -97,6 +97,7 @@ function ENT:DoBeam()
   local direct = self:GetBeamDirection()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
+  local noverm = self:GetInNonOverMater()
   local trace, data = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
@@ -105,7 +106,8 @@ function ENT:DoBeam()
                                       damage,
                                       force,
                                       usrfle,
-                                      usrfre)
+                                      usrfre,
+                                      noverm)
   return trace, data
 end
 

@@ -16,24 +16,27 @@ ENT.Information    = ENT.PrintName
 AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 
+AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
+include(LaserLib.GetTool().."/editable_wrapper.lua")
+
 function ENT:SetupDataTables()
-  self:NetworkVar("Vector", 0, "OriginLocal"   , {KeyName = "originlocal"   , Edit = {category = "General"  , order = 1 , type = "Vector"}})
-  self:NetworkVar("Vector", 1, "DirectLocal"   , {KeyName = "directlocal"   , Edit = {category = "General"  , order = 2 , type = "Vector"}})
-  self:NetworkVar("Float" , 0, "AngleOffset"   , {KeyName = "angleoffset"   , Edit = {category = "General"  , order = 3 , type = "Float", min = -180, max = 180}})
-  self:NetworkVar("Bool"  , 0, "StartToggle"   , {KeyName = "starttoggle"   , Edit = {category = "General"  , order = 4 , type = "Bool"}})
-  self:NetworkVar("Bool"  , 1, "ForceCenter"   , {KeyName = "forcecenter"   , Edit = {category = "General"  , order = 5 , type = "Bool"}})
-  self:NetworkVar("Bool"  , 2, "ReflectRatio"  , {KeyName = "reflectrate"   , Edit = {category = "Material" , order = 6 , type = "Bool"}})
-  self:NetworkVar("Bool"  , 3, "RefractRatio"  , {KeyName = "refractrate"   , Edit = {category = "Material" , order = 7 , type = "Bool"}})
-  self:NetworkVar("Bool"  , 4, "InPowerOn"     , {KeyName = "inpoweron"     , Edit = {category = "Internals", order = 8 , type = "Bool"}})
-  self:NetworkVar("Float" , 1, "InBeamWidth"   , {KeyName = "inbeamwidth"   , Edit = {category = "Internals", order = 9 , type = "Float", min = 0, max = 30}})
-  self:NetworkVar("Float" , 2, "InBeamLength"  , {KeyName = "inbeamlength"  , Edit = {category = "Internals", order = 10 , type = "Float", min = 0, max = 50000}})
-  self:NetworkVar("Float" , 3, "InDamageAmount", {KeyName = "indamageamount", Edit = {category = "Internals", order = 11, type = "Float", min = 0, max = 5000}})
-  self:NetworkVar("Float" , 4, "InPushForce"   , {KeyName = "inpushforce"   , Edit = {category = "Internals", order = 12 , type = "Float", min = 0, max = 50000}})
-  self:NetworkVar("String", 0, "InBeamMaterial", {KeyName = "inbeammaterial", Edit = {category = "Internals", order = 13, type = "Combo", values = list.GetForEdit("LaserEmitterMaterials")}})
-  self:NetworkVar("Bool"  , 5, "EndingEffect"  , {KeyName = "endingeffect"  , Edit = {category = "Visuals"  , order = 14, type = "Bool"}})
-  self:NetworkVar("Vector", 2, "BeamColor"     , {KeyName = "beamcolor"     , Edit = {category = "Visuals"  , order = 15, type = "VectorColor"}})
-  local val = {}; for k, v in pairs(list.GetForEdit("LaserDissolveTypes")) do val[k] = v.name end
-  self:NetworkVar("String", 1, "DissolveType"  , {KeyName = "dissolvetype"  , Edit = {category = "Visuals"  , order = 16, type = "Combo", values = val}})
+  self:EditableSetVector("OriginLocal"   , "General")
+  self:EditableSetVector("DirectLocal"   , "General")
+  self:EditableSetFloat ("AngleOffset"   , "General", -360, 360)
+  self:EditableSetBool  ("StartToggle"   , "General")
+  self:EditableSetBool  ("ForceCenter"   , "General")
+  self:EditableSetBool  ("ReflectRatio"  , "Material")
+  self:EditableSetBool  ("RefractRatio"  , "Material")
+  self:EditableSetBool  ("InPowerOn"     , "Internals")
+  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, 30)
+  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, 50000)
+  self:EditableSetFloat ("InDamageAmount", "Internals", 0, 5000)
+  self:EditableSetFloat ("InPushForce"   , "Internals", 0, 50000)
+  self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
+  self:EditableSetBool("InNonOverMater"  , "Internals")
+  self:EditableSetBool("EndingEffect"    , "Visuals")
+  self:EditableSetVectorColor("BeamColor", "Visuals")
+  self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
 end
 
 function ENT:SetBeamTransform()
@@ -202,7 +205,7 @@ end
 function ENT:Setup(width       , length     , damage     , material    ,
                    dissolveType, startSound , stopSound  , killSound   ,
                    toggle      , startOn    , pushForce  , endingEffect,
-                   reflectRate , refractRate, forceCenter, update)
+                   reflectRate , refractRate, forceCenter, enOnverMater, update)
   self:SetBeamWidth(width)
   self.defaultWidth = width -- Used when wire is disconnected
   self:SetBeamLength(length)
@@ -224,6 +227,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self:SetEndingEffect(endingEffect)
   self:SetReflectRatio(reflectRate)
   self:SetRefractRatio(refractRate)
+  self:SetInNonOverMater(enOnverMater)
   self:SetBeamTransform()
 
   table.Merge(self:GetTable(), {
@@ -242,7 +246,8 @@ function ENT:Setup(width       , length     , damage     , material    ,
     endingEffect = endingEffect,
     reflectRate  = reflectRate,
     refractRate  = refractRate,
-    forceCenter  = forceCenter
+    forceCenter  = forceCenter,
+    enOnverMater = enOnverMater
   })
 
   if((not update) or

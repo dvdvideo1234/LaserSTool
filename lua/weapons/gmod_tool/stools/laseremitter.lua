@@ -58,6 +58,8 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".reflectrate", "Reflect the amount of power according to the surface material type")
   language.Add("tool."..gsUnit..".refractrate_con", "Refraction power ratio")
   language.Add("tool."..gsUnit..".refractrate", "Refract the amount of power according to the medium material type")
+  language.Add("tool."..gsUnit..".enonvermater_con", "Non-override material")
+  language.Add("tool."..gsUnit..".enonvermater", "Interact with surfaces that still have their original material")
   language.Add("tool."..gsUnit..".openmaterial", "Default material override manager for: ")
   language.Add("Cleanup_"..gsUnit, "Lasers")
   language.Add("Cleaned_"..gsUnit, "Cleaned up all Lasers")
@@ -170,6 +172,7 @@ TOOL.ClientConVar =
   [ "refractrate"  ] = 1,
   [ "reflectused"  ] = LaserLib.DataReflect(),
   [ "refractused"  ] = LaserLib.DataRefract(),
+  [ "enonvermater" ] = 0,
   [ "forcecenter"  ] = 0,
   [ "frozen"       ] = 1 -- The cold never bothered me anyway
 }
@@ -218,6 +221,7 @@ function TOOL:LeftClick(trace)
   local refractrate  = (self:GetClientNumber("refractrate") ~= 0)
   local endingeffect = (self:GetClientNumber("endingeffect") ~= 0)
   local forcecenter  = (self:GetClientNumber("forcecenter") ~= 0)
+  local enonvermater = (self:GetClientNumber("enonvermater") ~= 0)
   local ply, ent     = self:GetOwner(), trace.Entity
   local pos, ang     = trace.HitPos   , trace.HitNormal:Angle()
 
@@ -228,7 +232,7 @@ function TOOL:LeftClick(trace)
     ent:Setup(width       , length     , damage     , material    ,
               dissolvetype, startsound , stopsound  , killsound   ,
               toggle      , starton    , pushforce  , endingeffect,
-              reflectrate , refractrate, forcecenter, true)
+              reflectrate , refractrate, forcecenter, enonvermater, true)
     return true
   end
 
@@ -237,7 +241,7 @@ function TOOL:LeftClick(trace)
                              damage     , material    , dissolvetype, startsound  ,
                              stopsound  , killsound   , toggle      , starton     ,
                              pushforce  , endingeffect, reflectrate , refractrate ,
-                             forcecenter, frozen)
+                             forcecenter, frozen      , enonvermater)
 
   if(not (laser and laser:IsValid())) then return false end
 
@@ -286,6 +290,7 @@ function TOOL:RightClick(trace)
     LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
     LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
     LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
+    LaserLib.ConCommand(ply, "enonvermater", (ent:GetInNonOverMater() and 1 or 0))
     LaserLib.Notify(ply, "Copy settings !", "UNDO")
   else
     local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
@@ -335,7 +340,7 @@ if(SERVER) then
     "damage"     , "material"    , "dissolveType", "startSound" ,
     "stopSound"  , "killSound"   , "toggle"      , "startOn"    ,
     "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
-    "forceCenter", "frozen")
+    "forceCenter", "frozen"      , "enOnverMater")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -436,4 +441,6 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".refractrate"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".forcecenter_con"), gsUnit.."_forcecenter")
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".forcecenter"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsUnit..".enonvermater_con"), gsUnit.."_enonvermater")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".enonvermater"))
 end

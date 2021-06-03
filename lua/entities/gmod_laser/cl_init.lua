@@ -62,6 +62,7 @@ function ENT:Draw()
       local direct = self:GetBeamDirection()
       local usrfle = self:GetReflectRatio()
       local usrfre = self:GetRefractRatio()
+      local noverm = self:GetInNonOverMater()
       local trace, data = LaserLib.DoBeam(self,
                                           origin,
                                           direct,
@@ -70,7 +71,8 @@ function ENT:Draw()
                                           damage,
                                           force,
                                           usrfle,
-                                          usrfre)
+                                          usrfre,
+                                          noverm)
       if(data) then
         local color = self:GetBeamColor()
         local ushit = LocalPlayer():GetEyeTrace().HitPos
