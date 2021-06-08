@@ -146,8 +146,8 @@ end
 
 --[[
  * Procedure. Must be run inside `ENT:PostEntityPaste`
- * Makes wire do the post-copy preparation for dupe info
- * Usege: function ENT:PostEntityPaste(ply, ent, created)
+ * Makes wire do the post-paste preparation for dupe info
+ * Usage: function ENT:PostEntityPaste(ply, ent, created)
             self:WirePostEntityPaste(ply, ent, created) end
 ]]
 function ENT:WirePostEntityPaste(ply, ent, created)
@@ -212,10 +212,10 @@ end
 
 function ENT:WireRetypeInputs(...)
   if(not WireLib) then return self end
-  return wireSetupPorts("RetypeInputs", {...}, true)
+  return wireSetupPorts(self, "RetypeInputs", {...}, true)
 end
 
 function ENT:WireRetypeOutputs(...)
   if(not WireLib) then return self end
-  return wireSetupPorts("RetypeOutputs", {...}, true)
+  return wireSetupPorts(self, "RetypeOutputs", {...}, true)
 end
