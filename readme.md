@@ -13,7 +13,7 @@ future, but we can clearly see no commits are made since `2009`.
 ![LaserSTool][ref-screenshot]
 
 ### Installation
-Just clone this repo in your addons folder and you are done.
+Just clone this repo in your addons folder or subscribe in the [workshop][ref-workshop].
 
 ### Features
 1. Very stable [crystal][ref-crystal] calculating routine and beam trace
@@ -30,10 +30,10 @@ Just clone this repo in your addons folder and you are done.
 12. [Editable entity][ref-ent-edit] support option for changing every aspect of the laser and crystal
 
 ### Workshop
-No. I see many copies of this tool everywhere, but still, there is none that
+I see many copies of this tool everywhere, but still, there is none that
 have crated official repository for community contribution, besides, I think
-the original author will not like that in general. If you want to try the
-tool. Go ahead and install it, but do not ask me to put it into the workshop.
+the original author will not like that in general. If you want to try the tool
+Go ahead and install it. If the original author asks I will take this down!
 
 ### Pull requests
 I am a fan of this tool, so any help I get will be appreciated.
@@ -49,3 +49,4 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-wire-wrap]: https://github.com/dvdvideo1234/LaserSTool/blob/main/lua/laseremitter/wire_wrapper.lua
 [ref-ent-edit]: https://wiki.facepunch.com/gmod/Editable_Entities
 [ref-mat-override]: https://wiki.facepunch.com/gmod/Entity:SetMaterial
+[ref-workshop]: https://steamcommunity.com/sharedfiles/filedetails/?id=2546685571

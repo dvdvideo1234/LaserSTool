@@ -1,0 +1,6 @@
+"AddonInfo"
+{
+  "name" "Laser STool"
+  "author_name" "DVD"
+  "info" "Creates laser beam sources"
+}
