@@ -134,20 +134,6 @@ function ENT:OnRestore()
   self:WireRestored()
 end
 
-function ENT:TriggerInput(iname, value)
-  if(iname == "On") then
-    self:SetOn(value)
-  elseif(iname == "Length") then
-    self:SetBeamLength(self:WireRead("Length", true) or self.defaultLength)
-  elseif(iname == "Width") then
-    self:SetBeamWidth(self:WireRead("Width", true) or self.defaultWidth)
-  elseif(iname == "Damage") then
-    self:SetDamageAmount(self:WireRead("Damage", true) or self.defaultDamage)
-  elseif(iname == "Force") then
-    self:SetPushForce(self:WireRead("Force", true) or self.defaultForce)
-  end
-end
-
 function ENT:SetHitReport(trace, data)
   if(not self.hitReport) then self.hitReport = {} end
   self.hitReport["DT"] = data
@@ -166,6 +152,7 @@ local function On(ply, ent)
   if(not ent) then return end
   if(ent == NULL) then return end
   if(not ent:IsValid()) then return end
+  if(ent:WireIsConnected("On")) then return end
   ent:SetOn(not ent:GetOn())
 end
 
@@ -173,6 +160,7 @@ local function Off(ply, ent)
   if(not ent) then return end
   if(ent == NULL) then return end
   if(not ent:IsValid()) then return end
+  if(ent:WireIsConnected("On")) then return end
   if(ent:GetStartToggle()) then return end
   ent:SetOn(not ent:GetOn())
 end

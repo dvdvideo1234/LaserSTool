@@ -64,12 +64,20 @@ end
 function ENT:SetBeamWidth(num)
   local width = math.max(num, 0)
   self:SetInBeamWidth(width)
-  self:WireWrite("Width", width)
   return self
 end
 
 function ENT:GetBeamWidth()
-  return self:GetInBeamWidth()
+  if(SERVER) then
+    local width = self:WireRead("Width", true)
+    if(width ~= nil) then width = math.max(width, 0)
+    else width = self:GetInBeamWidth() end
+    self:SetNWFloat("GetInBeamWidth", width)
+    self:WireWrite("Width", width)
+    return width
+  else
+    return self:GetNWFloat("GetInBeamWidth")
+  end
 end
 
 --[[ ----------------------
@@ -78,12 +86,20 @@ end
 function ENT:SetBeamLength(num)
   local length = math.abs(num)
   self:SetInBeamLength(length)
-  self:WireWrite("Length", length)
   return self
 end
 
 function ENT:GetBeamLength()
-  return self:GetInBeamLength()
+  if(SERVER) then
+    local length = self:WireRead("Length", true)
+    if(length ~= nil) then length = math.abs(length)
+    else length = self:GetInBeamLength() end
+    self:SetNWFloat("GetInBeamLength", length)
+    self:WireWrite("Length", length)
+    return length
+  else
+    return self:GetNWFloat("GetInBeamLength")
+  end
 end
 
 --[[ ----------------------
@@ -92,12 +108,20 @@ end
 function ENT:SetDamageAmount(num)
   local damage = math.max(num, 0)
   self:SetInDamageAmount(damage)
-  self:WireWrite("Damage", damage)
   return self
 end
 
 function ENT:GetDamageAmount()
-  return self:GetInDamageAmount()
+  if(SERVER) then
+    local damage = self:WireRead("Damage", true)
+    if(damage ~= nil) then damage = math.max(damage, 0)
+    else damage = self:GetInDamageAmount() end
+    self:SetNWFloat("GetInDamageAmount", damage)
+    self:WireWrite("Damage", damage)
+    return damage
+  else
+    return self:GetNWFloat("GetInDamageAmount")
+  end
 end
 
 --[[ ----------------------
@@ -171,21 +195,29 @@ end
 ---------------------- ]]
 function ENT:SetOn(bool)
   local state = tobool(bool)
-  if(state ~= self:GetOn()) then
-    if(state) then
-      self:EmitSound(self:GetStartSound())
-    else
-      self:EmitSound(self:GetStopSound())
-    end
-  end
-
   self:SetInPowerOn(state)
-  self:WireWrite("On", (state and 1 or 0))
   return self
 end
 
 function ENT:GetOn()
-  return self:GetInPowerOn()
+  if(SERVER) then
+    local state = self:WireRead("On", true)
+    if(state ~= nil) then state = (state ~= 0)
+    else state = self:GetInPowerOn() end
+    self:SetNWBool("GetInPowerOn", state)
+    self:WireWrite("On", (state and 1 or 0))
+    if(self.onState ~= state) then
+      self.onState = state -- Write the state
+      if(state) then -- Activating laser
+        self:EmitSound(self:GetStartSound())
+      else -- User shuts the entity off
+        self:EmitSound(self:GetStopSound())
+      end -- Sound is calculated correctly
+    end
+    return state
+  else
+    return self:GetNWBool("GetInPowerOn")
+  end
 end
 
 --[[ ----------------------
@@ -194,12 +226,20 @@ end
 function ENT:SetPushForce(num)
   local force = math.max(num, 0)
   self:SetInPushForce(force)
-  self:WireWrite("Force", force)
   return self
 end
 
 function ENT:GetPushForce()
-  return self:GetInPushForce()
+  if(SERVER) then
+    local force = self:WireRead("Force", true)
+    if(force ~= nil) then force = math.max(force, 0)
+    else force = self:GetInPushForce() end
+    self:SetNWBool("GetInPushForce", force)
+    self:WireWrite("Force", force)
+    return force
+  else
+    return self:GetNWBool("GetInPushForce")
+  end
 end
 
 function ENT:Setup(width       , length     , damage     , material    ,
@@ -207,14 +247,9 @@ function ENT:Setup(width       , length     , damage     , material    ,
                    toggle      , startOn    , pushForce  , endingEffect,
                    reflectRate , refractRate, forceCenter, enOnverMater, update)
   self:SetBeamWidth(width)
-  self.defaultWidth = width -- Used when wire is disconnected
   self:SetBeamLength(length)
-  self.defaultLength = length -- Used when wire is disconnected
   self:SetDamageAmount(damage)
-  self.defaultDamage = damage -- Used when wire is disconnected
   self:SetPushForce(pushForce)
-  self.defaultForce = pushForce -- Used when wire is disconnected
-
   -- These are not controlled by wire and are stored in the laser itself
   self:SetBeamColor(Vector(1,1,1))
   self:SetForceCenter(forceCenter)

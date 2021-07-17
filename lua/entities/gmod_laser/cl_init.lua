@@ -92,7 +92,7 @@ function ENT:Draw()
         for idx = 2, data.TvPoints.Size do
           local org = data.TvPoints[idx - 1]
           local new = data.TvPoints[idx - 0]
-          local otx, ntx, nwd = org[1], new[1], new[2]
+          local otx, ntx, wdt = org[1], new[1], org[2]
 
           -- Make sure the coordinates are conveted to world ones
           LaserLib.UpdateRB(bbmin, ntx, math.min)
@@ -103,7 +103,7 @@ function ENT:Draw()
           local dtm = -(15 * CurTime())
           render.DrawBeam(otx,
                           ntx,
-                          nwd,
+                          wdt,
                           dtm,
                           (dtm + len / 24),
                           color:ToColor())
