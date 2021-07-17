@@ -28,6 +28,7 @@ Just clone this repo in your addons folder or subscribe in the [workshop][ref-wo
 10. Better model for the crystal entity not to get confused where beam comes out
 11. [Material override][ref-mat-override] can be saved and restored with advanced duplicator 1 and 2
 12. [Editable entity][ref-ent-edit] support option for changing every aspect of the laser and crystal
+13. User customizable models for crystals and reflectors via convar tweak
 
 ### Workshop
 I see many copies of this tool everywhere, but still, there is none that

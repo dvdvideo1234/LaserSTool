@@ -23,6 +23,7 @@ but we can clearly see no commits are made since 2009.
  [*] Better model for the crystal entity not to get confused where beam comes out
  [*] [url=https://wiki.facepunch.com/gmod/Entity:SetMaterial]Material override[/url] can be saved and restored with advanced duplicator 1 and 2
  [*] [url=https://wiki.facepunch.com/gmod/Editable_Entities]Editable entity[/url] support option for changing every aspect of the laser and crystal
+ [*] User customizable models for crystals and reflectors via convar tweak
 [/list]
 
 [h1]About workshop[/h1]

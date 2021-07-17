@@ -2,7 +2,6 @@ local gsUnit = LaserLib.GetTool()
 local gsLaseremCls = LaserLib.GetClass(1)
 local gsCrystalCls = LaserLib.GetClass(2)
 local gsReflectCls = LaserLib.GetClass(3)
-local gsReflectMod = LaserLib.GetModel(3)
 
 if(CLIENT) then
 
@@ -127,14 +126,6 @@ TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
 if(SERVER) then
   CreateConVar("sbox_max"..gsUnit.."s", 20)
-
-  resource.AddFile(gsReflectMod)
-  resource.AddFile("models/props_junk/flare.mdl")
-  resource.AddFile("materials/effects/redlaser1.vmt")
-  resource.AddFile("materials/effects/redlaser1_smoke.vtf")
-  resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
-  resource.AddFile("materials/vgui/entities/gmod_laser_reflector.vmt")
-  resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vmt")
 end
 
 if(CLIENT) then

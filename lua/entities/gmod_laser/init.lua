@@ -3,6 +3,20 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
+resource.AddFile("models/props_junk/flare.dx80.vtx")
+resource.AddFile("models/props_junk/flare.dx90.vtx")
+resource.AddFile("models/props_junk/flare.mdl")
+resource.AddFile("models/props_junk/flare.phy")
+resource.AddFile("models/props_junk/flare.sw.vtx")
+resource.AddFile("models/props_junk/flare.vvd")
+
+resource.AddFile("materials/effects/redlaser1.vmt")
+resource.AddFile("materials/effects/redlaser1.vtf")
+resource.AddFile("materials/effects/redlaser1_smoke.vtf")
+
+resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vtf")
+
 function ENT:PreEntityCopy()
   self:WirePreEntityCopy()
 end
@@ -27,7 +41,7 @@ function ENT:Initialize()
     {"Damage", "NORMAL", "Updates the beam damage"},
     {"Force" , "NORMAL", "Updates the beam force" }
   ):WireCreateOutputs(
-    {"On"    , "NORMAL", "Laser entiy status"     },
+    {"On"    , "NORMAL", "Laser entity status"    },
     {"Hit"   , "NORMAL", "Laser entity hit"       },
     {"Length", "NORMAL", "Updates the beam length"},
     {"Width" , "NORMAL", "Updates the beam width" },

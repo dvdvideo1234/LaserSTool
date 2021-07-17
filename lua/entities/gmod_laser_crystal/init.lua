@@ -10,6 +10,9 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
+resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vtf")
+
 function ENT:InitSources()
   if(self.Sources) then
     table.Empty(self.Sources)

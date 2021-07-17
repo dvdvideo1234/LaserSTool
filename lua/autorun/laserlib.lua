@@ -9,6 +9,8 @@ DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
 -- Library internal variables
 DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the crystal model")
+DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
 
 DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
@@ -43,8 +45,8 @@ DATA.MOD = {
   -- Model used by the entities menu
   "", -- Laser model is changed via laser tool
   -- Portal cube: models/props/reflection_cube.mdl
-  "models/props_c17/pottery02a.mdl",
-  "models/madjawa/laser_reflector.mdl"
+  DATA.MCRYSTAL:GetString(),
+  DATA.MREFLECT:GetString()
 }
 
 DATA.MAT = {
@@ -147,6 +149,29 @@ DATA.TRACE = {
   ignoreworld    = false,
   output         = nil
 }
+
+-- Callbacks for console variables
+cvars.RemoveChangeCallback(DATA.MCRYSTAL:GetName(), DATA.MCRYSTAL:GetName())
+cvars.AddChangeCallback(DATA.MCRYSTAL:GetName(),
+  function(name, o, n)
+    local m = tostring(n):Trim()
+    if(m:sub(1,1) == DATA.KEYD) then
+      DATA.MOD[2] = DATA.MCRYSTAL:GetDefault()
+      DATA.MCRYSTAL:SetString(DATA.MOD[2])
+    else DATA.MOD[2] = m end
+  end,
+DATA.MCRYSTAL:GetName())
+
+cvars.RemoveChangeCallback(DATA.MREFLECT:GetName(), DATA.MREFLECT:GetName())
+cvars.AddChangeCallback(DATA.MREFLECT:GetName(),
+  function(name, o, n)
+    local m = tostring(n):Trim()
+    if(m:sub(1,1) == DATA.KEYD) then
+      DATA.MOD[3] = DATA.MREFLECT:GetDefault()
+      DATA.MREFLECT:SetString(DATA.MOD[3])
+    else DATA.MOD[3] = m end
+  end,
+DATA.MREFLECT:GetName())
 
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
   DATA.TRACE.start:Set(origin)
