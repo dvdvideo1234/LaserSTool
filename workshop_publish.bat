@@ -18,7 +18,7 @@ set gmadBinPath=F:\Games\Steam\steamapps\common\GarrysMod\bin
 set gmadADTools=%gmadRevPath%data\laseremitter\tools
 set "gmadTime=%date% %time%"
 set gmadID=2546685571
-set gmadDirs=(lua)
+set gmadDirs=(lua materials models)
 set gmadLogs=
 set gmadCRLF=^
 
