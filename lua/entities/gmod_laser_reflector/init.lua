@@ -10,15 +10,8 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-resource.AddFile("models/madjawa/laser_reflector.dx80.vtx")
-resource.AddFile("models/madjawa/laser_reflector.dx90.vtx")
 resource.AddFile("models/madjawa/laser_reflector.mdl")
-resource.AddFile("models/madjawa/laser_reflector.phy")
-resource.AddFile("models/madjawa/laser_reflector.sw.vtx")
-resource.AddFile("models/madjawa/laser_reflector.vvd")
-
 resource.AddFile("materials/vgui/entities/gmod_laser_reflector.vmt")
-resource.AddFile("materials/vgui/entities/gmod_laser_reflector.vtf")
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
