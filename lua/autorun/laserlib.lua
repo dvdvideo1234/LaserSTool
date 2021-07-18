@@ -771,7 +771,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           if(usrfle) then
             LaserLib.SetPowerRatio(data, reflect[1])
           end
-        end
+        else -- We are neither reflecting nor refracting and have hit a wall
+          data.IsTrace = false -- Make sure to exit not to do performance hit
+        end -- All triggers when reflecting and refracting are prcessed
       end
     else
       data.IsTrace = false

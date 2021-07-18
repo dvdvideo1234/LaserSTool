@@ -186,42 +186,48 @@ function ENT:UpdateBeam()
   local width , length, damage = 0, 0, 0
   local apower, doment = 0 -- Dominant source
 
-  if(self.Size > 0) then
-    for iD = 1, self.Size do
-      local ent = self.Array[iD]
-      if(ent and ent:IsValid()) then
-        local trace, data = ent:GetHitReport()
-        if(data) then
-          npower = LaserLib.GetPower(data.NvWidth,
-                                     data.NvDamage)
-          if(not self:IsInfinite(ent)) then
-            width  = width  + data.NvWidth
-            length = length + data.NvLength
-            damage = damage + data.NvDamage
-            force  = force  + data.NvForce
-            apower = apower + npower
-          end
-          if(npower > opower) then
-            doment, opower = ent, npower
-          end
+  for iD = 1, self.Size do
+    local ent = self.Array[iD]
+    if(ent and ent:IsValid()) then
+      local trace, data = ent:GetHitReport()
+      if(data) then
+        npower = LaserLib.GetPower(data.NvWidth,
+                                   data.NvDamage)
+        if(not self:IsInfinite(ent)) then
+          width  = width  + data.NvWidth
+          length = length + data.NvLength
+          damage = damage + data.NvDamage
+          force  = force  + data.NvForce
+          apower = apower + npower
+        end
+        if(npower > opower) then
+          doment, opower = ent, npower
         end
       end
     end
 
     -- This must always produce a dominant
-    if(apower > 0) then -- Summed settings
+    if(apower > 0) then -- Sum settings
       self:SetPushForce(force)
       self:SetBeamWidth(width)
       self:SetBeamLength(length)
       self:SetDamageAmount(damage)
-    else -- Utilize the dominant for settings
-      self:SetHitReport() -- Clear target report
-      self:SetPushForce(doment:GetPushForce())
-      self:SetBeamWidth(doment:GetBeamWidth())
-      self:SetBeamLength(doment:GetBeamLength())
-      self:SetDamageAmount(doment:GetDamageAmount())
+    else -- Sources are infinite loops
+      local trace, data = doment:GetHitReport()
+      if(data) then -- Dominant result hit
+        self:SetPushForce(data.NvForce)
+        self:SetBeamWidth(data.NvWidth)
+        self:SetBeamLength(data.NvLength)
+        self:SetDamageAmount(data.NvDamage)
+      else -- Dominant did not hit anything
+        self:SetPushForce(doment:GetPushForce())
+        self:SetBeamWidth(doment:GetBeamWidth())
+        self:SetBeamLength(doment:GetBeamLength())
+        self:SetDamageAmount(doment:GetDamageAmount())
+      end
     end
 
+    self:SetHitReport()
     self:UpdateDominant(doment)
   end
 
@@ -231,16 +237,12 @@ end
 function ENT:Think()
   self:CountSources()
   self:CleanSources()
+  self:SetOn(self.Size > 0)
 
-  if(self.Size > 0) then
-    self:SetOn(true)
-
-    if(self:GetOn()) then
-      self:UpdateBeam()
-      self:DoDamage(self:DoBeam())
-    end
+  if(self:GetOn()) then
+    self:UpdateBeam()
+    self:DoDamage(self:DoBeam())
   else
-    self:SetOn(false)
     self:WireWrite("Dominant")
   end
 
