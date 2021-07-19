@@ -134,9 +134,6 @@ if(CLIENT) then
 
   language.Add(gsCrystalCls, "Laser Crystal")
   killicon.AddAlias(gsCrystalCls, gsLaseremCls)
-
-  language.Add(gsReflectCls, "Laser Reflector")
-  killicon.AddAlias(gsReflectCls, gsLaseremCls)
 end
 
 cleanup.Register(gsUnit.."s")

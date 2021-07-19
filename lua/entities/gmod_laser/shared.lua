@@ -224,7 +224,7 @@ function ENT:GetOn()
     return state
   else
     local state = self:GetInPowerOn()
-    return self:GetNWBool("GetInPowerOn")
+    return self:GetNWBool("GetInPowerOn", state)
   end
 end
 
@@ -242,11 +242,12 @@ function ENT:GetPushForce()
     local force = self:WireRead("Force", true)
     if(force ~= nil) then force = math.max(force, 0)
     else force = self:GetInPushForce() end
-    self:SetNWBool("GetInPushForce", force)
+    self:SetNWFloat("GetInPushForce", force)
     self:WireWrite("Force", force)
     return force
   else
-    return self:GetNWBool("GetInPushForce")
+    local force = self:GetInPushForce()
+    return self:GetNWFloat("GetInPushForce", force)
   end
 end
 

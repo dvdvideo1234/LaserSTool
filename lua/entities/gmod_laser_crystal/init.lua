@@ -115,14 +115,6 @@ function ENT:IsInfinite(ent)
   end
 end
 
-function ENT:CleanSources()
-  local iD = (self.Size + 1) -- Remove the residuals
-  while(self.Array[iD]) do -- Table end check
-    self.Array[iD] = nil -- Wipe cirrent item
-    iD = (iD + 1) -- Wipe the rest until empty
-  end; return self
-end
-
 --[[
  Checks whenever the entity argument hits us
  * self > The crystal to be checked
@@ -139,7 +131,7 @@ function ENT:IsSource(ent)
   return (self == trace.Entity) -- Check source entity
 end
 
-function ENT:CountSources()
+function ENT:UpdateSources()
   self.Size = 0 -- Add sources in array
   for ent, stat in pairs(self.Sources) do
     if(self:IsSource(ent)) then -- Check the thing
@@ -148,6 +140,11 @@ function ENT:CountSources()
     else -- When not a source. Delete the slot
       self.Sources[ent] = nil -- Wipe out the entry
     end -- The sources order does not matter
+  end
+  local iD = (self.Size + 1) -- Remove the residuals
+  while(self.Array[iD]) do -- Table end check
+    self.Array[iD] = nil -- Wipe cirrent item
+    iD = (iD + 1) -- Wipe the rest until empty
   end; return self -- Sources are located in the table hash part
 end
 
@@ -246,8 +243,7 @@ function ENT:Think()
   local mdamage = self:GetDamageAmount()
   local mpower = LaserLib.GetPower(mwidth, mdamage)
 
-  self:CountSources()
-  self:CleanSources()
+  self:UpdateSources()
 
   if(self.Size > 0 and math.floor(mpower) > 0) then
     self:SetOn(true)
