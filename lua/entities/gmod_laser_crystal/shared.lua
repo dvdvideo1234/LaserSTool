@@ -27,57 +27,59 @@ function ENT:SetBeamTransform()
   return self
 end
 
+function ENT:SetOn(bool)
+  local state = tobool(bool)
+  self:SetInPowerOn(state)
+  self:WireWrite("On", (state and 1 or 0))
+  return self
+end
+
 function ENT:GetOn()
-  if(SERVER) then
-    local state = self:GetInPowerOn()
-    self:SetNWBool("GetInPowerOn", state)
-    self:WireWrite("On", (state and 1 or 0))
-    return state
-  else
-    return self:GetNWBool("GetInPowerOn")
-  end
+  local state = self:GetInPowerOn()
+  if(SERVER) then self:DoSound(state) end
+  return state
+end
+
+function ENT:SetBeamLength(num)
+  local length = math.abs(num)
+  self:SetInBeamLength(length)
+  self:WireWrite("Length", length)
+  return self
 end
 
 function ENT:GetBeamLength()
-  if(SERVER) then
-    local length = self:GetInBeamLength()
-    self:SetNWFloat("GetInBeamLength", length)
-    self:WireWrite("Length", length)
-    return length
-  else
-    return self:GetNWFloat("GetInBeamLength")
-  end
+  return self:GetInBeamLength()
+end
+
+function ENT:SetBeamWidth(num)
+  local width = math.max(num, 0)
+  self:SetInBeamWidth(width)
+  self:WireWrite("Width", width)
+  return self
 end
 
 function ENT:GetBeamWidth()
-  if(SERVER) then
-    local width = self:GetInBeamWidth()
-    self:SetNWFloat("GetInBeamWidth", width)
-    self:WireWrite("Width", width)
-    return width
-  else
-    return self:GetNWFloat("GetInBeamWidth")
-  end
+  return self:GetInBeamWidth()
+end
+
+function ENT:SetDamageAmount(num)
+  local damage = math.max(num, 0)
+  self:SetInDamageAmount(damage)
+  self:WireWrite("Damage", damage)
+  return self
 end
 
 function ENT:GetDamageAmount()
-  if(SERVER) then
-    local damage = self:GetInDamageAmount()
-    self:SetNWFloat("GetInDamageAmount", damage)
-    self:WireWrite("Damage", damage)
-    return damage
-  else
-    return self:GetNWFloat("GetInDamageAmount")
-  end
+  return self:GetInDamageAmount()
+end
+
+function ENT:SetPushForce(num)
+  local force = math.max(num, 0)
+  self:SetInPushForce(force)
+  self:WireWrite("Force", force)
+  return self
 end
 
 function ENT:GetPushForce()
-  if(SERVER) then
-    local force = self:GetInPushForce()
-    self:SetNWBool("GetInPushForce", force)
-    self:WireWrite("Force", force)
-    return force
-  else
-    return self:GetNWBool("GetInPushForce")
-  end
+  return self:GetInPushForce()
 end

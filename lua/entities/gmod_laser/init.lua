@@ -120,6 +120,9 @@ end
 function ENT:Think()
   if(self:GetOn()) then
     self:DoDamage(self:DoBeam())
+  else
+    self:WireWrite("Hit", 0)
+    self:WireWrite("Target")
   end
 
   self:NextThink(CurTime())

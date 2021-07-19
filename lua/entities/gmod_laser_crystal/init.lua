@@ -157,10 +157,10 @@ function ENT:UpdateDominant(ent)
   -- We set the same non-addable properties
   -- The most powerful laser (biggest damage/width)
   local user = (ent.ply or ent.player)
-  self:SetStopSound(ent:SetStopSound())
+  self:SetStopSound(ent:GetStopSound())
   self:SetKillSound(ent:GetKillSound())
   self:SetBeamColor(ent:GetBeamColor())
-  self:SetStartSound(ent:SetStartSound())
+  self:SetStartSound(ent:GetStartSound())
   self:SetBeamMaterial(ent:GetBeamMaterial())
   self:SetDissolveType(ent:GetDissolveType())
   self:SetEndingEffect(ent:GetEndingEffect())
@@ -186,63 +186,82 @@ function ENT:UpdateBeam()
   local width , length, damage = 0, 0, 0
   local apower, doment = 0 -- Dominant source
 
-  for iD = 1, self.Size do
-    local ent = self.Array[iD]
-    if(ent and ent:IsValid()) then
-      local trace, data = ent:GetHitReport()
-      if(data) then
-        npower = LaserLib.GetPower(data.NvWidth,
-                                   data.NvDamage)
-        if(not self:IsInfinite(ent)) then
-          width  = width  + data.NvWidth
-          length = length + data.NvLength
-          damage = damage + data.NvDamage
-          force  = force  + data.NvForce
-          apower = apower + npower
-        end
-        if(npower > opower) then
-          doment, opower = ent, npower
+  if(self.Size > 0) then
+    for iD = 1, self.Size do
+      local ent = self.Array[iD]
+      if(ent and ent:IsValid()) then
+        local trace, data = ent:GetHitReport()
+        if(data) then
+          npower = LaserLib.GetPower(data.NvWidth,
+                                     data.NvDamage)
+          if(not self:IsInfinite(ent)) then
+            width  = width  + data.NvWidth
+            length = length + data.NvLength
+            damage = damage + data.NvDamage
+            force  = force  + data.NvForce
+            apower = apower + npower
+          end
+          if(npower > opower) then
+            doment, opower = ent, npower
+          end
         end
       end
-    end
 
-    -- This must always produce a dominant
-    if(apower > 0) then -- Sum settings
-      self:SetPushForce(force)
-      self:SetBeamWidth(width)
-      self:SetBeamLength(length)
-      self:SetDamageAmount(damage)
-    else -- Sources are infinite loops
-      local trace, data = doment:GetHitReport()
-      if(data) then -- Dominant result hit
-        self:SetPushForce(data.NvForce)
-        self:SetBeamWidth(data.NvWidth)
-        self:SetBeamLength(data.NvLength)
-        self:SetDamageAmount(data.NvDamage)
-      else -- Dominant did not hit anything
-        self:SetPushForce(doment:GetPushForce())
-        self:SetBeamWidth(doment:GetBeamWidth())
-        self:SetBeamLength(doment:GetBeamLength())
-        self:SetDamageAmount(doment:GetDamageAmount())
+      -- This must always produce a dominant
+      if(apower > 0) then -- Sum settings
+        self:SetPushForce(force)
+        self:SetBeamWidth(width)
+        self:SetBeamLength(length)
+        self:SetDamageAmount(damage)
+      else -- Sources are infinite loops
+        local trace, data = doment:GetHitReport()
+        if(data) then -- Dominant result hit
+          self:SetPushForce(data.NvForce)
+          self:SetBeamWidth(data.NvWidth)
+          self:SetBeamLength(doment:GetBeamLength())
+          self:SetDamageAmount(data.NvDamage)
+        else -- Dominant did not hit anything
+          self:SetPushForce(doment:GetPushForce())
+          self:SetBeamWidth(doment:GetBeamWidth())
+          self:SetBeamLength(doment:GetBeamLength())
+          self:SetDamageAmount(doment:GetDamageAmount())
+        end
       end
-    end
 
+      self:UpdateDominant(doment)
+    end
+  else
+    self:SetPushForce(force)
+    self:SetBeamWidth(width)
+    self:SetBeamLength(length)
+    self:SetDamageAmount(damage)
     self:SetHitReport()
-    self:UpdateDominant(doment)
   end
 
   return self
 end
 
 function ENT:Think()
+  local mwidth = self:GetBeamWidth()
+  local mdamage = self:GetDamageAmount()
+  local mpower = LaserLib.GetPower(mwidth, mdamage)
+
   self:CountSources()
   self:CleanSources()
-  self:SetOn(self.Size > 0)
+
+  if(self.Size > 0 and math.floor(mpower) > 0) then
+    self:SetOn(true)
+  else
+    self:SetOn(false)
+  end
+
+  self:UpdateBeam()
 
   if(self:GetOn()) then
-    self:UpdateBeam()
     self:DoDamage(self:DoBeam())
   else
+    self:WireWrite("Hit", 0)
+    self:WireWrite("Target")
     self:WireWrite("Dominant")
   end
 

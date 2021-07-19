@@ -76,7 +76,8 @@ function ENT:GetBeamWidth()
     self:WireWrite("Width", width)
     return width
   else
-    return self:GetNWFloat("GetInBeamWidth")
+    local width = self:GetInBeamWidth()
+    return self:GetNWFloat("GetInBeamWidth", width)
   end
 end
 
@@ -98,7 +99,8 @@ function ENT:GetBeamLength()
     self:WireWrite("Length", length)
     return length
   else
-    return self:GetNWFloat("GetInBeamLength")
+    local length = self:GetInBeamLength()
+    return self:GetNWFloat("GetInBeamLength", length)
   end
 end
 
@@ -120,7 +122,8 @@ function ENT:GetDamageAmount()
     self:WireWrite("Damage", damage)
     return damage
   else
-    return self:GetNWFloat("GetInDamageAmount")
+    local damage = self:GetInDamageAmount()
+    return self:GetNWFloat("GetInDamageAmount", damage)
   end
 end
 
@@ -193,6 +196,17 @@ end
 --[[ ----------------------
   On/Off
 ---------------------- ]]
+function ENT:DoSound(state)
+  if(self.onState ~= state) then
+    self.onState = state -- Write the state
+    if(state) then -- Activating laser
+      self:EmitSound(self:GetStartSound())
+    else -- User shuts the entity off
+      self:EmitSound(self:GetStopSound())
+    end -- Sound is calculated correctly
+  end; return self
+end
+
 function ENT:SetOn(bool)
   local state = tobool(bool)
   self:SetInPowerOn(state)
@@ -206,16 +220,10 @@ function ENT:GetOn()
     else state = self:GetInPowerOn() end
     self:SetNWBool("GetInPowerOn", state)
     self:WireWrite("On", (state and 1 or 0))
-    if(self.onState ~= state) then
-      self.onState = state -- Write the state
-      if(state) then -- Activating laser
-        self:EmitSound(self:GetStartSound())
-      else -- User shuts the entity off
-        self:EmitSound(self:GetStopSound())
-      end -- Sound is calculated correctly
-    end
+    self:DoSound(state)
     return state
   else
+    local state = self:GetInPowerOn()
     return self:GetNWBool("GetInPowerOn")
   end
 end
