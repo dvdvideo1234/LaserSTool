@@ -80,7 +80,7 @@ DATA.REFLECT = { -- Reflection data descriptor
   -- User for general class control
   [""]                                   = false, -- Disable empty materials
   ["shiny"]                              = {0.854},
-  ["metal"]                              = {0.107},
+  ["metal"]                              = {0.045},
   ["white"]                              = {0.342},
   ["chrome"]                             = {0.955},
   ["cubemap"]                            = {0.999},
@@ -120,9 +120,8 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["glass"]                                     = {1.521, 0.999}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955}, -- Water refraction index
   -- Materials that are overriden and directly hash searched
-  ["models/spawn_effect"]                       = {1.333, 0.954}, -- Water refraction index
+  ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
-  ["models/spawn_effect"]                       = {1.333, 0.955}, -- Water refraction index
   ["phoenix_storms/glass"]                      = {1.521, 0.999}, -- Ordinary glass
   ["models/shadertest/shader3"]                 = {1.333, 0.832}, -- Water refraction index
   ["models/shadertest/shader4"]                 = {1.385, 0.922}, -- Water with some impurites
@@ -183,7 +182,7 @@ function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, re
   if(mask ~= nil) then
     DATA.TRACE.mask = mask
   else -- Default trace mask
-    DATA.TRACE.mask = MASK_SOLID
+    DATA.TRACE.mask = -1
   end
   if(iworld ~= nil) then
     DATA.TRACE.ignoreworld = iworld
@@ -692,7 +691,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            data.NvCGroup,
                            data.NvIWorld)
 
-    LaserLib.RegisterNode(data, trace.HitPos, data.NvWidth, data.NvDamage, data.NvForce)
+    if(trace.Fraction > 0) then -- Ignore registering zero length traces
+      LaserLib.RegisterNode(data, trace.HitPos, data.NvWidth, data.NvDamage, data.NvForce)
+    end -- Do not put a node when beam starts in a solid
 
     if(trace.Entity and trace.Entity:IsValid() and not LaserLib.IsSource(trace.Entity)) then
       -- Refresh medium pass trough information
@@ -732,48 +733,50 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       else
         data.IsTrace  = true -- Still tracing the beam
         local reflect = GetMaterialData(trace.Entity, DATA.REFLECT, noverm)
-        local refract, key = GetMaterialData(trace.Entity, DATA.REFRACT, noverm)
-        if(refract and key ~= data.TrMedium.Key) then -- Needs to be refracted
-          -- Switch mediums and calcu
-          data.TrMedium.Key = key
-          data.TrMedium[1]  = data.TrMedium[2]
-          data.TrMedium[2]  = refract
-          -- Substact traced lenght from total length
-          data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-          -- Calculated refraction ray. Reflect when not possible
-          local rent = trace.Entity -- Refraction entity
-          local vdir = LaserLib.GetRefracted(data.VrDirect,
-                                             trace.HitNormal,
-                                             data.TrMedium)
-           -- Get the trace tready to check the other side and point and register the location
-          data.DmRfract = 2 * trace.Entity:BoundingRadius()
-          data.VrDirect:Set(vdir)
-          data.VrOrigin:Set(vdir)
-          data.VrOrigin:Mul(data.DmRfract * DATA.ERAD)
-          data.VrOrigin:Add(trace.HitPos)
-          LaserLib.VecNegate(data.VrDirect)
-          -- Must trace only this entity otherwise invalid
-          data.TeFilter = function(ent) return (ent == rent) end
-          data.NvIWorld = true -- Ignore world too for precision
-          data.IsRfract = true -- Raise the bounce off refract flag
-          data.TrRfract = 2 * data.DmRfract * DATA.ERAD -- Scale again to make it hit
-          -- Switch-a-roo the mediums so we can see where it will go out
-          data.TrMedium.Key = "air"
-          data.TrMedium[1]  = data.TrMedium[2]
-          data.TrMedium[2]  = DATA.REFRACT["air"]
-          if(usrfre) then
-            LaserLib.SetPowerRatio(data, data.TrMedium[1][2])
-          end
-        elseif(reflect) then -- Just call reflection and get done with it..
+        if(reflect) then -- Just call reflection and get done with it..
           data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
           data.VrOrigin:Set(trace.HitPos)
           data.NvLength = data.NvLength - data.NvLength * trace.Fraction
           if(usrfle) then
             LaserLib.SetPowerRatio(data, reflect[1])
           end
-        else -- We are neither reflecting nor refracting and have hit a wall
-          data.IsTrace = false -- Make sure to exit not to do performance hit
-        end -- All triggers when reflecting and refracting are prcessed
+        else
+          local refract, key = GetMaterialData(trace.Entity, DATA.REFRACT, noverm)
+          if(refract and key ~= data.TrMedium.Key) then -- Needs to be refracted
+            -- Switch mediums and raise calculate refraction flag
+            data.TrMedium.Key = key
+            data.TrMedium[1]  = data.TrMedium[2]
+            data.TrMedium[2]  = refract
+            -- Substact traced lenght from total length
+            data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+            -- Calculated refraction ray. Reflect when not possible
+            local rent = trace.Entity -- Refraction entity
+            local vdir = LaserLib.GetRefracted(data.VrDirect,
+                                               trace.HitNormal,
+                                               data.TrMedium)
+             -- Get the trace tready to check the other side and point and register the location
+            data.DmRfract = 2 * trace.Entity:BoundingRadius()
+            data.VrDirect:Set(vdir)
+            data.VrOrigin:Set(vdir)
+            data.VrOrigin:Mul(data.DmRfract * DATA.ERAD)
+            data.VrOrigin:Add(trace.HitPos)
+            LaserLib.VecNegate(data.VrDirect)
+            -- Must trace only this entity otherwise invalid
+            data.TeFilter = function(ent) return (ent == rent) end
+            data.NvIWorld = true -- Ignore world too for precision
+            data.IsRfract = true -- Raise the bounce off refract flag
+            data.TrRfract = 2 * data.DmRfract * DATA.ERAD -- Scale again to make it hit
+            -- Switch-a-roo the mediums so we can see where it will go out
+            data.TrMedium.Key = "air"
+            data.TrMedium[1]  = data.TrMedium[2]
+            data.TrMedium[2]  = DATA.REFRACT["air"]
+            if(usrfre) then
+              LaserLib.SetPowerRatio(data, data.TrMedium[1][2])
+            end
+          else -- We are neither reflecting nor refracting and have hit a wall
+            data.IsTrace = false -- Make sure to exit not to do performance hit
+          end -- All triggers when reflecting and refracting are processed
+        end
       end
     else
       data.IsTrace = false
