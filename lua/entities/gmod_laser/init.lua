@@ -35,10 +35,11 @@ function ENT:Initialize()
   ):WireCreateOutputs(
     {"On"    , "NORMAL", "Laser entity status"    },
     {"Hit"   , "NORMAL", "Laser entity hit"       },
-    {"Length", "NORMAL", "Updates the beam length"},
-    {"Width" , "NORMAL", "Updates the beam width" },
-    {"Damage", "NORMAL", "Updates the beam damage"},
-    {"Force" , "NORMAL", "Updates the beam force" },
+    {"Reach" , "NORMAL", "Returns the beam reach" },
+    {"Length", "NORMAL", "Returns the beam length"},
+    {"Width" , "NORMAL", "Returns the beam width" },
+    {"Damage", "NORMAL", "Returns the beam damage"},
+    {"Force" , "NORMAL", "Returns the beam force" },
     {"Target", "ENTITY", "Laser entity target"    },
     {"Entity", "ENTITY", "Laser entity itself"    }
   )
@@ -114,6 +115,7 @@ function ENT:DoBeam()
                                       usrfle,
                                       usrfre,
                                       noverm)
+  self:WireWrite("Reach", data.ReLength)
   return trace, data
 end
 

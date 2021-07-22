@@ -36,6 +36,7 @@ function ENT:Initialize()
   self:WireCreateOutputs(
     {"On"      , "NORMAL", "Concentrator working state"  },
     {"Width"   , "NORMAL", "Concentrator beam width"     },
+    {"Reach"   , "NORMAL", "Concentrator beam reach"     },
     {"Length"  , "NORMAL", "Concentrator length width"   },
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
