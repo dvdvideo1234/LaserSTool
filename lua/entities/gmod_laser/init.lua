@@ -35,7 +35,7 @@ function ENT:Initialize()
   ):WireCreateOutputs(
     {"On"    , "NORMAL", "Laser entity status"    },
     {"Hit"   , "NORMAL", "Laser entity hit"       },
-    {"Reach" , "NORMAL", "Returns the beam reach" },
+    {"Range" , "NORMAL", "Returns the beam range" },
     {"Length", "NORMAL", "Returns the beam length"},
     {"Width" , "NORMAL", "Returns the beam width" },
     {"Damage", "NORMAL", "Returns the beam damage"},
@@ -115,7 +115,7 @@ function ENT:DoBeam()
                                       usrfle,
                                       usrfre,
                                       noverm)
-  self:WireWrite("Reach", data.ReLength)
+  self:WireWrite("Range", data.RaLength)
   return trace, data
 end
 

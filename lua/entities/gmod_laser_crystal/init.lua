@@ -35,13 +35,13 @@ function ENT:Initialize()
 
   self:WireCreateOutputs(
     {"On"      , "NORMAL", "Concentrator working state"  },
+    {"Hit"     , "NORMAL", "Indicates entity crystal hit"},
     {"Width"   , "NORMAL", "Concentrator beam width"     },
-    {"Reach"   , "NORMAL", "Concentrator beam reach"     },
+    {"Range"   , "NORMAL", "Concentrator beam range"     },
     {"Length"  , "NORMAL", "Concentrator length width"   },
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
     {"Focusing", "NORMAL", "How many sources are focused"},
-    {"Hit"     , "NORMAL", "Indicates entity crystal hit"},
     {"Entity"  , "ENTITY", "Concentrator crystal entity" },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },

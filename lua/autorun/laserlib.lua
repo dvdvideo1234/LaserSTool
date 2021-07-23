@@ -712,7 +712,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.TrMedium = {Key = "air", DATA.REFRACT["air"], DATA.REFRACT["air"]}
   data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce = data.MxBounce -- Amount of bounces to control the infinite loop
-  data.ReLength = data.BmLength -- Reach of the length. Just like wire ranger
+  data.RaLength = data.BmLength -- Range of the length. Just like wire ranger
   data.TrRfract = data.BmLength -- Full length for traces not being bound by hit events
   data.DmRfract = data.BmLength -- Diameter trace-back dimensions of the entity
   data.NvLength = data.BmLength -- The actual beam lengths substracted after iterations
@@ -837,8 +837,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     data.NvLength = 0; return nil, data
   end -- The beam ends inside transperent medium
 
-  if(trace.Hit and data.ReLength > data.NvLength) then
-    data.ReLength = data.ReLength - data.NvLength
+  if(trace.Hit and data.RaLength > data.NvLength) then
+    data.RaLength = data.RaLength - data.NvLength
   end
 
   if(SERVER and LaserLib.IsSource(entity)) then
