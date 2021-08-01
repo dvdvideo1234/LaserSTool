@@ -10,7 +10,9 @@ DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 -- Library internal variables
 DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the crystal model")
+DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
+DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the splitter outputs count")
 
 DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
@@ -27,6 +29,7 @@ DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 -- Store zero angle and vector
 DATA.AZERO = Angle()
 DATA.VZERO = Vector()
+DATA.VDRUP = Vector(0,0,1)
 
 -- The default key in a collection point to take when not found
 DATA.KEYD = "#"
@@ -34,11 +37,13 @@ DATA.KEYA = "*"
 
 DATA.CLS = {
   -- Class haches enabled for creating hit reports
-  ["gmod_laser"        ] = true,
-  ["gmod_laser_crystal"] = true,
+  ["gmod_laser"         ] = true,
+  ["gmod_laser_crystal" ] = true,
+  ["gmod_laser_splitter"] = true,
   "gmod_laser"        , -- Laser entity calss
   "gmod_laser_crystal", -- Laser crysytal class
-  "prop_physics"        -- Base class for reflectors
+  "prop_physics"        -- Laser reflectors class
+  "gmod_laser_splitter" -- Laser beam splitter
 }
 
 DATA.MOD = {
@@ -46,13 +51,15 @@ DATA.MOD = {
   "", -- Laser model is changed via laser tool
   -- Portal cube: models/props/reflection_cube.mdl
   DATA.MCRYSTAL:GetString(),
-  DATA.MREFLECT:GetString()
+  DATA.MREFLECT:GetString(),
+  DATA.MSPLITER:GetString()
 }
 
 DATA.MAT = {
   "", -- Laser material is changed with the model
   "models/props_lab/xencrystal_sheet",
-  "debug/env_cubemap_model"
+  "debug/env_cubemap_model",
+  "models/props_lab/xencrystal_sheet"
 }
 
 DATA.COLOR = {
@@ -187,6 +194,18 @@ cvars.AddChangeCallback(DATA.MREFLECT:GetName(),
     else DATA.MOD[3] = m end
   end,
 DATA.MREFLECT:GetName())
+
+cvars.RemoveChangeCallback(DATA.MSPLITER:GetName(), DATA.MSPLITER:GetName())
+cvars.AddChangeCallback(DATA.MSPLITER:GetName(),
+  function(name, o, n)
+    local m = tostring(n):Trim()
+    if(m:sub(1,1) == DATA.KEYD) then
+      DATA.MOD[4] = DATA.MSPLITER:GetDefault()
+      DATA.MSPLITER:SetString(DATA.MOD[4])
+    else DATA.MOD[4] = m end
+  end,
+DATA.MSPLITER:GetName())
+
 
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
   DATA.TRACE.start:Set(origin)
@@ -734,8 +753,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvCGroup = nil   -- Collision group. Missing then COLLISION_GROUP_NONE
   data.IsTrace  = false -- Library is still tracing the beam
   data.NvIWorld = false -- Ignore world flag to make it hit the other side
-  data.IsRfract = false -- The library is currently refracting
-  data.IsBranch = {false, false} -- Refracting flag for entity [1] and world [2]
+  data.IsRfract = {false, false} -- Refracting flag for entity [1] and world [2]
   data.StRfract = false -- Start tracing the beam inside a boundary
   data.TeFilter = entity -- Make sure the initial laser source is skipped
   data.TvPoints = {Size = 0} -- Create empty vertices array
@@ -761,18 +779,25 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   LaserLib.RegisterNode(data, origin)
 
   repeat
-    data.IsRfract = (data.IsBranch[1] or data.IsBranch[2])
+    --[[
+      TODO: Fix world water to air refraction
+      When beam goes up has to be checked when comes
+      out of the water
+      if(DATA.VDRUP:Dot(data.VrDirect) and )
+    ]]
+
+    local isRfract = (data.IsRfract[1] or data.IsRfract[2])
 
     trace = LaserLib.Trace(data.VrOrigin,
                            data.VrDirect,
-                           (data.IsRfract and data.TrRfract or data.NvLength),
+                           (isRfract and data.TrRfract or data.NvLength),
                            data.TeFilter,
                            data.NvMask,
                            data.NvCGroup,
                            data.NvIWorld)
 
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      LaserLib.RegisterNode(data, trace.HitPos, data.IsRfract)
+      LaserLib.RegisterNode(data, trace.HitPos, isRfract)
     else
       if(data.TvPoints.Size == 1) then
         data.StRfract = true -- Beam starts inside a refractive solid
@@ -784,7 +809,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       data.NvBounce = data.NvBounce - 1
       -- Register a hit so reduce bounces count
       if(trace.Entity and trace.Entity:IsValid()) then
-        if(data.IsBranch[1]) then
+        if(data.IsRfract[1]) then
           -- Well the beam is still tracing
           data.IsTrace = true -- Produce next ray
           -- Make sure that outer trace will always hit
@@ -798,7 +823,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(vdir) then
               if(bout) then -- When the beam gets out of the medium
                 -- Lower refraction flag ( Not full internal reflection )
-                data.IsBranch[1] = false
+                data.IsRfract[1] = false
                 -- Restore the filter and hit world for tracing something else
                 data.TeFilter = nil
                 data.NvIWorld = false
@@ -857,7 +882,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               -- Must trace only this entity otherwise invalid
               data.TeFilter = function(ent) return (ent == rent) end
               data.NvIWorld = true -- Ignore world too for precision  ws
-              data.IsBranch[1] = true -- Raise the bounce off refract flag
+              data.IsRfract[1] = true -- Raise the bounce off refract flag
               data.TrRfract = 2 * data.DmRfract * DATA.ERAD -- Scale again to make it hit
               if(usrfre and data.TrMedium.D[1]) then
                 LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
@@ -868,9 +893,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             end -- All triggers when reflecting and refracting are processed
           end
         end
-      elseif(trace.HitWorld) then
-        if(data.IsBranch[2]) then
-          data.IsBranch[2] = false
+      elseif(trace.HitWorld or data.IsRfract[2]) then
+        if(data.IsRfract[2]) then
+          data.IsRfract[2] = false
           local vdir, bout
           -- Well the beam is still tracing
           data.IsTrace = true -- Produce next ray
@@ -920,7 +945,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 data.VrOrigin:Mul(DATA.NMAR)
                 data.VrOrigin:Add(trace.HitPos)
                 LaserLib.VecNegate(data.VrDirect)
-                data.IsBranch[2] = true
+                data.IsRfract[2] = true
               else
                 if(data.TrMedium.D[1]) then -- From air to water
                   local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
