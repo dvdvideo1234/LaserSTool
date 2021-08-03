@@ -8,11 +8,14 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
 -- Library internal variables
-DATA.BOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.MBOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the crystal model")
-DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
+DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the splitter outputs count")
+DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the splitter X direction")
+DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the splitter Y direction")
+DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.1, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 10)
 
 DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
@@ -20,7 +23,8 @@ DATA.ICON = "icon16/%s.png" -- Format to convert icons
 DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.POWL = 0.001           -- Lowest bounds of laser power
-DATA.NMAR = 0.00001         -- Margin amount to push vectors with
+DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
+DATA.NMAR = 0.0001          -- Margin amount to push vectors with
 DATA.ERAD = 2               -- Entity radius coefficient for traces
 DATA.NTIF = {}              -- User notification configuration type
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
@@ -42,7 +46,7 @@ DATA.CLS = {
   ["gmod_laser_splitter"] = true,
   "gmod_laser"        , -- Laser entity calss
   "gmod_laser_crystal", -- Laser crysytal class
-  "prop_physics"        -- Laser reflectors class
+  "prop_physics"      , -- Laser reflectors class
   "gmod_laser_splitter" -- Laser beam splitter
 }
 
@@ -271,8 +275,19 @@ function LaserLib.DrawPoint(pos)
   render.DrawSphere(pos, 0.5, 25, 25, crw)
 end
 
+function LaserLib.GetReportID(key)
+  local out = (tonumber(key) or 1)
+        out = math.max(out, 1)
+  return math.floor(out)
+end
+
 function LaserLib.GetIcon(icon)
   return DATA.ICON:format(tostring(icon or ""))
+end
+
+function LaserLib.GetData(key)
+  if(not key) then return end
+  return DATA[key]
 end
 
 function LaserLib.GetTool()
@@ -461,7 +476,7 @@ local function GetMaterialID(trace, mator)
       mat = ent:GetMaterials()[1] -- Just grab the first
       -- Gmod can not simply decide which material is hit
     end -- Read the dominating material
-    if(mat == "") then
+    if(SERVER and mat == "") then
       mat = DATA.MATYPE[ent:GetMaterialType()]
     end -- Physobj has a single surfacetype related to model
     return mat
@@ -745,7 +760,7 @@ end
  * usrfre > Use surface material refracting efficiency
  * noverm > Enable interactions with no material override
 ]]
-function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm)
+function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
   local data, trace = {}
   -- Configure data structure
   data.TrMaters = ""
@@ -758,13 +773,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.TeFilter = entity -- Make sure the initial laser source is skipped
   data.TvPoints = {Size = 0} -- Create empty vertices array
   data.VrOrigin = Vector(origin) -- Copy origin not to modify it
-  data.VrDirect = Vector(direct) -- Copy deirection not to modify it
+  data.VrDirect = direct:GetNormalized() -- Copy deirection not to modify it
   data.BmLength = math.max(tonumber(length) or 0, 0)
   data.NvDamage = math.max(tonumber(damage) or 0, 0)
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
   data.NvForce  = math.max(tonumber(force ) or 0, 0)
   data.TrMedium = {S = {DATA.REFRACT["air"], "air"}}
-  data.MxBounce = DATA.BOUNCES:GetInt() -- All the bounces the loop made so far
+  data.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce = data.MxBounce -- Amount of bounces to control the infinite loop
   data.RaLength = data.BmLength -- Range of the length. Just like wire ranger
   data.TrRfract = data.BmLength -- Full length for traces not being bound by hit events
@@ -997,7 +1012,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
   if(SERVER and LaserLib.IsSource(entity)) then
     -- Update the current beam source hit report
-    entity:SetHitReport(trace, data)
+    entity:SetHitReport(trace, data, index)
     -- This is done to know what we just hit
   end
 

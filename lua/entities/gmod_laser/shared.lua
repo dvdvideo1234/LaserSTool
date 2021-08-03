@@ -48,14 +48,14 @@ function ENT:SetBeamTransform()
   return self
 end
 
-function ENT:GetBeamOrigin()
-  return self:LocalToWorld(self:GetOriginLocal())
+function ENT:GetBeamOrigin(origin)
+  return self:LocalToWorld(origin or self:GetOriginLocal())
 end
 
-function ENT:GetBeamDirection()
-  local direct = Vector(self:GetDirectLocal())
-        direct:Rotate(self:GetAngles())
-  return direct
+function ENT:GetBeamDirection(direct)
+  local dir = Vector(direct or self:GetDirectLocal())
+        dir:Rotate(self:GetAngles())
+  return dir
 end
 
 --[[ ----------------------
@@ -197,8 +197,8 @@ end
   On/Off
 ---------------------- ]]
 function ENT:DoSound(state)
-  if(self.onState ~= state) then
-    self.onState = state -- Write the state
+  if(self.OnState ~= state) then
+    self.OnState = state -- Write the state
     if(state) then -- Activating laser
       self:EmitSound(self:GetStartSound())
     else -- User shuts the entity off

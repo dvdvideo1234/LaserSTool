@@ -9,18 +9,15 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 ]]
 
 function ENT:DrawEndingEffect(trace, data)
-  self.nextEffect = self.nextEffect or CurTime()
-
   if(trace and not trace.HitSky and
-     self:GetEndingEffect() and
-     CurTime() >= self.nextEffect)
+    self:GetEndingEffect() and self.DrawEffect)
   then
-    if(not self.beamEffectData) then
-      self.beamEffectData = EffectData()
+    if(not self.BeamEffect) then
+      self.BeamEffect = EffectData()
     end -- Allocate effect data class
     if(trace.Hit) then
       local ent = trace.Entity
-      local eff = self.beamEffectData
+      local eff = self.BeamEffect
       if(not LaserLib.IsSource(ent)) then
         eff:SetStart(trace.HitPos)
         eff:SetOrigin(trace.HitPos)
@@ -44,7 +41,80 @@ function ENT:DrawEndingEffect(trace, data)
         end
       end
     end
-    self.nextEffect = CurTime() + 0.1
+  end
+end
+
+function ENT:DrawBeam(org, dir, length, width)
+  local force  = self:GetPushForce()
+  local origin = self:GetBeamOrigin(org)
+  local damage = self:GetDamageAmount()
+  local usrfle = self:GetReflectRatio()
+  local usrfre = self:GetRefractRatio()
+  local direct = self:GetBeamDirection(dir)
+  local noverm = self:GetInNonOverMater()
+  local trace, data = LaserLib.DoBeam(self,
+                                      origin,
+                                      direct,
+                                      length,
+                                      width,
+                                      damage,
+                                      force,
+                                      usrfle,
+                                      usrfre,
+                                      noverm)
+  if(data) then
+    local color = self:GetBeamColor()
+    local ushit = LocalPlayer():GetEyeTrace().HitPos
+    local bbmin = self:LocalToWorld(self:OBBMins())
+    local bbmax = self:LocalToWorld(self:OBBMaxs())
+    local first = data.TvPoints[1][1]
+    -- Extend render bounds with player hit position
+    LaserLib.UpdateRB(bbmin, ushit, math.min)
+    LaserLib.UpdateRB(bbmax, ushit, math.max)
+    -- Extend render bounds with the first node
+    LaserLib.UpdateRB(bbmin, first, math.min)
+    LaserLib.UpdateRB(bbmax, first, math.max)
+    -- Material must be cached and pdated with left click setup
+    local mat = self:GetBeamMaterial(true)
+    if(mat) then render.SetMaterial(mat) end
+    -- Draw the beam sequentially bing faster
+    for idx = 2, data.TvPoints.Size do
+      local org = data.TvPoints[idx - 1]
+      local new = data.TvPoints[idx - 0]
+      local otx, ntx, wdt = org[1], new[1], org[2]
+
+      -- Make sure the coordinates are conveted to world ones
+      LaserLib.UpdateRB(bbmin, ntx, math.min)
+      LaserLib.UpdateRB(bbmax, ntx, math.max)
+
+      -- Draw the actual beam texture
+      local len = (ntx - otx):Length()
+      local dtm = -(15 * CurTime())
+      render.DrawBeam(otx,
+                      ntx,
+                      wdt,
+                      dtm,
+                      (dtm + len / 24),
+                      color:ToColor())
+    end
+    -- Adjust the render bounds with world-space coordinates
+    self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+    -- Handle drawing the effects when have to be drawwn
+    self:DrawEndingEffect(trace, data)
+  end
+end
+
+function ENT:DrawEffectBegin()
+  if(not self.NextEffect or CurTime() > self.NextEffect) then
+    local time = LaserLib.GetData("EFFECTTM"):GetFloat()
+    self.DrawEffect = true
+    self.NextEffect = CurTime() + time
+  end
+end
+
+function ENT:DrawEffectEnd()
+  if(self.DrawEffect) then
+    self.DrawEffect = false
   end
 end
 
@@ -56,63 +126,9 @@ function ENT:Draw()
           width = LaserLib.GetWidth(width)
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
-      local force  = self:GetPushForce()
-      local origin = self:GetBeamOrigin()
-      local damage = self:GetDamageAmount()
-      local direct = self:GetBeamDirection()
-      local usrfle = self:GetReflectRatio()
-      local usrfre = self:GetRefractRatio()
-      local noverm = self:GetInNonOverMater()
-      local trace, data = LaserLib.DoBeam(self,
-                                          origin,
-                                          direct,
-                                          length,
-                                          width,
-                                          damage,
-                                          force,
-                                          usrfle,
-                                          usrfre,
-                                          noverm)
-      if(data) then
-        local color = self:GetBeamColor()
-        local ushit = LocalPlayer():GetEyeTrace().HitPos
-        local bbmin = self:LocalToWorld(self:OBBMins())
-        local bbmax = self:LocalToWorld(self:OBBMaxs())
-        local first = data.TvPoints[1][1]
-        -- Extend render bounds with player hit position
-        LaserLib.UpdateRB(bbmin, ushit, math.min)
-        LaserLib.UpdateRB(bbmax, ushit, math.max)
-        -- Extend render bounds with the first node
-        LaserLib.UpdateRB(bbmin, first, math.min)
-        LaserLib.UpdateRB(bbmax, first, math.max)
-        -- Material must be cached and pdated with left click setup
-        local mat = self:GetBeamMaterial(true)
-        if(mat) then render.SetMaterial(mat) end
-        -- Draw the beam sequentially bing faster
-        for idx = 2, data.TvPoints.Size do
-          local org = data.TvPoints[idx - 1]
-          local new = data.TvPoints[idx - 0]
-          local otx, ntx, wdt = org[1], new[1], org[2]
-
-          -- Make sure the coordinates are conveted to world ones
-          LaserLib.UpdateRB(bbmin, ntx, math.min)
-          LaserLib.UpdateRB(bbmax, ntx, math.max)
-
-          -- Draw the actual beam texture
-          local len = (ntx - otx):Length()
-          local dtm = -(15 * CurTime())
-          render.DrawBeam(otx,
-                          ntx,
-                          wdt,
-                          dtm,
-                          (dtm + len / 24),
-                          color:ToColor())
-        end
-        -- Adjust the render bounds with world-space coordinates
-        self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
-        -- Handle drawing the effects when have to be drawwn
-        self:DrawEndingEffect(trace, data)
-      end
+      self:DrawEffectBegin()
+      self:DrawBeam(nil, nil, length, width)
+      self:DrawEffectEnd()
     end
   end
 end
