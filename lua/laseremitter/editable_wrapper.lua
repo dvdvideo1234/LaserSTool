@@ -54,6 +54,19 @@ function ENT:EditableSetFloat(name, catg, min, max)
     }})
 end
 
+function ENT:EditableSetInt(name, catg, min, max)
+  local typ, ord, id = self:EditableGetOrderID("Int")
+  self:NetworkVar(typ, id, name, {
+    KeyName = name:lower(),
+    Edit = {
+      category = catg,
+      order    = ord,
+      type     = typ,
+      min      = (tonumber(min) or -100),
+      max      = (tonumber(max) or  100)
+    }})
+end
+
 function ENT:EditableSetComboString(name, catg, vals, key)
   local val = vals -- Use provided values unless a table
   local typ, ord, id = self:EditableGetOrderID("String")

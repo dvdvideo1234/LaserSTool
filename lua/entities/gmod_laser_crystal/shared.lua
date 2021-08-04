@@ -13,7 +13,7 @@ if(WireLib) then
   ENT.WireDebugName = ENT.PrintName
 end
 ENT.Author         = "MadJawa"
-ENT.Category       = "Other"
+ENT.Category       = "Laser"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
