@@ -267,7 +267,7 @@ function LaserLib.Call(time, func, ...)
     then func(...); DATA.TOLD = tnew end
 end
 
--- Drawh a position on the screen
+-- Draw a position on the screen
 function LaserLib.DrawPoint(pos)
   if(not CLIENT) then return end
   local crw = LaserLib.GetColor("YELLOW")
@@ -622,8 +622,8 @@ if(SERVER) then
       end
 
       if(target:GetClass() == "shield") then
-        local odamage = math.Clamp(damage / 2500 * 3, 0, 4)
-        target:Hit(laserEnt, hitPos, odamage, -1 * normal)
+        local damage = math.Clamp(damage / 2500 * 3, 0, 4)
+        target:Hit(laserEnt, hitPos, damage, -1 * normal)
         laserEnt.NextDamage = CurTime() + 0.3
         return -- We stop here because we hit a shield!
       end
@@ -1113,6 +1113,7 @@ function LaserLib.SetupModels()
     table.insert(data, {"models/props/cake/cake.mdl",90})
     table.insert(data, {"models/Weapons/w_portalgun.mdl",180})
     table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
+    table.insert(data, {"models/props/water_bottle/water_bottle.mdl",90})
   end
 
   if(IsMounted("hl2")) then -- HL2 is mounted

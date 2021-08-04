@@ -96,16 +96,16 @@ function ENT:GetDominant()
   local opower, doment, report
   for ent, stat in pairs(self.Sources) do
     if(ent and ent:IsValid()) then
-      local key = self:GetReportID(ent)
-      if(key) then
-        local trace, data = ent:GetHitReport(key)
+      local idx = self:GetHitSourceID(ent)
+      if(idx) then -- Only one beam can be the input
+        local trace, data = ent:GetHitReport(idx)
         if(data) then
           local npower = LaserLib.GetPower(data.NvWidth,
                                            data.NvDamage)
           if(not opower or npower >= opower) then
             opower = npower
             doment = ent
-            report = key
+            report = idx
           end
         else self.Sources[ent] = nil end
       else self.Sources[ent] = nil end

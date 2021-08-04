@@ -143,39 +143,66 @@ function ENT:OnRestore()
   self:WireRestored()
 end
 
-function ENT:RemHitReports()
+--[[
+ * Removes hit reports from the list
+ * bovr > When remove overhead only is true removes
+          all items having larger index than the list
+          size, otherwise removes all items from the list
+]]
+
+function ENT:RemHitReports(bovr)
   if(self.Reports) then
-    table.Empty(self.Reports)
+    local rep, idx = self.Reports
+    if(not bovr) then
+     idx, rep.Size = 1, 0
+    else idx = rep.Size + 1 end
+    -- Wipe selected items
+    while(rep[idx]) do
+      rep[idx] = nil
+      idx = idx + 1
+    end
   end; return self
 end
 
+--[[
+ Returns the entity hit report information table
+]]
 function ENT:GetHitReports()
   return self.Reports
 end
 
 --[[
- Checks whenever the entity argument hits us
+ Checks whenever the entity beam report hits us (self)
  * self > The crystal to be checked
  * ent  > Source entity to be checked
+ * idx  > Forced index to check. Not mandatory
 ]]
-function ENT:GetReportID(ent)
+function ENT:GetHitSourceID(ent, idx)
   if(not ent) then return nil end -- Skip unavaliable
   if(not ent:IsValid()) then return nil end -- Skip invalid
   if(ent == self) then return nil end -- Loop source
   if(not self.Sources[ent]) then return nil end
   if(not LaserLib.IsSource(ent)) then return nil end
   if(not ent:GetOn()) then return nil end
-  local rep = self:GetHitReports()
+  local rep = ent.Reports
   if(not rep) then return nil end
-  for key, val in pairs(ent:GetHitReports()) do
-    local trace, data = ent:GetHitReport(key)
-    if(trace and trace.Hit and self == trace.Entity) then return key end
+  if(idx) then
+    local trace, data = ent:GetHitReport(idx)
+    if(trace and trace.Hit and self == trace.Entity) then return idx end
+  else
+    for cnt = 1, rep.Size do
+      local trace, data = ent:GetHitReport(cnt)
+      if(trace and trace.Hit and self == trace.Entity) then return cnt end
+    end
   end; return nil
 end
 
 function ENT:SetHitReport(trace, data, index)
-  if(not self.Reports) then self.Reports = {} end
+  if(not self.Reports) then self.Reports = {Size = 0} end
+  local rep = self.Reports
+  if(not rep) then return self end
   local idx = LaserLib.GetReportID(index)
+  if(idx >= self.Reports.Size) then self.Reports.Size = idx end
   local rep = self.Reports[idx]
   if(not rep) then
     self.Reports[idx] = {}
