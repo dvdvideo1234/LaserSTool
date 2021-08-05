@@ -251,6 +251,24 @@ function ENT:GetPushForce()
   end
 end
 
+--[[ ----------------------
+      Effects draw handling
+---------------------- ]]
+
+function ENT:DrawEffectBegin()
+  if(not self.NextEffect or CurTime() > self.NextEffect) then
+    local time = LaserLib.GetData("EFFECTTM"):GetFloat()
+    self.DrawEffect = true
+    self.NextEffect = CurTime() + time
+  end
+end
+
+function ENT:DrawEffectEnd()
+  if(self.DrawEffect) then
+    self.DrawEffect = false
+  end
+end
+
 function ENT:Setup(width       , length     , damage     , material    ,
                    dissolveType, startSound , stopSound  , killSound   ,
                    toggle      , startOn    , pushForce  , endingEffect,

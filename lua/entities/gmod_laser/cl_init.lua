@@ -87,34 +87,22 @@ function ENT:DrawBeam(org, dir, length, width)
       LaserLib.UpdateRB(bbmin, ntx, math.min)
       LaserLib.UpdateRB(bbmax, ntx, math.max)
 
-      -- Draw the actual beam texture
-      local len = (ntx - otx):Length()
-      local dtm = -(15 * CurTime())
-      render.DrawBeam(otx,
-                      ntx,
-                      wdt,
-                      dtm,
-                      (dtm + len / 24),
-                      color:ToColor())
+      if(not org[5] or not new[5]) then
+        -- Draw the actual beam texture
+        local len = (ntx - otx):Length()
+        local dtm = -(15 * CurTime())
+        render.DrawBeam(otx,
+                        ntx,
+                        wdt,
+                        dtm,
+                        (dtm + len / 24),
+                        color:ToColor())
+      end
     end
     -- Adjust the render bounds with world-space coordinates
     self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
     -- Handle drawing the effects when have to be drawwn
     self:DrawEndingEffect(trace, data)
-  end
-end
-
-function ENT:DrawEffectBegin()
-  if(not self.NextEffect or CurTime() > self.NextEffect) then
-    local time = LaserLib.GetData("EFFECTTM"):GetFloat()
-    self.DrawEffect = true
-    self.NextEffect = CurTime() + time
-  end
-end
-
-function ENT:DrawEffectEnd()
-  if(self.DrawEffect) then
-    self.DrawEffect = false
   end
 end
 

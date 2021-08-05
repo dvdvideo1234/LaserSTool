@@ -82,6 +82,7 @@ function ENT:DoDamage(trace, data)
 end
 
 function ENT:DoBeam(org, dir, idx)
+  self:DrawEffectBegin()
   local force  = self:GetPushForce()
   local width  = self:GetBeamWidth()
   local origin = self:GetBeamOrigin(org)
@@ -102,6 +103,7 @@ function ENT:DoBeam(org, dir, idx)
                                       usrfre,
                                       noverm,
                                       idx)
+  self:DrawEffectEnd()
   return trace, data
 end
 

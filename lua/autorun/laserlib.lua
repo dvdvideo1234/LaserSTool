@@ -212,35 +212,43 @@ DATA.MSPLITER:GetName())
 
 
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
-  DATA.TRACE.start:Set(origin)
-  DATA.TRACE.endpos:Set(direct)
-  DATA.TRACE.endpos:Normalize()
-  DATA.TRACE.endpos:Mul(length)
-  DATA.TRACE.endpos:Add(origin)
-  DATA.TRACE.filter = filter
-  if(mask ~= nil) then
-    DATA.TRACE.mask = mask
-  else -- Default trace mask
-    DATA.TRACE.mask = MASK_ALL
-  end
-  if(iworld ~= nil) then
-    DATA.TRACE.ignoreworld = iworld
-  else -- Default world ignore
-    DATA.TRACE.ignoreworld = false
-  end
-  if(colgrp ~= nil) then
-    DATA.TRACE.collisiongroup = colgrp
-  else -- Default collision group
-    DATA.TRACE.collisiongroup = COLLISION_GROUP_NONE
-  end
-  if(result ~= nil) then
-    DATA.TRACE.output = result
-    util.TraceLine(DATA.TRACE)
-    DATA.TRACE.output = nil
-    return result
+  if(StarGate ~= nil) then
+    DATA.TRACE.start:Set(origin)
+    DATA.TRACE.endpos:Set(direct)
+    DATA.TRACE.endpos:Normalize()
+    DATA.TRACE.endpos:Mul(length)
+    return StarGate.Trace:New(DATA.TRACE.start, DATA.TRACE.endpos, filter);
   else
-    DATA.TRACE.output = nil
-    return util.TraceLine(DATA.TRACE)
+    DATA.TRACE.start:Set(origin)
+    DATA.TRACE.endpos:Set(direct)
+    DATA.TRACE.endpos:Normalize()
+    DATA.TRACE.endpos:Mul(length)
+    DATA.TRACE.endpos:Add(origin)
+    DATA.TRACE.filter = filter
+    if(mask ~= nil) then
+      DATA.TRACE.mask = mask
+    else -- Default trace mask
+      DATA.TRACE.mask = MASK_SOLID
+    end
+    if(iworld ~= nil) then
+      DATA.TRACE.ignoreworld = iworld
+    else -- Default world ignore
+      DATA.TRACE.ignoreworld = false
+    end
+    if(colgrp ~= nil) then
+      DATA.TRACE.collisiongroup = colgrp
+    else -- Default collision group
+      DATA.TRACE.collisiongroup = COLLISION_GROUP_NONE
+    end
+    if(result ~= nil) then
+      DATA.TRACE.output = result
+      util.TraceLine(DATA.TRACE)
+      DATA.TRACE.output = nil
+      return result
+    else
+      DATA.TRACE.output = nil
+      return util.TraceLine(DATA.TRACE)
+    end
   end
 end
 
@@ -272,7 +280,7 @@ function LaserLib.DrawPoint(pos)
   if(not CLIENT) then return end
   local crw = LaserLib.GetColor("YELLOW")
   render.SetColorMaterial()
-  render.DrawSphere(pos, 0.5, 25, 25, crw)
+  render.DrawSphere(pos, 1, 25, 25, crw)
 end
 
 function LaserLib.GetReportID(key)
@@ -735,16 +743,16 @@ end
  * origin > The node position to be registered
  * bulen  > Update the length according to the new node
 ]]
-function LaserLib.RegisterNode(data, origin, bulen)
+function LaserLib.RegisterNode(data, origin, bulen, skip)
   local info = data.TvPoints -- Local reference to stack
-  local node  , width = Vector(origin), data.NvWidth
+  local node, width = Vector(origin), data.NvWidth
   local damage, force = data.NvDamage , data.NvForce
   if(bulen) then -- Substract the path trough the medium
     local prev = info[info.Size][1]
     data.NvLength = data.NvLength - (node - prev):Length()
   end -- Register the new node to the stack
   info.Size = info.Size + 1
-  info[info.Size] = {node, width, damage, force}
+  info[info.Size] = {node, width, damage, force, skip}
 end
 
 --[[
@@ -764,8 +772,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local data, trace = {}
   -- Configure data structure
   data.TrMaters = ""
-  data.NvMask   = nil   -- Trace mask. When not provided negative one is used
-  data.NvCGroup = nil   -- Collision group. Missing then COLLISION_GROUP_NONE
+  data.NvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
+  data.NvCGroup = COLLISION_GROUP_NONE -- Collision group. Missing then COLLISION_GROUP_NONE
   data.IsTrace  = false -- Library is still tracing the beam
   data.NvIWorld = false -- Ignore world flag to make it hit the other side
   data.IsRfract = {false, false} -- Refracting flag for entity [1] and world [2]
@@ -812,13 +820,18 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            data.NvIWorld)
 
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      LaserLib.RegisterNode(data, trace.HitPos, isRfract)
+      local valid = ((trace.Entity ~= nil) and (trace.Entity ~= NULL) and trace.Entity:IsValid())
+      if(valid and trace.Entity:GetClass() == "event_horizon") then -- trace.Entity
+        LaserLib.RegisterNode(data, trace.HitPos, isRfract, true)
+      else
+        LaserLib.RegisterNode(data, trace.HitPos, isRfract)
+      end
     else
       if(data.TvPoints.Size == 1) then
         data.StRfract = true -- Beam starts inside a refractive solid
       end -- Continue straight and ignore the zero fraction node
     end -- Do not put a node when beam starts in a solid
-
+    -- print(trace.Entity)
     if(trace.Hit and not LaserLib.IsSource(trace.Entity)) then
       -- Refresh medium pass trough information
       data.NvBounce = data.NvBounce - 1
@@ -857,55 +870,88 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
             end
           end
-        else
-          data.TrMaters = GetMaterialID(trace, noverm)
-          data.IsTrace  = true -- Still tracing the beam
-          local reflect = IndexMaterial(data.TrMaters, DATA.REFLECT)
-          if(reflect) then -- Just call reflection and get done with it..
-            data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
-            data.VrOrigin:Set(trace.HitPos)
-            data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-            if(usrfle) then
-              LaserLib.SetPowerRatio(data, reflect[1])
-            end
-          else
-            local refract, key = IndexMaterial(data.TrMaters, DATA.REFRACT)
-            if(data.StRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
-              -- Register desination medium and raise calculate refraction flag
-              data.TrMedium.D = {refract, key}
-              -- Substact traced lenght from total length
-              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-              -- Calculated refraction ray. Reflect when not possible
-              local rent, vdir, bout = trace.Entity -- Refraction entity
-              if(data.StRfract) then
-                vdir = Vector(direct); data.StRfract = false
-              else
-                if(data.TrMedium.D[1]) then
-                  vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                                     trace.HitNormal,
-                                                     data.TrMedium.S[1][1],
-                                                     data.TrMedium.D[1][1])
+        else -- Put special cases here
+          if(trace.Entity:GetClass() == "event_horizon") then
+            data.IsTrace = true
+
+            LaserLib.Call(2, function()
+              print("------------------")
+              print(trace.Entity.Target)
+              --PrintTable(trace)
+              print("++++++++++++++++++")
+              PrintTable(data)
+            end)
+
+            if( not (CLIENT and (not trace.Entity.DrawRipple or trace.Entity.Target == NULL)) // HAX
+            and not (SERVER and (not trace.Entity:IsOpen() or trace.Entity.ShuttingDown))) then
+              local org, dir = trace.Entity:GetTeleportedVector(trace.HitPos, data.VrDirect)
+
+              --print(org, dir)
+
+              data.VrOrigin:Set(org); data.VrDirect:Set(dir)
+              if(SERVER and entity.DrawEffect) then
+                trace.Entity:EnterEffect(trace.HitPos, data.NvWidth);
+                if(trace.Entity.Target and trace.Entity.Target:IsValid()) then
+                  trace.Entity.Target:EnterEffect(data.VrOrigin, data.NvWidth)
                 end
               end
-               -- Get the trace tready to check the other side and point and register the location
-              data.DmRfract = 2 * trace.Entity:BoundingRadius()
-              data.VrDirect:Set(vdir)
-              data.VrOrigin:Set(vdir)
-              data.VrOrigin:Mul(data.DmRfract * DATA.ERAD)
-              data.VrOrigin:Add(trace.HitPos)
-              LaserLib.VecNegate(data.VrDirect)
-              -- Must trace only this entity otherwise invalid
-              data.TeFilter = function(ent) return (ent == rent) end
-              data.NvIWorld = true -- Ignore world too for precision  ws
-              data.IsRfract[1] = true -- Raise the bounce off refract flag
-              data.TrRfract = 2 * data.DmRfract * DATA.ERAD -- Scale again to make it hit
-              if(usrfre and data.TrMedium.D[1]) then
-                LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
-              end
-            else -- We are neither reflecting nor refracting and have hit a wall
-              data.IsTrace = false -- Make sure to exit not to do performance hit
+              LaserLib.DrawPoint(org)
+              LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
               data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-            end -- All triggers when reflecting and refracting are processed
+            else
+              data.IsTrace = false
+              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+            end
+          else
+            data.TrMaters = GetMaterialID(trace, noverm)
+            data.IsTrace  = true -- Still tracing the beam
+            local reflect = IndexMaterial(data.TrMaters, DATA.REFLECT)
+            if(reflect) then -- Just call reflection and get done with it..
+              data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
+              data.VrOrigin:Set(trace.HitPos)
+              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+              if(usrfle) then
+                LaserLib.SetPowerRatio(data, reflect[1])
+              end
+            else
+              local refract, key = IndexMaterial(data.TrMaters, DATA.REFRACT)
+              if(data.StRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
+                -- Register desination medium and raise calculate refraction flag
+                data.TrMedium.D = {refract, key}
+                -- Substact traced lenght from total length
+                data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+                -- Calculated refraction ray. Reflect when not possible
+                local rent, vdir, bout = trace.Entity -- Refraction entity
+                if(data.StRfract) then
+                  vdir = Vector(direct); data.StRfract = false
+                else
+                  if(data.TrMedium.D[1]) then
+                    vdir, bout = LaserLib.GetRefracted(data.VrDirect,
+                                                       trace.HitNormal,
+                                                       data.TrMedium.S[1][1],
+                                                       data.TrMedium.D[1][1])
+                  end
+                end
+                 -- Get the trace tready to check the other side and point and register the location
+                data.DmRfract = 2 * trace.Entity:BoundingRadius()
+                data.VrDirect:Set(vdir)
+                data.VrOrigin:Set(vdir)
+                data.VrOrigin:Mul(data.DmRfract * DATA.ERAD)
+                data.VrOrigin:Add(trace.HitPos)
+                LaserLib.VecNegate(data.VrDirect)
+                -- Must trace only this entity otherwise invalid
+                data.TeFilter = function(ent) return (ent == rent) end
+                data.NvIWorld = true -- Ignore world too for precision  ws
+                data.IsRfract[1] = true -- Raise the bounce off refract flag
+                data.TrRfract = 2 * data.DmRfract * DATA.ERAD -- Scale again to make it hit
+                if(usrfre and data.TrMedium.D[1]) then
+                  LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+                end
+              else -- We are neither reflecting nor refracting and have hit a wall
+                data.IsTrace = false -- Make sure to exit not to do performance hit
+                data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+              end -- All triggers when reflecting and refracting are processed
+            end
           end
         end
       elseif(trace.HitWorld or data.IsRfract[2]) then
