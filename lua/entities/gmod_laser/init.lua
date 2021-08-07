@@ -45,7 +45,7 @@ function ENT:Initialize()
   )
 
   local phys = self:GetPhysicsObject()
-  if(phys:IsValid()) then phys:Wake() end
+  if(LaserLib.IsValid(phys)) then phys:Wake() end
 
   self:WireWrite("Entity", self)
 end
@@ -54,7 +54,7 @@ function ENT:DoDamage(trace, data)
   -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
   if(trace) then
     local trent = trace.Entity
-    if(trent and trent:IsValid()) then
+    if(LaserLib.IsValid(trent)) then
       -- Check whenever target is beam source
       if(LaserLib.IsSource(trent)) then
         -- Register the source to the ones who has it
@@ -62,15 +62,16 @@ function ENT:DoDamage(trace, data)
           trent.RegisterSource(trent, self)
         end -- Define the method to register sources
       else
-        local dsvtype = self:GetDissolveType()
+        local user = (self.ply or self.player)
+        local dtyp = self:GetDissolveType()
         LaserLib.DoDamage(trent,
                           trace.HitPos,
                           trace.Normal,
                           data.VrDirect,
                           data.NvDamage,
                           data.NvForce,
-                          self:GetCreator(),
-                          LaserLib.GetDissolveID(dsvtype),
+                          (user or self:GetCreator()),
+                          LaserLib.GetDissolveID(dtyp),
                           self:GetKillSound(),
                           self:GetForceCenter(),
                           self)
@@ -91,7 +92,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
-  local noverm = self:GetInNonOverMater()
+  local noverm = self:GetNonOverMater()
   local trace, data = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
@@ -120,7 +121,7 @@ function ENT:Think()
 
       local trent = trace.Entity
 
-      if(trent and trent:IsValid()) then
+      if(LaserLib.IsValid(trent)) then
         self:WireWrite("Target", trent)
       else
         self:WireWrite("Target")
@@ -150,11 +151,12 @@ end
  * bovr > When remove overhead only is true removes
           all items having larger index than the list
           size, otherwise removes all items from the list
+ * Data is stored in notation: self.hitReports[ID]
 ]]
 
 function ENT:RemHitReports(bovr)
-  if(self.Reports) then
-    local rep, idx = self.Reports
+  if(self.hitReports) then
+    local rep, idx = self.hitReports
     if(not bovr) then
      idx, rep.Size = 1, 0
     else idx = rep.Size + 1 end
@@ -167,10 +169,11 @@ function ENT:RemHitReports(bovr)
 end
 
 --[[
- Returns the entity hit report information table
+ * Returns the entity hit report information table
+ * Data is stored in notation: self.hitReports[ID]
 ]]
 function ENT:GetHitReports()
-  return self.Reports
+  return self.hitReports
 end
 
 --[[
@@ -178,15 +181,15 @@ end
  * self > The crystal to be checked
  * ent  > Source entity to be checked
  * idx  > Forced index to check. Not mandatory
+ * Data is stored in notation: self.hitReports[ID]
 ]]
 function ENT:GetHitSourceID(ent, idx)
-  if(not ent) then return nil end -- Skip unavaliable
-  if(not ent:IsValid()) then return nil end -- Skip invalid
+  if(not LaserLib.IsValid(ent)) then return nil end -- Skip unavaliable
   if(ent == self) then return nil end -- Loop source
-  if(not self.Sources[ent]) then return nil end
+  if(not self.hitSources[ent]) then return nil end
   if(not LaserLib.IsSource(ent)) then return nil end
   if(not ent:GetOn()) then return nil end
-  local rep = ent.Reports
+  local rep = ent.hitReports
   if(not rep) then return nil end
   if(idx) then
     local trace, data = ent:GetHitReport(idx)
@@ -200,15 +203,16 @@ function ENT:GetHitSourceID(ent, idx)
 end
 
 function ENT:SetHitReport(trace, data, index)
-  if(not self.Reports) then self.Reports = {Size = 0} end
-  local rep = self.Reports
+  if(not self.hitReports) then
+    self.hitReports = {Size = 0}
+  end; local rep = self.hitReports
   if(not rep) then return self end
   local idx = LaserLib.GetReportID(index)
-  if(idx >= self.Reports.Size) then self.Reports.Size = idx end
-  local rep = self.Reports[idx]
+  if(idx >= self.hitReports.Size) then self.hitReports.Size = idx end
+  local rep = self.hitReports[idx]
   if(not rep) then
-    self.Reports[idx] = {}
-    rep = self.Reports[idx]
+    self.hitReports[idx] = {}
+    rep = self.hitReports[idx]
   end
   rep["DT"] = data
   rep["TR"] = trace
@@ -216,25 +220,21 @@ function ENT:SetHitReport(trace, data, index)
 end
 
 function ENT:GetHitReport(index)
-  if(not self.Reports) then return end
+  if(not self.hitReports) then return end
   local idx = LaserLib.GetReportID(index)
-  local rep = self.Reports[idx]
+  local rep = self.hitReports[idx]
   if(not rep) then return end
   return rep["TR"], rep["DT"]
 end
 
 local function On(ply, ent)
-  if(not ent) then return end
-  if(ent == NULL) then return end
-  if(not ent:IsValid()) then return end
+  if(not LaserLib.IsValid(ent)) then return end
   if(ent:WireIsConnected("On")) then return end
   ent:SetOn(not ent:GetOn())
 end
 
 local function Off(ply, ent)
-  if(not ent) then return end
-  if(ent == NULL) then return end
-  if(not ent:IsValid()) then return end
+  if(not LaserLib.IsValid(ent)) then return end
   if(ent:WireIsConnected("On")) then return end
   if(ent:GetStartToggle()) then return end
   ent:SetOn(not ent:GetOn())

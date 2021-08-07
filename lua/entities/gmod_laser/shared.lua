@@ -48,11 +48,13 @@ function ENT:SetBeamTransform()
   return self
 end
 
-function ENT:GetBeamOrigin(origin)
+function ENT:GetBeamOrigin(origin, world)
+  if(world) then return origin end
   return self:LocalToWorld(origin or self:GetOriginLocal())
 end
 
-function ENT:GetBeamDirection(direct)
+function ENT:GetBeamDirection(direct, world)
+  if(world) then return direct end
   local dir = Vector(direct or self:GetDirectLocal())
         dir:Rotate(self:GetAngles())
   return dir
@@ -138,14 +140,14 @@ end
 function ENT:GetBeamMaterial(bool)
   local mat = self:GetInBeamMaterial()
   if(bool) then
-    if(self.materCached) then
-      if(self.materCached:GetName() ~= mat) then
-        self.materCached = Material(mat)
+    if(self.matCached) then
+      if(self.matCached:GetName() ~= mat) then
+        self.matCached = Material(mat)
       end
     else
-      self.materCached = Material(mat)
+      self.matCached = Material(mat)
     end
-    return self.materCached
+    return self.matCached
   else
     return mat
   end
@@ -194,19 +196,26 @@ function ENT:GetKillSound()
 end
 
 --[[ ----------------------
-  On/Off
+  Makes sounds
 ---------------------- ]]
 function ENT:DoSound(state)
-  if(self.OnState ~= state) then
-    self.OnState = state -- Write the state
-    if(state) then -- Activating laser
-      self:EmitSound(self:GetStartSound())
-    else -- User shuts the entity off
-      self:EmitSound(self:GetStopSound())
-    end -- Sound is calculated correctly
+  if(self.onState ~= state) then
+    self.onState = state -- Write the state
+    local pos, idx = self:GetPos(), self:EntIndex()
+    local cls, enb = self:GetClass(), LaserLib.GetData("ENSOUNDS")
+    if(cls == "gmod_laser" or (enb and enb:GetBool())) then
+      if(state) then -- Activating laser for given position
+        self:EmitSound(self:GetStartSound())
+      else -- User shuts the entity off
+        self:EmitSound(self:GetStopSound())
+      end -- Sound is calculated correctly
+    end
   end; return self
 end
 
+--[[ ----------------------
+  On/Off
+---------------------- ]]
 function ENT:SetOn(bool)
   local state = tobool(bool)
   self:SetInPowerOn(state)
@@ -256,17 +265,30 @@ end
 ---------------------- ]]
 
 function ENT:DrawEffectBegin()
-  if(not self.NextEffect or CurTime() > self.NextEffect) then
+  if(not self.nextEffect or CurTime() > self.nextEffect) then
     local time = LaserLib.GetData("EFFECTTM"):GetFloat()
-    self.DrawEffect = true
-    self.NextEffect = CurTime() + time
+    self.drawEffect = true
+    self.nextEffect = CurTime() + time
   end
 end
 
 function ENT:DrawEffectEnd()
-  if(self.DrawEffect) then
-    self.DrawEffect = false
+  if(self.drawEffect) then
+    self.drawEffect = false
   end
+end
+
+--[[ ----------------------
+  Beam uses the original mateial override
+---------------------- ]]
+function ENT:SetNonOverMater(bool)
+  local over = tobool(bool)
+  self:SetInNonOverMater(over)
+  return self
+end
+
+function ENT:GetNonOverMater()
+  return self:GetInNonOverMater()
 end
 
 function ENT:Setup(width       , length     , damage     , material    ,
@@ -289,7 +311,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self:SetEndingEffect(endingEffect)
   self:SetReflectRatio(reflectRate)
   self:SetRefractRatio(refractRate)
-  self:SetInNonOverMater(enOnverMater)
+  self:SetNonOverMater(enOnverMater)
   self:SetBeamTransform()
 
   table.Merge(self:GetTable(), {

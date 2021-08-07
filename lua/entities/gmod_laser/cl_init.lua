@@ -10,14 +10,14 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 
 function ENT:DrawEndingEffect(trace, data)
   if(trace and not trace.HitSky and
-    self:GetEndingEffect() and self.DrawEffect)
+    self:GetEndingEffect() and self.drawEffect)
   then
-    if(not self.BeamEffect) then
-      self.BeamEffect = EffectData()
+    if(not self.beamEffect) then
+      self.beamEffect = EffectData()
     end -- Allocate effect data class
     if(trace.Hit) then
       local ent = trace.Entity
-      local eff = self.BeamEffect
+      local eff = self.beamEffect
       if(not LaserLib.IsSource(ent)) then
         eff:SetStart(trace.HitPos)
         eff:SetOrigin(trace.HitPos)
@@ -51,7 +51,7 @@ function ENT:DrawBeam(org, dir, length, width)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
-  local noverm = self:GetInNonOverMater()
+  local noverm = self:GetNonOverMater()
   local trace, data = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
@@ -87,7 +87,7 @@ function ENT:DrawBeam(org, dir, length, width)
       LaserLib.UpdateRB(bbmin, ntx, math.min)
       LaserLib.UpdateRB(bbmax, ntx, math.max)
 
-      if(not org[5] or not new[5]) then
+      if(org[5] or new[5]) then
         -- Draw the actual beam texture
         local len = (ntx - otx):Length()
         local dtm = -(15 * CurTime())

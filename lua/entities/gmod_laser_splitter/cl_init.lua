@@ -38,5 +38,27 @@ function ENT:Draw()
         self:DrawEffectEnd()
       end
     end
+  else
+    local mcount = self:GetBeamCount()
+    if(mcount < 1) then return end
+    render.SetColorMaterial()
+    local delta = 360 / mcount
+    local color = LaserLib.GetColor("YELLOW")
+    local orign = self:GetBeamOrigin()
+    local direc = self:GetDirectLocal()
+    local eleva = self:GetElevatLocal()
+    local marx = self:GetBeamLeanX()
+    local mary = self:GetBeamLeanY()
+    local angle = direc:AngleEx(eleva)
+    self:DrawEffectBegin()
+    for index = 1, mcount do
+      local dir = mary * angle:Up()
+            dir:Add(marx * angle:Forward())
+            dir:Set(self:GetBeamDirection(dir))
+            dir:Normalize(); dir:Mul(15)
+            dir:Add(orign)
+      render.DrawLine(orign, dir, color)
+      angle:RotateAroundAxis(direc, delta)
+    end
   end
 end

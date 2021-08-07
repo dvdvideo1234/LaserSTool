@@ -23,8 +23,6 @@ function ENT:SetupDataTables()
   self:EditableSetVector("OriginLocal"   , "General")
   self:EditableSetVector("DirectLocal"   , "General")
   self:EditableSetVector("ElevatLocal"   , "General")
-  self:EditableSetFloat ("AngleOffset"   , "General", -360, 360)
-  self:EditableSetBool  ("StartToggle"   , "General")
   self:EditableSetBool  ("ForceCenter"   , "General")
   self:EditableSetBool  ("ReflectRatio"  , "Material")
   self:EditableSetBool  ("RefractRatio"  , "Material")
@@ -46,7 +44,7 @@ end
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local direct = Vector(0,0,1) -- Local beam birection
-  local elevat = Vector(1,0,0)
+  local elevat = Vector(0,1,0)
   local origin = LaserLib.GetBeamOrigin(self, direct)
   self:SetOriginLocal(origin)
   self:SetDirectLocal(direct)
