@@ -1,10 +1,3 @@
---[[
-Hey you! You are reading my code!
-I want to say that my code is far from perfect, and if you see that I'm doing something
-in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD CODER"
-        Thanks
-      - MadJawa
-]]
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
@@ -18,7 +11,7 @@ function ENT:SpawnFunction(ply, tr)
   -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(LaserLib.GetClass(3))
-  if(ent and ent:IsValid()) then
+  if(LaserLib.IsValid(ent)) then
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(3))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang)
@@ -28,6 +21,7 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetNotSolid(false)
     ent:SetModel(LaserLib.GetModel(3))
     ent:Spawn()
+    ent:SetCreator(ply)
     ent:Activate()
     ent:PhysWake()
     return ent

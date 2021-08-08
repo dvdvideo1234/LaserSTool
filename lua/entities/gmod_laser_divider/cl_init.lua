@@ -1,16 +1,8 @@
 include("shared.lua")
 
-ENT.RenderGroup = RENDERGROUP_BOTH
-
---[[
-* This is actually faster than stuffing all the beams
-* information for every laser in a dedicated table and
-* draw the table elements one by one at once.
-]]
-
-function ENT:DrawEndingEffect(trace, data)
+function ENT:DrawEndingEffect(src, trace, data, sdat)
   if(trace and not trace.HitSky and
-    self:GetEndingEffect() and self.drawEffect)
+    sdat.BmSource:GetEndingEffect() and self.drawEffect)
   then
     if(not self.beamEffect) then
       self.beamEffect = EffectData()
@@ -44,26 +36,10 @@ function ENT:DrawEndingEffect(trace, data)
   end
 end
 
-function ENT:DrawBeam(org, dir, length, width)
-  local force  = self:GetPushForce()
-  local origin = self:GetBeamOrigin(org)
-  local damage = self:GetDamageAmount()
-  local usrfle = self:GetReflectRatio()
-  local usrfre = self:GetRefractRatio()
-  local direct = self:GetBeamDirection(dir)
-  local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm)
+function ENT:DrawBeam(src, org, dir, sdat, idx)
+  local trace, data = self:DoBeam(src, org, dir, sdat, idx)
   if(data) then
-    local color = self:GetBeamColor()
+    local color = sdat.BmSource:GetBeamColor()
     local ushit = LocalPlayer():GetEyeTrace().HitPos
     local bbmin = self:LocalToWorld(self:OBBMins())
     local bbmax = self:LocalToWorld(self:OBBMaxs())
@@ -75,7 +51,7 @@ function ENT:DrawBeam(org, dir, length, width)
     LaserLib.UpdateRB(bbmin, first, math.min)
     LaserLib.UpdateRB(bbmax, first, math.max)
     -- Material must be cached and pdated with left click setup
-    local mat = self:GetBeamMaterial(true)
+    local mat = sdat.BmSource:GetBeamMaterial(true)
     if(mat) then render.SetMaterial(mat) end
     -- Draw the beam sequentially bing faster
     for idx = 2, data.TvPoints.Size do
@@ -102,21 +78,18 @@ function ENT:DrawBeam(org, dir, length, width)
     -- Adjust the render bounds with world-space coordinates
     self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
     -- Handle drawing the effects when have to be drawwn
-    self:DrawEndingEffect(trace, data)
+    self:DrawEndingEffect(src, trace, data, sdat)
   end
 end
 
 function ENT:Draw()
   self:DrawModel()
   self:DrawShadow(false)
+  self:InitSources()
   if(self:GetOn()) then
-    local width = self:GetBeamWidth()
-          width = LaserLib.GetWidth(width)
-    local length = self:GetBeamLength()
-    if(width > 0 and length > 0) then
-      self:DrawEffectBegin()
-      self:DrawBeam(nil, nil, length, width)
-      self:DrawEffectEnd()
-    end
+    self:DrawEffectBegin()
+    self:UpdateSources()
+    self:DivideSources()
+    self:DrawEffectEnd()
   end
 end

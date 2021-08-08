@@ -213,9 +213,7 @@ function TOOL:LeftClick(trace)
   local ply, ent     = self:GetOwner(), trace.Entity
   local pos, ang     = trace.HitPos   , trace.HitNormal:Angle()
 
-  if(ent:IsValid() and
-     ent:GetClass() == gsLaseremCls)
-  then
+  if(LaserLib.IsValid(ent) and ent:GetClass() == gsLaseremCls) then
     LaserLib.Notify(ply, "Paste settings !", "UNDO")
     ent:Setup(width       , length     , damage     , material    ,
               dissolvetype, startsound , stopsound  , killsound   ,
@@ -231,15 +229,15 @@ function TOOL:LeftClick(trace)
                              pushforce  , endingeffect, reflectrate , refractrate ,
                              forcecenter, frozen      , enonvermater)
 
-  if(not (laser and laser:IsValid())) then return false end
+  if(not (LaserLib.IsValid(laser))) then return false end
 
   self:ApplySpawn(laser, trace)
 
   undo.Create("LaserEmitter")
     undo.AddEntity(laser)
-    if(ent:IsValid() or worldweld) then
+    if(LaserLib.IsValid(ent) or worldweld) then
       local weld = constraint.Weld(laser, ent, trace.PhysicsBone, 0, 0)
-      if(weld and weld:IsValid()) then
+      if(LaserLib.IsValid(weld)) then
         undo.AddEntity(weld) -- Inser the weld in the undo list
         laser:DeleteOnRemove(weld) -- Remove the weld with the laser
         ent:DeleteOnRemove(weld) -- Remove weld with the anchor
@@ -259,8 +257,7 @@ function TOOL:RightClick(trace)
   if(not trace) then return false end
   local ply, ent = self:GetOwner(), trace.Entity
 
-  if(not ent) then return false end
-  if(not ent:IsValid()) then return false end
+  if(not LaserLib.IsValid(ent)) then return false end
 
   if(ent:GetClass() == gsLaseremCls) then
     LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
@@ -278,7 +275,7 @@ function TOOL:RightClick(trace)
     LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
     LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
     LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
-    LaserLib.ConCommand(ply, "enonvermater", (ent:GetInNonOverMater() and 1 or 0))
+    LaserLib.ConCommand(ply, "enonvermater", (ent:GetNonOverMater() and 1 or 0))
     LaserLib.Notify(ply, "Copy settings !", "UNDO")
   else
     local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
@@ -306,8 +303,7 @@ function TOOL:Reload(trace)
       LaserLib.ConCommand(ply, "openmaterial", "reflect")
     end
   else
-    if(not trace.Entity)  then return false end
-    if(not ent:IsValid())  then return false end
+    if(not LaserLib.IsValid(ent))  then return false end
     if(ent:IsPlayer()) then return false end
     if(ply:KeyDown(IN_USE)) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
@@ -332,12 +328,10 @@ if(SERVER) then
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
-  if(not ent) then return end
-  if(not ply) then return end
-  if(ent:IsPlayer()) then return end
-  if(not ent:IsValid()) then return end
-  if(not ply:IsValid()) then return end
+  if(not LaserLib.IsValid(ent)) then return end
+  if(not LaserLib.IsValid(ply)) then return end
   if(not ply:IsPlayer()) then return end
+  if(ent:IsPlayer()) then return end
 
   local trace = ply:GetEyeTrace()
 
@@ -357,9 +351,8 @@ end
 function TOOL:Think()
   local model = self:GetClientInfo("model")
 
-  if(not self.GhostEntity or
-     not self.GhostEntity:IsValid() or
-         self.GhostEntity:GetModel() ~= model)
+  if(not LaserLib.IsValid(self.GhostEntity)
+      or self.GhostEntity:GetModel() ~= model)
   then
     local pos, ang = LaserLib.GetZeroTransform()
     self:MakeGhostEntity(model, pos, ang)

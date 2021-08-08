@@ -1,11 +1,3 @@
---[[
-Hey you! You are reading my code!
-I want to say that my code is far from perfect, and if you see that I'm doing something
-in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD CODER"
-        Thanks
-      - MadJawa
-]]
-
 ENT.Type           = "anim"
 ENT.PrintName      = "Laser Splitter"
 ENT.Base           = LaserLib.GetClass(1)
@@ -13,7 +5,7 @@ if(WireLib) then
   ENT.WireDebugName = ENT.PrintName
 end
 ENT.Editable       = true
-ENT.Author         = "MadJawa"
+ENT.Author         = "DVD"
 ENT.Category       = "Laser"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
@@ -23,8 +15,6 @@ function ENT:SetupDataTables()
   self:EditableSetVector("OriginLocal"   , "General")
   self:EditableSetVector("DirectLocal"   , "General")
   self:EditableSetVector("ElevatLocal"   , "General")
-  self:EditableSetFloat ("AngleOffset"   , "General", -360, 360)
-  self:EditableSetBool  ("StartToggle"   , "General")
   self:EditableSetBool  ("ForceCenter"   , "General")
   self:EditableSetBool  ("ReflectRatio"  , "Material")
   self:EditableSetBool  ("RefractRatio"  , "Material")
@@ -46,7 +36,7 @@ end
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local direct = Vector(0,0,1) -- Local beam birection
-  local elevat = Vector(1,0,0)
+  local elevat = Vector(0,1,0)
   local origin = LaserLib.GetBeamOrigin(self, direct)
   self:SetOriginLocal(origin)
   self:SetDirectLocal(direct)
@@ -153,4 +143,29 @@ end
 
 function ENT:GetBeamLeanY()
   return self:GetInBeamLeanY()
+end
+
+function ENT:DoBeam(org, dir, idx)
+  local count = self:GetBeamCount()
+  local force  = self:GetPushForce() / count
+  local width  = self:GetBeamWidth() / count
+  local origin = self:GetBeamOrigin(org)
+  local length = self:GetBeamLength()
+  local damage = self:GetDamageAmount() / count
+  local usrfle = self:GetReflectRatio()
+  local usrfre = self:GetRefractRatio()
+  local direct = self:GetBeamDirection(dir)
+  local noverm = self:GetNonOverMater()
+  local trace, data = LaserLib.DoBeam(self,
+                                      origin,
+                                      direct,
+                                      length,
+                                      width,
+                                      damage,
+                                      force,
+                                      usrfle,
+                                      usrfre,
+                                      noverm,
+                                      idx)
+  return trace, data
 end

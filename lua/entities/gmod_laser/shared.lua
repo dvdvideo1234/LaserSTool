@@ -48,11 +48,13 @@ function ENT:SetBeamTransform()
   return self
 end
 
-function ENT:GetBeamOrigin(origin)
+function ENT:GetBeamOrigin(origin, world)
+  if(world) then return origin end
   return self:LocalToWorld(origin or self:GetOriginLocal())
 end
 
-function ENT:GetBeamDirection(direct)
+function ENT:GetBeamDirection(direct, world)
+  if(world) then return direct end
   local dir = Vector(direct or self:GetDirectLocal())
         dir:Rotate(self:GetAngles())
   return dir
@@ -138,14 +140,14 @@ end
 function ENT:GetBeamMaterial(bool)
   local mat = self:GetInBeamMaterial()
   if(bool) then
-    if(self.materCached) then
-      if(self.materCached:GetName() ~= mat) then
-        self.materCached = Material(mat)
+    if(self.matCached) then
+      if(self.matCached:GetName() ~= mat) then
+        self.matCached = Material(mat)
       end
     else
-      self.materCached = Material(mat)
+      self.matCached = Material(mat)
     end
-    return self.materCached
+    return self.matCached
   else
     return mat
   end
@@ -194,19 +196,26 @@ function ENT:GetKillSound()
 end
 
 --[[ ----------------------
-  On/Off
+  Makes sounds
 ---------------------- ]]
 function ENT:DoSound(state)
-  if(self.OnState ~= state) then
-    self.OnState = state -- Write the state
-    if(state) then -- Activating laser
-      self:EmitSound(self:GetStartSound())
-    else -- User shuts the entity off
-      self:EmitSound(self:GetStopSound())
-    end -- Sound is calculated correctly
+  if(self.onState ~= state) then
+    self.onState = state -- Write the state
+    local pos, idx = self:GetPos(), self:EntIndex()
+    local cls, enb = self:GetClass(), LaserLib.GetData("ENSOUNDS")
+    if(cls == "gmod_laser" or (enb and enb:GetBool())) then
+      if(state) then -- Activating laser for given position
+        self:EmitSound(self:GetStartSound())
+      else -- User shuts the entity off
+        self:EmitSound(self:GetStopSound())
+      end -- Sound is calculated correctly
+    end
   end; return self
 end
 
+--[[ ----------------------
+  On/Off
+---------------------- ]]
 function ENT:SetOn(bool)
   local state = tobool(bool)
   self:SetInPowerOn(state)
@@ -251,6 +260,37 @@ function ENT:GetPushForce()
   end
 end
 
+--[[ ----------------------
+      Effects draw handling
+---------------------- ]]
+
+function ENT:DrawEffectBegin()
+  if(not self.nextEffect or CurTime() > self.nextEffect) then
+    local time = LaserLib.GetData("EFFECTTM"):GetFloat()
+    self.drawEffect = true
+    self.nextEffect = CurTime() + time
+  end
+end
+
+function ENT:DrawEffectEnd()
+  if(self.drawEffect) then
+    self.drawEffect = false
+  end
+end
+
+--[[ ----------------------
+  Beam uses the original mateial override
+---------------------- ]]
+function ENT:SetNonOverMater(bool)
+  local over = tobool(bool)
+  self:SetInNonOverMater(over)
+  return self
+end
+
+function ENT:GetNonOverMater()
+  return self:GetInNonOverMater()
+end
+
 function ENT:Setup(width       , length     , damage     , material    ,
                    dissolveType, startSound , stopSound  , killSound   ,
                    toggle      , startOn    , pushForce  , endingEffect,
@@ -271,7 +311,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self:SetEndingEffect(endingEffect)
   self:SetReflectRatio(reflectRate)
   self:SetRefractRatio(refractRate)
-  self:SetInNonOverMater(enOnverMater)
+  self:SetNonOverMater(enOnverMater)
   self:SetBeamTransform()
 
   table.Merge(self:GetTable(), {
@@ -298,5 +338,109 @@ function ENT:Setup(width       , length     , damage     , material    ,
     (not toggle and update))
   then self:SetOn(startOn) end
 
+  return self
+end
+
+--[[
+ * Removes hit reports from the list
+ * iovr > When remove overhead is provided deletes
+          all entries with larger index
+ * Data is stored in notation: self.hitReports[ID]
+]]
+
+function ENT:RemHitReports(iovr)
+  if(self.hitReports) then
+    local rep, idx = self.hitReports
+    if(iovr) then
+      idx, rep.Size = (iovr + 1), iovr
+    else
+      idx, rep.Size = 1, 0
+    end
+    -- Wipe selected items
+    while(rep[idx]) do
+      rep[idx] = nil
+      idx = idx + 1
+    end
+  end; return self
+end
+
+--[[
+ * Returns the entity hit report information table
+ * Data is stored in notation: self.hitReports[ID]
+]]
+function ENT:GetHitReports()
+  return self.hitReports
+end
+
+--[[
+ Checks whenever the entity beam report hits us (self)
+ * self > The crystal to be checked
+ * ent  > Source entity to be checked
+ * idx  > Forced index to check. Not mandatory
+ * Data is stored in notation: self.hitReports[ID]
+]]
+function ENT:GetHitSourceID(ent, idx)
+  if(not LaserLib.IsValid(ent)) then return nil end -- Skip unavaliable
+  if(ent == self) then return nil end -- Loop source
+  if(not self.hitSources[ent]) then return nil end
+  if(not LaserLib.IsSource(ent)) then return nil end
+  if(not ent:GetOn()) then return nil end
+  local rep = ent:GetHitReports()
+  if(not rep) then return nil end
+  if(idx) then
+    local trace, data = ent:GetHitReport(idx)
+    if(trace and trace.Hit and self == trace.Entity) then return idx end
+  else
+    for cnt = 1, rep.Size do
+      local trace, data = ent:GetHitReport(cnt)
+      if(trace and trace.Hit and self == trace.Entity) then return cnt end
+    end
+  end; return nil
+end
+
+function ENT:SetHitReport(trace, data, index)
+  if(not self.hitReports) then
+    self.hitReports = {Size = 0}
+  end; local rep = self.hitReports
+  if(not rep) then return self end
+  local idx = LaserLib.GetReportID(index)
+  if(idx >= self.hitReports.Size) then
+    self.hitReports.Size = idx end
+  local rep = self.hitReports[idx]
+  if(not rep) then
+    self.hitReports[idx] = {}
+    rep = self.hitReports[idx]
+  end
+  rep["DT"] = data
+  rep["TR"] = trace
+  return self
+end
+
+function ENT:GetHitReport(index)
+  if(not self.hitReports) then return end
+  local idx = LaserLib.GetReportID(index)
+  local rep = self.hitReports[idx]
+  if(not rep) then return end
+  return rep["TR"], rep["DT"]
+end
+
+--[[
+ * Traverses dound the hit report until it reaches laser
+ ]]
+function ENT:GetHitLaser()
+  local rep = self:GetHitReports()
+  local idx = self:GetHitSourceID()
+  if(idx) then
+
+  else
+    return self
+  end
+end
+
+--[[
+ * Override this when the entity is pass trough
+ * Dominat is calcualted from its sources
+]]
+function ENT:GetHitDominant()
   return self
 end
