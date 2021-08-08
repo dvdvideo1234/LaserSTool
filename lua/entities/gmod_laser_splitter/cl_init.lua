@@ -1,12 +1,50 @@
---[[
-Hey you! You are reading my code!
-I want to say that my code is far from perfect, and if you see that I'm doing something
-in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD CODER"
-        Thanks
- - MadJawa
-]]
-
 include("shared.lua")
+
+function ENT:DrawBeam(org, dir, index)
+  local trace, data = self:DoBeam(org, dir, index)
+  if(data) then
+    local color = self:GetBeamColor()
+    local ushit = LocalPlayer():GetEyeTrace().HitPos
+    local bbmin = self:LocalToWorld(self:OBBMins())
+    local bbmax = self:LocalToWorld(self:OBBMaxs())
+    local first = data.TvPoints[1][1]
+    -- Extend render bounds with player hit position
+    LaserLib.UpdateRB(bbmin, ushit, math.min)
+    LaserLib.UpdateRB(bbmax, ushit, math.max)
+    -- Extend render bounds with the first node
+    LaserLib.UpdateRB(bbmin, first, math.min)
+    LaserLib.UpdateRB(bbmax, first, math.max)
+    -- Material must be cached and pdated with left click setup
+    local mat = self:GetBeamMaterial(true)
+    if(mat) then render.SetMaterial(mat) end
+    -- Draw the beam sequentially bing faster
+    for idx = 2, data.TvPoints.Size do
+      local org = data.TvPoints[idx - 1]
+      local new = data.TvPoints[idx - 0]
+      local otx, ntx, wdt = org[1], new[1], org[2]
+
+      -- Make sure the coordinates are conveted to world ones
+      LaserLib.UpdateRB(bbmin, ntx, math.min)
+      LaserLib.UpdateRB(bbmax, ntx, math.max)
+
+      if(org[5] or new[5]) then
+        -- Draw the actual beam texture
+        local len = (ntx - otx):Length()
+        local dtm = -(15 * CurTime())
+        render.DrawBeam(otx,
+                        ntx,
+                        wdt,
+                        dtm,
+                        (dtm + len / 24),
+                        color:ToColor())
+      end
+    end
+    -- Adjust the render bounds with world-space coordinates
+    self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+    -- Handle drawing the effects when have to be drawwn
+    self:DrawEndingEffect(trace, data)
+  end
+end
 
 function ENT:Draw()
   self:DrawModel()
@@ -28,15 +66,16 @@ function ENT:Draw()
         for index = 1, mcount do
           local dir = mary * angle:Up()
                 dir:Add(marx * angle:Forward())
-          self:DrawBeam(nil, dir, length, width)
+          self:DrawBeam(nil, dir, index)
           angle:RotateAroundAxis(direc, delta)
         end
         self:DrawEffectEnd()
       else
         self:DrawEffectBegin()
-        self:DrawBeam(nil, nil, length, width)
+        self:DrawBeam()
         self:DrawEffectEnd()
       end
+      self:RemHitReports(mcount)
     end
   else
     local mcount = self:GetBeamCount()
@@ -60,5 +99,7 @@ function ENT:Draw()
       render.DrawLine(orign, dir, color)
       angle:RotateAroundAxis(direc, delta)
     end
+    self:RemHitReports()
+    self:DrawEffectEnd()
   end
 end

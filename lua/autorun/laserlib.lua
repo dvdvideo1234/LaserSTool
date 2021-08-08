@@ -46,6 +46,7 @@ DATA.CLS = {
   ["gmod_laser"         ] = true,
   ["gmod_laser_crystal" ] = true,
   ["gmod_laser_splitter"] = true,
+  ["gmod_laser_divider" ] = true,
   "gmod_laser"         , -- Laser entity calss
   "gmod_laser_crystal" , -- Laser crysytal class
   "prop_physics"       , -- Laser reflectors class
@@ -820,6 +821,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.TrRfract = data.BmLength -- Full length for traces not being bound by hit events
   data.DmRfract = data.BmLength -- Diameter trace-back dimensions of the entity
   data.NvLength = data.BmLength -- The actual beam lengths substracted after iterations
+  data.BmSource = entity -- The beam source. Popilated by some APIs used by others
 
   if(data.NvLength <= 0) then return end
   if(not data.TeFilter) then return end
@@ -858,7 +860,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         data.StRfract = true -- Beam starts inside a refractive solid
       end -- Continue straight and ignore the zero fraction node
     end -- Do not put a node when beam starts in a solid
-    -- print(trace.Entity)
+
     if(trace.Hit and not LaserLib.IsSource(trace.Entity)) then
       -- Refresh medium pass trough information
       data.NvBounce = data.NvBounce - 1
@@ -898,38 +900,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             end
           end
         else -- Put special cases here
-          if(trace.Entity:GetClass() == "gmod_laser_divider") then
-            local norm = trace.Entity:GetBeamDirection()
-            if(math.abs(norm:Dot(trace.HitNormal)) > (1 - DATA.DOTM)) then
-              local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
-              data.IsTrace = false
-           --   LaserLib.DoBeam(trace.Entity, trace.HitPos, ref, data.NvLength,
-           --     data.NvWidth / 2, data.NvDamage / 2, data.NvForce / 2, usrfle, usrfre, noverm, index)
-           --   LaserLib.DoBeam(trace.Entity, trace.HitPos, data.VrDirect, data.NvLength,
-           --     data.NvWidth / 2, data.NvDamage / 2, data.NvForce / 2, usrfle, usrfre, noverm, index)
-            else
-              data.IsTrace = false
-              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-            end
-          elseif(trace.Entity:GetClass() == "event_horizon") then
+          if(trace.Entity:GetClass() == "event_horizon") then
             data.IsTrace = true
             if( not (CLIENT and (not trace.Entity.DrawRipple or trace.Entity.Target == NULL)) // HAX
             and not (SERVER and (not trace.Entity:IsOpen() or trace.Entity.ShuttingDown))) then
               local org, dir = trace.Entity:GetTeleportedVector(trace.HitPos, data.VrDirect)
-
-
-            LaserLib.Call(2, function()
-              print("------------------")
-              print(trace.Entity.Target)
-              --PrintTable(trace)
-              print("++++++++++++++++++")
-              PrintTable(data)
-              print(org, dir)
-            end)
-
-
-
-
               data.VrOrigin:Set(org); data.VrDirect:Set(dir)
               if(SERVER and entity.drawEffect) then
                 trace.Entity:EnterEffect(trace.HitPos, data.NvWidth);
@@ -1098,10 +1073,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     data.RaLength = data.RaLength - data.NvLength
   end
 
-  if(SERVER and LaserLib.IsSource(entity)) then
-    -- Update the current beam source hit report
-    entity:SetHitReport(trace, data, index)
-    -- This is done to know what we just hit
+  if(LaserLib.IsSource(entity)) then
+    if(entity.SetHitReport) then
+      -- Update the current beam source hit report
+      -- This is done to know what we just hit
+      entity:SetHitReport(trace, data, index)
+    end
+    if(LaserLib.IsValid(trace.Entity) and trace.Entity.RegisterSource) then
+      trace.Entity:RegisterSource(entity) -- Register soucrce entity
+    end
   end
 
   return trace, data

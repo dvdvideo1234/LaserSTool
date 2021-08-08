@@ -1,11 +1,3 @@
---[[
-Hey you! You are reading my code!
-I want to say that my code is far from perfect, and if you see that I'm doing something
-in a really wrong/dumb way, please give me advices instead of saying "LOL U BAD CODER"
-        Thanks
-      - MadJawa
-]]
-
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
@@ -100,7 +92,7 @@ function ENT:GetDominant()
       local idx = self:GetHitSourceID(ent)
       if(idx) then -- Only one beam can be the input
         local trace, data = ent:GetHitReport(idx)
-        if(data) then
+        if(trace and trace.Hit and data) then
           local npower = LaserLib.GetPower(data.NvWidth,
                                            data.NvDamage)
           if(not opower or npower >= opower) then
@@ -114,19 +106,21 @@ function ENT:GetDominant()
   end
 
   if(not LaserLib.IsValid(doment)) then return nil end
+  local dom = doment:GetHitDominant(self)
+  if(not LaserLib.IsValid(dom)) then return nil end
   local count = self:GetBeamCount()
   if(count > 0) then
-    local trace, data = doment:GetHitReport(report)
+    local trace, data = dom:GetHitReport(report)
     if(data) then -- Dominant result hit
       self:SetPushForce(data.NvForce / count)
       self:SetBeamWidth(data.NvWidth / count)
-      self:SetBeamLength(doment:GetBeamLength())
+      self:SetBeamLength(dom:GetBeamLength())
       self:SetDamageAmount(data.NvDamage / count)
     else -- Dominant did not hit anything
-      self:SetPushForce(doment:GetPushForce() / count)
-      self:SetBeamWidth(doment:GetBeamWidth() / count)
-      self:SetBeamLength(doment:GetBeamLength())
-      self:SetDamageAmount(doment:GetDamageAmount() / count)
+      self:SetPushForce(dom:GetPushForce() / count)
+      self:SetBeamWidth(dom:GetBeamWidth() / count)
+      self:SetBeamLength(dom:GetBeamLength())
+      self:SetDamageAmount(dom:GetDamageAmount() / count)
     end -- The most powerful source (biggest damage/width)
   else
     self:SetPushForce(0)
@@ -134,23 +128,23 @@ function ENT:GetDominant()
     self:SetBeamLength(0)
     self:SetDamageAmount(0)
   end
-  self:SetStopSound(doment:GetStopSound())
-  self:SetKillSound(doment:GetKillSound())
-  self:SetBeamColor(doment:GetBeamColor())
-  self:SetStartSound(doment:GetStartSound())
-  self:SetBeamMaterial(doment:GetBeamMaterial())
-  self:SetDissolveType(doment:GetDissolveType())
-  self:SetEndingEffect(doment:GetEndingEffect())
-  self:SetReflectRatio(doment:GetReflectRatio())
-  self:SetRefractRatio(doment:GetRefractRatio())
-  self:SetForceCenter(doment:GetForceCenter())
-  self:SetNonOverMater(doment:GetNonOverMater())
+  self:SetStopSound(dom:GetStopSound())
+  self:SetKillSound(dom:GetKillSound())
+  self:SetBeamColor(dom:GetBeamColor())
+  self:SetStartSound(dom:GetStartSound())
+  self:SetBeamMaterial(dom:GetBeamMaterial())
+  self:SetDissolveType(dom:GetDissolveType())
+  self:SetEndingEffect(dom:GetEndingEffect())
+  self:SetReflectRatio(dom:GetReflectRatio())
+  self:SetRefractRatio(dom:GetRefractRatio())
+  self:SetForceCenter(dom:GetForceCenter())
+  self:SetNonOverMater(dom:GetNonOverMater())
 
   -- We set the same non-addable properties
-  self:WireWrite("Dominant", doment)
-  LaserLib.SetPlayer(self, (doment.ply or doment.player))
+  self:WireWrite("Dominant", dom)
+  LaserLib.SetPlayer(self, (dom.ply or dom.player))
 
-  return doment
+  return dom
 end
 
 function ENT:Think()
@@ -160,7 +154,6 @@ function ENT:Think()
   local mdamage = self:GetDamageAmount()
   local mdoment = self:GetDominant()
   local mpower = LaserLib.GetPower(mwidth, mdamage)
-
   if(mcount > 0 and
      LaserLib.IsValid(mdoment) and
      math.floor(mpower) > 0) then
@@ -186,8 +179,13 @@ function ENT:Think()
     else
       self:DoDamage(self:DoBeam(nil, direc))
     end
+    self:RemHitReports(mcount)
   else
     self:RemHitReports()
+    self:WireWrite("Width" , 0)
+    self:WireWrite("Length", 0)
+    self:WireWrite("Damage", 0)
+    self:WireWrite("Force" , 0)
     self:WireWrite("Dominant")
   end
 

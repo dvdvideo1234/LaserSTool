@@ -59,7 +59,7 @@ function ENT:DoDamage(trace, data)
       if(LaserLib.IsSource(trent)) then
         -- Register the source to the ones who has it
         if(trent.RegisterSource) then
-          trent.RegisterSource(trent, self)
+          trent:RegisterSource(self)
         end -- Define the method to register sources
       else
         local user = (self.ply or self.player)
@@ -144,87 +144,6 @@ end
 
 function ENT:OnRestore()
   self:WireRestored()
-end
-
---[[
- * Removes hit reports from the list
- * bovr > When remove overhead only is true removes
-          all items having larger index than the list
-          size, otherwise removes all items from the list
- * Data is stored in notation: self.hitReports[ID]
-]]
-
-function ENT:RemHitReports(bovr)
-  if(self.hitReports) then
-    local rep, idx = self.hitReports
-    if(not bovr) then
-     idx, rep.Size = 1, 0
-    else idx = rep.Size + 1 end
-    -- Wipe selected items
-    while(rep[idx]) do
-      rep[idx] = nil
-      idx = idx + 1
-    end
-  end; return self
-end
-
---[[
- * Returns the entity hit report information table
- * Data is stored in notation: self.hitReports[ID]
-]]
-function ENT:GetHitReports()
-  return self.hitReports
-end
-
---[[
- Checks whenever the entity beam report hits us (self)
- * self > The crystal to be checked
- * ent  > Source entity to be checked
- * idx  > Forced index to check. Not mandatory
- * Data is stored in notation: self.hitReports[ID]
-]]
-function ENT:GetHitSourceID(ent, idx)
-  if(not LaserLib.IsValid(ent)) then return nil end -- Skip unavaliable
-  if(ent == self) then return nil end -- Loop source
-  if(not self.hitSources[ent]) then return nil end
-  if(not LaserLib.IsSource(ent)) then return nil end
-  if(not ent:GetOn()) then return nil end
-  local rep = ent.hitReports
-  if(not rep) then return nil end
-  if(idx) then
-    local trace, data = ent:GetHitReport(idx)
-    if(trace and trace.Hit and self == trace.Entity) then return idx end
-  else
-    for cnt = 1, rep.Size do
-      local trace, data = ent:GetHitReport(cnt)
-      if(trace and trace.Hit and self == trace.Entity) then return cnt end
-    end
-  end; return nil
-end
-
-function ENT:SetHitReport(trace, data, index)
-  if(not self.hitReports) then
-    self.hitReports = {Size = 0}
-  end; local rep = self.hitReports
-  if(not rep) then return self end
-  local idx = LaserLib.GetReportID(index)
-  if(idx >= self.hitReports.Size) then self.hitReports.Size = idx end
-  local rep = self.hitReports[idx]
-  if(not rep) then
-    self.hitReports[idx] = {}
-    rep = self.hitReports[idx]
-  end
-  rep["DT"] = data
-  rep["TR"] = trace
-  return self
-end
-
-function ENT:GetHitReport(index)
-  if(not self.hitReports) then return end
-  local idx = LaserLib.GetReportID(index)
-  local rep = self.hitReports[idx]
-  if(not rep) then return end
-  return rep["TR"], rep["DT"]
 end
 
 local function On(ply, ent)

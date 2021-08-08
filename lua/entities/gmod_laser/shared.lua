@@ -340,3 +340,107 @@ function ENT:Setup(width       , length     , damage     , material    ,
 
   return self
 end
+
+--[[
+ * Removes hit reports from the list
+ * iovr > When remove overhead is provided deletes
+          all entries with larger index
+ * Data is stored in notation: self.hitReports[ID]
+]]
+
+function ENT:RemHitReports(iovr)
+  if(self.hitReports) then
+    local rep, idx = self.hitReports
+    if(iovr) then
+      idx, rep.Size = (iovr + 1), iovr
+    else
+      idx, rep.Size = 1, 0
+    end
+    -- Wipe selected items
+    while(rep[idx]) do
+      rep[idx] = nil
+      idx = idx + 1
+    end
+  end; return self
+end
+
+--[[
+ * Returns the entity hit report information table
+ * Data is stored in notation: self.hitReports[ID]
+]]
+function ENT:GetHitReports()
+  return self.hitReports
+end
+
+--[[
+ Checks whenever the entity beam report hits us (self)
+ * self > The crystal to be checked
+ * ent  > Source entity to be checked
+ * idx  > Forced index to check. Not mandatory
+ * Data is stored in notation: self.hitReports[ID]
+]]
+function ENT:GetHitSourceID(ent, idx)
+  if(not LaserLib.IsValid(ent)) then return nil end -- Skip unavaliable
+  if(ent == self) then return nil end -- Loop source
+  if(not self.hitSources[ent]) then return nil end
+  if(not LaserLib.IsSource(ent)) then return nil end
+  if(not ent:GetOn()) then return nil end
+  local rep = ent:GetHitReports()
+  if(not rep) then return nil end
+  if(idx) then
+    local trace, data = ent:GetHitReport(idx)
+    if(trace and trace.Hit and self == trace.Entity) then return idx end
+  else
+    for cnt = 1, rep.Size do
+      local trace, data = ent:GetHitReport(cnt)
+      if(trace and trace.Hit and self == trace.Entity) then return cnt end
+    end
+  end; return nil
+end
+
+function ENT:SetHitReport(trace, data, index)
+  if(not self.hitReports) then
+    self.hitReports = {Size = 0}
+  end; local rep = self.hitReports
+  if(not rep) then return self end
+  local idx = LaserLib.GetReportID(index)
+  if(idx >= self.hitReports.Size) then
+    self.hitReports.Size = idx end
+  local rep = self.hitReports[idx]
+  if(not rep) then
+    self.hitReports[idx] = {}
+    rep = self.hitReports[idx]
+  end
+  rep["DT"] = data
+  rep["TR"] = trace
+  return self
+end
+
+function ENT:GetHitReport(index)
+  if(not self.hitReports) then return end
+  local idx = LaserLib.GetReportID(index)
+  local rep = self.hitReports[idx]
+  if(not rep) then return end
+  return rep["TR"], rep["DT"]
+end
+
+--[[
+ * Traverses dound the hit report until it reaches laser
+ ]]
+function ENT:GetHitLaser()
+  local rep = self:GetHitReports()
+  local idx = self:GetHitSourceID()
+  if(idx) then
+
+  else
+    return self
+  end
+end
+
+--[[
+ * Override this when the entity is pass trough
+ * Dominat is calcualted from its sources
+]]
+function ENT:GetHitDominant()
+  return self
+end

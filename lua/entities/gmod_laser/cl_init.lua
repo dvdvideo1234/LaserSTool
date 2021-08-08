@@ -5,7 +5,7 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 --[[
 * This is actually faster than stuffing all the beams
 * information for every laser in a dedicated table and
-* draw the table elemeents one by one at once.
+* draw the table elements one by one at once.
 ]]
 
 function ENT:DrawEndingEffect(trace, data)
