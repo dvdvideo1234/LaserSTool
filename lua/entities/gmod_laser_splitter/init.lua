@@ -91,16 +91,18 @@ function ENT:GetDominant()
     if(LaserLib.IsValid(ent)) then
       local idx = self:GetHitSourceID(ent)
       if(idx) then -- Only one beam can be the input
-        local trace, data = ent:GetHitReport(idx)
-        if(trace and trace.Hit and data) then
-          local npower = LaserLib.GetPower(data.NvWidth,
-                                           data.NvDamage)
-          if(not opower or npower >= opower) then
-            opower = npower
-            doment = ent
-            report = idx
+        for cnt = 1, ent:GetHitReports().Size do
+          local trace, data = ent:GetHitReport(cnt)
+          if(trace and trace.Hit and data) then
+            local npower = LaserLib.GetPower(data.NvWidth,
+                                             data.NvDamage)
+            if(not opower or npower >= opower) then
+              opower = npower
+              doment = ent
+              report = cnt
+            end
           end
-        else self.hitSources[ent] = nil end
+        end
       else self.hitSources[ent] = nil end
     else self.hitSources[ent] = nil end
   end
@@ -110,11 +112,11 @@ function ENT:GetDominant()
   if(not LaserLib.IsValid(dom)) then return nil end
   local count = self:GetBeamCount()
   if(count > 0) then
-    local trace, data = dom:GetHitReport(report)
+    local trace, data = doment:GetHitReport(report)
     if(data) then -- Dominant result hit
       self:SetPushForce(data.NvForce / count)
       self:SetBeamWidth(data.NvWidth / count)
-      self:SetBeamLength(dom:GetBeamLength())
+      self:SetBeamLength(data.NvLength)
       self:SetDamageAmount(data.NvDamage / count)
     else -- Dominant did not hit anything
       self:SetPushForce(dom:GetPushForce() / count)

@@ -425,19 +425,6 @@ function ENT:GetHitReport(index)
 end
 
 --[[
- * Traverses dound the hit report until it reaches laser
- ]]
-function ENT:GetHitLaser()
-  local rep = self:GetHitReports()
-  local idx = self:GetHitSourceID()
-  if(idx) then
-
-  else
-    return self
-  end
-end
-
---[[
  * Override this when the entity is pass trough
  * Dominat is calcualted from its sources
 ]]

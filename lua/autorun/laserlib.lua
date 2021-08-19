@@ -18,6 +18,7 @@ DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change t
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the splitter Y direction", 0, 1)
 DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.1, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
 DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
+DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 
 DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
@@ -43,12 +44,14 @@ DATA.KEYA = "*"
 
 DATA.CLS = {
   -- Class hashes enabled for creating hit reports via `SetHitReport`
-  ["gmod_laser"         ] = true,
-  ["gmod_laser_crystal" ] = true,
-  ["gmod_laser_splitter"] = true,
-  ["gmod_laser_divider" ] = true,
+  -- [1] Can the entity be considered and actual beam source
+  -- [2] Does the entity have the editable laser properties
+  ["gmod_laser"         ] = {true, true },
+  ["gmod_laser_crystal" ] = {true, true },
+  ["gmod_laser_splitter"] = {true, true },
+  ["gmod_laser_divider" ] = {true, false},
   "gmod_laser"         , -- Laser entity calss
-  "gmod_laser_crystal" , -- Laser crysytal class
+  "gmod_laser_crystal" , -- Laser crystal class
   "prop_physics"       , -- Laser reflectors class
   "gmod_laser_splitter", -- Laser beam splitter
   "gmod_laser_divider"   -- Laser beam divider
@@ -344,10 +347,14 @@ function LaserLib.GetRatio()
   return DATA.GRAT
 end
 
-function LaserLib.IsSource(ent)
-  if(LaserLib.IsValid(ent)) then
-    return DATA.CLS[ent:GetClass()]
-  end; return false
+function LaserLib.IsSource(ent, idx)
+  if(not LaserLib.IsValid(ent)) then return false end
+  local set = DATA.CLS[ent:GetClass()]
+  if(not set) then return false end
+  local idx = (tonumber(idx) or 1)
+        idx = math.floor(math.max(idx, 1))
+  if(not set[idx]) then return false end
+  return set[idx]
 end
 
 function LaserLib.GetZeroTransform()

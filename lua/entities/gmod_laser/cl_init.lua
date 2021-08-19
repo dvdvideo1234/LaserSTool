@@ -118,5 +118,12 @@ function ENT:Draw()
       self:DrawBeam(nil, nil, length, width)
       self:DrawEffectEnd()
     end
+  else
+    local color = LaserLib.GetColor("YELLOW")
+    local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
+    local origin = self:GetBeamOrigin()
+    local direct = self:GetBeamDirection()
+          direct:Mul(lndir); direct:Add(origin)
+    render.DrawLine(origin, direct, color)
   end
 end

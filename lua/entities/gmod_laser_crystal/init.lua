@@ -99,12 +99,12 @@ function ENT:IsInfinite(ent, set)
   if(LaserLib.IsValid(ent)) then
     if(set[ent]) then return false end
     if(ent == self) then return true else set[ent] = true end
-    if(LaserLib.IsSource(ent) and ent.hitSources) then
+    if(LaserLib.IsSource(ent, 2) and ent.hitSources) then
       for src, stat in pairs(ent.hitSources) do
         -- Other hits and we are in its sources
         if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
           if(src == self) then return true end
-          if(LaserLib.IsSource(src) and src.hitSources) then -- Class propagades the tree
+          if(LaserLib.IsSource(src, 2) and src.hitSources) then -- Class propagades the tree
             if(self:IsInfinite(src, set)) then return true end end
         end -- Cascadely propagate trough the crystal sources from `self`
       end; return false -- The entity does not persists in itself
@@ -151,8 +151,7 @@ function ENT:UpdateDominant(ent, pow)
     local idx = self:GetHitSourceID(ent)
     if(idx) then
       local force, width, damage = 0, 0, 0
-      for cnt = idx, ent:GetHitReports().Size do
-        local hit = self:GetHitSourceID(ent, cnt)
+      for cnt = 1, ent:GetHitReports().Size do
         local trace, data = ent:GetHitReport(cnt)
         if(trace and trace.Hit and data) then
           force = force + data.NvForce
@@ -192,7 +191,7 @@ function ENT:UpdateBeam()
             local hit = self:GetHitSourceID(ent, cnt)
             if(hit) then
               local trace, data = ent:GetHitReport(hit)
-              if(data and trace.Hit) then
+              if(trace and trace.Hit and data) then
                 npower = LaserLib.GetPower(data.NvWidth,
                                            data.NvDamage)
                 if(not self:IsInfinite(ent)) then

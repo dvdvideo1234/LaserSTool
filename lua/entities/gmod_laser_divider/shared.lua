@@ -97,12 +97,12 @@ function ENT:GetHitDominant(ent)
     local opower, doment = 0, nil
     for idx = 1, self:GetHitReports().Size do
       local trace, data = self:GetHitReport(idx)
-      if(trace and trace.Entity == ent and data) then
+      if(trace and trace.Hit and trace.Entity == ent and data) then
         local npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
         if(npower >= opower) then opower, doment = npower, data.BmSource end
       end
     end
-    if(LaserLib.IsValid(doment)) then
+    if(LaserLib.IsSource(doment, 2)) then
       return doment
     else return nil end
   end; return nil
@@ -110,9 +110,8 @@ end
 
 --[[
  * Divides the input sources beams and calculates the kit reports
- * bdmg > Enable to call the damage dealer. Usually server side
 ]]
-function ENT:DivideSources(bdmg)
+function ENT:DivideSources()
   if(self.hitSize and self.hitSize > 0) then
     local hdx, tr, dt = 0
     for cnt = 1, self.hitSize do
@@ -121,7 +120,7 @@ function ENT:DivideSources(bdmg)
         local hit = self:GetHitSourceID(src, idx)
         if(hit) then
           local trace, data = src:GetHitReport(idx)
-          if(trace and data and self:IsHitNormal(trace)) then -- Do same stuff here
+          if(trace and trace.Hit and data and self:IsHitNormal(trace)) then -- Do same stuff here
             local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
             if(CLIENT) then
               hdx = hdx + 1; self:DrawBeam(src, trace.HitPos, ref, data, hdx)
@@ -156,12 +155,10 @@ function ENT:DoBeam(src, org, dir, sdat, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  if(LaserLib.IsValid(src)) then
-    if(src:GetClass() == "gmod_laser") then
-      data.BmSource = src -- Initial stage store laser
-    else -- Make sure we always know which laser is source
-      data.BmSource = sdat.BmSource -- Inherit previous laser
-    end -- Otherwise inherit the laser source from prev stage
-  end
+  if(LaserLib.IsSource(src, 2)) then
+    data.BmSource = src -- Initial stage store laser
+  else -- Make sure we always know which laser is source
+    data.BmSource = sdat.BmSource -- Inherit previous laser
+  end -- Otherwise inherit the laser source from prev stage
   return trace, data
 end
