@@ -88,30 +88,6 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
---[[
- * Checks for infinite loops when the source `ent`
- * is powered by other crystals powered by self
- * self > The root of the tree propagated
- * ent  > The entity of the source checked
-]]
-function ENT:IsInfinite(ent, set)
-  local set = (set or {})
-  if(LaserLib.IsValid(ent)) then
-    if(set[ent]) then return false end
-    if(ent == self) then return true else set[ent] = true end
-    if(LaserLib.IsSource(ent, 2) and ent.hitSources) then
-      for src, stat in pairs(ent.hitSources) do
-        -- Other hits and we are in its sources
-        if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
-          if(src == self) then return true end
-          if(LaserLib.IsSource(src, 2) and src.hitSources) then -- Class propagades the tree
-            if(self:IsInfinite(src, set)) then return true end end
-        end -- Cascadely propagate trough the crystal sources from `self`
-      end; return false -- The entity does not persists in itself
-    else return false end
-  else return false end
-end
-
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
   for ent, stat in pairs(self.hitSources) do

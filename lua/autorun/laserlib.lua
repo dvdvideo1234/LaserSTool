@@ -46,10 +46,11 @@ DATA.CLS = {
   -- Class hashes enabled for creating hit reports via `SetHitReport`
   -- [1] Can the entity be considered and actual beam source
   -- [2] Does the entity have the editable laser properties
-  ["gmod_laser"         ] = {true, true },
-  ["gmod_laser_crystal" ] = {true, true },
-  ["gmod_laser_splitter"] = {true, true },
-  ["gmod_laser_divider" ] = {true, false},
+  -- [3] Should the entity be checked for infinete loop sources
+  ["gmod_laser"         ] = {true, true , false},
+  ["gmod_laser_crystal" ] = {true, true , true },
+  ["gmod_laser_splitter"] = {true, true , true },
+  ["gmod_laser_divider" ] = {true, false, false},
   "gmod_laser"         , -- Laser entity calss
   "gmod_laser_crystal" , -- Laser crystal class
   "prop_physics"       , -- Laser reflectors class

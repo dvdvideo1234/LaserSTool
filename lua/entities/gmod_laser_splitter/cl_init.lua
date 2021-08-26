@@ -102,7 +102,7 @@ function ENT:Draw()
       local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
       local color = LaserLib.GetColor("YELLOW")
       local orign = self:GetBeamOrigin()
-      local direc = self:GetDirectLocal()
+      local direc = self:GetBeamDirection()
             direc:Mul(lndir); direc:Add(orign)
       render.DrawLine(orign, direc, color)
     end
