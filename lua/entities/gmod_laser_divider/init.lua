@@ -21,8 +21,11 @@ function ENT:Initialize()
   self:PhysicsInit(SOLID_VPHYSICS)
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
-  self:WireCreateOutputs(
+  self:WireCreateInputs(
+    {"Normal"  , "VECTOR", "Divider surface normal" }
+  ):WireCreateOutputs(
     {"On"      , "NORMAL", "Divider working state"  },
+    {"Normal"  , "VECTOR", "Divider surface normal" },
     {"Count"   , "NORMAL", "Divider beam count"     },
     {"Entity"  , "ENTITY", "Divider crystal entity" },
     {"Array"   , "ARRAY" , "Divider sources array"  }

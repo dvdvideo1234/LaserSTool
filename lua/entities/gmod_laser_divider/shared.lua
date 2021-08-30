@@ -20,36 +20,11 @@ function ENT:RegisterSource(ent)
   self.hitSources[ent] = true; return self
 end
 
-function ENT:IsHitNormal(trace)
-  local norm = self:GetNormalDirection()
-  local dotm = LaserLib.GetData("DOTM")
-  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - dotm))
-end
-
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local normal = Vector(0,0,1) -- Local normal direction
   self:SetNormalLocal(normal)
   return self
-end
-
-function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
-  for ent, stat in pairs(self.hitSources) do
-    local idx = self:GetHitSourceID(ent)
-    if(idx) then
-      local trace, data = ent:GetHitReport(idx)
-      if(trace and self:IsHitNormal(trace)) then
-        self.hitSize = self.hitSize + 1 -- Point to next slot
-        self.hitArray[self.hitSize] = ent -- Store source
-      else self.hitSources[ent] = nil end
-    else self.hitSources[ent] = nil end -- The sources order does not matter
-  end
-  local cnt = (self.hitSize + 1) -- Remove the residuals
-  while(self.hitArray[cnt]) do -- Table end check
-    self.hitArray[cnt] = nil -- Wipe cirrent item
-    cnt = (cnt + 1) -- Wipe the rest until empty
-  end; return self -- Sources are located in the table hash part
 end
 
 function ENT:InitSources()
@@ -71,12 +46,19 @@ function ENT:InitSources()
   return self
 end
 
-function ENT:GetNormalDirection(direct, world, angle)
-  if(world) then return direct end
-  local dir = Vector(direct or self:GetNormalLocal())
-  if(angle) then dir:Rotate(angle) else
-    dir:Rotate(self:GetAngles())
-  end; return dir
+function ENT:GetBeamNormal()
+  if(SERVER) then
+    local norm = self:WireRead("Normal", true)
+    if(norm) then norm:Normalize() else
+      norm = self:GetNormalLocal()
+    end -- Make sure length is one unit
+    self:SetNWVector("GetNormalLocal", norm)
+    self:WireWrite("Normal", norm)
+    return norm
+  else
+    local norm = self:GetNormalLocal()
+    return self:GetNWFloat("GetNormalLocal", norm)
+  end
 end
 
 function ENT:SetOn(bool)
@@ -90,6 +72,32 @@ function ENT:GetOn()
   local state = self:GetInPowerOn()
   if(SERVER) then self:DoSound(state) end
   return state
+end
+
+function ENT:IsHitNormal(trace)
+  local norm = Vector(self:GetBeamNormal())
+        norm:Rotate(self:GetAngles())
+  local dotm = LaserLib.GetData("DOTM")
+  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - dotm))
+end
+
+function ENT:UpdateSources()
+  self.hitSize = 0 -- Add sources in array
+  for ent, stat in pairs(self.hitSources) do
+    local idx = self:GetHitSourceID(ent)
+    if(idx) then
+      local trace, data = ent:GetHitReport(idx)
+      if(trace and self:IsHitNormal(trace)) then
+        self.hitSize = self.hitSize + 1 -- Point to next slot
+        self.hitArray[self.hitSize] = ent -- Store source
+      else self.hitSources[ent] = nil end
+    else self.hitSources[ent] = nil end -- The sources order does not matter
+  end
+  local cnt = (self.hitSize + 1) -- Remove the residuals
+  while(self.hitArray[cnt]) do -- Table end check
+    self.hitArray[cnt] = nil -- Wipe cirrent item
+    cnt = (cnt + 1) -- Wipe the rest until empty
+  end; return self -- Sources are located in the table hash part
 end
 
 function ENT:GetHitDominant(ent)
