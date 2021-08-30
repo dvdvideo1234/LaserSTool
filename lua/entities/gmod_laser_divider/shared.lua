@@ -141,9 +141,9 @@ function ENT:DoBeam(src, org, dir, sdat, idx)
   local length = sdat.NvLength
   local damage = sdat.NvDamage / 2
   local force  = sdat.NvForce  / 2
-  local usrfle = sdat.BmSource:GetReflectRatio()
-  local usrfre = sdat.BmSource:GetRefractRatio()
-  local noverm = sdat.BmSource:GetNonOverMater()
+  local usrfle = sdat.BrReflec
+  local usrfre = sdat.BrRefrac
+  local noverm = sdat.BmNoover
   local trace, data = LaserLib.DoBeam(self,
                                       org,
                                       dir,

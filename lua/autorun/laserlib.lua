@@ -19,6 +19,7 @@ DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change t
 DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.1, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
 DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
+DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 
 DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
@@ -45,7 +46,7 @@ DATA.KEYA = "*"
 DATA.CLS = {
   -- Class hashes enabled for creating hit reports via `SetHitReport`
   -- [1] Can the entity be considered and actual beam source
-  -- [2] Does the entity have the editable laser properties
+  -- [2] Does the entity have the inherited editable laser properties
   -- [3] Should the entity be checked for infinete loop sources
   ["gmod_laser"         ] = {true, true , false},
   ["gmod_laser_crystal" ] = {true, true , true },
@@ -70,10 +71,10 @@ DATA.MOD = {
 
 DATA.MAT = {
   "", -- Laser material is changed with the model
-  "models/props_lab/xencrystal_sheet",
+  "models/dog/eyeglass",
   "debug/env_cubemap_model",
-  "models/props_lab/xencrystal_sheet",
-  "models/props_lab/xencrystal_sheet"
+  "models/dog/eyeglass",
+  "models/dog/eyeglass"
 }
 
 DATA.COLOR = {
@@ -644,6 +645,7 @@ if(SERVER) then
   function LaserLib.DoDamage(target   , hitPos     , normal  , beamDir     ,
                              damage   , pushForce  , attacker, dissolveType,
                              killSound, forceCenter, laserEnt)
+    local dmgtm = DATA.DAMAGEDT:GetFloat()
     laserEnt.nextDamage = laserEnt.nextDamage or CurTime()
 
     local phys = target:GetPhysicsObject()
@@ -667,7 +669,7 @@ if(SERVER) then
       if(target:GetClass() == "shield") then
         local damage = math.Clamp(damage / 2500 * 3, 0, 4)
         target:Hit(laserEnt, hitPos, damage, -1 * normal)
-        laserEnt.nextDamage = CurTime() + 0.3
+        laserEnt.nextDamage = CurTime() + dmgtm
         return -- We stop here because we hit a shield!
       end
 
@@ -701,7 +703,7 @@ if(SERVER) then
           target:EmitSound(Sound(killSound))
         end
       else
-        laserEnt.nextDamage = CurTime() + 0.3
+        laserEnt.nextDamage = CurTime() + dmgtm
       end
 
       target:TakeDamage(damage, attacker, laserEnt)
@@ -829,7 +831,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.TrRfract = data.BmLength -- Full length for traces not being bound by hit events
   data.DmRfract = data.BmLength -- Diameter trace-back dimensions of the entity
   data.NvLength = data.BmLength -- The actual beam lengths substracted after iterations
-  data.BmSource = entity -- The beam source. Popilated by some APIs used by others
+  data.BmSource = entity -- The beam source entity. Populated customly depending on the API
+  data.BrReflec = usrfle -- Beam reflection ratio flag. Reduce beam power when reflecting
+  data.BrRefrac = usrfre -- Beam refraction ratio flag. Reduce beam power when refracting
+  data.BmNoover = noverm -- Beam no override material flag. Try to extract original material
+  data.RepIndex = index  -- Beam hit report index. Usually one if not provided
 
   if(data.NvLength <= 0) then return end
   if(not data.TeFilter) then return end
