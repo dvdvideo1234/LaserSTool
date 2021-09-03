@@ -16,10 +16,6 @@ function ENT:InitSources()
   return self
 end
 
-function ENT:RegisterSource(ent)
-  self.hitSources[ent] = true; return self
-end
-
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
   self:PhysicsInit(SOLID_VPHYSICS)

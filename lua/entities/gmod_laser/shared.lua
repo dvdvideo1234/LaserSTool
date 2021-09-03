@@ -343,16 +343,17 @@ end
 
 --[[
  * Removes hit reports from the list
- * iovr > When remove overhead is provided deletes
+ * rovr > When remove overhead is provided deletes
           all entries with larger index
  * Data is stored in notation: self.hitReports[ID]
 ]]
 
-function ENT:RemHitReports(iovr)
+function ENT:RemHitReports(rovr)
   if(self.hitReports) then
     local rep, idx = self.hitReports
-    if(iovr) then
-      idx, rep.Size = (iovr + 1), iovr
+    if(rovr) then
+      local rovr = tonumber(rovr) or 0
+      idx, rep.Size = (rovr + 1), rovr
     else
       idx, rep.Size = 1, 0
     end
