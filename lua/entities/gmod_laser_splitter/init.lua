@@ -24,7 +24,7 @@ function ENT:Initialize()
     {"Length"  , "NORMAL", "Splitter length width"   },
     {"Damage"  , "NORMAL", "Splitter damage width"   },
     {"Force"   , "NORMAL", "Splitter force amount"   },
-    {"Entity"  , "ENTITY", "Splitter crystal entity" },
+    {"Entity"  , "ENTITY", "Splitter entity itself"  },
     {"Dominant", "ENTITY", "Splitter dominant entity"}
   )
 

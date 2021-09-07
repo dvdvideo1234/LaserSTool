@@ -30,7 +30,7 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
     {"Focusing", "NORMAL", "How many sources are focused"},
-    {"Entity"  , "ENTITY", "Concentrator crystal entity" },
+    {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },
     {"Array"   , "ARRAY" , "Concentrated sources array"  }

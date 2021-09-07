@@ -7,9 +7,12 @@ resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 function ENT:InitSources()
   if(self.hitSources) then
     table.Empty(self.hitSources)
+    table.Empty(self.hitArray)
   else
     self.hitSources = {} -- Sources in notation `[ent] = true`
+    self.hitArray   = {} -- Array to output for wiremod
   end
+  self.hitSize = 0       -- Amount of sources to have
   return self
 end
 
@@ -19,13 +22,14 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateOutputs(
-    {"On"      , "NORMAL", "Splitter working state"  },
-    {"Width"   , "NORMAL", "Splitter beam width"     },
-    {"Length"  , "NORMAL", "Splitter length width"   },
-    {"Damage"  , "NORMAL", "Splitter damage width"   },
-    {"Force"   , "NORMAL", "Splitter force amount"   },
-    {"Entity"  , "ENTITY", "Splitter crystal entity" },
-    {"Dominant", "ENTITY", "Splitter dominant entity"}
+    {"On"      , "NORMAL", "Sensor enabled state"  },
+    {"Width"   , "NORMAL", "Sensor beam width"     },
+    {"Length"  , "NORMAL", "Sensor length width"   },
+    {"Damage"  , "NORMAL", "Sensor damage width"   },
+    {"Force"   , "NORMAL", "Sensor force amount"   },
+    {"Entity"  , "ENTITY", "Sensor entity itself"  },
+    {"Dominant", "ENTITY", "Sensor dominant entity"}
+    {"Array"   , "ARRAY" , "Sensor sources array"  }
   )
 
   local phys = self:GetPhysicsObject()
@@ -74,9 +78,6 @@ function ENT:SpawnFunction(ply, tr)
     ent:Activate()
     ent:PhysWake()
     ent:SetBeamTransform()
-    ent:SetBeamCount(LaserLib.GetData("NSPLITER"):GetInt())
-    ent:SetBeamLeanX(LaserLib.GetData("XSPLITER"):GetFloat())
-    ent:SetBeamLeanY(LaserLib.GetData("YSPLITER"):GetFloat())
     return ent
   end; return nil
 end

@@ -12,10 +12,11 @@ DATA.MBOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maxim
 DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the crystal model")
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
-DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
-DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the splitter outputs count", 0, 16)
-DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the splitter X direction", 0, 1)
-DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the splitter Y direction", 0, 1)
+DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
+DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
+DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
+DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
+DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
 DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.1, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
 DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
@@ -56,7 +57,8 @@ DATA.CLS = {
   "gmod_laser_crystal" , -- Laser crystal class
   "prop_physics"       , -- Laser reflectors class
   "gmod_laser_splitter", -- Laser beam splitter
-  "gmod_laser_divider"   -- Laser beam divider
+  "gmod_laser_divider" , -- Laser beam divider
+  "gmod_laser_sensor"    -- Laser beam sensor
 }
 
 DATA.MOD = {
@@ -66,14 +68,16 @@ DATA.MOD = {
   DATA.MCRYSTAL:GetString(),
   DATA.MREFLECT:GetString(),
   DATA.MSPLITER:GetString(),
-  DATA.MDIVIDER:GetString()
+  DATA.MDIVIDER:GetString(),
+  DATA.MSENSOR:GetString()
 }
 
 DATA.MAT = {
   "", -- Laser material is changed with the model
-  "models/dog/eyeglass",
+  "models/dog/eyeglass"    ,
   "debug/env_cubemap_model",
-  "models/dog/eyeglass",
+  "models/dog/eyeglass"    ,
+  "models/dog/eyeglass"    ,
   "models/dog/eyeglass"
 }
 
