@@ -29,10 +29,10 @@ function ENT:Initialize()
     {"Length"  , "NORMAL", "Concentrator length width"   },
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
-    {"Focusing", "NORMAL", "How many sources are focused"},
     {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },
+    {"Count"   , "NORMAL", "Concentrated sources count"  },
     {"Array"   , "ARRAY" , "Concentrated sources array"  }
   )
 
@@ -247,7 +247,7 @@ function ENT:Think()
   end
 
   self:WireWrite("Array", self.hitArray)
-  self:WireWrite("Focusing", self.hitSize)
+  self:WireWrite("Count", self.hitSize)
   self:NextThink(CurTime())
 
   return true

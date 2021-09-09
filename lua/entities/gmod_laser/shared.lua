@@ -201,9 +201,10 @@ end
 function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
+    local enb = LaserLib.GetData("ENSOUNDS")
     local pos, idx = self:GetPos(), self:EntIndex()
-    local cls, enb = self:GetClass(), LaserLib.GetData("ENSOUNDS")
-    if(cls == "gmod_laser" or (enb and enb:GetBool())) then
+    local cls, mcs = self:GetClass(), LaserLib.GetClass(1)
+    if(cls == mcs or enb:GetBool()) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())
       else -- User shuts the entity off

@@ -28,7 +28,8 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Sensor damage width"   },
     {"Force"   , "NORMAL", "Sensor force amount"   },
     {"Entity"  , "ENTITY", "Sensor entity itself"  },
-    {"Dominant", "ENTITY", "Sensor dominant entity"}
+    {"Dominant", "ENTITY", "Sensor dominant entity"},
+    {"Count"   , "NORMAL", "Sensor sources count"  },
     {"Array"   , "ARRAY" , "Sensor sources array"  }
   )
 
@@ -63,16 +64,16 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(4))
+  local ent = ents.Create(LaserLib.GetClass(6))
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(4))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(6))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    ent:SetModel(LaserLib.GetModel(4))
+    ent:SetModel(LaserLib.GetModel(6))
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
