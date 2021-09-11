@@ -40,9 +40,6 @@ function ENT:Initialize()
   self:InitSources()
   self:SetPushForce(0)
   self:SetBeamWidth(0)
-  self:SetBeamCount(0)
-  self:SetBeamLeanX(0)
-  self:SetBeamLeanY(0)
   self:SetBeamLength(0)
   self:SetDamageAmount(0)
   self:SetStopSound("")
@@ -78,115 +75,106 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetCreator(ply)
     ent:Activate()
     ent:PhysWake()
-    ent:SetBeamTransform()
+    LaserLib.SetPlayer(ent, ply)
     return ent
   end; return nil
 end
 
-function ENT:GetDominant()
-  local opower, doment, report
+function ENT:UpdateSources()
+  self.hitSize = 0 -- Add sources in array
   for ent, stat in pairs(self.hitSources) do
-    if(LaserLib.IsValid(ent)) then
-      local idx = self:GetHitSourceID(ent)
-      if(idx) then -- Only one beam can be the input
-        for cnt = 1, ent:GetHitReports().Size do
-          local trace, data = ent:GetHitReport(cnt)
-          if(trace and trace.Hit and data) then
-            local npower = LaserLib.GetPower(data.NvWidth,
-                                             data.NvDamage)
-            if(not opower or npower >= opower) then
-              opower = npower
-              doment = ent
-              report = cnt
+    if(self:GetHitSourceID(ent)) then -- Check the thing
+      self.hitSize = self.hitSize + 1 -- Point to next slot
+      self.hitArray[self.hitSize] = ent -- Store source
+    else -- When not a source. Delete the slot
+      self.hitSources[ent] = nil -- Wipe out the entry
+    end -- The sources order does not matter
+  end
+  local cnt = (self.hitSize + 1) -- Remove the residuals
+  while(self.hitArray[cnt]) do -- Table end check
+    self.hitArray[cnt] = nil -- Wipe cirrent item
+    cnt = (cnt + 1) -- Wipe the rest until empty
+  end
+  if(self.hitSize > 0) then
+    self:WireWrite("Count", self.hitSize)
+    self:WireWrite("Array", self.hitArray)
+  else
+    self:WireWrite("Count", 0)
+    self:WireWrite("Array")
+  end
+  return self -- Sources are located in the table hash part
+end
+
+function ENT:UpdateDominant()
+  local opower, npower, force  = 0, 0, 0
+  local width , length, damage = 0, 0, 0
+  local apower, doment = 0 -- Dominant source
+
+  if(self.hitSize > 0) then
+    for cnt = 1, self.hitSize do
+      local ent = self.hitArray[cnt]
+      if(LaserLib.IsValid(ent)) then
+        local idx = self:GetHitSourceID(ent)
+        if(idx) then
+          for cnt = 1, ent:GetHitReports().Size do
+            local hit = self:GetHitSourceID(ent, cnt)
+            if(hit) then
+              local trace, data = ent:GetHitReport(hit)
+              if(trace and trace.Hit and data) then
+                npower = LaserLib.GetPower(data.NvWidth,
+                                           data.NvDamage)
+                if(npower > opower) then
+                  width  = width  + data.NvWidth
+                  length = length + data.NvLength
+                  damage = damage + data.NvDamage
+                  force  = force  + data.NvForce
+                  doment, opower = ent, npower
+                end
+              end
             end
           end
         end
-      else self.hitSources[ent] = nil end
-    else self.hitSources[ent] = nil end
-  end
-
-  if(not LaserLib.IsValid(doment)) then return nil end
-  local dom = doment:GetHitDominant(self)
-  if(not LaserLib.IsValid(dom)) then return nil end
-  local count = self:GetBeamCount()
-  if(count > 0) then
-    local trace, data = doment:GetHitReport(report)
-    if(data) then -- Dominant result hit
-      self:SetPushForce(data.NvForce / count)
-      self:SetBeamWidth(data.NvWidth / count)
-      self:SetBeamLength(data.NvLength)
-      self:SetDamageAmount(data.NvDamage / count)
-    else -- Dominant did not hit anything
-      self:SetPushForce(dom:GetPushForce() / count)
-      self:SetBeamWidth(dom:GetBeamWidth() / count)
-      self:SetBeamLength(dom:GetBeamLength())
-      self:SetDamageAmount(dom:GetDamageAmount() / count)
-    end -- The most powerful source (biggest damage/width)
-  else
-    self:SetPushForce(0)
-    self:SetBeamWidth(0)
-    self:SetBeamLength(0)
-    self:SetDamageAmount(0)
-  end
-  self:SetStopSound(dom:GetStopSound())
-  self:SetKillSound(dom:GetKillSound())
-  self:SetBeamColor(dom:GetBeamColor())
-  self:SetStartSound(dom:GetStartSound())
-  self:SetBeamMaterial(dom:GetBeamMaterial())
-  self:SetDissolveType(dom:GetDissolveType())
-  self:SetEndingEffect(dom:GetEndingEffect())
-  self:SetReflectRatio(dom:GetReflectRatio())
-  self:SetRefractRatio(dom:GetRefractRatio())
-  self:SetForceCenter(dom:GetForceCenter())
-  self:SetNonOverMater(dom:GetNonOverMater())
-
-  -- We set the same non-addable properties
-  self:WireWrite("Dominant", dom)
-  LaserLib.SetPlayer(self, (dom.ply or dom.player))
-
-  return dom
-end
-
-function ENT:Think()
-  self:UpdateVectors()
-  local mcount = self:GetBeamCount()
-  local mwidth = self:GetBeamWidth()
-  local mdamage = self:GetDamageAmount()
-  local mdoment = self:GetDominant()
-  local mpower = LaserLib.GetPower(mwidth, mdamage)
-  if(mcount > 0 and
-     LaserLib.IsValid(mdoment) and
-     math.floor(mpower) > 0) then
-    self:SetOn(true)
+      end
+    end
+    self:WireWrite("Width" , width)
+    self:WireWrite("Length", length)
+    self:WireWrite("Damage", damage)
+    self:WireWrite("Force" , force)
+    self:WireWrite("Dominant", doment)
+    -- Read sensor configuration
+    local mforce  = self:GetPushForce()
+    local mwidth  = self:GetBeamWidth()
+    local mlength = self:GetBeamLength()
+    local mdamage = self:GetDamageAmount()
+    -- Check whenever sensor has to turn on
+    if((mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
+       (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
+       (mlength == 0 or (mlength > 0 and length >= mlength)) and
+       (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
+      self:SetOn(true)
+    else
+      self:SetOn(false)
+    end
   else
     self:SetOn(false)
-  end
-
-  if(self:GetOn()) then
-    local direc = self:GetDirectLocal()
-    if(mcount > 1) then
-      local delta = 360 / mcount
-      local marbx = self:GetBeamLeanX()
-      local marby = self:GetBeamLeanY()
-      local eleva = self:GetElevatLocal()
-      local angle = direc:AngleEx(eleva)
-      for index = 1, mcount do
-        local dir = marby * angle:Up()
-              dir:Add(marbx * angle:Forward())
-        self:DoDamage(self:DoBeam(nil, dir, index))
-        angle:RotateAroundAxis(direc, delta)
-      end
-    else
-      self:DoDamage(self:DoBeam(nil, direc))
-    end
-    self:RemHitReports(mcount)
-  else
-    self:RemHitReports()
     self:WireWrite("Width" , 0)
     self:WireWrite("Length", 0)
     self:WireWrite("Damage", 0)
     self:WireWrite("Force" , 0)
     self:WireWrite("Dominant")
+  end
+
+  return self
+end
+
+function ENT:Think()
+  self:UpdateSources()
+  self:UpdateDominant()
+
+  if(self:GetOn()) then
+    self:WireWrite("On", 1)
+  else
+    self:WireWrite("On", 0)
   end
 
   self:NextThink(CurTime())
