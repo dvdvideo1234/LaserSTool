@@ -145,10 +145,6 @@ function ENT:GetBeamLeanY()
   return self:GetInBeamLeanY()
 end
 
-function ENT:RegisterSource(ent)
-  self.hitSources[ent] = true; return self
-end
-
 function ENT:DoBeam(org, dir, idx)
   local count = self:GetBeamCount()
   local force  = self:GetPushForce() / count

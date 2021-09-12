@@ -13,7 +13,7 @@ DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery0
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
-DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
+DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery03a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
@@ -27,8 +27,11 @@ DATA.TOOL = "laseremitter"  -- Tool name for internal use
 DATA.ICON = "icon16/%s.png" -- Format to convert icons
 DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
-DATA.POWL = 0.001           -- Lowest bounds of laser power
+DATA.RNDB = 3               -- Decimals beam round for visibility check
+DATA.KWID = 5               -- Width coefficient used to calculate power
+DATA.MINW = 0.1             -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
+DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.NMAR = 0.0001          -- Margin amount to push vectors with
 DATA.ERAD = 2               -- Entity radius coefficient for traces
 DATA.NTIF = {}              -- User notification configuration type
@@ -48,11 +51,12 @@ DATA.CLS = {
   -- Class hashes enabled for creating hit reports via `SetHitReport`
   -- [1] Can the entity be considered and actual beam source
   -- [2] Does the entity have the inherited editable laser properties
-  -- [3] Should the entity be checked for infinete loop sources
-  ["gmod_laser"         ] = {true, true , false},
-  ["gmod_laser_crystal" ] = {true, true , true },
-  ["gmod_laser_splitter"] = {true, true , true },
-  ["gmod_laser_divider" ] = {true, false, false},
+  -- [3] Should the entity be checked for infinite loop sources
+  ["gmod_laser"         ] = {true , true , false},
+  ["gmod_laser_crystal" ] = {true , true , true },
+  ["gmod_laser_splitter"] = {true , true , true },
+  ["gmod_laser_divider" ] = {true , false, false},
+  ["gmod_laser_sensor"  ] = {false, true , false},
   "gmod_laser"         , -- Laser entity calss
   "gmod_laser_crystal" , -- Laser crystal class
   "prop_physics"       , -- Laser reflectors class
@@ -61,15 +65,13 @@ DATA.CLS = {
   "gmod_laser_sensor"    -- Laser beam sensor
 }
 
-DATA.MOD = {
-  -- Model used by the entities menu
-  "", -- Laser model is changed via laser tool
-  -- Portal cube: models/props/reflection_cube.mdl
-  DATA.MCRYSTAL:GetString(),
+DATA.MOD = { -- Model used by the entities menu
+  "", -- Laser model is changed via laser tool. Variable is not needed.
+  DATA.MCRYSTAL:GetString(), -- Portal cube: models/props/reflection_cube.mdl
   DATA.MREFLECT:GetString(),
   DATA.MSPLITER:GetString(),
   DATA.MDIVIDER:GetString(),
-  DATA.MSENSOR:GetString()
+  DATA.MSENSOR:GetString()   -- Portal catcher: models/props/laser_catcher_center.mdl
 }
 
 DATA.MAT = {
@@ -164,11 +166,15 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurites
   ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
   ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
-  ["models/props_combine/com_shield001a"]       = {1.573, 0.853},
+  ["models/props_combine/com_shield001a"]       = {1.573, 0.653},
   ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurites
   ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
   ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles glass
-  ["models/props_combine/combine_door01_glass"] = {1.583, 0.841}  -- Bit darker glass
+  ["models/props_combine/combine_door01_glass"] = {1.583, 0.341}, -- Bit darker glass
+  ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Bit darker glass
+  ["models/props_combine/citadel_cable"]        = {1.583, 0.841}, -- Dark glass
+  ["models/props_combine/citadel_cable_b"]      = {1.583, 0.841}, -- Dark glass
+  ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
 DATA.MATYPE = {
@@ -235,6 +241,17 @@ cvars.AddChangeCallback(DATA.MDIVIDER:GetName(),
     else DATA.MOD[5] = m end
   end,
 DATA.MDIVIDER:GetName())
+
+cvars.RemoveChangeCallback(DATA.MSENSOR:GetName(), DATA.MSENSOR:GetName())
+cvars.AddChangeCallback(DATA.MSENSOR:GetName(),
+  function(name, o, n)
+    local m = tostring(n):Trim()
+    if(m:sub(1,1) == DATA.KEYD) then
+      DATA.MOD[6] = DATA.MSENSOR:GetDefault()
+      DATA.MSENSOR:SetString(DATA.MOD[6])
+    else DATA.MOD[6] = m end
+  end,
+DATA.MSENSOR:GetName())
 
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
   if(StarGate ~= nil) then
@@ -353,13 +370,11 @@ function LaserLib.GetRatio()
   return DATA.GRAT
 end
 
-function LaserLib.IsSource(ent, idx)
+function LaserLib.IsUnit(ent, idx)
   if(not LaserLib.IsValid(ent)) then return false end
   local set = DATA.CLS[ent:GetClass()]
   if(not set) then return false end
-  local idx = (tonumber(idx) or 1)
-        idx = math.floor(math.max(idx, 1))
-  if(not set[idx]) then return false end
+  if(not idx) then return true end
   return set[idx]
 end
 
@@ -453,10 +468,10 @@ end
 
 --[[
  * Makes the width visible when different than zero
- * width > The value to apply the transofrmation on
+ * width > The value to apply beam transformation
 ]]
 function LaserLib.GetWidth(width)
-  local out = math.max(width, 0.1)
+  local out = math.max(width, DATA.MINW)
   return ((width > 0) and out or 0)
 end
 
@@ -466,7 +481,16 @@ end
  * damage > Laser beam damage
 ]]
 function LaserLib.GetPower(width, damage)
-  return (5 * width + damage)
+  return (DATA.KWID * width + damage)
+end
+
+--[[
+ * Returns true whenever the width is still visible
+ * width > The value to chack beam visiblility
+]]
+function LaserLib.IsPower(width, damage)
+  local power = LaserLib.GetPower(width, damage)
+  return (math.Round(power, DATA.RNDB) > DATA.MINW)
 end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
@@ -879,7 +903,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       end -- Continue straight and ignore the zero fraction node
     end -- Do not put a node when beam starts in a solid
 
-    if(trace.Hit and not LaserLib.IsSource(trace.Entity)) then
+    if(trace.Hit and not LaserLib.IsUnit(trace.Entity)) then
       -- Refresh medium pass trough information
       data.NvBounce = data.NvBounce - 1
       -- Register a hit so reduce bounces count
@@ -1091,7 +1115,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     data.RaLength = data.RaLength - data.NvLength
   end
 
-  if(LaserLib.IsSource(entity)) then
+  if(LaserLib.IsUnit(entity)) then
     if(entity.SetHitReport) then
       -- Update the current beam source hit report
       -- This is done to know what we just hit
@@ -1152,24 +1176,24 @@ function LaserLib.SetupMaterials()
   language.Add("laser.effects.redlaser1"     , "Red Laser Effect"  )
 
   table.Empty(list.GetForEdit("LaserEmitterMaterials"))
-  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , "cable/cable"                             )
-  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , "cable/cable2"                            )
-  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , "models/effects/splodearc_sheet"          )
-  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , "models/props_lab/warp_sheet"             )
-  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , "cable/xbeam"                             )
-  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , "cable/redlaser"                          )
-  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", "cable/blue_elec"                         )
-  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam"       , "cable/physbeam"                          )
-  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"          , "cable/hydra"                             )
-  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , "cable/crystal_beam1"                     )
-  list.Set("LaserEmitterMaterials", "#trail.plasma"                , "trails/plasma"                           )
-  list.Set("LaserEmitterMaterials", "#trail.electric"              , "trails/electric"                         )
-  list.Set("LaserEmitterMaterials", "#trail.smoke"                 , "trails/smoke"                            )
-  list.Set("LaserEmitterMaterials", "#trail.laser"                 , "trails/laser"                            )
-  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , "models/alyx/emptool_glow"                )
-  list.Set("LaserEmitterMaterials", "#trail.love"                  , "trails/love"                             )
-  list.Set("LaserEmitterMaterials", "#trail.lol"                   , "trails/lol"                              )
-  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , "effects/redlaser1"                       )
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , "cable/cable"                   )
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , "cable/cable2"                  )
+  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , "models/effects/splodearc_sheet")
+  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , "models/props_lab/warp_sheet"   )
+  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , "cable/xbeam"                   )
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , "cable/redlaser"                )
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", "cable/blue_elec"               )
+  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam"       , "cable/physbeam"                )
+  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"          , "cable/hydra"                   )
+  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , "cable/crystal_beam1"           )
+  list.Set("LaserEmitterMaterials", "#trail.plasma"                , "trails/plasma"                 )
+  list.Set("LaserEmitterMaterials", "#trail.electric"              , "trails/electric"               )
+  list.Set("LaserEmitterMaterials", "#trail.smoke"                 , "trails/smoke"                  )
+  list.Set("LaserEmitterMaterials", "#trail.laser"                 , "trails/laser"                  )
+  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , "models/alyx/emptool_glow"      )
+  list.Set("LaserEmitterMaterials", "#trail.love"                  , "trails/love"                   )
+  list.Set("LaserEmitterMaterials", "#trail.lol"                   , "trails/lol"                    )
+  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , "effects/redlaser1"             )
 end
 
 function LaserLib.SetupModels()
@@ -1198,6 +1222,7 @@ function LaserLib.SetupModels()
     table.insert(data, {"models/props_bts/rocket.mdl"})
     table.insert(data, {"models/props/cake/cake.mdl",90})
     table.insert(data, {"models/Weapons/w_portalgun.mdl",180})
+    table.insert(data, {"models/props/laser_emitter_center.mdl"})
     table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
     table.insert(data, {"models/props/water_bottle/water_bottle.mdl",90})
   end

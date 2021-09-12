@@ -110,7 +110,7 @@ function ENT:GetHitDominant(ent)
         if(npower >= opower) then opower, doment = npower, data.BmSource end
       end
     end
-    if(LaserLib.IsSource(doment, 2)) then
+    if(LaserLib.IsUnit(doment, 2)) then
       return doment
     else return nil end
   end; return nil
@@ -163,7 +163,7 @@ function ENT:DoBeam(src, org, dir, sdat, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  if(LaserLib.IsSource(src, 2)) then
+  if(LaserLib.IsUnit(src, 2)) then
     data.BmSource = src -- Initial stage store laser
   else -- Make sure we always know which laser is source
     data.BmSource = sdat.BmSource -- Inherit previous laser

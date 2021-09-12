@@ -4,6 +4,10 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 
+function ENT:RegisterSource(ent)
+  self.hitSources[ent] = true; return self
+end
+
 function ENT:InitSources()
   if(self.hitSources) then
     table.Empty(self.hitSources)
@@ -116,18 +120,18 @@ function ENT:UpdateDominant()
       if(LaserLib.IsValid(ent)) then
         local idx = self:GetHitSourceID(ent)
         if(idx) then
-          for cnt = 1, ent:GetHitReports().Size do
-            local hit = self:GetHitSourceID(ent, cnt)
+          for cdx = 1, ent:GetHitReports().Size do
+            local hit = self:GetHitSourceID(ent, cdx)
             if(hit) then
               local trace, data = ent:GetHitReport(hit)
               if(trace and trace.Hit and data) then
                 npower = LaserLib.GetPower(data.NvWidth,
                                            data.NvDamage)
+                width  = width  + data.NvWidth
+                damage = damage + data.NvDamage
+                force  = force  + data.NvForce
                 if(npower > opower) then
-                  width  = width  + data.NvWidth
-                  length = length + data.NvLength
-                  damage = damage + data.NvDamage
-                  force  = force  + data.NvForce
+                  length = data.NvLength
                   doment, opower = ent, npower
                 end
               end

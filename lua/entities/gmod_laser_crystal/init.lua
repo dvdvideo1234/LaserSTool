@@ -4,6 +4,10 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
+function ENT:RegisterSource(ent)
+  self.hitSources[ent] = true; return self
+end
+
 function ENT:InitSources()
   if(self.hitSources) then
     table.Empty(self.hitSources)
@@ -126,8 +130,8 @@ function ENT:UpdateDominant(ent, pow)
       for cnt = 1, ent:GetHitReports().Size do
         local trace, data = ent:GetHitReport(cnt)
         if(trace and trace.Hit and data) then
-          force = force + data.NvForce
-          width = width + data.NvWidth
+          force  = force  + data.NvForce
+          width  = width  + data.NvWidth
           damage = damage + data.NvDamage
         end
       end
@@ -139,6 +143,7 @@ function ENT:UpdateDominant(ent, pow)
       self:SetBeamWidth(dom:GetBeamWidth())
       self:SetDamageAmount(dom:GetDamageAmount())
     end
+
     self:SetBeamLength(dom:GetBeamLength())
   end
 
@@ -207,11 +212,10 @@ end
 function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetDamageAmount()
-  local mpower = LaserLib.GetPower(mwidth, mdamage)
 
   self:UpdateSources()
 
-  if(self.hitSize > 0 and math.floor(mpower) > 0) then
+  if(self.hitSize > 0 and LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)
@@ -242,6 +246,7 @@ function ENT:Think()
   else
     self:RemHitReports()
     self:WireWrite("Hit", 0)
+    self:WireWrite("Range", 0)
     self:WireWrite("Target")
     self:WireWrite("Dominant")
   end

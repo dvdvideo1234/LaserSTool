@@ -4,6 +4,10 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_splitter.vmt")
 
+function ENT:RegisterSource(ent)
+  self.hitSources[ent] = true; return self
+end
+
 function ENT:InitSources()
   if(self.hitSources) then
     table.Empty(self.hitSources)
@@ -82,7 +86,7 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:GetDominant()
-  local opower, doment, report
+  local apower, opower, doment, report = 0
   for ent, stat in pairs(self.hitSources) do
     if(LaserLib.IsValid(ent)) then
       local idx = self:GetHitSourceID(ent)
@@ -92,6 +96,9 @@ function ENT:GetDominant()
           if(trace and trace.Hit and data) then
             local npower = LaserLib.GetPower(data.NvWidth,
                                              data.NvDamage)
+            if(not self:IsInfinite(ent)) then
+              apower = apower + npower
+            end
             if(not opower or npower >= opower) then
               opower = npower
               doment = ent
@@ -110,15 +117,19 @@ function ENT:GetDominant()
   if(count > 0) then
     local trace, data = doment:GetHitReport(report)
     if(data) then -- Dominant result hit
-      self:SetPushForce(data.NvForce / count)
-      self:SetBeamWidth(data.NvWidth / count)
-      self:SetBeamLength(data.NvLength)
-      self:SetDamageAmount(data.NvDamage / count)
+      self:SetPushForce(data.NvForce)
+      self:SetBeamWidth(data.NvWidth)
+      self:SetDamageAmount(data.NvDamage)
+      if(apower > 0) then
+        self:SetBeamLength(data.NvLength)
+      else -- When looping use the initial length
+        self:SetBeamLength(data.BmLength)
+      end -- Apply length based on looping
     else -- Dominant did not hit anything
-      self:SetPushForce(dom:GetPushForce() / count)
-      self:SetBeamWidth(dom:GetBeamWidth() / count)
+      self:SetPushForce(dom:GetPushForce())
+      self:SetBeamWidth(dom:GetBeamWidth())
+      self:SetDamageAmount(dom:GetDamageAmount())
       self:SetBeamLength(dom:GetBeamLength())
-      self:SetDamageAmount(dom:GetDamageAmount() / count)
     end -- The most powerful source (biggest damage/width)
   else
     self:SetPushForce(0)
@@ -151,10 +162,9 @@ function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetDamageAmount()
   local mdoment = self:GetDominant()
-  local mpower = LaserLib.GetPower(mwidth, mdamage)
   if(mcount > 0 and
      LaserLib.IsValid(mdoment) and
-     math.floor(mpower) > 0) then
+     LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)

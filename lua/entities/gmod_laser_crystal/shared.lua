@@ -75,7 +75,3 @@ end
 function ENT:GetPushForce()
   return self:GetInPushForce()
 end
-
-function ENT:RegisterSource(ent)
-  self.hitSources[ent] = true; return self
-end
