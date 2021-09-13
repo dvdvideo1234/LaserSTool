@@ -201,8 +201,7 @@ end
 function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
-    local enb = LaserLib.GetData("ENSOUNDS")
-    local pos, idx = self:GetPos(), self:EntIndex()
+    local pos, enb = self:GetPos(), LaserLib.GetData("ENSOUNDS")
     local cls, mcs = self:GetClass(), LaserLib.GetClass(1)
     if(cls == mcs or enb:GetBool()) then
       if(state) then -- Activating laser for given position
@@ -427,10 +426,12 @@ function ENT:GetHitReport(index)
 end
 
 --[[
+ * Custom way to recalculate the correct dominant
  * Override this when the entity is pass trough
  * Dominat is calcualted from its sources
+ * ent > The base entity which issues the hit dominant
 ]]
-function ENT:GetHitDominant()
+function ENT:GetHitDominant(ent)
   return self
 end
 

@@ -11,6 +11,51 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
 
+function ENT:SetupDataTables()
+  self:EditableSetVector("NormalLocal"   , "General")
+  self:EditableSetBool  ("ForceCenter"   , "General")
+  self:EditableSetBool  ("ReflectRatio"  , "Material")
+  self:EditableSetBool  ("RefractRatio"  , "Material")
+  self:EditableSetBool  ("InPowerOn"     , "Internals")
+  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, 30)
+  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, 50000)
+  self:EditableSetFloat ("InDamageAmount", "Internals", 0, 5000)
+  self:EditableSetFloat ("InPushForce"   , "Internals", 0, 50000)
+  self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
+  self:EditableSetBool("InNonOverMater"  , "Internals")
+  self:EditableSetBool("EndingEffect"    , "Visuals")
+  self:EditableSetVectorColor("BeamColor", "Visuals")
+  self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+end
+
+function ENT:SetBeamTransform()
+  local normal = Vector(0,0,1) -- Local normal direction
+  self:SetNormalLocal(normal)
+  return self
+end
+
+function ENT:GetBeamNormal()
+  if(SERVER) then
+    local norm = self:WireRead("Normal", true)
+    if(norm) then norm:Normalize() else
+      norm = self:GetNormalLocal()
+    end -- Make sure length is one unit
+    self:SetNWVector("GetNormalLocal", norm)
+    self:WireWrite("Normal", norm)
+    return norm
+  else
+    local norm = self:GetNormalLocal()
+    return self:GetNWFloat("GetNormalLocal", norm)
+  end
+end
+
+function ENT:IsHitNormal(trace)
+  local norm = Vector(self:GetBeamNormal())
+        norm:Rotate(self:GetAngles())
+  local dotm = LaserLib.GetData("DOTM")
+  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - dotm))
+end
+
 function ENT:SetOn(bool)
   local state = tobool(bool)
   self:SetInPowerOn(state)

@@ -13,7 +13,7 @@ DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery0
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
-DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery03a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
+DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_lab/jar01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
@@ -29,7 +29,7 @@ DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.RNDB = 3               -- Decimals beam round for visibility check
 DATA.KWID = 5               -- Width coefficient used to calculate power
-DATA.MINW = 0.1             -- Mininum width to be considered visible
+DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.NMAR = 0.0001          -- Margin amount to push vectors with
@@ -80,7 +80,7 @@ DATA.MAT = {
   "debug/env_cubemap_model",
   "models/dog/eyeglass"    ,
   "models/dog/eyeglass"    ,
-  "models/dog/eyeglass"
+  "models/props_combine/metal_combinebridge001"
 }
 
 DATA.COLOR = {
@@ -172,8 +172,10 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles glass
   ["models/props_combine/combine_door01_glass"] = {1.583, 0.341}, -- Bit darker glass
   ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Bit darker glass
-  ["models/props_combine/citadel_cable"]        = {1.583, 0.841}, -- Dark glass
-  ["models/props_combine/citadel_cable_b"]      = {1.583, 0.841}, -- Dark glass
+  ["models/props_combine/citadel_cable"]        = {1.583, 0.441}, -- Dark glass
+  ["models/props_combine/citadel_cable_b"]      = {1.583, 0.441}, -- Dark glass
+  ["models/props_combine/pipes01"]              = {1.583, 0.911}, -- Dark glass other
+  ["models/props_combine/pipes03"]              = {1.583, 0.911}, -- Dark glass other
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
@@ -489,8 +491,9 @@ end
  * width > The value to chack beam visiblility
 ]]
 function LaserLib.IsPower(width, damage)
+  local margn = DATA.KWID * DATA.MINW
   local power = LaserLib.GetPower(width, damage)
-  return (math.Round(power, DATA.RNDB) > DATA.MINW)
+  return (math.Round(power, DATA.RNDB) > margn)
 end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
@@ -1208,6 +1211,7 @@ function LaserLib.SetupModels()
     {"models/props_junk/popcan01a.mdl",90},
     {"models/props_c17/pottery01a.mdl",90},
     {"models/props_c17/pottery02a.mdl",90},
+    {"models/props_c17/pottery03a.mdl",90},
     {"models/props_c17/pottery04a.mdl",90},
     {"models/props_c17/pottery05a.mdl",90},
     {"models/jaanus/thruster_flat.mdl",90},

@@ -86,7 +86,7 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:GetDominant()
-  local apower, opower, doment, report = 0
+  local opower, doment, report
   for ent, stat in pairs(self.hitSources) do
     if(LaserLib.IsValid(ent)) then
       local idx = self:GetHitSourceID(ent)
@@ -96,9 +96,6 @@ function ENT:GetDominant()
           if(trace and trace.Hit and data) then
             local npower = LaserLib.GetPower(data.NvWidth,
                                              data.NvDamage)
-            if(not self:IsInfinite(ent)) then
-              apower = apower + npower
-            end
             if(not opower or npower >= opower) then
               opower = npower
               doment = ent
@@ -120,10 +117,10 @@ function ENT:GetDominant()
       self:SetPushForce(data.NvForce)
       self:SetBeamWidth(data.NvWidth)
       self:SetDamageAmount(data.NvDamage)
-      if(apower > 0) then
-        self:SetBeamLength(data.NvLength)
-      else -- When looping use the initial length
+      if(self:IsInfinite(doment)) then
         self:SetBeamLength(data.BmLength)
+      else -- When not looping use the remaining
+        self:SetBeamLength(data.NvLength)
       end -- Apply length based on looping
     else -- Dominant did not hit anything
       self:SetPushForce(dom:GetPushForce())

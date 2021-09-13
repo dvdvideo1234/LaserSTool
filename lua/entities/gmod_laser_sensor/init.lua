@@ -25,8 +25,11 @@ function ENT:Initialize()
   self:PhysicsInit(SOLID_VPHYSICS)
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
-  self:WireCreateOutputs(
+  self:WireCreateInputs(
+    {"Normal"  , "VECTOR", "Sensor surface normal" }
+  ):WireCreateOutputs(
     {"On"      , "NORMAL", "Sensor enabled state"  },
+    {"Normal"  , "VECTOR", "Sensor surface normal" },
     {"Width"   , "NORMAL", "Sensor beam width"     },
     {"Length"  , "NORMAL", "Sensor length width"   },
     {"Damage"  , "NORMAL", "Sensor damage width"   },
@@ -79,6 +82,7 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetCreator(ply)
     ent:Activate()
     ent:PhysWake()
+    ent:SetBeamTransform()
     LaserLib.SetPlayer(ent, ply)
     return ent
   end; return nil
@@ -124,7 +128,7 @@ function ENT:UpdateDominant()
             local hit = self:GetHitSourceID(ent, cdx)
             if(hit) then
               local trace, data = ent:GetHitReport(hit)
-              if(trace and trace.Hit and data) then
+              if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
                 npower = LaserLib.GetPower(data.NvWidth,
                                            data.NvDamage)
                 width  = width  + data.NvWidth
@@ -151,7 +155,8 @@ function ENT:UpdateDominant()
     local mlength = self:GetBeamLength()
     local mdamage = self:GetDamageAmount()
     -- Check whenever sensor has to turn on
-    if((mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
+    if(LaserLib.IsValid(doment) and
+       (mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
        (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
        (mlength == 0 or (mlength > 0 and length >= mlength)) and
        (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
