@@ -4,6 +4,10 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
+function ENT:RegisterSource(ent)
+  self.hitSources[ent] = true; return self
+end
+
 function ENT:InitSources()
   if(self.hitSources) then
     table.Empty(self.hitSources)
@@ -14,10 +18,6 @@ function ENT:InitSources()
   end
   self.hitSize = 0       -- Amount of sources to have
   return self
-end
-
-function ENT:RegisterSource(ent)
-  self.hitSources[ent] = true; return self
 end
 
 function ENT:Initialize()
@@ -33,10 +33,10 @@ function ENT:Initialize()
     {"Length"  , "NORMAL", "Concentrator length width"   },
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
-    {"Focusing", "NORMAL", "How many sources are focused"},
-    {"Entity"  , "ENTITY", "Concentrator crystal entity" },
+    {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },
+    {"Count"   , "NORMAL", "Concentrated sources count"  },
     {"Array"   , "ARRAY" , "Concentrated sources array"  }
   )
 
@@ -105,7 +105,7 @@ function ENT:UpdateSources()
   end; return self -- Sources are located in the table hash part
 end
 
-function ENT:UpdateDominant(ent, pow)
+function ENT:GetDominant(ent)
   if(not LaserLib.IsValid(ent)) then return self end
   -- We set the same non-addable properties
   -- The most powerful source (biggest damage/width)
@@ -123,39 +123,16 @@ function ENT:UpdateDominant(ent, pow)
   self:SetForceCenter(dom:GetForceCenter())
   self:SetNonOverMater(dom:GetNonOverMater())
 
-  if(not pow) then
-    local idx = self:GetHitSourceID(ent)
-    if(idx) then
-      local force, width, damage = 0, 0, 0
-      for cnt = 1, ent:GetHitReports().Size do
-        local trace, data = ent:GetHitReport(cnt)
-        if(trace and trace.Hit and data) then
-          force = force + data.NvForce
-          width = width + data.NvWidth
-          damage = damage + data.NvDamage
-        end
-      end
-      self:SetPushForce(force)
-      self:SetBeamWidth(width)
-      self:SetDamageAmount(damage)
-    else
-      self:SetPushForce(dom:GetPushForce())
-      self:SetBeamWidth(dom:GetBeamWidth())
-      self:SetDamageAmount(dom:GetDamageAmount())
-    end
-    self:SetBeamLength(dom:GetBeamLength())
-  end
-
   self:WireWrite("Dominant", dom)
   LaserLib.SetPlayer(self, (dom.ply or dom.player))
 
-  return self
+  return dom
 end
 
 function ENT:UpdateBeam()
   local opower, npower, force  = 0, 0, 0
   local width , length, damage = 0, 0, 0
-  local apower, doment = 0 -- Dominant source
+  local bpower, doment = false -- Dominant source
 
   if(self.hitSize > 0) then
     for cnt = 1, self.hitSize do
@@ -175,7 +152,7 @@ function ENT:UpdateBeam()
                   length = length + data.NvLength
                   damage = damage + data.NvDamage
                   force  = force  + data.NvForce
-                  apower = apower + npower
+                  bpower = (bpower or true)
                 end
                 if(npower > opower) then
                   doment, opower = ent, npower
@@ -185,23 +162,49 @@ function ENT:UpdateBeam()
           end
         end
       end
-      -- Use accumulated power flag
-      local bpower = (apower > 0)
       -- This must always produce a dominant
+      local dom = self:GetDominant(doment)
       if(bpower) then -- Sum settings
         self:SetPushForce(force)
         self:SetBeamWidth(width)
         self:SetBeamLength(length)
         self:SetDamageAmount(damage)
-      end -- Sources are infinite loops
-
-      self:UpdateDominant(doment, bpower)
+      else
+        if(LaserLib.IsValid(dom)) then
+          local idx = self:GetHitSourceID(doment)
+          if(idx) then
+            local force, width, damage = 0, 0, 0
+            for cnt = 1, doment:GetHitReports().Size do
+              local trace, data = doment:GetHitReport(cnt)
+              if(trace and trace.Hit and data) then
+                force  = force  + data.NvForce
+                width  = width  + data.NvWidth
+                damage = damage + data.NvDamage
+              end
+            end
+            self:SetPushForce(force)
+            self:SetBeamWidth(width)
+            self:SetDamageAmount(damage)
+          else
+            self:SetPushForce(dom:GetPushForce())
+            self:SetBeamWidth(dom:GetBeamWidth())
+            self:SetDamageAmount(dom:GetDamageAmount())
+          end
+          self:SetBeamLength(dom:GetBeamLength())
+        else
+          self:SetPushForce(0)
+          self:SetBeamWidth(0)
+          self:SetBeamLength(0)
+          self:SetDamageAmount(0)
+          self:RemHitReports()
+        end -- Sources are infinite loops
+      end
     end
   else
-    self:SetPushForce(force)
-    self:SetBeamWidth(width)
-    self:SetBeamLength(length)
-    self:SetDamageAmount(damage)
+    self:SetPushForce(0)
+    self:SetBeamWidth(0)
+    self:SetBeamLength(0)
+    self:SetDamageAmount(0)
     self:RemHitReports()
   end
 
@@ -211,11 +214,10 @@ end
 function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetDamageAmount()
-  local mpower = LaserLib.GetPower(mwidth, mdamage)
 
   self:UpdateSources()
 
-  if(self.hitSize > 0 and math.floor(mpower) > 0) then
+  if(self.hitSize > 0 and LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)
@@ -246,12 +248,13 @@ function ENT:Think()
   else
     self:RemHitReports()
     self:WireWrite("Hit", 0)
+    self:WireWrite("Range", 0)
     self:WireWrite("Target")
     self:WireWrite("Dominant")
   end
 
   self:WireWrite("Array", self.hitArray)
-  self:WireWrite("Focusing", self.hitSize)
+  self:WireWrite("Count", self.hitSize)
   self:NextThink(CurTime())
 
   return true

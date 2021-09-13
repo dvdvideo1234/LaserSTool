@@ -201,9 +201,9 @@ end
 function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
-    local pos, idx = self:GetPos(), self:EntIndex()
-    local cls, enb = self:GetClass(), LaserLib.GetData("ENSOUNDS")
-    if(cls == "gmod_laser" or (enb and enb:GetBool())) then
+    local pos, enb = self:GetPos(), LaserLib.GetData("ENSOUNDS")
+    local cls, mcs = self:GetClass(), LaserLib.GetClass(1)
+    if(cls == mcs or enb:GetBool()) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())
       else -- User shuts the entity off
@@ -343,16 +343,17 @@ end
 
 --[[
  * Removes hit reports from the list
- * iovr > When remove overhead is provided deletes
+ * rovr > When remove overhead is provided deletes
           all entries with larger index
  * Data is stored in notation: self.hitReports[ID]
 ]]
 
-function ENT:RemHitReports(iovr)
+function ENT:RemHitReports(rovr)
   if(self.hitReports) then
     local rep, idx = self.hitReports
-    if(iovr) then
-      idx, rep.Size = (iovr + 1), iovr
+    if(rovr) then
+      local rovr = tonumber(rovr) or 0
+      idx, rep.Size = (rovr + 1), rovr
     else
       idx, rep.Size = 1, 0
     end
@@ -383,7 +384,7 @@ function ENT:GetHitSourceID(ent, idx)
   if(not LaserLib.IsValid(ent)) then return nil end -- Skip unavaliable
   if(ent == self) then return nil end -- Loop source
   if(not self.hitSources[ent]) then return nil end
-  if(not LaserLib.IsSource(ent)) then return nil end
+  if(not LaserLib.IsUnit(ent)) then return nil end
   if(not ent:GetOn()) then return nil end
   local rep = ent:GetHitReports()
   if(not rep) then return nil end
@@ -425,10 +426,12 @@ function ENT:GetHitReport(index)
 end
 
 --[[
+ * Custom way to recalculate the correct dominant
  * Override this when the entity is pass trough
  * Dominat is calcualted from its sources
+ * ent > The base entity which issues the hit dominant
 ]]
-function ENT:GetHitDominant()
+function ENT:GetHitDominant(ent)
   return self
 end
 
@@ -437,18 +440,19 @@ end
  * is powered by other generators powered by self
  * self > The root of the tree propagated
  * ent  > The entity of the source checked
+ * set  > Contains the already processed items
 ]]
 function ENT:IsInfinite(ent, set)
   local set = (set or {})
   if(LaserLib.IsValid(ent)) then
     if(set[ent]) then return false end
     if(ent == self) then return true else set[ent] = true end
-    if(LaserLib.IsSource(ent, 3) and ent.hitSources) then
+    if(LaserLib.IsUnit(ent, 3) and ent.hitSources) then
       for src, stat in pairs(ent.hitSources) do
         -- Other hits and we are in its sources
         if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
           if(src == self) then return true end
-          if(LaserLib.IsSource(src, 3) and src.hitSources) then -- Class propagades the tree
+          if(LaserLib.IsUnit(src, 3) and src.hitSources) then -- Class propagades the tree
             if(self:IsInfinite(src, set)) then return true end end
         end -- Cascadely propagate trough the crystal sources from `self`
       end; return false -- The entity does not persists in itself

@@ -10,7 +10,7 @@ function ENT:DrawEndingEffect(src, trace, data, sdat)
     if(trace.Hit) then
       local ent = trace.Entity
       local eff = self.beamEffect
-      if(not LaserLib.IsSource(ent)) then
+      if(not LaserLib.IsUnit(ent)) then
         eff:SetStart(trace.HitPos)
         eff:SetOrigin(trace.HitPos)
         eff:SetNormal(trace.HitNormal)

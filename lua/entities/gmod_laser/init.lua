@@ -56,7 +56,7 @@ function ENT:DoDamage(trace, data)
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
       -- Check whenever target is beam source
-      if(LaserLib.IsSource(trent)) then
+      if(LaserLib.IsUnit(trent)) then
         -- Register the source to the ones who has it
         if(trent.RegisterSource) then
           trent:RegisterSource(self)

@@ -259,14 +259,16 @@ function TOOL:RightClick(trace)
 
   if(not LaserLib.IsValid(ent)) then return false end
 
-  if(ent:GetClass() == gsLaseremCls) then
+  if(LaserLib.IsUnit(ent, 2)) then
+    local css = ent:GetClass():gsub(gsLaseremCls, ""):gsub("^_", "")
+    local cvs = ((css:len() > 0) and (" "..css.." ") or (" "))
     LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
     LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
     LaserLib.ConCommand(ply, "damage"      , ent:GetDamageAmount())
     LaserLib.ConCommand(ply, "material"    , ent:GetBeamMaterial())
     LaserLib.ConCommand(ply, "dissolvetype", ent:GetDissolveType())
-    LaserLib.ConCommand(ply, "startsound"  , ent:SetStartSound())
-    LaserLib.ConCommand(ply, "stopsound"   , ent:SetStopSound())
+    LaserLib.ConCommand(ply, "startsound"  , ent:GetStartSound())
+    LaserLib.ConCommand(ply, "stopsound"   , ent:GetStopSound())
     LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
     LaserLib.ConCommand(ply, "pushforce"   , ent:GetPushForce())
     LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
@@ -276,14 +278,14 @@ function TOOL:RightClick(trace)
     LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
     LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
     LaserLib.ConCommand(ply, "enonvermater", (ent:GetNonOverMater() and 1 or 0))
-    LaserLib.Notify(ply, "Copy settings !", "UNDO")
+    LaserLib.Notify(ply, "Copy"..cvs.."["..ent:EntIndex().."] settings !", "UNDO")
   else
     local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
                            math.Round(trace.HitNormal:Dot(ent:GetForward()), 3))
     local mod, ang = ent:GetModel(), math.deg(ang)
     LaserLib.ConCommand(ply, "model", mod)
     LaserLib.ConCommand(ply, "angleoffset", ang)
-    LaserLib.Notify(ply, "Pick: "..mod.." ["..ang.."]", "UNDO")
+    LaserLib.Notify(ply, "Model: "..mod.." ["..ang.."]", "UNDO")
     if(ply:KeyDown(IN_SPEED)) then -- Easy export export
       print("table.insert(data, {\""..mod.."\","..ang.."})")
     end
