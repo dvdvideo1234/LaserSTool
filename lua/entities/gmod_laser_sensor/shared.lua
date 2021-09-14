@@ -53,7 +53,7 @@ function ENT:IsHitNormal(trace)
   local norm = Vector(self:GetBeamNormal())
         norm:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
-  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - dotm))
+  return (norm:Dot(trace.HitNormal) > (1 - dotm))
 end
 
 function ENT:SetOn(bool)
