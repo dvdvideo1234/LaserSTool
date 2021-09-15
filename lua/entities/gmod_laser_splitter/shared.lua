@@ -16,16 +16,17 @@ function ENT:SetupDataTables()
   self:EditableSetVector("DirectLocal"   , "General")
   self:EditableSetVector("ElevatLocal"   , "General")
   self:EditableSetBool  ("ForceCenter"   , "General")
+  self:EditableSetBool  ("BeamReplicate" , "General")
   self:EditableSetBool  ("ReflectRatio"  , "Material")
   self:EditableSetBool  ("RefractRatio"  , "Material")
   self:EditableSetBool  ("InPowerOn"     , "Internals")
-  self:EditableSetInt   ("InBeamCount"   , "Internals", 0, 10)
+  self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
   self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, 30)
-  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, 50000)
-  self:EditableSetFloat ("InDamageAmount", "Internals", 0, 5000)
-  self:EditableSetFloat ("InPushForce"   , "Internals", 0, 50000)
+  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  self:EditableSetFloat ("InDamageAmount", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  self:EditableSetFloat ("InPushForce"   , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
@@ -146,16 +147,17 @@ function ENT:GetBeamLeanY()
 end
 
 function ENT:DoBeam(org, dir, idx)
-  local count = self:GetBeamCount()
-  local force  = self:GetPushForce() / count
-  local width  = self:GetBeamWidth() / count
+  local count  = self:GetBeamCount()
   local origin = self:GetBeamOrigin(org)
   local length = self:GetBeamLength()
-  local damage = self:GetDamageAmount() / count
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
+  local todiv  = (self:GetBeamReplicate() and 1 or count)
+  local force  = self:GetPushForce() / todiv
+  local damage = self:GetDamageAmount() / todiv
+  local width  = LaserLib.GetWidth(self:GetBeamWidth() / todiv)
   local trace, data = LaserLib.DoBeam(self,
                                       origin,
                                       direct,

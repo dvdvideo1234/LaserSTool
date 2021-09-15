@@ -32,6 +32,7 @@ function ENT:Initialize()
   )
 
   self:InitSources()
+  self:SetBeamReplicate(false)
   self:SetStopSound("")
   self:SetStartSound("")
 

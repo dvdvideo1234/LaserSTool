@@ -172,15 +172,20 @@ LaserLib.SetupDissolveTypes()
 
 cleanup.Register(gsUnit.."s")
 
+function TOOL:GetAngleOffset()
+  local amax = LaserLib.GetData("AMAX")
+  local nang = self:GetClientNumber("angleoffset", 0)
+  return math.Clamp(nang, amax[1], amax[2])
+end
+
 --[[
-Applies the final posutional and angular offsets to the laser spawned
-Adjusts the custom model angle and calculates the touch position
+ * Applies the final posutional and angular offsets to the laser spawned
+ * Adjusts the custom model angle and calculates the touch position
  * ent   > The laser entity to preform the operation for
  * trace > The trace that player is aiming for
 ]]
 function TOOL:ApplySpawn(ent, trace)
-  local ang = self:GetClientNumber("angleoffset")
-  LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, ang)
+  LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, self:GetAngleOffset())
 end
 
 function TOOL:LeftClick(trace)
@@ -188,28 +193,27 @@ function TOOL:LeftClick(trace)
   if(not trace.HitPos) then return false end
   if(trace.Entity:IsPlayer()) then return false end
   if(not self:GetSWEP():CheckLimit(gsUnit.."s")) then return false end
-
+  local width        = math.Clamp(self:GetClientNumber("width", 0), 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  local length       = math.Clamp(self:GetClientNumber("length", 0), 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  local damage       = math.Clamp(self:GetClientNumber("damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  local pushforce    = math.Clamp(self:GetClientNumber("pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  local angleoffset  = self:GetAngleOffset()
   local key          = self:GetClientNumber("key")
-  local width        = self:GetClientNumber("width")
-  local length       = self:GetClientNumber("length")
-  local damage       = self:GetClientNumber("damage")
-  local pushforce    = self:GetClientNumber("pushforce")
   local model        = self:GetClientInfo("model")
   local material     = self:GetClientInfo("material")
   local stopsound    = self:GetClientInfo("stopsound")
   local killsound    = self:GetClientInfo("killsound")
   local startsound   = self:GetClientInfo("startsound")
   local dissolvetype = self:GetClientInfo("dissolvetype")
-  local angleoffset  = self:GetClientNumber("angleoffset")
-  local toggle       = (self:GetClientNumber("toggle") ~= 0)
-  local frozen       = (self:GetClientNumber("frozen") ~= 0)
-  local starton      = (self:GetClientNumber("starton") ~= 0)
-  local worldweld    = (self:GetClientNumber("worldweld") ~= 0)
-  local reflectrate  = (self:GetClientNumber("reflectrate") ~= 0)
-  local refractrate  = (self:GetClientNumber("refractrate") ~= 0)
-  local endingeffect = (self:GetClientNumber("endingeffect") ~= 0)
-  local forcecenter  = (self:GetClientNumber("forcecenter") ~= 0)
-  local enonvermater = (self:GetClientNumber("enonvermater") ~= 0)
+  local toggle       = (self:GetClientNumber("toggle", 0) ~= 0)
+  local frozen       = (self:GetClientNumber("frozen", 0) ~= 0)
+  local starton      = (self:GetClientNumber("starton", 0) ~= 0)
+  local worldweld    = (self:GetClientNumber("worldweld", 0) ~= 0)
+  local reflectrate  = (self:GetClientNumber("reflectrate", 0) ~= 0)
+  local refractrate  = (self:GetClientNumber("refractrate", 0) ~= 0)
+  local endingeffect = (self:GetClientNumber("endingeffect", 0) ~= 0)
+  local forcecenter  = (self:GetClientNumber("forcecenter", 0) ~= 0)
+  local enonvermater = (self:GetClientNumber("enonvermater", 0) ~= 0)
   local ply, ent     = self:GetOwner(), trace.Entity
   local pos, ang     = trace.HitPos   , trace.HitNormal:Angle()
 
@@ -383,20 +387,20 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsUnit..".key"))
   panel:AddPanel(pItem)
 
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".width_con"), gsUnit.."_width", 1, 30, 5)
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".width_con"), gsUnit.."_width", 0, LaserLib.GetData("MXBMWIDT"):GetFloat(), 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".width"))
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".length_con"), gsUnit.."_length", 0, 50000, 5)
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".length_con"), gsUnit.."_length", 0, LaserLib.GetData("MXBMLENG"):GetFloat(), 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".length"))
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".damage_con"), gsUnit.."_damage", 0, 5000, 5)
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".damage_con"), gsUnit.."_damage", 0, LaserLib.GetData("MXBMDAMG"):GetFloat(), 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".damage"))
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".pushforce_con"), gsUnit.."_pushforce", 0, 50000, 5)
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsUnit..".pushforce_con"), gsUnit.."_pushforce", 0, LaserLib.GetData("MXBMFORC"):GetFloat(), 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".pushforce"))
   pItem = panel:MatSelect(gsUnit.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
   pItem.Label:SetText(language.GetPhrase("tool."..gsUnit..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".material"))
 
   pItem = vgui.Create("PropSelect", panel)
-  pItem:Dock(TOP); pItem:SetTall(150)
+  pItem:Dock(TOP); pItem:SetTall(180)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
   pItem:ControlValues({
     models = list.GetForEdit("LaserEmitterModels"),

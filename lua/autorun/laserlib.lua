@@ -7,10 +7,15 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 -- Independently controlled flags for console variables
 DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
--- Library internal variables
+-- Library internal variables for limits and realtime tweaks
+DATA.MXSPLTBC = CreateConVar("laseremitter_maxspltbc", 16, DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
+DATA.MXBMWIDT = CreateConVar("laseremitter_maxbmwidt", 30, DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
+DATA.MXBMDAMG = CreateConVar("laseremitter_maxbmdamg", 5000, DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
+DATA.MXBMFORC = CreateConVar("laseremitter_maxbmforc", 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
+DATA.MXBMLENG = CreateConVar("laseremitter_maxbmleng", 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
 DATA.MBOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the crystal model")
-DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGINDCN, "Change to adjust the reflector model")
+DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Change to adjust the reflector model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
 DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_lab/jar01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
@@ -35,6 +40,7 @@ DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.NMAR = 0.0001          -- Margin amount to push vectors with
 DATA.ERAD = 2               -- Entity radius coefficient for traces
 DATA.NTIF = {}              -- User notification configuration type
+DATA.AMAX = {-360, 360}
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 
@@ -869,9 +875,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.RepIndex = index  -- Beam hit report index. Usually one if not provided
 
   if(data.NvLength <= 0) then return end
-  if(not data.TeFilter) then return end
-  if(not LaserLib.IsValid(data.TeFilter)) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
+  if(not LaserLib.IsValid(data.TeFilter)) then return end
 
   LaserLib.RegisterNode(data, origin)
 

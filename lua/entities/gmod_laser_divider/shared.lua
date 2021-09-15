@@ -12,8 +12,9 @@ ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("NormalLocal", "General") -- Used as forward
-  self:EditableSetBool  ("InPowerOn"  , "Internals")
+  self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
+  self:EditableSetBool  ("BeamReplicate", "General")
+  self:EditableSetBool  ("InPowerOn"    , "Internals")
 end
 
 function ENT:RegisterSource(ent)
@@ -138,20 +139,29 @@ function ENT:DivideSources()
               hdx = hdx + 1; self:DoDamage(self:DoBeam(src, trace.HitPos, data.VrDirect, data, hdx))
             end
           end -- Check the rest of the beams and add power
-        end
+        end -- Whenever or not our source hits the divider
       end -- Make sure we wipe all reports that are irrelevant anymore
     end; self:RemHitReports(hdx)
   end; return self
 end
 
-function ENT:DoBeam(src, org, dir, sdat, idx)
-  local width  = LaserLib.GetWidth(sdat.NvWidth / 2)
+--[[
+ * Specific beam traced for divider
+ * ent  > Entity source to be divided
+ * org  > Beam origin location
+ * dir  > Beam trace direction
+ * sdat > Source beam trace data
+ * idx  > Index to store the result
+]]
+function ENT:DoBeam(ent, org, dir, sdat, idx)
   local length = sdat.NvLength
-  local damage = sdat.NvDamage / 2
-  local force  = sdat.NvForce  / 2
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
   local noverm = sdat.BmNoover
+  local todiv  = (self:GetBeamReplicate() and 1 or 2)
+  local damage = sdat.NvDamage / todiv
+  local force  = sdat.NvForce  / todiv
+  local width  = LaserLib.GetWidth(sdat.NvWidth / todiv)
   local trace, data = LaserLib.DoBeam(self,
                                       org,
                                       dir,
@@ -163,8 +173,8 @@ function ENT:DoBeam(src, org, dir, sdat, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  if(LaserLib.IsUnit(src, 2)) then
-    data.BmSource = src -- Initial stage store laser
+  if(LaserLib.IsUnit(ent, 2)) then
+    data.BmSource = ent -- Initial stage store laser
   else -- Make sure we always know which laser is source
     data.BmSource = sdat.BmSource -- Inherit previous laser
   end -- Otherwise inherit the laser source from prev stage

@@ -1,5 +1,5 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser"
+ENT.PrintName      = "Laser Emiter"
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
   ENT.WireDebugName = ENT.PrintName
@@ -20,18 +20,19 @@ AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
+  local amax = LaserLib.GetData("AMAX")
   self:EditableSetVector("OriginLocal"   , "General")
   self:EditableSetVector("DirectLocal"   , "General")
-  self:EditableSetFloat ("AngleOffset"   , "General", -360, 360)
+  self:EditableSetFloat ("AngleOffset"   , "General", amax[1], amax[2])
   self:EditableSetBool  ("StartToggle"   , "General")
   self:EditableSetBool  ("ForceCenter"   , "General")
   self:EditableSetBool  ("ReflectRatio"  , "Material")
   self:EditableSetBool  ("RefractRatio"  , "Material")
   self:EditableSetBool  ("InPowerOn"     , "Internals")
-  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, 30)
-  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, 50000)
-  self:EditableSetFloat ("InDamageAmount", "Internals", 0, 5000)
-  self:EditableSetFloat ("InPushForce"   , "Internals", 0, 50000)
+  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  self:EditableSetFloat ("InDamageAmount", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  self:EditableSetFloat ("InPushForce"   , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
