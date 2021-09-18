@@ -12,26 +12,27 @@ ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("OriginLocal"   , "General")
-  self:EditableSetVector("DirectLocal"   , "General")
-  self:EditableSetVector("ElevatLocal"   , "General")
-  self:EditableSetBool  ("ForceCenter"   , "General")
-  self:EditableSetBool  ("BeamReplicate" , "General")
-  self:EditableSetBool  ("ReflectRatio"  , "Material")
-  self:EditableSetBool  ("RefractRatio"  , "Material")
-  self:EditableSetBool  ("InPowerOn"     , "Internals")
-  self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
-  self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  self:EditableSetFloat ("InDamageAmount", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  self:EditableSetFloat ("InPushForce"   , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  self:EditableSetVector("OriginLocal"  , "General")
+  self:EditableSetVector("DirectLocal"  , "General")
+  self:EditableSetVector("ElevatLocal"  , "General")
+  self:EditableSetBool  ("ForceCenter"  , "General")
+  self:EditableSetBool  ("BeamReplicate", "General")
+  self:EditableSetBool  ("ReflectRatio" , "Material")
+  self:EditableSetBool  ("RefractRatio" , "Material")
+  self:EditableSetBool  ("InPowerOn"    , "Internals")
+  self:EditableSetInt   ("InBeamCount"  , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
+  self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamWidth"  , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  self:EditableSetFloat ("InBeamLength" , "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  self:EditableSetFloat ("InBeamDamage" , "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  self:EditableSetFloat ("InBeamForce"  , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  self:EditableRemoveOrderInfo()
 end
 
 -- Override the beam transormation
@@ -94,26 +95,26 @@ function ENT:GetBeamWidth()
   return self:GetInBeamWidth()
 end
 
-function ENT:SetDamageAmount(num)
+function ENT:SetBeamDamage(num)
   local damage = math.max(num, 0)
-  self:SetInDamageAmount(damage)
+  self:SetInBeamDamage(damage)
   self:WireWrite("Damage", damage)
   return self
 end
 
-function ENT:GetDamageAmount()
-  return self:GetInDamageAmount()
+function ENT:GetBeamDamage()
+  return self:GetInBeamDamage()
 end
 
-function ENT:SetPushForce(num)
+function ENT:SetBeamForce(num)
   local force = math.max(num, 0)
-  self:SetInPushForce(force)
+  self:SetInBeamForce(force)
   self:WireWrite("Force", force)
   return self
 end
 
-function ENT:GetPushForce()
-  return self:GetInPushForce()
+function ENT:GetBeamForce()
+  return self:GetInBeamForce()
 end
 
 function ENT:SetBeamCount(num)
@@ -155,8 +156,8 @@ function ENT:DoBeam(org, dir, idx)
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
   local todiv  = (self:GetBeamReplicate() and 1 or count)
-  local force  = self:GetPushForce() / todiv
-  local damage = self:GetDamageAmount() / todiv
+  local force  = self:GetBeamForce() / todiv
+  local damage = self:GetBeamDamage() / todiv
   local width  = LaserLib.GetWidth(self:GetBeamWidth() / todiv)
   local trace, data = LaserLib.DoBeam(self,
                                       origin,

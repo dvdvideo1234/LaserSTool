@@ -45,9 +45,9 @@ function ENT:DrawEndingEffect(trace, data)
 end
 
 function ENT:DrawBeam(org, dir, length, width)
-  local force  = self:GetPushForce()
+  local force  = self:GetBeamForce()
   local origin = self:GetBeamOrigin(org)
-  local damage = self:GetDamageAmount()
+  local damage = self:GetBeamDamage()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)

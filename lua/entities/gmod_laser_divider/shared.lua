@@ -15,6 +15,7 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("InPowerOn"    , "Internals")
+  self:EditableRemoveOrderInfo()
 end
 
 function ENT:RegisterSource(ent)

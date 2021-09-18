@@ -54,24 +54,24 @@ function ENT:GetBeamWidth()
   return self:GetInBeamWidth()
 end
 
-function ENT:SetDamageAmount(num)
+function ENT:SetBeamDamage(num)
   local damage = math.max(num, 0)
-  self:SetInDamageAmount(damage)
+  self:SetInBeamDamage(damage)
   self:WireWrite("Damage", damage)
   return self
 end
 
-function ENT:GetDamageAmount()
-  return self:GetInDamageAmount()
+function ENT:GetBeamDamage()
+  return self:GetInBeamDamage()
 end
 
-function ENT:SetPushForce(num)
+function ENT:SetBeamForce(num)
   local force = math.max(num, 0)
-  self:SetInPushForce(force)
+  self:SetInBeamForce(force)
   self:WireWrite("Force", force)
   return self
 end
 
-function ENT:GetPushForce()
-  return self:GetInPushForce()
+function ENT:GetBeamForce()
+  return self:GetInBeamForce()
 end

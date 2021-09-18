@@ -37,13 +37,13 @@ function ENT:Initialize()
 
   -- Detup default configuration
   self:InitSources()
-  self:SetPushForce(0)
+  self:SetBeamForce(0)
   self:SetBeamWidth(0)
   self:SetBeamCount(0)
   self:SetBeamLeanX(0)
   self:SetBeamLeanY(0)
   self:SetBeamLength(0)
-  self:SetDamageAmount(0)
+  self:SetBeamDamage(0)
   self:SetStopSound("")
   self:SetKillSound("")
   self:SetStartSound("")
@@ -115,25 +115,25 @@ function ENT:GetDominant()
   if(count > 0) then
     local trace, data = doment:GetHitReport(report)
     if(data) then -- Dominant result hit
-      self:SetPushForce(data.NvForce)
+      self:SetBeamForce(data.NvForce)
       self:SetBeamWidth(data.NvWidth)
-      self:SetDamageAmount(data.NvDamage)
+      self:SetBeamDamage(data.NvDamage)
       if(self:IsInfinite(doment)) then
         self:SetBeamLength(data.BmLength)
       else -- When not looping use the remaining
         self:SetBeamLength(data.NvLength)
       end -- Apply length based on looping
     else -- Dominant did not hit anything
-      self:SetPushForce(dom:GetPushForce())
+      self:SetBeamForce(dom:GetBeamForce())
       self:SetBeamWidth(dom:GetBeamWidth())
-      self:SetDamageAmount(dom:GetDamageAmount())
+      self:SetBeamDamage(dom:GetBeamDamage())
       self:SetBeamLength(dom:GetBeamLength())
     end -- The most powerful source (biggest damage/width)
   else
-    self:SetPushForce(0)
+    self:SetBeamForce(0)
     self:SetBeamWidth(0)
     self:SetBeamLength(0)
-    self:SetDamageAmount(0)
+    self:SetBeamDamage(0)
   end
   self:SetStopSound(dom:GetStopSound())
   self:SetKillSound(dom:GetKillSound())
@@ -158,7 +158,7 @@ function ENT:Think()
   self:UpdateVectors()
   local mcount = self:GetBeamCount()
   local mwidth = self:GetBeamWidth()
-  local mdamage = self:GetDamageAmount()
+  local mdamage = self:GetBeamDamage()
   local mdoment = self:GetDominant()
   if(mcount > 0 and
      LaserLib.IsValid(mdoment) and

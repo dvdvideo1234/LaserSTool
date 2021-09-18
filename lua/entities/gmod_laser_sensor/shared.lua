@@ -12,48 +12,52 @@ ENT.AdminSpawnable = true
 ENT.Information    = ENT.PrintName
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("NormalLocal"   , "General")
-  self:EditableSetBool  ("ForceCenter"   , "General")
-  self:EditableSetBool  ("ReflectRatio"  , "Material")
-  self:EditableSetBool  ("RefractRatio"  , "Material")
-  self:EditableSetBool  ("InPowerOn"     , "Internals")
-  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  self:EditableSetFloat ("InDamageAmount", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  self:EditableSetFloat ("InPushForce"   , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  self:EditableSetVector("OriginLocal" , "General")
+  self:EditableSetVector("DirectLocal" , "General")
+  self:EditableSetBool  ("ForceCenter" , "General")
+  self:EditableSetBool  ("ReflectRatio", "Material")
+  self:EditableSetBool  ("RefractRatio", "Material")
+  self:EditableSetBool  ("InPowerOn"   , "Internals")
+  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  self:EditableRemoveOrderInfo()
 end
 
 function ENT:SetBeamTransform()
-  local normal = Vector(0,0,1) -- Local normal direction
-  self:SetNormalLocal(normal)
+  local dir = Vector(0,0,1) -- Normal local direction
+  self:SetDirectLocal(dir)
   return self
 end
 
-function ENT:GetBeamNormal()
+function ENT:GetDirection()
   if(SERVER) then
-    local norm = self:WireRead("Normal", true)
-    if(norm) then norm:Normalize() else
-      norm = self:GetNormalLocal()
+    local dir = self:WireRead("Direct", true)
+    if(dir) then dir:Normalize() else
+      dir = self:GetDirectLocal()
     end -- Make sure length is one unit
-    self:SetNWVector("GetNormalLocal", norm)
-    self:WireWrite("Normal", norm)
-    return norm
+    self:SetNWVector("GetDirectLocal", dir)
+    self:WireWrite("Direct", dir)
+    return dir
   else
-    local norm = self:GetNormalLocal()
-    return self:GetNWFloat("GetNormalLocal", norm)
+    local dir = self:GetDirectLocal()
+    return self:GetNWFloat("GetDirectLocal", dir)
   end
 end
 
 function ENT:IsHitNormal(trace)
-  local norm = Vector(self:GetBeamNormal())
-        norm:Rotate(self:GetAngles())
-  local dotm = LaserLib.GetData("DOTM")
-  return (norm:Dot(trace.HitNormal) > (1 - dotm))
+  local dir = Vector(self:GetDirection())
+        dir:Rotate(self:GetAngles())
+  if(dir:IsZero()) then return 1, true end
+  local dom = LaserLib.GetData("DOTM")
+  local dot = dir:Dot(trace.HitNormal)
+  return dot, (dot > (1 - dom))
 end
 
 function ENT:SetOn(bool)
@@ -88,22 +92,22 @@ function ENT:GetBeamWidth()
   return self:GetInBeamWidth()
 end
 
-function ENT:SetDamageAmount(num)
+function ENT:SetBeamDamage(num)
   local damage = math.max(num, 0)
-  self:SetInDamageAmount(damage)
+  self:SetInBeamDamage(damage)
   return self
 end
 
-function ENT:GetDamageAmount()
-  return self:GetInDamageAmount()
+function ENT:GetBeamDamage()
+  return self:GetInBeamDamage()
 end
 
-function ENT:SetPushForce(num)
+function ENT:SetBeamForce(num)
   local force = math.max(num, 0)
-  self:SetInPushForce(force)
+  self:SetInBeamForce(force)
   return self
 end
 
-function ENT:GetPushForce()
-  return self:GetInPushForce()
+function ENT:GetBeamForce()
+  return self:GetInBeamForce()
 end

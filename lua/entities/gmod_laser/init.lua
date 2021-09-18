@@ -84,11 +84,11 @@ end
 
 function ENT:DoBeam(org, dir, idx)
   self:DrawEffectBegin()
-  local force  = self:GetPushForce()
+  local force  = self:GetBeamForce()
   local width  = self:GetBeamWidth()
   local origin = self:GetBeamOrigin(org)
   local length = self:GetBeamLength()
-  local damage = self:GetDamageAmount()
+  local damage = self:GetBeamDamage()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)

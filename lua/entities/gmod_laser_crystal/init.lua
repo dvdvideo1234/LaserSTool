@@ -45,11 +45,11 @@ function ENT:Initialize()
 
   -- Detup default configuration
   self:InitSources()
-  self:SetPushForce(0)
+  self:SetBeamForce(0)
   self:SetBeamWidth(0)
   self:SetBeamLength(0)
   self:SetAngleOffset(0)
-  self:SetDamageAmount(0)
+  self:SetBeamDamage(0)
   self:SetStopSound("")
   self:SetKillSound("")
   self:SetStartSound("")
@@ -165,10 +165,10 @@ function ENT:UpdateBeam()
       -- This must always produce a dominant
       local dom = self:GetDominant(doment)
       if(bpower) then -- Sum settings
-        self:SetPushForce(force)
+        self:SetBeamForce(force)
         self:SetBeamWidth(width)
         self:SetBeamLength(length)
-        self:SetDamageAmount(damage)
+        self:SetBeamDamage(damage)
       else
         if(LaserLib.IsValid(dom)) then
           local idx = self:GetHitSourceID(doment)
@@ -182,29 +182,29 @@ function ENT:UpdateBeam()
                 damage = damage + data.NvDamage
               end
             end
-            self:SetPushForce(force)
+            self:SetBeamForce(force)
             self:SetBeamWidth(width)
-            self:SetDamageAmount(damage)
+            self:SetBeamDamage(damage)
           else
-            self:SetPushForce(dom:GetPushForce())
+            self:SetBeamForce(dom:GetBeamForce())
             self:SetBeamWidth(dom:GetBeamWidth())
-            self:SetDamageAmount(dom:GetDamageAmount())
+            self:SetBeamDamage(dom:GetBeamDamage())
           end
           self:SetBeamLength(dom:GetBeamLength())
         else
-          self:SetPushForce(0)
+          self:SetBeamForce(0)
           self:SetBeamWidth(0)
           self:SetBeamLength(0)
-          self:SetDamageAmount(0)
+          self:SetBeamDamage(0)
           self:RemHitReports()
         end -- Sources are infinite loops
       end
     end
   else
-    self:SetPushForce(0)
+    self:SetBeamForce(0)
     self:SetBeamWidth(0)
     self:SetBeamLength(0)
-    self:SetDamageAmount(0)
+    self:SetBeamDamage(0)
     self:RemHitReports()
   end
 
@@ -213,7 +213,7 @@ end
 
 function ENT:Think()
   local mwidth = self:GetBeamWidth()
-  local mdamage = self:GetDamageAmount()
+  local mdamage = self:GetBeamDamage()
 
   self:UpdateSources()
 

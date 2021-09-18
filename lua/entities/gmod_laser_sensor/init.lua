@@ -26,13 +26,20 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal"  , "VECTOR", "Sensor surface normal" }
+    {"Direct"  , "VECTOR", "Sensor surface normal" }
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Sensor enabled state"  },
-    {"Normal"  , "VECTOR", "Sensor surface normal" },
     {"Width"   , "NORMAL", "Sensor beam width"     },
     {"Length"  , "NORMAL", "Sensor length width"   },
     {"Damage"  , "NORMAL", "Sensor damage width"   },
+    {"Force"   , "NORMAL", "Sensor force amount"   },
+    {"DotMatch", "NORMAL", "Sensor beam direction match"   },
+    {"DotBound", "NORMAL", "Sensor beam direction bound"   },
+    {"Origin"  , "VECTOR", "Sensor source beam origin"     },
+    {"Direct"  , "VECTOR", "Sensor source beam direction"  },
+    {"RatioRL" , "NORMAL", "Sensor source reflection ratio"},
+    {"RatioRF" , "NORMAL", "Sensor source refraction ratio"},
+    {"NoVrmat" , "NORMAL", "Sensor source ovr matyerial"   },
     {"Force"   , "NORMAL", "Sensor force amount"   },
     {"Entity"  , "ENTITY", "Sensor entity itself"  },
     {"Dominant", "ENTITY", "Sensor dominant entity"},
@@ -45,10 +52,10 @@ function ENT:Initialize()
 
   -- Detup default configuration
   self:InitSources()
-  self:SetPushForce(0)
+  self:SetBeamForce(0)
   self:SetBeamWidth(0)
   self:SetBeamLength(0)
-  self:SetDamageAmount(0)
+  self:SetBeamDamage(0)
   self:SetStopSound("")
   self:SetKillSound("")
   self:SetStartSound("")
@@ -114,63 +121,88 @@ function ENT:UpdateSources()
 end
 
 function ENT:UpdateDominant()
+  local bmrefl, bmrefr, novrmt = 0, 0, 0
+  local normh , normm  = 0, 0
+  local origin, direct = Vector(), Vector()
   local opower, npower, force  = 0, 0, 0
   local width , length, damage = 0, 0, 0
-  local apower, doment = 0 -- Dominant source
+  local apower, doment = 0, nil -- Dominant source
 
   if(self.hitSize > 0) then
-    for cnt = 1, self.hitSize do
-      local ent = self.hitArray[cnt]
-      if(LaserLib.IsValid(ent)) then
-        local idx = self:GetHitSourceID(ent)
-        if(idx) then
-          for cdx = 1, ent:GetHitReports().Size do
-            local hit = self:GetHitSourceID(ent, cdx)
-            if(hit) then
-              local trace, data = ent:GetHitReport(hit)
-              if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
-                npower = LaserLib.GetPower(data.NvWidth,
-                                           data.NvDamage)
+    for ent, hit in pairs(self.hitSources) do
+      if(hit and LaserLib.IsValid(ent)) then
+        local idh = self:GetHitSourceID(ent)
+        if(idh) then local idx, siz = idh, ent:GetHitReports().Size
+          while(idx <= siz) do -- First index always hits when present
+            if(idh) then
+              local trace, data = ent:GetHitReport(idh)
+              local dotmg, flag = self:IsHitNormal(trace)
+              if(trace and trace.Hit and data and flag) then
+                npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
                 width  = width  + data.NvWidth
                 damage = damage + data.NvDamage
                 force  = force  + data.NvForce
                 if(npower > opower) then
                   length = data.NvLength
+                  origin:Set(data.VrOrigin)
+                  direct:Set(data.VrDirect)
+                  bmrefl = (data.BrReflec and 1 or 0)
+                  bmrefr = (data.BrRefrac and 1 or 0)
+                  novrmt = (data.BmNoover and 1 or 0)
+                  normh  = (flag and 1 or 0)
+                  normm  = dotmg
                   doment, opower = ent, npower
                 end
-              end
-            end
+              end end; idx = idx + 1
+            idh = self:GetHitSourceID(ent, idx)
           end
         end
       end
     end
+
     self:WireWrite("Width" , width)
     self:WireWrite("Length", length)
     self:WireWrite("Damage", damage)
     self:WireWrite("Force" , force)
+    self:WireWrite("Origin", origin)
+    self:WireWrite("Direct", direct)
+    self:WireWrite("RatioRL", bmrefl)
+    self:WireWrite("RatioRF", bmrefr)
+    self:WireWrite("NoVrmat", novrmt)
+    self:WireWrite("DotMatch", normh)
+    self:WireWrite("DotBound", normm)
     self:WireWrite("Dominant", doment)
     -- Read sensor configuration
-    local mforce  = self:GetPushForce()
+    local mforce  = self:GetBeamForce()
     local mwidth  = self:GetBeamWidth()
+    local mdirect = self:GetDirection()
     local mlength = self:GetBeamLength()
-    local mdamage = self:GetDamageAmount()
+    local mdamage = self:GetBeamDamage()
     -- Check whenever sensor has to turn on
     if(LaserLib.IsValid(doment) and
        (mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
        (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
        (mlength == 0 or (mlength > 0 and length >= mlength)) and
-       (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
+       (mdamage == 0 or (mdamage > 0 and damage >= mdamage)) and
+       (mdirect:IsZero() or (normh > 0))) then
       self:SetOn(true)
     else
       self:SetOn(false)
     end
   else
     self:SetOn(false)
-    self:WireWrite("Width" , 0)
-    self:WireWrite("Length", 0)
-    self:WireWrite("Damage", 0)
-    self:WireWrite("Force" , 0)
-    self:WireWrite("Dominant")
+    self:WireWrite("Width" , width)
+    self:WireWrite("Length", length)
+    self:WireWrite("Damage", damage)
+    self:WireWrite("Force" , force)
+    self:WireWrite("Origin", origin)
+    self:WireWrite("Direct", direct)
+    self:WireWrite("RatioRL", bmrefl)
+    self:WireWrite("RatioRF", bmrefr)
+    self:WireWrite("NoVrmat", novrmt)
+    self:WireWrite("DotMatch", normh)
+    self:WireWrite("DotBound", normm)
+    self:WireWrite("Dominant", doment)
   end
 
   return self

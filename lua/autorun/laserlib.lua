@@ -18,7 +18,7 @@ DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery0
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Change to adjust the reflector model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
-DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_lab/jar01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
+DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
@@ -86,7 +86,7 @@ DATA.MAT = {
   "debug/env_cubemap_model",
   "models/dog/eyeglass"    ,
   "models/dog/eyeglass"    ,
-  "models/props_combine/metal_combinebridge001"
+  "models/props_combine/citadel_cable"
 }
 
 DATA.COLOR = {

@@ -21,23 +21,24 @@ include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
   local amax = LaserLib.GetData("AMAX")
-  self:EditableSetVector("OriginLocal"   , "General")
-  self:EditableSetVector("DirectLocal"   , "General")
-  self:EditableSetFloat ("AngleOffset"   , "General", amax[1], amax[2])
-  self:EditableSetBool  ("StartToggle"   , "General")
-  self:EditableSetBool  ("ForceCenter"   , "General")
-  self:EditableSetBool  ("ReflectRatio"  , "Material")
-  self:EditableSetBool  ("RefractRatio"  , "Material")
-  self:EditableSetBool  ("InPowerOn"     , "Internals")
-  self:EditableSetFloat ("InBeamWidth"   , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  self:EditableSetFloat ("InBeamLength"  , "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  self:EditableSetFloat ("InDamageAmount", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  self:EditableSetFloat ("InPushForce"   , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  self:EditableSetVector("OriginLocal" , "General")
+  self:EditableSetVector("DirectLocal" , "General")
+  self:EditableSetFloat ("AngleOffset" , "General", amax[1], amax[2])
+  self:EditableSetBool  ("StartToggle" , "General")
+  self:EditableSetBool  ("ForceCenter" , "General")
+  self:EditableSetBool  ("ReflectRatio", "Material")
+  self:EditableSetBool  ("RefractRatio", "Material")
+  self:EditableSetBool  ("InPowerOn"   , "Internals")
+  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  self:EditableRemoveOrderInfo()
 end
 
 function ENT:SetBeamTransform()
@@ -110,23 +111,23 @@ end
 --[[ ----------------------
   Damage
 ---------------------- ]]
-function ENT:SetDamageAmount(num)
+function ENT:SetBeamDamage(num)
   local damage = math.max(num, 0)
-  self:SetInDamageAmount(damage)
+  self:SetInBeamDamage(damage)
   return self
 end
 
-function ENT:GetDamageAmount()
+function ENT:GetBeamDamage()
   if(SERVER) then
     local damage = self:WireRead("Damage", true)
     if(damage ~= nil) then damage = math.max(damage, 0)
-    else damage = self:GetInDamageAmount() end
-    self:SetNWFloat("GetInDamageAmount", damage)
+    else damage = self:GetInBeamDamage() end
+    self:SetNWFloat("GetInBeamDamage", damage)
     self:WireWrite("Damage", damage)
     return damage
   else
-    local damage = self:GetInDamageAmount()
-    return self:GetNWFloat("GetInDamageAmount", damage)
+    local damage = self:GetInBeamDamage()
+    return self:GetNWFloat("GetInBeamDamage", damage)
   end
 end
 
@@ -241,23 +242,23 @@ end
 --[[ ----------------------
       Prop pushing
 ---------------------- ]]
-function ENT:SetPushForce(num)
+function ENT:SetBeamForce(num)
   local force = math.max(num, 0)
-  self:SetInPushForce(force)
+  self:SetInBeamForce(force)
   return self
 end
 
-function ENT:GetPushForce()
+function ENT:GetBeamForce()
   if(SERVER) then
     local force = self:WireRead("Force", true)
     if(force ~= nil) then force = math.max(force, 0)
-    else force = self:GetInPushForce() end
-    self:SetNWFloat("GetInPushForce", force)
+    else force = self:GetInBeamForce() end
+    self:SetNWFloat("GetInBeamForce", force)
     self:WireWrite("Force", force)
     return force
   else
-    local force = self:GetInPushForce()
-    return self:GetNWFloat("GetInPushForce", force)
+    local force = self:GetInBeamForce()
+    return self:GetNWFloat("GetInBeamForce", force)
   end
 end
 
@@ -298,8 +299,8 @@ function ENT:Setup(width       , length     , damage     , material    ,
                    reflectRate , refractRate, forceCenter, enOnverMater, update)
   self:SetBeamWidth(width)
   self:SetBeamLength(length)
-  self:SetDamageAmount(damage)
-  self:SetPushForce(pushForce)
+  self:SetBeamDamage(damage)
+  self:SetBeamForce(pushForce)
   -- These are not controlled by wire and are stored in the laser itself
   self:SetBeamColor(Vector(1,1,1))
   self:SetForceCenter(forceCenter)
@@ -375,26 +376,24 @@ function ENT:GetHitReports()
 end
 
 --[[
- Checks whenever the entity beam report hits us (self)
- * self > The crystal to be checked
- * ent  > Source entity to be checked
+ * Checks whenever the entity beam report hits us (self)
+ * self > Target entity to be checked
+ * ent  > Reporter entity to be checked
  * idx  > Forced index to check. Not mandatory
  * Data is stored in notation: self.hitReports[ID]
 ]]
 function ENT:GetHitSourceID(ent, idx)
-  if(not LaserLib.IsValid(ent)) then return nil end -- Skip unavaliable
+  if(not LaserLib.IsValid(ent)) then return nil end -- Skip
   if(ent == self) then return nil end -- Loop source
   if(not self.hitSources[ent]) then return nil end
   if(not LaserLib.IsUnit(ent)) then return nil end
   if(not ent:GetOn()) then return nil end
   local rep = ent:GetHitReports()
   if(not rep) then return nil end
-  if(idx) then
-    local trace, data = ent:GetHitReport(idx)
+  if(idx) then local trace, data = ent:GetHitReport(idx)
     if(trace and trace.Hit and self == trace.Entity) then return idx end
   else
-    for cnt = 1, rep.Size do
-      local trace, data = ent:GetHitReport(cnt)
+    for cnt = 1, rep.Size do local trace, data = ent:GetHitReport(cnt)
       if(trace and trace.Hit and self == trace.Entity) then return cnt end
     end
   end; return nil

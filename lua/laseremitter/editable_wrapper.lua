@@ -8,6 +8,11 @@ function ENT:EditableGetOrderID(typ)
   return typ, data.Ord, data.Typ[typ]
 end
 
+function ENT:EditableRemoveOrderInfo()
+  self.EditableOrderInfo = nil
+  return self
+end
+
 function ENT:EditableSetVector(name, catg)
   local typ, ord, id = self:EditableGetOrderID("Vector")
   self:NetworkVar(typ, id, name, {
@@ -16,7 +21,7 @@ function ENT:EditableSetVector(name, catg)
       category = catg,
       order    = ord,
       type     = typ
-    }})
+    }}); return self
 end
 
 function ENT:EditableSetVectorColor(name, catg, min, max)
@@ -27,7 +32,7 @@ function ENT:EditableSetVectorColor(name, catg, min, max)
       category = catg,
       order    = ord,
       type     = typ.."Color"
-    }})
+    }}); return self
 end
 
 function ENT:EditableSetBool(name, catg)
@@ -38,7 +43,7 @@ function ENT:EditableSetBool(name, catg)
       category = catg,
       order    = ord,
       type     = typ
-    }})
+    }}); return self
 end
 
 function ENT:EditableSetFloat(name, catg, min, max)
@@ -51,7 +56,7 @@ function ENT:EditableSetFloat(name, catg, min, max)
       type     = typ,
       min      = (tonumber(min) or -100),
       max      = (tonumber(max) or  100)
-    }})
+    }}); return self
 end
 
 function ENT:EditableSetInt(name, catg, min, max)
@@ -64,7 +69,7 @@ function ENT:EditableSetInt(name, catg, min, max)
       type     = typ,
       min      = (tonumber(min) or -100),
       max      = (tonumber(max) or  100)
-    }})
+    }}); return self
 end
 
 function ENT:EditableSetComboString(name, catg, vals, key)
@@ -72,8 +77,8 @@ function ENT:EditableSetComboString(name, catg, vals, key)
   local typ, ord, id = self:EditableGetOrderID("String")
   if(key) then val = {} -- Allocate
     for k, v in pairs(vals) do
-      val[k] = v[key] -- Populate
-    end -- Produce proper ke-value pairs
+      val[k] = v[key] -- Populate values
+    end -- Produce proper key-value pairs
   end -- When list value is a table
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
@@ -82,5 +87,5 @@ function ENT:EditableSetComboString(name, catg, vals, key)
       order    = ord,
       type     = "Combo",
       values   = val
-    }})
+    }}); return self
 end
