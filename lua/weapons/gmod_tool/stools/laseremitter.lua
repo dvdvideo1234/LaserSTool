@@ -400,7 +400,7 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".material"))
 
   pItem = vgui.Create("PropSelect", panel)
-  pItem:Dock(TOP); pItem:SetTall(180)
+  pItem:Dock(TOP); pItem:SetTall(100)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
   pItem:ControlValues({
     models = list.GetForEdit("LaserEmitterModels"),

@@ -2,15 +2,20 @@ include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
---[[
-* This is actually faster than stuffing all the beams
-* information for every laser in a dedicated table and
-* draw the table elements one by one at once.
-]]
+local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
 
-function ENT:DrawEndingEffect(trace, data)
+--[[
+ * This is actually faster than stuffing all the beams
+ * information for every laser in a dedicated table and
+ * draw the table elements one by one at once.
+ * trace > Trace data recieved from the beam
+ * data  > Information parameters of the current beam
+ * ebeam > Entity to gran the effect enabled flag from
+]]
+function ENT:DrawEndingEffect(trace, data, ebeam)
+  local sent = (LaserLib.IsValid(ebeam) and ebeam or self)
   if(trace and not trace.HitSky and
-    self:GetEndingEffect() and self.drawEffect)
+    sent:GetEndingEffect() and self.drawEffect)
   then
     if(not self.beamEffect) then
       self.beamEffect = EffectData()
@@ -22,19 +27,18 @@ function ENT:DrawEndingEffect(trace, data)
         eff:SetStart(trace.HitPos)
         eff:SetOrigin(trace.HitPos)
         eff:SetNormal(trace.HitNormal)
-        eff:SetScale(1)
         util.Effect("AR2Impact", eff)
         -- Draw particle effects
         if(data.NvDamage > 0) then
           if(not (ent:IsPlayer() or ent:IsNPC())) then
+            local mul = (data.NvDamage / MXBMDAMG:GetFloat())
             local dir = LaserLib.GetReflected(data.VrDirect,
                                               trace.HitNormal)
             eff:SetNormal(dir)
-            if(data.NvDamage > 3500) then
-              util.Effect("ManhackSparks", eff)
-            else
-              util.Effect("MetalSpark", eff)
-            end
+            eff:SetScale(0.5)
+            eff:SetRadius(10 * mul)
+            eff:SetMagnitude(3 * mul)
+            util.Effect("Sparks", eff)
           else
             util.Effect("BloodImpact", eff)
           end

@@ -1,41 +1,5 @@
 include("shared.lua")
 
-function ENT:DrawEndingEffect(src, trace, data, sdat)
-  if(trace and not trace.HitSky and
-    sdat.BmSource:GetEndingEffect() and self.drawEffect)
-  then
-    if(not self.beamEffect) then
-      self.beamEffect = EffectData()
-    end -- Allocate effect data class
-    if(trace.Hit) then
-      local ent = trace.Entity
-      local eff = self.beamEffect
-      if(not LaserLib.IsUnit(ent)) then
-        eff:SetStart(trace.HitPos)
-        eff:SetOrigin(trace.HitPos)
-        eff:SetNormal(trace.HitNormal)
-        eff:SetScale(1)
-        util.Effect("AR2Impact", eff)
-        -- Draw particle effects
-        if(data.NvDamage > 0) then
-          if(not (ent:IsPlayer() or ent:IsNPC())) then
-            local dir = LaserLib.GetReflected(data.VrDirect,
-                                              trace.HitNormal)
-            eff:SetNormal(dir)
-            if(data.NvDamage > 3500) then
-              util.Effect("ManhackSparks", eff)
-            else
-              util.Effect("MetalSpark", eff)
-            end
-          else
-            util.Effect("BloodImpact", eff)
-          end
-        end
-      end
-    end
-  end
-end
-
 function ENT:DrawBeam(src, org, dir, sdat, idx)
   local trace, data = self:DoBeam(src, org, dir, sdat, idx)
   if(data) then
@@ -78,7 +42,7 @@ function ENT:DrawBeam(src, org, dir, sdat, idx)
     -- Adjust the render bounds with world-space coordinates
     self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
     -- Handle drawing the effects when have to be drawwn
-    self:DrawEndingEffect(src, trace, data, sdat)
+    self:DrawEndingEffect(trace, data, sdat.BmSource)
   end
 end
 

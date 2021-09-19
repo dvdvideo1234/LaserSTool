@@ -13,6 +13,8 @@ ENT.Spawnable      = false
 ENT.AdminSpawnable = false
 ENT.Information    = ENT.PrintName
 
+local EFFECTTM = LaserLib.GetData("EFFECTTM")
+
 AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 
@@ -268,7 +270,7 @@ end
 
 function ENT:DrawEffectBegin()
   if(not self.nextEffect or CurTime() > self.nextEffect) then
-    local time = LaserLib.GetData("EFFECTTM"):GetFloat()
+    local time = EFFECTTM:GetFloat()
     self.drawEffect = true
     self.nextEffect = CurTime() + time
   end
