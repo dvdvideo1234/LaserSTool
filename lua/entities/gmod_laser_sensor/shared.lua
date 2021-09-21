@@ -36,7 +36,7 @@ function ENT:SetBeamTransform()
   return self
 end
 
-function ENT:GetDirection()
+function ENT:GetSensDirection()
   if(SERVER) then
     local dir = self:WireRead("Direct", true)
     if(dir) then dir:Normalize() else
@@ -51,8 +51,21 @@ function ENT:GetDirection()
   end
 end
 
+function ENT:GetSensOrigin()
+  if(SERVER) then
+    local org = self:WireRead("Origin", true)
+    if(not org) then org = self:GetOriginLocal() end
+    self:SetNWVector("GetOriginLocal", org)
+    self:WireWrite("Origin", org)
+    return org
+  else
+    local org = self:GetOriginLocal()
+    return self:GetNWFloat("GetOriginLocal", org)
+  end
+end
+
 function ENT:IsHitNormal(trace)
-  local dir = Vector(self:GetDirection())
+  local dir = Vector(self:GetSensDirection())
         dir:Rotate(self:GetAngles())
   if(dir:IsZero()) then return 1, true end
   local dom = LaserLib.GetData("DOTM")

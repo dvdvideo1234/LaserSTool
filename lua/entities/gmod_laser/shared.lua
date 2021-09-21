@@ -461,3 +461,55 @@ function ENT:IsInfinite(ent, set)
     else return false end
   else return false end
 end
+
+--[[
+ * Processes the sources table for a given entity
+ * using a custom local scope function routine
+ * proc > Scope function to process. Arguments:
+ *      > entity > Hit report active entity
+ *      > index  > Hit report active index
+ *      > trace  > Hit report active trace
+ *      > data   > Hit report active data
+]]
+function ENT:ProcessSources(proc)
+  if(not self.hitSources) then return false end
+  for ent, hit in pairs(self.hitSources) do
+    if(hit and LaserLib.IsValid(ent)) then
+      local idh = self:GetHitSourceID(ent)
+      if(idh) then local idx, siz = idh, ent:GetHitReports().Size
+        while(idx <= siz) do -- First index always hits when present
+          if(idh) then -- When the entity hit report hiys us
+            local trace, data = ent:GetHitReport(idh)
+            local suc, err = pcall(proc, ent, idh, trace, data)
+            if(not suc) then self:Remove(); error(err); return false end
+          end; idx = idx + 1 -- Prepare to process next report
+          idh = self:GetHitSourceID(ent, idx)
+        end -- Hit reports are processed for the current entity
+      else self.hitSources[ent] = nil end
+    else self.hitSources[ent] = nil end
+  end; return true
+end
+
+--[[
+ * Processes the sources table for a given entity
+ * using a custom local scope function routine
+ * ent  > Entity hit reports getting checked
+ * proc > Scope function to process. Arguments:
+ *      > index  > Hit report active index
+ *      > trace  > Hit report active trace
+ *      > data   > Hit report active data
+]]
+function ENT:ProcessReports(ent, proc)
+  if(not LaserLib.IsValid(ent)) then return false end
+  local idh = self:GetHitSourceID(ent)
+  if(idh) then local idx, siz = idh, ent:GetHitReports().Size
+    while(idx <= siz) do -- First index always hits when present
+      if(idh) then -- When the entity hit report hiys us
+        local trace, data = ent:GetHitReport(idh)
+        local suc, err = pcall(proc, idh, trace, data)
+        if(not suc) then self:Remove(); error(err); return false end
+      end; idx = idx + 1 -- Prepare to process next report
+      idh = self:GetHitSourceID(ent, idx)
+    end -- Hit reports are processed for the current entity
+  end; return true
+end

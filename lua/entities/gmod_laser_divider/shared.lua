@@ -105,13 +105,12 @@ end
 function ENT:GetHitDominant(ent)
   if(self.hitSize and self.hitSize > 0) then
     local opower, doment = 0, nil
-    for idx = 1, self:GetHitReports().Size do
-      local trace, data = self:GetHitReport(idx)
-      if(trace and trace.Hit and trace.Entity == ent and data) then
+    ent:ProcessReports(self, function(index, trace, data)
+      if(trace and trace.Hit and data and trace.Entity == ent) then
         local npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
         if(npower >= opower) then opower, doment = npower, data.BmSource end
       end
-    end
+    end)
     if(LaserLib.IsUnit(doment, 2)) then
       return doment
     else return nil end
@@ -124,25 +123,19 @@ end
 function ENT:DivideSources()
   if(self.hitSize and self.hitSize > 0) then
     local hdx, tr, dt = 0
-    for cnt = 1, self.hitSize do
-      local src = self.hitArray[cnt]
-      for idx = 1, src:GetHitReports().Size do
-        local hit = self:GetHitSourceID(src, idx)
-        if(hit) then
-          local trace, data = src:GetHitReport(idx)
-          if(trace and trace.Hit and data and self:IsHitNormal(trace)) then -- Do same stuff here
-            local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
-            if(CLIENT) then
-              hdx = hdx + 1; self:DrawBeam(src, trace.HitPos, ref, data, hdx)
-              hdx = hdx + 1; self:DrawBeam(src, trace.HitPos, data.VrDirect, data, hdx)
-            else
-              hdx = hdx + 1; self:DoDamage(self:DoBeam(src, trace.HitPos, ref, data, hdx))
-              hdx = hdx + 1; self:DoDamage(self:DoBeam(src, trace.HitPos, data.VrDirect, data, hdx))
-            end
-          end -- Check the rest of the beams and add power
-        end -- Whenever or not our source hits the divider
-      end -- Make sure we wipe all reports that are irrelevant anymore
-    end; self:RemHitReports(hdx)
+    self:ProcessSources(function(entity, index, trace, data)
+      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then -- Do same stuff here
+        local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
+        if(CLIENT) then
+          hdx = hdx + 1; self:DrawBeam(src, trace.HitPos, ref, data, hdx)
+          hdx = hdx + 1; self:DrawBeam(src, trace.HitPos, data.VrDirect, data, hdx)
+        else
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(src, trace.HitPos, ref, data, hdx))
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(src, trace.HitPos, data.VrDirect, data, hdx))
+        end
+      end
+    end) -- Check the rest of the beams and add power
+  self:RemHitReports(hdx)
   end; return self
 end
 

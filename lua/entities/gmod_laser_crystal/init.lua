@@ -135,70 +135,57 @@ function ENT:UpdateBeam()
   local bpower, doment = false -- Dominant source
 
   if(self.hitSize > 0) then
-    for cnt = 1, self.hitSize do
-      local ent = self.hitArray[cnt]
-      if(LaserLib.IsValid(ent)) then
-        local idx = self:GetHitSourceID(ent)
-        if(idx) then
-          for cnt = 1, ent:GetHitReports().Size do
-            local hit = self:GetHitSourceID(ent, cnt)
-            if(hit) then
-              local trace, data = ent:GetHitReport(hit)
-              if(trace and trace.Hit and data) then
-                npower = LaserLib.GetPower(data.NvWidth,
-                                           data.NvDamage)
-                if(not self:IsInfinite(ent)) then
-                  width  = width  + data.NvWidth
-                  length = length + data.NvLength
-                  damage = damage + data.NvDamage
-                  force  = force  + data.NvForce
-                  bpower = (bpower or true)
-                end
-                if(npower > opower) then
-                  doment, opower = ent, npower
-                end
-              end
-            end
-          end
+    self:ProcessSources(function(entity, index, trace, data)
+      if(trace and trace.Hit and data) then
+        npower = LaserLib.GetPower(data.NvWidth,
+                                   data.NvDamage)
+        if(not self:IsInfinite(entity)) then
+          width  = width  + data.NvWidth
+          length = length + data.NvLength
+          damage = damage + data.NvDamage
+          force  = force  + data.NvForce
+          bpower = (bpower or true)
+        end
+        if(npower > opower) then
+          doment, opower = entity, npower
         end
       end
-      -- This must always produce a dominant
-      local dom = self:GetDominant(doment)
-      if(bpower) then -- Sum settings
-        self:SetBeamForce(force)
-        self:SetBeamWidth(width)
-        self:SetBeamLength(length)
-        self:SetBeamDamage(damage)
-      else
-        if(LaserLib.IsValid(dom)) then
-          local idx = self:GetHitSourceID(doment)
-          if(idx) then
-            local force, width, damage = 0, 0, 0
-            for cnt = 1, doment:GetHitReports().Size do
-              local trace, data = doment:GetHitReport(cnt)
-              if(trace and trace.Hit and data) then
-                force  = force  + data.NvForce
-                width  = width  + data.NvWidth
-                damage = damage + data.NvDamage
-              end
+    end)
+
+    local dom = self:GetDominant(doment)
+    if(bpower) then -- Sum settings
+      self:SetBeamForce(force)
+      self:SetBeamWidth(width)
+      self:SetBeamLength(length)
+      self:SetBeamDamage(damage)
+    else -- Inside an active entity loop
+      if(LaserLib.IsValid(dom)) then
+        local force, width, damage = 0, 0, 0
+        local stats = self:ProcessReports(doment,
+          function(index, trace, data)
+            if(trace and trace.Hit and data) then
+              force  = force  + data.NvForce
+              width  = width  + data.NvWidth
+              damage = damage + data.NvDamage
             end
-            self:SetBeamForce(force)
-            self:SetBeamWidth(width)
-            self:SetBeamDamage(damage)
-          else
-            self:SetBeamForce(dom:GetBeamForce())
-            self:SetBeamWidth(dom:GetBeamWidth())
-            self:SetBeamDamage(dom:GetBeamDamage())
-          end
-          self:SetBeamLength(dom:GetBeamLength())
+          end)
+        if(stats) then
+          self:SetBeamForce(force)
+          self:SetBeamWidth(width)
+          self:SetBeamDamage(damage)
         else
-          self:SetBeamForce(0)
-          self:SetBeamWidth(0)
-          self:SetBeamLength(0)
-          self:SetBeamDamage(0)
-          self:RemHitReports()
-        end -- Sources are infinite loops
-      end
+          self:SetBeamForce(dom:GetBeamForce())
+          self:SetBeamWidth(dom:GetBeamWidth())
+          self:SetBeamDamage(dom:GetBeamDamage())
+        end
+        self:SetBeamLength(dom:GetBeamLength())
+      else
+        self:SetBeamForce(0)
+        self:SetBeamWidth(0)
+        self:SetBeamLength(0)
+        self:SetBeamDamage(0)
+        self:RemHitReports()
+      end -- Sources are infinite loops
     end
   else
     self:SetBeamForce(0)

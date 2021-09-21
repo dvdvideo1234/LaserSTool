@@ -26,7 +26,8 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Direct"  , "VECTOR", "Sensor surface normal" }
+    {"Origin"  , "VECTOR", "Sensor source hit origin"},
+    {"Direct"  , "VECTOR", "Sensor surface normal"    }
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Sensor enabled state"  },
     {"Width"   , "NORMAL", "Sensor beam width"     },
@@ -129,36 +130,26 @@ function ENT:UpdateDominant()
   local apower, doment = 0, nil -- Dominant source
 
   if(self.hitSize > 0) then
-    for ent, hit in pairs(self.hitSources) do
-      if(hit and LaserLib.IsValid(ent)) then
-        local idh = self:GetHitSourceID(ent)
-        if(idh) then local idx, siz = idh, ent:GetHitReports().Size
-          while(idx <= siz) do -- First index always hits when present
-            if(idh) then
-              local trace, data = ent:GetHitReport(idh)
-              local dotmg, flag = self:IsHitNormal(trace)
-              if(trace and trace.Hit and data and flag) then
-                npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-                width  = width  + data.NvWidth
-                damage = damage + data.NvDamage
-                force  = force  + data.NvForce
-                if(npower > opower) then
-                  length = data.NvLength
-                  origin:Set(data.VrOrigin)
-                  direct:Set(data.VrDirect)
-                  bmrefl = (data.BrReflec and 1 or 0)
-                  bmrefr = (data.BrRefrac and 1 or 0)
-                  novrmt = (data.BmNoover and 1 or 0)
-                  normh  = (flag and 1 or 0)
-                  normm  = dotmg
-                  doment, opower = ent, npower
-                end
-              end end; idx = idx + 1
-            idh = self:GetHitSourceID(ent, idx)
-          end
+    self:ProcessSources(function(entity, index, trace, data)
+      local dotmg, flag = self:IsHitNormal(trace)
+      if(trace and trace.Hit and data and flag) then
+        npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
+        width  = width  + data.NvWidth
+        damage = damage + data.NvDamage
+        force  = force  + data.NvForce
+        if(npower > opower) then
+          length = data.NvLength
+          origin:Set(data.VrOrigin)
+          direct:Set(data.VrDirect)
+          bmrefl = (data.BrReflec and 1 or 0)
+          bmrefr = (data.BrRefrac and 1 or 0)
+          novrmt = (data.BmNoover and 1 or 0)
+          normh  = (flag and 1 or 0)
+          normm  = dotmg
+          doment, opower = entity, npower
         end
       end
-    end
+    end)
 
     self:WireWrite("Width" , width)
     self:WireWrite("Length", length)
@@ -175,16 +166,20 @@ function ENT:UpdateDominant()
     -- Read sensor configuration
     local mforce  = self:GetBeamForce()
     local mwidth  = self:GetBeamWidth()
-    local mdirect = self:GetDirection()
+    local morigin = self:GetSensOrigin()
+    local mdirect = self:GetSensDirection()
     local mlength = self:GetBeamLength()
     local mdamage = self:GetBeamDamage()
+    local zorigin = morigin:IsZero()
+    local zdirect = mdirect:IsZero()
     -- Check whenever sensor has to turn on
     if(LaserLib.IsValid(doment) and
        (mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
        (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
        (mlength == 0 or (mlength > 0 and length >= mlength)) and
        (mdamage == 0 or (mdamage > 0 and damage >= mdamage)) and
-       (mdirect:IsZero() or (normh > 0))) then
+       (zorigin or (not zorigin and morigin:Distance(origin) >= mlength)) and
+       (zdirect or (not zdirect and normh > 0))) then
       self:SetOn(true)
     else
       self:SetOn(false)

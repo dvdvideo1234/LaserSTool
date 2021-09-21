@@ -315,6 +315,8 @@ function TOOL:Reload(trace)
       LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
     elseif(ply:KeyDown(IN_SPEED)) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("reflectused"))
+    elseif(ply:KeyDown(IN_DUCK) and ent:GetCreator() == ply) then
+      ent:Remove()
     else
       LaserLib.SetMaterial(ent)
     end
