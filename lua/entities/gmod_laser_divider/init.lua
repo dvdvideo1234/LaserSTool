@@ -15,7 +15,7 @@ function ENT:Initialize()
     {"On"      , "NORMAL", "Divider working state" },
     {"Normal"  , "VECTOR", "Divider surface normal"},
     {"Count"   , "NORMAL", "Divider beam count"    },
-    {"Entity"  , "ENTITY", "Divider crystal entity"},
+    {"Entity"  , "ENTITY", "Divider entity itself" },
     {"Array"   , "ARRAY" , "Divider sources array" }
   )
 
