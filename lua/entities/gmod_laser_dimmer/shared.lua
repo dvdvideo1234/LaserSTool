@@ -1,5 +1,5 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Divider"
+ENT.PrintName      = "Laser Dimmer"
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
   ENT.WireDebugName = ENT.PrintName
@@ -24,7 +24,7 @@ end
 
 -- Override the beam transormation
 function ENT:SetBeamTransform()
-  local normal = Vector(0,0,1) -- Local surface normal
+  local normal = Vector(0,0,1) -- Local surface direction
   self:SetNormalLocal(normal)
   return self
 end
@@ -38,9 +38,13 @@ function ENT:InitSources()
     end
   else
     if(self.hitSources) then
-      table.Empty(self.hitSources)
+      table.Empty(self.hitFront)
+      table.Empty(self.hitPower)
       table.Empty(self.hitArray)
+      table.Empty(self.hitSources)
     else
+      self.hitFront   = {} -- Array for surface hit normal
+      self.hitPower   = {} -- Array for product coefficients
       self.hitArray   = {} -- Array to output for wiremod
       self.hitSources = {} -- Sources in notation `[ent] = true`
     end
@@ -76,21 +80,28 @@ function ENT:GetOn()
   return state
 end
 
-function ENT:IsHitNormal(trace)
+function ENT:GetHitPower(trace, data)
   local normal = Vector(self:GetHitNormal())
         normal:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
-  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
+  local dotv = math.abs(normal:Dot(data.VrDirect))
+  local dott = math.abs(normal:Dot(trace.HitNormal))
+  return dotv, (dott > (1 - dotm))
 end
 
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
   self:ProcessSources(function(entity, index, trace, data)
-    if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+    local mdot, bdot = self:GetHitPower(trace, data)
+    if(trace and trace.Hit and data and bdot) then
       self.hitSize = self.hitSize + 1 -- Point to next slot
       self.hitArray[self.hitSize] = entity -- Store source
+      if(SERVER) then
+        self.hitPower[self.hitSize] = mdot -- Store source
+        self.hitFront[self.hitSize] = (bdot and 1 or 0)
+      end
     end -- Sources are located in the table hash part
-  end); return self:UpdateArrays("hitArray")
+  end); return self:UpdateArrays("hitArray", "hitPower", "hitFront")
 end
 
 function ENT:GetHitDominant(ent)
@@ -114,14 +125,12 @@ end
 function ENT:ManageSources()
   if(self.hitSize and self.hitSize > 0) then local hdx = 0
     self:ProcessSources(function(entity, index, trace, data)
-      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then -- Do same stuff here
-        local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
+      local mdot, bdot = self:GetHitPower(trace, data)
+      if(trace and trace.Hit and data and bdot) then -- Do same stuff here
         if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
+          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx)
         else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx))
         end
       end
     end) -- Check the rest of the beams and add power
@@ -137,15 +146,14 @@ end
  * sdat > Source beam trace data
  * idx  > Index to store the result
 ]]
-function ENT:DoBeam(ent, org, dir, sdat, idx)
+function ENT:DoBeam(ent, org, dir, sdat, mdot, idx)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
   local noverm = sdat.BmNoover
-  local todiv  = (self:GetBeamReplicate() and 1 or 2)
-  local damage = sdat.NvDamage / todiv
-  local force  = sdat.NvForce  / todiv
-  local width  = LaserLib.GetWidth(sdat.NvWidth / todiv)
+  local damage = sdat.NvDamage * mdot
+  local force  = sdat.NvForce  * mdot
+  local width  = LaserLib.GetWidth(sdat.NvWidth * mdot)
   local trace, data = LaserLib.DoBeam(self,
                                       org,
                                       dir,

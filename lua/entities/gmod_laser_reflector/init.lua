@@ -10,7 +10,7 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(3))
+  local ent = ents.Create(LaserLib.GetClass(3, 1))
   if(LaserLib.IsValid(ent)) then
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(3))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)

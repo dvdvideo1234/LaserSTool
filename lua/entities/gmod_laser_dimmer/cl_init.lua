@@ -1,7 +1,7 @@
 include("shared.lua")
 
-function ENT:DrawBeam(src, org, dir, sdat, idx)
-  local trace, data = self:DoBeam(src, org, dir, sdat, idx)
+function ENT:DrawBeam(src, org, dir, sdat, mdot, idx)
+  local trace, data = self:DoBeam(src, org, dir, sdat, mdot, idx)
   if(data) then
     local color = sdat.BmSource:GetBeamColor()
     local ushit = LocalPlayer():GetEyeTrace().HitPos

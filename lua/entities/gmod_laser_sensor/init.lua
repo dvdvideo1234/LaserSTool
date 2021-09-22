@@ -9,6 +9,7 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:InitSources()
+  self.hitSize = 0       -- Amount of sources to have
   if(self.hitSources) then
     table.Empty(self.hitSources)
     table.Empty(self.hitArray)
@@ -16,7 +17,6 @@ function ENT:InitSources()
     self.hitSources = {} -- Sources in notation `[ent] = true`
     self.hitArray   = {} -- Array to output for wiremod
   end
-  self.hitSize = 0       -- Amount of sources to have
   return self
 end
 
@@ -76,7 +76,7 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(6))
+  local ent = ents.Create(LaserLib.GetClass(6, 1))
   if(LaserLib.IsValid(ent)) then
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(6))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
@@ -89,7 +89,6 @@ function ENT:SpawnFunction(ply, tr)
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
-    ent:PhysWake()
     ent:SetBeamTransform()
     LaserLib.SetPlayer(ent, ply)
     return ent
@@ -105,20 +104,7 @@ function ENT:UpdateSources()
     else -- When not a source. Delete the slot
       self.hitSources[ent] = nil -- Wipe out the entry
     end -- The sources order does not matter
-  end
-  local cnt = (self.hitSize + 1) -- Remove the residuals
-  while(self.hitArray[cnt]) do -- Table end check
-    self.hitArray[cnt] = nil -- Wipe cirrent item
-    cnt = (cnt + 1) -- Wipe the rest until empty
-  end
-  if(self.hitSize > 0) then
-    self:WireWrite("Count", self.hitSize)
-    self:WireWrite("Array", self.hitArray)
-  else
-    self:WireWrite("Count", 0)
-    self:WireWrite("Array")
-  end
-  return self -- Sources are located in the table hash part
+  end; return self:UpdateArrays("hitArray")
 end
 
 function ENT:UpdateDominant()
@@ -151,38 +137,56 @@ function ENT:UpdateDominant()
       end
     end)
 
-    self:WireWrite("Width" , width)
-    self:WireWrite("Length", length)
-    self:WireWrite("Damage", damage)
-    self:WireWrite("Force" , force)
-    self:WireWrite("Origin", origin)
-    self:WireWrite("Direct", direct)
-    self:WireWrite("RatioRL", bmrefl)
-    self:WireWrite("RatioRF", bmrefr)
-    self:WireWrite("NoVrmat", novrmt)
-    self:WireWrite("DotMatch", normh)
-    self:WireWrite("DotBound", normm)
-    self:WireWrite("Dominant", doment)
-    -- Read sensor configuration
-    local mforce  = self:GetBeamForce()
-    local mwidth  = self:GetBeamWidth()
-    local morigin = self:GetSensOrigin()
-    local mdirect = self:GetSensDirection()
-    local mlength = self:GetBeamLength()
-    local mdamage = self:GetBeamDamage()
-    local zorigin = morigin:IsZero()
-    local zdirect = mdirect:IsZero()
-    -- Check whenever sensor has to turn on
-    if(LaserLib.IsValid(doment) and
-       (mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
-       (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
-       (mlength == 0 or (mlength > 0 and length >= mlength)) and
-       (mdamage == 0 or (mdamage > 0 and damage >= mdamage)) and
-       (zorigin or (not zorigin and morigin:Distance(origin) >= mlength)) and
-       (zdirect or (not zdirect and normh > 0))) then
-      self:SetOn(true)
+    if(LaserLib.IsValid(doment)) then
+      doment = doment:GetHitDominant(self)
+
+      -- Read sensor configuration
+      local mforce  = self:GetBeamForce()
+      local mwidth  = self:GetBeamWidth()
+      local morigin = self:GetSensOrigin()
+      local mdirect = self:GetSensDirection()
+      local mlength = self:GetBeamLength()
+      local mdamage = self:GetBeamDamage()
+      local zorigin = morigin:IsZero()
+      local zdirect = mdirect:IsZero()
+
+      self:WireWrite("Width" , width)
+      self:WireWrite("Length", length)
+      self:WireWrite("Damage", damage)
+      self:WireWrite("Force" , force)
+      self:WireWrite("Origin", origin)
+      self:WireWrite("Direct", direct)
+      self:WireWrite("RatioRL", bmrefl)
+      self:WireWrite("RatioRF", bmrefr)
+      self:WireWrite("NoVrmat", novrmt)
+      self:WireWrite("DotMatch", normh)
+      self:WireWrite("DotBound", normm)
+      self:WireWrite("Dominant", doment)
+      -- Check whenever sensor has to turn on
+      if((mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
+         (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
+         (mlength == 0 or (mlength > 0 and length >= mlength)) and
+         (mdamage == 0 or (mdamage > 0 and damage >= mdamage)) and
+         (zorigin or (not zorigin and morigin:Distance(origin) >= mlength)) and
+         (zdirect or (not zdirect and normh > 0))) then
+        self:SetOn(true)
+      else
+        self:SetOn(false)
+      end
     else
       self:SetOn(false)
+      self:WireWrite("Width" , width)
+      self:WireWrite("Length", length)
+      self:WireWrite("Damage", damage)
+      self:WireWrite("Force" , force)
+      self:WireWrite("Origin", origin)
+      self:WireWrite("Direct", direct)
+      self:WireWrite("RatioRL", bmrefl)
+      self:WireWrite("RatioRF", bmrefr)
+      self:WireWrite("NoVrmat", novrmt)
+      self:WireWrite("DotMatch", normh)
+      self:WireWrite("DotBound", normm)
+      self:WireWrite("Dominant", doment)
     end
   else
     self:SetOn(false)
@@ -209,8 +213,12 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:WireWrite("On", 1)
+    self:WireWrite("Count", self.hitSize)
+    self:WireWrite("Array", self.hitArray)
   else
     self:WireWrite("On", 0)
+    self:WireWrite("Count", 0)
+    self:WireWrite("Array")
   end
 
   self:NextThink(CurTime())

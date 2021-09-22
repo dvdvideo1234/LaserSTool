@@ -9,6 +9,7 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:InitSources()
+  self.hitSize = 0       -- Amount of sources to have
   if(self.hitSources) then
     table.Empty(self.hitSources)
     table.Empty(self.hitArray)
@@ -16,7 +17,6 @@ function ENT:InitSources()
     self.hitSources = {} -- Sources in notation `[ent] = true`
     self.hitArray   = {} -- Array to output for wiremod
   end
-  self.hitSize = 0       -- Amount of sources to have
   return self
 end
 
@@ -69,7 +69,7 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(2))
+  local ent = ents.Create(LaserLib.GetClass(2, 1))
   if(LaserLib.IsValid(ent)) then
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(2))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
@@ -83,7 +83,6 @@ function ENT:SpawnFunction(ply, tr)
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
-    ent:PhysWake()
     return ent
   end; return nil
 end
@@ -97,12 +96,7 @@ function ENT:UpdateSources()
     else -- When not a source. Delete the slot
       self.hitSources[ent] = nil -- Wipe out the entry
     end -- The sources order does not matter
-  end
-  local cnt = (self.hitSize + 1) -- Remove the residuals
-  while(self.hitArray[cnt]) do -- Table end check
-    self.hitArray[cnt] = nil -- Wipe cirrent item
-    cnt = (cnt + 1) -- Wipe the rest until empty
-  end; return self -- Sources are located in the table hash part
+  end; return self:UpdateArrays("hitArray")
 end
 
 function ENT:GetDominant(ent)

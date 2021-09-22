@@ -1,7 +1,5 @@
 local gsUnit = LaserLib.GetTool()
-local gsLaseremCls = LaserLib.GetClass(1)
-local gsCrystalCls = LaserLib.GetClass(2)
-local gsReflectCls = LaserLib.GetClass(3)
+local gsLaseremCls = LaserLib.GetClass(1, 1)
 
 if(CLIENT) then
 
@@ -132,8 +130,11 @@ if(CLIENT) then
   language.Add(gsLaseremCls, "Laser Emiter") -- Relative to materials
   killicon.Add(gsLaseremCls, "vgui/entities/gmod_laser_killicon", LaserLib.GetColor("WHITE"))
 
-  language.Add(gsCrystalCls, "Laser Crystal")
-  killicon.AddAlias(gsCrystalCls, gsLaseremCls)
+  for idx = 2, #LaserLib.GetData("CLS") do
+    local isc = gsLaseremCls.."_"..LaserLib.GetClass(idx, 2)
+    language.Add(isc, "Laser Crystal")
+    killicon.AddAlias(isc, gsLaseremCls)
+  end
 end
 
 cleanup.Register(gsUnit.."s")

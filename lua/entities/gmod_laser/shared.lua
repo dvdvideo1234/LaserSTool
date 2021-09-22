@@ -206,7 +206,7 @@ function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
     local pos, enb = self:GetPos(), LaserLib.GetData("ENSOUNDS")
-    local cls, mcs = self:GetClass(), LaserLib.GetClass(1)
+    local cls, mcs = self:GetClass(), LaserLib.GetClass(1, 1)
     if(cls == mcs or enb:GetBool()) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())
@@ -465,6 +465,33 @@ end
 --[[
  * Processes the sources table for a given entity
  * using a custom local scope function routine
+ * self > Entity base item that is being issued
+ * ent  > Entity hit reports getting checked
+ * proc > Scope function to process. Arguments:
+ *      > index  > Hit report active index
+ *      > trace  > Hit report active trace
+ *      > data   > Hit report active data
+]]
+function ENT:ProcessReports(ent, proc)
+  if(not LaserLib.IsValid(ent)) then return false end
+  local idh = self:GetHitSourceID(ent)
+  if(idh) then local idx, siz = idh, ent:GetHitReports().Size
+    while(idx <= siz) do -- First index always hits when present
+      if(idh) then -- When the entity hit report hiys us
+        local trace, data = ent:GetHitReport(idh)
+        local suc, err = pcall(proc, idh, trace, data)
+        if(not suc) then self:Remove(); error(err); return false end
+      end; idx = idx + 1 -- Prepare to process next report
+      idh = self:GetHitSourceID(ent, idx)
+    end -- Hit reports are processed for the current entity
+  end; return true
+end
+
+--[[
+ * Processes the sources table for all entities
+ * using a custom local scope function routine.
+ * Automatically removes the non related reports
+ * self > Entity base item that is being issued
  * proc > Scope function to process. Arguments:
  *      > entity > Hit report active entity
  *      > index  > Hit report active index
@@ -491,25 +518,21 @@ function ENT:ProcessSources(proc)
 end
 
 --[[
- * Processes the sources table for a given entity
- * using a custom local scope function routine
- * ent  > Entity hit reports getting checked
- * proc > Scope function to process. Arguments:
- *      > index  > Hit report active index
- *      > trace  > Hit report active trace
- *      > data   > Hit report active data
+ * Clears the output arrays according to the hit size
+ * Removes the residual elements from wire ouputs
 ]]
-function ENT:ProcessReports(ent, proc)
-  if(not LaserLib.IsValid(ent)) then return false end
-  local idh = self:GetHitSourceID(ent)
-  if(idh) then local idx, siz = idh, ent:GetHitReports().Size
-    while(idx <= siz) do -- First index always hits when present
-      if(idh) then -- When the entity hit report hiys us
-        local trace, data = ent:GetHitReport(idh)
-        local suc, err = pcall(proc, idh, trace, data)
-        if(not suc) then self:Remove(); error(err); return false end
-      end; idx = idx + 1 -- Prepare to process next report
-      idh = self:GetHitSourceID(ent, idx)
-    end -- Hit reports are processed for the current entity
-  end; return true
+function ENT:UpdateArrays(...)
+  local cnt = (tonumber(self.hitSize) or 0)
+  if(cnt <= 0) then return self end
+  local set, cnt = {...}, (cnt + 1)
+  for idx = 1, #set do
+    local nam = set[idx]
+    local arr = self[nam]
+    if(arr) then -- Wipe the rest until empty
+      while(arr[cnt]) do -- Table end check
+        arr[cnt] = nil -- Wipe cirrent item
+        cnt = (cnt + 1) -- Go to nex one
+      end
+    end
+  end; return self
 end

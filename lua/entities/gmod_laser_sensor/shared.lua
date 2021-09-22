@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.PrintName      = "Laser Sensor"
-ENT.Base           = LaserLib.GetClass(1)
+ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
   ENT.WireDebugName = ENT.PrintName
 end

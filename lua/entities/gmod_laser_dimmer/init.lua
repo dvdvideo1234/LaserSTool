@@ -10,13 +10,15 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal"  , "VECTOR", "Divider surface normal"}
+    {"Normal"  , "VECTOR", "Dimmer surface normal"}
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Divider working state" },
-    {"Normal"  , "VECTOR", "Divider surface normal"},
-    {"Count"   , "NORMAL", "Divider beam count"    },
-    {"Entity"  , "ENTITY", "Divider crystal entity"},
-    {"Array"   , "ARRAY" , "Divider sources array" }
+    {"On"      , "NORMAL", "Dimmer working state"    },
+    {"Normal"  , "VECTOR", "Dimmer surface normal"   },
+    {"Entity"  , "ENTITY", "Dimmer entity itself"    },
+    {"Count"   , "NORMAL", "Dimmer beam count"       },
+    {"Front"   , "ARRAY" , "Dimmer frontal hit array"},
+    {"Power"   , "ARRAY" , "Dimmer power level array"},
+    {"Array"   , "ARRAY" , "Dimmer sources array"    }
   )
 
   self:InitSources()
@@ -35,16 +37,16 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(5, 1))
+  local ent = ents.Create(LaserLib.GetClass(7, 1))
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(5))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(7))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    ent:SetModel(LaserLib.GetModel(5))
+    ent:SetModel(LaserLib.GetModel(7))
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
@@ -96,10 +98,14 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:ManageSources()
+    self:WireWrite("Front", self.hitFront)
+    self:WireWrite("Power", self.hitPower)
     self:WireWrite("Array", self.hitArray)
     self:WireWrite("Count", self.hitSize)
   else
     self:RemHitReports()
+    self:WireWrite("Front")
+    self:WireWrite("Power")
     self:WireWrite("Array")
     self:WireWrite("Count", 0)
   end

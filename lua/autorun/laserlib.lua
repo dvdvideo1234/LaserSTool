@@ -19,6 +19,7 @@ DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_refl
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
 DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
+DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the dimmer model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
@@ -63,12 +64,17 @@ DATA.CLS = {
   ["gmod_laser_splitter"] = {true , true , true },
   ["gmod_laser_divider" ] = {true , false, false},
   ["gmod_laser_sensor"  ] = {false, true , false},
-  "gmod_laser"         , -- Laser entity calss
-  "gmod_laser_crystal" , -- Laser crystal class
-  "prop_physics"       , -- Laser reflectors class
-  "gmod_laser_splitter", -- Laser beam splitter
-  "gmod_laser_divider" , -- Laser beam divider
-  "gmod_laser_sensor"    -- Laser beam sensor
+  ["gmod_laser_dimmer"  ] = {true , false, false},
+  -- [1] Actual class passed to ents.Create
+  -- [2] Extension for folder name indices
+  -- [3] Extension for variable name indices
+  {"gmod_laser"         , nil        , nil      }, -- Laser entity calss
+  {"gmod_laser_crystal" , "crystal"  , "CRYSTAL"}, -- Laser crystal class
+  {"prop_physics"       , "reflector", "REFLECT"}, -- Laser reflectors class
+  {"gmod_laser_splitter", "splitter" , "SPLITER"}, -- Laser beam splitter
+  {"gmod_laser_divider" , "divider"  , "DIVIDER"}, -- Laser beam divider
+  {"gmod_laser_sensor"  , "sensor"   , "SENSOR" }, -- Laser beam sensor
+  {"gmod_laser_dimmer"  , "dimmer"   , "DIMMER" }  -- Laser beam divider
 }
 
 DATA.MOD = { -- Model used by the entities menu
@@ -77,7 +83,8 @@ DATA.MOD = { -- Model used by the entities menu
   DATA.MREFLECT:GetString(),
   DATA.MSPLITER:GetString(),
   DATA.MDIVIDER:GetString(),
-  DATA.MSENSOR:GetString()   -- Portal catcher: models/props/laser_catcher_center.mdl
+  DATA.MSENSOR:GetString() , -- Portal catcher: models/props/laser_catcher_center.mdl
+  DATA.MDIMMER:GetString()
 }
 
 DATA.MAT = {
@@ -86,7 +93,8 @@ DATA.MAT = {
   "debug/env_cubemap_model",
   "models/dog/eyeglass"    ,
   "models/dog/eyeglass"    ,
-  "models/props_combine/citadel_cable"
+  "models/props_combine/citadel_cable",
+  "models/dog/eyeglass"
 }
 
 DATA.COLOR = {
@@ -206,60 +214,22 @@ DATA.TRACE = {
 }
 
 -- Callbacks for console variables
-cvars.RemoveChangeCallback(DATA.MCRYSTAL:GetName(), DATA.MCRYSTAL:GetName())
-cvars.AddChangeCallback(DATA.MCRYSTAL:GetName(),
-  function(name, o, n)
-    local m = tostring(n):Trim()
-    if(m:sub(1,1) == DATA.KEYD) then
-      DATA.MOD[2] = DATA.MCRYSTAL:GetDefault()
-      DATA.MCRYSTAL:SetString(DATA.MOD[2])
-    else DATA.MOD[2] = m end
-  end,
-DATA.MCRYSTAL:GetName())
+for idx = 2, #DATA.CLS do
+  local name = DATA.CLS[idx][3]
+  local varo = DATA["M"..name]
+  local varn = varo:GetName()
 
-cvars.RemoveChangeCallback(DATA.MREFLECT:GetName(), DATA.MREFLECT:GetName())
-cvars.AddChangeCallback(DATA.MREFLECT:GetName(),
-  function(name, o, n)
-    local m = tostring(n):Trim()
-    if(m:sub(1,1) == DATA.KEYD) then
-      DATA.MOD[3] = DATA.MREFLECT:GetDefault()
-      DATA.MREFLECT:SetString(DATA.MOD[3])
-    else DATA.MOD[3] = m end
-  end,
-DATA.MREFLECT:GetName())
-
-cvars.RemoveChangeCallback(DATA.MSPLITER:GetName(), DATA.MSPLITER:GetName())
-cvars.AddChangeCallback(DATA.MSPLITER:GetName(),
-  function(name, o, n)
-    local m = tostring(n):Trim()
-    if(m:sub(1,1) == DATA.KEYD) then
-      DATA.MOD[4] = DATA.MSPLITER:GetDefault()
-      DATA.MSPLITER:SetString(DATA.MOD[4])
-    else DATA.MOD[4] = m end
-  end,
-DATA.MSPLITER:GetName())
-
-cvars.RemoveChangeCallback(DATA.MDIVIDER:GetName(), DATA.MDIVIDER:GetName())
-cvars.AddChangeCallback(DATA.MDIVIDER:GetName(),
-  function(name, o, n)
-    local m = tostring(n):Trim()
-    if(m:sub(1,1) == DATA.KEYD) then
-      DATA.MOD[5] = DATA.MDIVIDER:GetDefault()
-      DATA.MDIVIDER:SetString(DATA.MOD[5])
-    else DATA.MOD[5] = m end
-  end,
-DATA.MDIVIDER:GetName())
-
-cvars.RemoveChangeCallback(DATA.MSENSOR:GetName(), DATA.MSENSOR:GetName())
-cvars.AddChangeCallback(DATA.MSENSOR:GetName(),
-  function(name, o, n)
-    local m = tostring(n):Trim()
-    if(m:sub(1,1) == DATA.KEYD) then
-      DATA.MOD[6] = DATA.MSENSOR:GetDefault()
-      DATA.MSENSOR:SetString(DATA.MOD[6])
-    else DATA.MOD[6] = m end
-  end,
-DATA.MSENSOR:GetName())
+  cvars.RemoveChangeCallback(varn, varn)
+  cvars.AddChangeCallback(varn,
+    function(name, o, n)
+      local m = tostring(n):Trim()
+      if(m:sub(1,1) == DATA.KEYD) then
+        DATA.MOD[idx] = varo:GetDefault()
+        varo:SetString(DATA.MOD[idx])
+      else DATA.MOD[idx] = m end
+    end,
+  varn)
+end
 
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
   if(StarGate ~= nil) then
@@ -398,9 +368,12 @@ function LaserLib.VecNegate(vec)
   return vec
 end
 
-function LaserLib.GetClass(iK)
-  local sC = DATA.CLS[tonumber(iK)]
-  return (sC and sC or nil)
+function LaserLib.GetClass(iK, iC)
+  local nK = math.floor(tonumber(iK) or 0)
+  local tC = DATA.CLS[nK] -- Pick elemrnt
+  if(not tC) then return nil end -- No info
+  local nC = math.floor(tonumber(iC) or 0)
+  return tC[nC] -- Return whatever found
 end
 
 function LaserLib.GetModel(iK)
@@ -758,7 +731,7 @@ if(SERVER) then
     if(not (LaserLib.IsValid(user) and user:IsPlayer())) then return nil end
     if(not user:CheckLimit(unit.."s")) then return nil end
 
-    local laser = ents.Create(LaserLib.GetClass(1))
+    local laser = ents.Create(LaserLib.GetClass(1, 1))
     if(not (LaserLib.IsValid(laser))) then return nil end
 
     laser:SetPos(pos)
