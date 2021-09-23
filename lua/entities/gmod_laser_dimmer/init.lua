@@ -12,13 +12,14 @@ function ENT:Initialize()
   self:WireCreateInputs(
     {"Normal"  , "VECTOR", "Dimmer surface normal"}
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Dimmer working state"    },
-    {"Normal"  , "VECTOR", "Dimmer surface normal"   },
-    {"Entity"  , "ENTITY", "Dimmer entity itself"    },
-    {"Count"   , "NORMAL", "Dimmer beam count"       },
-    {"Front"   , "ARRAY" , "Dimmer frontal hit array"},
-    {"Power"   , "ARRAY" , "Dimmer power level array"},
-    {"Array"   , "ARRAY" , "Dimmer sources array"    }
+    {"On"      , "NORMAL", "Dimmer working state"       },
+    {"Normal"  , "VECTOR", "Dimmer surface normal"      },
+    {"Entity"  , "ENTITY", "Dimmer entity itself"       },
+    {"Count"   , "NORMAL", "Dimmer beam count"          },
+    {"Array"   , "ARRAY" , "Dimmer sources array"       },
+    {"Level"   , "ARRAY" , "Dimmer power level array"   },
+    {"Index"   , "ARRAY" , "Dimmer first hit beam index"},
+    {"Front"   , "ARRAY" , "Dimmer frontal hit array"   }
   )
 
   self:InitSources()
@@ -29,7 +30,7 @@ function ENT:Initialize()
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then phys:Wake() end
 
-  -- Detup default configuration
+  -- Setup default configuration
   self:WireWrite("Entity", self)
 end
 
@@ -97,17 +98,18 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    self:ManageSources()
-    self:WireWrite("Front", self.hitFront)
-    self:WireWrite("Power", self.hitPower)
-    self:WireWrite("Array", self.hitArray)
     self:WireWrite("Count", self.hitSize)
+    self:WireWrite("Array", self.hitArray)
+    self:WireWrite("Front", self.hitFront)
+    self:WireWrite("Index", self.hitIndex)
+    self:WireWrite("Level", self.hitLevel)
   else
     self:RemHitReports()
-    self:WireWrite("Front")
-    self:WireWrite("Power")
-    self:WireWrite("Array")
     self:WireWrite("Count", 0)
+    self:WireWrite("Array")
+    self:WireWrite("Front")
+    self:WireWrite("Index")
+    self:WireWrite("Level")
   end
 
   self:NextThink(CurTime())

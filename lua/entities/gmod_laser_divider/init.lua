@@ -95,7 +95,6 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    self:ManageSources()
     self:WireWrite("Array", self.hitArray)
     self:WireWrite("Count", self.hitSize)
   else

@@ -452,6 +452,7 @@ end
  * width > The value to apply beam transformation
 ]]
 function LaserLib.GetWidth(width)
+  if(SERVER) then return width end
   local out = math.max(width, DATA.MINW)
   return ((width > 0) and out or 0)
 end
@@ -467,10 +468,11 @@ end
 
 --[[
  * Returns true whenever the width is still visible
- * width > The value to chack beam visiblility
+ * width  > Value to chack beam visiblility
+ * damage > Complete the power damage formula
 ]]
 function LaserLib.IsPower(width, damage)
-  local margn = DATA.KWID * DATA.MINW
+  local margn = (DATA.KWID * DATA.MINW)
   local power = LaserLib.GetPower(width, damage)
   return (math.Round(power, DATA.RNDB) > margn)
 end

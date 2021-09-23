@@ -93,21 +93,6 @@ function ENT:UpdateSources()
   end); return self:UpdateArrays("hitArray")
 end
 
-function ENT:GetHitDominant(ent)
-  if(self.hitSize and self.hitSize > 0) then
-    local opower, doment = 0, nil
-    ent:ProcessReports(self, function(index, trace, data)
-      if(trace and trace.Hit and data and trace.Entity == ent) then
-        local npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-        if(npower >= opower) then opower, doment = npower, data.BmSource end
-      end
-    end)
-    if(LaserLib.IsUnit(doment, 2)) then
-      return doment
-    else return nil end
-  end; return nil
-end
-
 --[[
  * Divides the input sources beams and calculates the kit reports
 ]]

@@ -53,7 +53,6 @@ function ENT:Draw()
   if(self:GetOn()) then
     self:DrawEffectBegin()
     self:UpdateSources()
-    self:ManageSources()
     self:DrawEffectEnd()
   end
 end

@@ -39,13 +39,15 @@ function ENT:InitSources()
   else
     if(self.hitSources) then
       table.Empty(self.hitFront)
-      table.Empty(self.hitPower)
+      table.Empty(self.hitLevel)
       table.Empty(self.hitArray)
+      table.Empty(self.hitIndex)
       table.Empty(self.hitSources)
     else
       self.hitFront   = {} -- Array for surface hit normal
-      self.hitPower   = {} -- Array for product coefficients
+      self.hitLevel   = {} -- Array for product coefficients
       self.hitArray   = {} -- Array to output for wiremod
+      self.hitIndex   = {} -- Array of the first index hit
       self.hitSources = {} -- Sources in notation `[ent] = true`
     end
   end
@@ -90,52 +92,29 @@ function ENT:GetHitPower(trace, data)
 end
 
 function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
+  local hdx = 0; self.hitSize = 0 -- Add sources in array
   self:ProcessSources(function(entity, index, trace, data)
     local mdot, bdot = self:GetHitPower(trace, data)
     if(trace and trace.Hit and data and bdot) then
-      self.hitSize = self.hitSize + 1 -- Point to next slot
-      self.hitArray[self.hitSize] = entity -- Store source
-      if(SERVER) then
-        self.hitPower[self.hitSize] = mdot -- Store source
-        self.hitFront[self.hitSize] = (bdot and 1 or 0)
+      if(self.hitArray[self.hitSize] ~= entity) then
+        local hitSize = self.hitSize + 1
+        self.hitArray[hitSize] = entity -- Store source
+        if(SERVER) then
+          self.hitIndex[hitSize] = index -- Store index
+          self.hitLevel[hitSize] = mdot -- Store source
+          self.hitFront[hitSize] = (bdot and 1 or 0)
+        end
+        self.hitSize = hitSize
+      end
+      if(CLIENT) then
+        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx)
+      else
+        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx))
       end
     end -- Sources are located in the table hash part
-  end); return self:UpdateArrays("hitArray", "hitPower", "hitFront")
-end
+  end); self:RemHitReports(hdx)
 
-function ENT:GetHitDominant(ent)
-  if(self.hitSize and self.hitSize > 0) then
-    local opower, doment = 0, nil
-    ent:ProcessReports(self, function(index, trace, data)
-      if(trace and trace.Hit and data and trace.Entity == ent) then
-        local npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-        if(npower >= opower) then opower, doment = npower, data.BmSource end
-      end
-    end)
-    if(LaserLib.IsUnit(doment, 2)) then
-      return doment
-    else return nil end
-  end; return nil
-end
-
---[[
- * Divides the input sources beams and calculates the kit reports
-]]
-function ENT:ManageSources()
-  if(self.hitSize and self.hitSize > 0) then local hdx = 0
-    self:ProcessSources(function(entity, index, trace, data)
-      local mdot, bdot = self:GetHitPower(trace, data)
-      if(trace and trace.Hit and data and bdot) then -- Do same stuff here
-        if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx)
-        else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx))
-        end
-      end
-    end) -- Check the rest of the beams and add power
-  self:RemHitReports(hdx)
-  end; return self
+  return self:UpdateArrays("hitArray", "hitLevel", "hitFront", "hitIndex")
 end
 
 --[[
