@@ -82,6 +82,33 @@ function ENT:DoDamage(trace, data)
   return self
 end
 
+--[[
+ * Extract the parameters needed to create a beam
+ * Takes the values tom the argument and updated source
+ * ent > Dominant entity reference being extracted
+]]
+function ENT:SetDominant(ent)
+  if(not LaserLib.IsUnit(ent, 2)) then return self end
+  -- We set the same non-addable properties
+  -- The most powerful source (biggest damage/width)
+  self:SetStopSound(ent:GetStopSound())
+  self:SetKillSound(ent:GetKillSound())
+  self:SetBeamColor(ent:GetBeamColor())
+  self:SetStartSound(ent:GetStartSound())
+  self:SetBeamMaterial(ent:GetBeamMaterial())
+  self:SetDissolveType(ent:GetDissolveType())
+  self:SetEndingEffect(ent:GetEndingEffect())
+  self:SetReflectRatio(ent:GetReflectRatio())
+  self:SetRefractRatio(ent:GetRefractRatio())
+  self:SetForceCenter(ent:GetForceCenter())
+  self:SetNonOverMater(ent:GetNonOverMater())
+
+  self:WireWrite("Dominant", ent)
+  LaserLib.SetPlayer(self, (ent.ply or ent.player))
+
+  return self
+end
+
 function ENT:DoBeam(org, dir, idx)
   self:DrawEffectBegin()
   local force  = self:GetBeamForce()

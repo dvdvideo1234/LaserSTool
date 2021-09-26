@@ -87,28 +87,6 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
-function ENT:SetDominant(ent)
-  if(not LaserLib.IsValid(ent)) then return self end
-  -- We set the same non-addable properties
-  -- The most powerful source (biggest damage/width)
-  self:SetStopSound(ent:GetStopSound())
-  self:SetKillSound(ent:GetKillSound())
-  self:SetBeamColor(ent:GetBeamColor())
-  self:SetStartSound(ent:GetStartSound())
-  self:SetBeamMaterial(ent:GetBeamMaterial())
-  self:SetDissolveType(ent:GetDissolveType())
-  self:SetEndingEffect(ent:GetEndingEffect())
-  self:SetReflectRatio(ent:GetReflectRatio())
-  self:SetRefractRatio(ent:GetRefractRatio())
-  self:SetForceCenter(ent:GetForceCenter())
-  self:SetNonOverMater(ent:GetNonOverMater())
-
-  self:WireWrite("Dominant", ent)
-  LaserLib.SetPlayer(self, (ent.ply or ent.player))
-
-  return self
-end
-
 function ENT:UpdateSources()
   local doment , domsrc
   local xlength, bpower = 0, false

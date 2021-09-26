@@ -85,7 +85,7 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
-function ENT:GetDominant()
+function ENT:UpdateSources()
   local opower, report, doment, domsrc
   self:ProcessSources(function(entity, index, trace, data)
     if(trace and trace.Hit and data) then
@@ -125,21 +125,7 @@ function ENT:GetDominant()
     self:SetBeamDamage(0)
   end
 
-  self:SetStopSound(domsrc:GetStopSound())
-  self:SetKillSound(domsrc:GetKillSound())
-  self:SetBeamColor(domsrc:GetBeamColor())
-  self:SetStartSound(domsrc:GetStartSound())
-  self:SetBeamMaterial(domsrc:GetBeamMaterial())
-  self:SetDissolveType(domsrc:GetDissolveType())
-  self:SetEndingEffect(domsrc:GetEndingEffect())
-  self:SetReflectRatio(domsrc:GetReflectRatio())
-  self:SetRefractRatio(domsrc:GetRefractRatio())
-  self:SetForceCenter(domsrc:GetForceCenter())
-  self:SetNonOverMater(domsrc:GetNonOverMater())
-
-  -- We set the same non-addable properties
-  self:WireWrite("Dominant", domsrc)
-  LaserLib.SetPlayer(self, (domsrc.ply or domsrc.player))
+  self:SetDominant(domsrc)
 
   return domsrc
 end
@@ -149,7 +135,7 @@ function ENT:Think()
   local mcount = self:GetBeamCount()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetBeamDamage()
-  local mdoment = self:GetDominant()
+  local mdoment = self:UpdateSources()
 
   if(mcount > 0 and
      LaserLib.IsValid(mdoment) and
