@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.Category       = "Laser"
-ENT.PrintName      = "Dimmer"
+ENT.PrintName      = "Splitter Multy"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
@@ -13,8 +13,13 @@ ENT.AdminSpawnable = true
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
+  self:EditableSetVector("ElevatLocal"  , "General")
+  self:EditableSetBool  ("BeamDimmer"   , "General")
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("InPowerOn"    , "Internals")
+  self:EditableSetInt   ("InBeamCount"  , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
+  self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
   self:EditableRemoveOrderInfo()
 end
 
@@ -24,9 +29,41 @@ end
 
 -- Override the beam transormation
 function ENT:SetBeamTransform()
-  local normal = Vector(0,0,1) -- Local surface direction
+  local normal = Vector(0,0,1) -- Local surface normal
+  local elevat = Vector(0,1,0)
+  self:SetElevatLocal(elevat)
   self:SetNormalLocal(normal)
   return self
+end
+
+function ENT:SetBeamCount(num)
+  local count = math.floor(math.Clamp(num, 0, 10))
+  self:SetInBeamCount(count)
+  return self
+end
+
+function ENT:GetBeamCount()
+  return self:GetInBeamCount()
+end
+
+function ENT:SetBeamLeanX(num)
+  local count = math.Clamp(num, 0, 1)
+  self:SetInBeamLeanX(count)
+  return self
+end
+
+function ENT:GetBeamLeanX()
+  return self:GetInBeamLeanX()
+end
+
+function ENT:SetBeamLeanY(num)
+  local count = math.Clamp(num, 0, 1)
+  self:SetInBeamLeanY(count)
+  return self
+end
+
+function ENT:GetBeamLeanY()
+  return self:GetInBeamLeanY()
 end
 
 function ENT:InitSources()
@@ -38,16 +75,10 @@ function ENT:InitSources()
     end
   else
     if(self.hitSources) then
-      table.Empty(self.hitFront)
-      table.Empty(self.hitLevel)
-      table.Empty(self.hitArray)
-      table.Empty(self.hitIndex)
       table.Empty(self.hitSources)
+      table.Empty(self.hitArray)
     else
-      self.hitFront   = {} -- Array for surface hit normal
-      self.hitLevel   = {} -- Array for product coefficients
       self.hitArray   = {} -- Array to output for wiremod
-      self.hitIndex   = {} -- Array of the first index hit
       self.hitSources = {} -- Sources in notation `[ent] = true`
     end
   end
@@ -82,39 +113,56 @@ function ENT:GetOn()
   return state
 end
 
-function ENT:GetHitPower(trace, data)
+function ENT:IsHitNormal(trace)
   local normal = Vector(self:GetHitNormal())
         normal:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
-  local dotv = math.abs(normal:Dot(data.VrDirect))
-  local dott = math.abs(normal:Dot(trace.HitNormal))
-  return dotv, (dott > (1 - dotm))
+  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
 end
 
 function ENT:UpdateSources()
-  local hdx = 0; self.hitSize = 0 -- Add sources in array
-  self:ProcessSources(function(entity, index, trace, data)
-    local mdot, bdot = self:GetHitPower(trace, data)
-    if(trace and trace.Hit and data and bdot) then
-      if(self.hitArray[self.hitSize] ~= entity) then
-        local hitSize = self.hitSize + 1
-        self.hitArray[hitSize] = entity -- Store source
-        if(SERVER) then
-          self.hitIndex[hitSize] = index -- Store index
-          self.hitLevel[hitSize] = mdot -- Store source
-          self.hitFront[hitSize] = (bdot and 1 or 0)
+  local hdx, count = 0, self:GetBeamCount()
+  self.hitSize = 0 -- Add sources in array
+  if(count > 0) then
+    self:ProcessSources(function(entity, index, trace, data)
+      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+        if(self.hitArray[self.hitSize] ~= entity) then
+          local hitSize = self.hitSize + 1
+          self.hitArray[hitSize] = entity -- Store source
+          self.hitSize = hitSize -- Point to next slot
         end
-        self.hitSize = hitSize
-      end
-      if(CLIENT) then
-        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx)
-      else
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, mdot, hdx))
-      end
-    end -- Sources are located in the table hash part
-  end); self:RemHitReports(hdx)
-
-  return self:UpdateArrays("hitArray", "hitLevel", "hitFront", "hitIndex")
+        local welev = Vector(self:GetElevatLocal())
+              welev:Rotate(self:GetAngles())
+        local bmorg, bsdir = trace.HitPos, -trace.HitNormal
+        local angle = bsdir:AngleEx(welev)
+        local mrdotm = math.abs(data.VrDirect:Dot(bsdir))
+        local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
+        if(count > 1) then
+          local marbx = self:GetBeamLeanX()
+          local marby = self:GetBeamLeanY()
+          local fulla = LaserLib.GetData("AMAX")[2]
+          local mnang = fulla / count
+          for idx = 1, count do
+            local newdr = marby * angle:Up()
+                  newdr:Add(marbx * angle:Forward())
+            if(CLIENT) then
+              hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, data, mrdotv, hdx)
+            else
+              hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, newdr, data, mrdotv, hdx))
+            end
+            angle:RotateAroundAxis(bsdir, mnang)
+          end
+        else
+          if(CLIENT) then
+            hdx = hdx + 1; self:DrawBeam(entity, bmorg, bsdir, data, mrdotv, hdx)
+          else
+            hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, bsdir, data, mrdotv, hdx))
+          end
+        end
+      end -- Sources are located in the table hash part
+    end)
+  end; self:RemHitReports(hdx)
+  return self:UpdateArrays("hitArray")
 end
 
 --[[
@@ -130,9 +178,12 @@ function ENT:DoBeam(ent, org, dir, sdat, mdot, idx)
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
   local noverm = sdat.BmNoover
-  local damage = sdat.NvDamage * mdot
-  local force  = sdat.NvForce  * mdot
-  local width  = LaserLib.GetWidth(sdat.NvWidth * mdot)
+  local count  = self:GetBeamCount()
+  local replic = self:GetBeamReplicate()
+  local todiv  = (replic and 1 or (count / mdot))
+  local damage = (sdat.NvDamage / todiv)
+  local force  = (sdat.NvForce  / todiv)
+  local width  = LaserLib.GetWidth((sdat.NvWidth / todiv))
   local trace, data = LaserLib.DoBeam(self,
                                       org,
                                       dir,

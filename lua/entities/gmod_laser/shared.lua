@@ -1,17 +1,17 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Emiter"
+ENT.Category       = "Laser"
+ENT.PrintName      = "Emiter"
+ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
-  ENT.WireDebugName = ENT.PrintName
+  ENT.WireDebugName = ENT.Information
 else
   ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
 ENT.Author         = "MadJawa"
-ENT.Category       = ""
 ENT.Spawnable      = false
 ENT.AdminSpawnable = false
-ENT.Information    = ENT.PrintName
 
 local EFFECTTM = LaserLib.GetData("EFFECTTM")
 
@@ -428,16 +428,6 @@ function ENT:GetHitReport(index)
 end
 
 --[[
- * Custom way to recalculate the correct dominant
- * Override this when the entity is pass trough
- * Dominat is calcualted from its sources
- * ent > The base entity which issues the hit dominant
-]]
-function ENT:GetHitDominant(ent)
-  return self
-end
-
---[[
  * Checks for infinite loops when the source `ent`
  * is powered by other generators powered by self
  * self > The root of the tree propagated
@@ -523,7 +513,6 @@ end
 ]]
 function ENT:UpdateArrays(...)
   local cnt = (tonumber(self.hitSize) or 0)
-  if(cnt <= 0) then return self end
   local set, cnt = {...}, (cnt + 1)
   for idx = 1, #set do
     local nam = set[idx]

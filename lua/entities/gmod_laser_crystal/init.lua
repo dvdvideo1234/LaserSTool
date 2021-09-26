@@ -87,99 +87,83 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
-function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
-  for ent, stat in pairs(self.hitSources) do
-    if(self:GetHitSourceID(ent)) then -- Check the thing
-      self.hitSize = self.hitSize + 1 -- Point to next slot
-      self.hitArray[self.hitSize] = ent -- Store source
-    else -- When not a source. Delete the slot
-      self.hitSources[ent] = nil -- Wipe out the entry
-    end -- The sources order does not matter
-  end; return self:UpdateArrays("hitArray")
-end
-
-function ENT:GetDominant(ent)
+function ENT:SetDominant(ent)
   if(not LaserLib.IsValid(ent)) then return self end
   -- We set the same non-addable properties
   -- The most powerful source (biggest damage/width)
-  local dom = ent:GetHitDominant(self)
-  if(not LaserLib.IsValid(dom)) then return self end
-  self:SetStopSound(dom:GetStopSound())
-  self:SetKillSound(dom:GetKillSound())
-  self:SetBeamColor(dom:GetBeamColor())
-  self:SetStartSound(dom:GetStartSound())
-  self:SetBeamMaterial(dom:GetBeamMaterial())
-  self:SetDissolveType(dom:GetDissolveType())
-  self:SetEndingEffect(dom:GetEndingEffect())
-  self:SetReflectRatio(dom:GetReflectRatio())
-  self:SetRefractRatio(dom:GetRefractRatio())
-  self:SetForceCenter(dom:GetForceCenter())
-  self:SetNonOverMater(dom:GetNonOverMater())
+  self:SetStopSound(ent:GetStopSound())
+  self:SetKillSound(ent:GetKillSound())
+  self:SetBeamColor(ent:GetBeamColor())
+  self:SetStartSound(ent:GetStartSound())
+  self:SetBeamMaterial(ent:GetBeamMaterial())
+  self:SetDissolveType(ent:GetDissolveType())
+  self:SetEndingEffect(ent:GetEndingEffect())
+  self:SetReflectRatio(ent:GetReflectRatio())
+  self:SetRefractRatio(ent:GetRefractRatio())
+  self:SetForceCenter(ent:GetForceCenter())
+  self:SetNonOverMater(ent:GetNonOverMater())
 
-  self:WireWrite("Dominant", dom)
-  LaserLib.SetPlayer(self, (dom.ply or dom.player))
+  self:WireWrite("Dominant", ent)
+  LaserLib.SetPlayer(self, (ent.ply or ent.player))
 
-  return dom
+  return self
 end
 
-function ENT:UpdateBeam()
-  local opower, npower, force  = 0, 0, 0
-  local width , length, damage = 0, 0, 0
-  local bpower, doment = false -- Dominant source
+function ENT:UpdateSources()
+  local doment , domsrc
+  local xlength, bpower = 0, false
+  local xforce , xwidth, xdamage = 0, 0, 0
+  local opower , npower, force   = 0, 0, 0
+  local width  , length, damage  = 0, 0, 0
 
-  if(self.hitSize > 0) then
-    self:ProcessSources(function(entity, index, trace, data)
-      if(trace and trace.Hit and data) then
-        npower = LaserLib.GetPower(data.NvWidth,
-                                   data.NvDamage)
-        if(not self:IsInfinite(entity)) then
-          width  = width  + data.NvWidth
-          length = length + data.NvLength
-          damage = damage + data.NvDamage
-          force  = force  + data.NvForce
-          bpower = (bpower or true)
-        end
-        if(npower > opower) then
-          doment, opower = entity, npower
+  self.hitSize = 0 -- Add sources in array
+  self:ProcessSources(function(entity, index, trace, data)
+    if(trace and trace.Hit and data) then
+      if(self.hitArray[self.hitSize] ~= entity) then
+        self.hitSize = self.hitSize + 1
+        self.hitArray[self.hitSize] = entity
+      end
+      npower = LaserLib.GetPower(data.NvWidth,
+                                 data.NvDamage)
+      if(not self:IsInfinite(entity)) then
+        width  = width  + data.NvWidth
+        length = length + data.NvLength
+        damage = damage + data.NvDamage
+        force  = force  + data.NvForce
+        bpower = (bpower or true)
+      else
+        if(doment ~= entity) then
+          xforce  = data.NvForce
+          xwidth  = data.NvWidth
+          xdamage = data.NvDamage
+          xlength = data.BmLength
+        else
+          xforce  = xforce  + data.NvForce
+          xwidth  = xwidth  + data.NvWidth
+          xdamage = xdamage + data.NvDamage
         end
       end
-    end)
+      if(npower > opower) then
+        opower = npower
+        domsrc = data.BmSource
+        doment = entity
+      end
+    end
+  end)
 
-    local dom = self:GetDominant(doment)
+  if(self.hitSize > 0) then
+    self:SetDominant(domsrc)
+
     if(bpower) then -- Sum settings
       self:SetBeamForce(force)
       self:SetBeamWidth(width)
       self:SetBeamLength(length)
       self:SetBeamDamage(damage)
     else -- Inside an active entity loop
-      if(LaserLib.IsValid(dom)) then
-        local force, width, damage = 0, 0, 0
-        local stats = self:ProcessReports(doment,
-          function(index, trace, data)
-            if(trace and trace.Hit and data) then
-              force  = force  + data.NvForce
-              width  = width  + data.NvWidth
-              damage = damage + data.NvDamage
-            end
-          end)
-        if(stats) then
-          self:SetBeamForce(force)
-          self:SetBeamWidth(width)
-          self:SetBeamDamage(damage)
-        else
-          self:SetBeamForce(dom:GetBeamForce())
-          self:SetBeamWidth(dom:GetBeamWidth())
-          self:SetBeamDamage(dom:GetBeamDamage())
-        end
-        self:SetBeamLength(dom:GetBeamLength())
-      else
-        self:SetBeamForce(0)
-        self:SetBeamWidth(0)
-        self:SetBeamLength(0)
-        self:SetBeamDamage(0)
-        self:RemHitReports()
-      end -- Sources are infinite loops
+      self:SetBeamForce(xforce)
+      self:SetBeamWidth(xwidth)
+      self:SetBeamDamage(xdamage)
+      self:SetBeamLength(xlength)
     end
   else
     self:SetBeamForce(0)
@@ -189,22 +173,20 @@ function ENT:UpdateBeam()
     self:RemHitReports()
   end
 
-  return self
+  return self:UpdateArrays("hitArray")
 end
 
 function ENT:Think()
+  self:UpdateSources()
+
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetBeamDamage()
-
-  self:UpdateSources()
 
   if(self.hitSize > 0 and LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)
   end
-
-  self:UpdateBeam()
 
   if(self:GetOn()) then
     local trace, data = self:DoBeam()

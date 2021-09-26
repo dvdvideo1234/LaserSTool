@@ -8,12 +8,13 @@ local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
  * This is actually faster than stuffing all the beams
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
- * trace > Trace data recieved from the beam
- * data  > Information parameters of the current beam
- * ebeam > Entity to gran the effect enabled flag from
+ * trace  > Trace data recieved from the beam
+ * data   > Information parameters of the current beam
+ * source > Entity that has laser related properties
 ]]
-function ENT:DrawEndingEffect(trace, data, ebeam)
-  local sent = (LaserLib.IsValid(ebeam) and ebeam or self)
+function ENT:DrawEndingEffect(trace, data, source)
+  local unit = LaserLib.IsUnit(source, 2)
+  local sent = (unit and source or self)
   if(trace and not trace.HitSky and
     sent:GetEndingEffect() and self.drawEffect)
   then
@@ -48,6 +49,56 @@ function ENT:DrawEndingEffect(trace, data, ebeam)
   end
 end
 
+--[[
+ * This traps the beam by following the trace
+ * You can mark trace view points as visible
+ * data   > Beam  information status structure
+ * source > Entity that has laser related properties
+]]
+function ENT:DrawTrace(data, source)
+  local unit = LaserLib.IsUnit(source, 2)
+  local sent = (unit and source or self)
+  local color = sent:GetBeamColor()
+  local ushit = LocalPlayer():GetEyeTrace().HitPos
+  local bbmin = self:LocalToWorld(self:OBBMins())
+  local bbmax = self:LocalToWorld(self:OBBMaxs())
+  local first = data.TvPoints[1][1]
+  -- Extend render bounds with player hit position
+  LaserLib.UpdateRB(bbmin, ushit, math.min)
+  LaserLib.UpdateRB(bbmax, ushit, math.max)
+  -- Extend render bounds with the first node
+  LaserLib.UpdateRB(bbmin, first, math.min)
+  LaserLib.UpdateRB(bbmax, first, math.max)
+  -- Material must be cached and pdated with left click setup
+  local mat = sent:GetBeamMaterial(true)
+  if(mat) then render.SetMaterial(mat) end
+  -- Draw the beam sequentially bing faster
+  for idx = 2, data.TvPoints.Size do
+    local org = data.TvPoints[idx - 1]
+    local new = data.TvPoints[idx - 0]
+    local otx, ntx, wdt = org[1], new[1], org[2]
+
+    -- Make sure the coordinates are conveted to world ones
+    LaserLib.UpdateRB(bbmin, ntx, math.min)
+    LaserLib.UpdateRB(bbmax, ntx, math.max)
+
+    if(org[5] or new[5]) then
+      -- Draw the actual beam texture
+      local len = (ntx - otx):Length()
+      local dtm = -(15 * CurTime())
+      render.DrawBeam(otx,
+                      ntx,
+                      wdt,
+                      dtm,
+                      (dtm + len / 24),
+                      color:ToColor())
+    end
+  end
+  -- Adjust the render bounds with world-space coordinates
+  self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+end
+
+
 function ENT:DrawBeam(org, dir, length, width)
   local force  = self:GetBeamForce()
   local origin = self:GetBeamOrigin(org)
@@ -66,48 +117,10 @@ function ENT:DrawBeam(org, dir, length, width)
                                       usrfle,
                                       usrfre,
                                       noverm)
-  if(data) then
-    local color = self:GetBeamColor()
-    local ushit = LocalPlayer():GetEyeTrace().HitPos
-    local bbmin = self:LocalToWorld(self:OBBMins())
-    local bbmax = self:LocalToWorld(self:OBBMaxs())
-    local first = data.TvPoints[1][1]
-    -- Extend render bounds with player hit position
-    LaserLib.UpdateRB(bbmin, ushit, math.min)
-    LaserLib.UpdateRB(bbmax, ushit, math.max)
-    -- Extend render bounds with the first node
-    LaserLib.UpdateRB(bbmin, first, math.min)
-    LaserLib.UpdateRB(bbmax, first, math.max)
-    -- Material must be cached and pdated with left click setup
-    local mat = self:GetBeamMaterial(true)
-    if(mat) then render.SetMaterial(mat) end
-    -- Draw the beam sequentially bing faster
-    for idx = 2, data.TvPoints.Size do
-      local org = data.TvPoints[idx - 1]
-      local new = data.TvPoints[idx - 0]
-      local otx, ntx, wdt = org[1], new[1], org[2]
-
-      -- Make sure the coordinates are conveted to world ones
-      LaserLib.UpdateRB(bbmin, ntx, math.min)
-      LaserLib.UpdateRB(bbmax, ntx, math.max)
-
-      if(org[5] or new[5]) then
-        -- Draw the actual beam texture
-        local len = (ntx - otx):Length()
-        local dtm = -(15 * CurTime())
-        render.DrawBeam(otx,
-                        ntx,
-                        wdt,
-                        dtm,
-                        (dtm + len / 24),
-                        color:ToColor())
-      end
-    end
-    -- Adjust the render bounds with world-space coordinates
-    self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
-    -- Handle drawing the effects when have to be drawwn
-    self:DrawEndingEffect(trace, data)
-  end
+  if(not data) then return end
+  self:DrawTrace(data) -- Draws the beam trace
+  -- Handle drawing the effects when have to be drawwn
+  self:DrawEndingEffect(trace, data)
 end
 
 function ENT:Draw()

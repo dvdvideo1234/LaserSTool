@@ -11,11 +11,17 @@ end
 function ENT:InitSources()
   self.hitSize = 0       -- Amount of sources to have
   if(self.hitSources) then
-    table.Empty(self.hitSources)
+    table.Empty(self.hitFront)
+    table.Empty(self.hitLevel)
     table.Empty(self.hitArray)
+    table.Empty(self.hitIndex)
+    table.Empty(self.hitSources)
   else
-    self.hitSources = {} -- Sources in notation `[ent] = true`
+    self.hitFront   = {} -- Array for surface hit normal
+    self.hitLevel   = {} -- Array for product coefficients
     self.hitArray   = {} -- Array to output for wiremod
+    self.hitIndex   = {} -- Array of the first index hit
+    self.hitSources = {} -- Sources in notation `[ent] = true`
   end
   return self
 end
@@ -27,13 +33,13 @@ function ENT:Initialize()
 
   self:WireCreateInputs(
     {"Origin"  , "VECTOR", "Sensor source hit origin"},
-    {"Direct"  , "VECTOR", "Sensor surface normal"    }
+    {"Direct"  , "VECTOR", "Sensor surface normal"   }
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Sensor enabled state"  },
-    {"Width"   , "NORMAL", "Sensor beam width"     },
-    {"Length"  , "NORMAL", "Sensor length width"   },
-    {"Damage"  , "NORMAL", "Sensor damage width"   },
-    {"Force"   , "NORMAL", "Sensor force amount"   },
+    {"On"      , "NORMAL", "Sensor enabled state"          },
+    {"Width"   , "NORMAL", "Sensor beam width"             },
+    {"Length"  , "NORMAL", "Sensor length width"           },
+    {"Damage"  , "NORMAL", "Sensor damage width"           },
+    {"Force"   , "NORMAL", "Sensor force amount"           },
     {"DotMatch", "NORMAL", "Sensor beam direction match"   },
     {"DotBound", "NORMAL", "Sensor beam direction bound"   },
     {"Origin"  , "VECTOR", "Sensor source beam origin"     },
@@ -41,11 +47,13 @@ function ENT:Initialize()
     {"RatioRL" , "NORMAL", "Sensor source reflection ratio"},
     {"RatioRF" , "NORMAL", "Sensor source refraction ratio"},
     {"NoVrmat" , "NORMAL", "Sensor source ovr matyerial"   },
-    {"Force"   , "NORMAL", "Sensor force amount"   },
-    {"Entity"  , "ENTITY", "Sensor entity itself"  },
-    {"Dominant", "ENTITY", "Sensor dominant entity"},
-    {"Count"   , "NORMAL", "Sensor sources count"  },
-    {"Array"   , "ARRAY" , "Sensor sources array"  }
+    {"Entity"  , "ENTITY", "Sensor entity itself"          },
+    {"Dominant", "ENTITY", "Sensor dominant entity"        },
+    {"Count"   , "NORMAL", "Sensor sources count"          },
+    {"Array"   , "ARRAY" , "Sensor sources array"          },
+    {"Level"   , "ARRAY" , "Sensor power level array"      },
+    {"Index"   , "ARRAY" , "Sensor first hit beam index"   },
+    {"Front"   , "ARRAY" , "Sensor frontal hit array"      }
   )
 
   local phys = self:GetPhysicsObject()
@@ -96,55 +104,52 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
-  for ent, stat in pairs(self.hitSources) do
-    if(self:GetHitSourceID(ent)) then -- Check the thing
-      self.hitSize = self.hitSize + 1 -- Point to next slot
-      self.hitArray[self.hitSize] = ent -- Store source
-    else -- When not a source. Delete the slot
-      self.hitSources[ent] = nil -- Wipe out the entry
-    end -- The sources order does not matter
-  end; return self:UpdateArrays("hitArray")
-end
-
-function ENT:UpdateDominant()
+  local normh , normm , domsrc = 0, 0
   local bmrefl, bmrefr, novrmt = 0, 0, 0
-  local normh , normm  = 0, 0
-  local origin, direct = Vector(), Vector()
   local opower, npower, force  = 0, 0, 0
   local width , length, damage = 0, 0, 0
-  local apower, doment = 0, nil -- Dominant source
+  local origin, direct = Vector(), Vector()
 
-  if(self.hitSize > 0) then
-    self:ProcessSources(function(entity, index, trace, data)
-      local dotmg, flag = self:IsHitNormal(trace)
-      if(trace and trace.Hit and data and flag) then
+  self.hitSize = 0
+  self:ProcessSources(function(entity, index, trace, data)
+    local mdot, bdot = self:GetHitNormal(trace)
+    if(trace and trace.Hit and data) then
+      if(self.hitArray[self.hitSize] ~= entity) then
+        local hitSize = self.hitSize + 1 -- Point to next slot
+        self.hitIndex[hitSize] = index
+        self.hitArray[hitSize] = entity
+        self.hitFront[hitSize] = (bdot and 1 or 0)
+        self.hitLevel[hitSize] = mdot
+        self.hitSize = hitSize
+      end
+      if(bdot) then
         npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
         width  = width  + data.NvWidth
         damage = damage + data.NvDamage
         force  = force  + data.NvForce
         if(npower > opower) then
+          normh  = mdot
+          normm  = mdot
+          opower = npower
+          domsrc = data.BmSource
           length = data.NvLength
           origin:Set(data.VrOrigin)
           direct:Set(data.VrDirect)
           bmrefl = (data.BrReflec and 1 or 0)
           bmrefr = (data.BrRefrac and 1 or 0)
           novrmt = (data.BmNoover and 1 or 0)
-          normh  = (flag and 1 or 0)
-          normm  = dotmg
-          doment, opower = entity, npower
         end
       end
-    end)
+    end -- Sources are located in the table hash part
+  end);
 
-    if(LaserLib.IsValid(doment)) then
-      doment = doment:GetHitDominant(self)
-
+  if(self.hitSize > 0) then
+    if(LaserLib.IsValid(domsrc)) then
       -- Read sensor configuration
       local mforce  = self:GetBeamForce()
       local mwidth  = self:GetBeamWidth()
-      local morigin = self:GetSensOrigin()
-      local mdirect = self:GetSensDirection()
+      local morigin = self:GetUnitOrigin()
+      local mdirect = self:GetUnitDirection()
       local mlength = self:GetBeamLength()
       local mdamage = self:GetBeamDamage()
       local zorigin = morigin:IsZero()
@@ -161,7 +166,7 @@ function ENT:UpdateDominant()
       self:WireWrite("NoVrmat", novrmt)
       self:WireWrite("DotMatch", normh)
       self:WireWrite("DotBound", normm)
-      self:WireWrite("Dominant", doment)
+      self:WireWrite("Dominant", domsrc)
       -- Check whenever sensor has to turn on
       if((mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
          (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
@@ -186,7 +191,7 @@ function ENT:UpdateDominant()
       self:WireWrite("NoVrmat", novrmt)
       self:WireWrite("DotMatch", normh)
       self:WireWrite("DotBound", normm)
-      self:WireWrite("Dominant", doment)
+      self:WireWrite("Dominant", domsrc)
     end
   else
     self:SetOn(false)
@@ -201,24 +206,29 @@ function ENT:UpdateDominant()
     self:WireWrite("NoVrmat", novrmt)
     self:WireWrite("DotMatch", normh)
     self:WireWrite("DotBound", normm)
-    self:WireWrite("Dominant", doment)
+    self:WireWrite("Dominant", domsrc)
   end
 
-  return self
+  return self:UpdateArrays("hitArray", "hitFront", "hitLevel", "hitIndex")
 end
 
 function ENT:Think()
   self:UpdateSources()
-  self:UpdateDominant()
 
   if(self:GetOn()) then
     self:WireWrite("On", 1)
     self:WireWrite("Count", self.hitSize)
     self:WireWrite("Array", self.hitArray)
+    self:WireWrite("Front", self.hitFront)
+    self:WireWrite("Index", self.hitIndex)
+    self:WireWrite("Level", self.hitLevel)
   else
     self:WireWrite("On", 0)
     self:WireWrite("Count", 0)
     self:WireWrite("Array")
+    self:WireWrite("Front")
+    self:WireWrite("Index")
+    self:WireWrite("Level")
   end
 
   self:NextThink(CurTime())

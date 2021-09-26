@@ -86,22 +86,20 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:GetDominant()
-  local opower, doment, report
+  local opower, report, doment, domsrc
   self:ProcessSources(function(entity, index, trace, data)
     if(trace and trace.Hit and data) then
       local npower = LaserLib.GetPower(data.NvWidth,
                                        data.NvDamage)
       if(not opower or npower >= opower) then
-        opower = npower
-        doment = entity
-        report = index
+        opower, report = npower, index
+        doment, domsrc = entity, data.BmSource
       end
     end
   end)
 
   if(not LaserLib.IsValid(doment)) then return nil end
-  local dom = doment:GetHitDominant(self)
-  if(not LaserLib.IsValid(dom)) then return nil end
+  if(not LaserLib.IsValid(domsrc)) then return nil end
   local count = self:GetBeamCount()
   if(count > 0) then
     local trace, data = doment:GetHitReport(report)
@@ -115,10 +113,10 @@ function ENT:GetDominant()
         self:SetBeamLength(data.NvLength)
       end -- Apply length based on looping
     else -- Dominant did not hit anything
-      self:SetBeamForce(dom:GetBeamForce())
-      self:SetBeamWidth(dom:GetBeamWidth())
-      self:SetBeamDamage(dom:GetBeamDamage())
-      self:SetBeamLength(dom:GetBeamLength())
+      self:SetBeamForce(domsrc:GetBeamForce())
+      self:SetBeamWidth(domsrc:GetBeamWidth())
+      self:SetBeamDamage(domsrc:GetBeamDamage())
+      self:SetBeamLength(domsrc:GetBeamLength())
     end -- The most powerful source (biggest damage/width)
   else
     self:SetBeamForce(0)
@@ -126,23 +124,24 @@ function ENT:GetDominant()
     self:SetBeamLength(0)
     self:SetBeamDamage(0)
   end
-  self:SetStopSound(dom:GetStopSound())
-  self:SetKillSound(dom:GetKillSound())
-  self:SetBeamColor(dom:GetBeamColor())
-  self:SetStartSound(dom:GetStartSound())
-  self:SetBeamMaterial(dom:GetBeamMaterial())
-  self:SetDissolveType(dom:GetDissolveType())
-  self:SetEndingEffect(dom:GetEndingEffect())
-  self:SetReflectRatio(dom:GetReflectRatio())
-  self:SetRefractRatio(dom:GetRefractRatio())
-  self:SetForceCenter(dom:GetForceCenter())
-  self:SetNonOverMater(dom:GetNonOverMater())
+
+  self:SetStopSound(domsrc:GetStopSound())
+  self:SetKillSound(domsrc:GetKillSound())
+  self:SetBeamColor(domsrc:GetBeamColor())
+  self:SetStartSound(domsrc:GetStartSound())
+  self:SetBeamMaterial(domsrc:GetBeamMaterial())
+  self:SetDissolveType(domsrc:GetDissolveType())
+  self:SetEndingEffect(domsrc:GetEndingEffect())
+  self:SetReflectRatio(domsrc:GetReflectRatio())
+  self:SetRefractRatio(domsrc:GetRefractRatio())
+  self:SetForceCenter(domsrc:GetForceCenter())
+  self:SetNonOverMater(domsrc:GetNonOverMater())
 
   -- We set the same non-addable properties
-  self:WireWrite("Dominant", dom)
-  LaserLib.SetPlayer(self, (dom.ply or dom.player))
+  self:WireWrite("Dominant", domsrc)
+  LaserLib.SetPlayer(self, (domsrc.ply or domsrc.player))
 
-  return dom
+  return domsrc
 end
 
 function ENT:Think()
@@ -151,6 +150,7 @@ function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetBeamDamage()
   local mdoment = self:GetDominant()
+
   if(mcount > 0 and
      LaserLib.IsValid(mdoment) and
      LaserLib.IsPower(mwidth, mdamage)) then
@@ -162,7 +162,8 @@ function ENT:Think()
   if(self:GetOn()) then
     local direc = self:GetDirectLocal()
     if(mcount > 1) then
-      local delta = 360 / mcount
+      local fulla = LaserLib.GetData("AMAX")[2]
+      local delta = fulla / mcount
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
       local eleva = self:GetElevatLocal()

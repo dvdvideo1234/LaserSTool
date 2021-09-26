@@ -1,15 +1,15 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Sensor"
+ENT.Category       = "Laser"
+ENT.PrintName      = "Sensor"
+ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
-  ENT.WireDebugName = ENT.PrintName
+  ENT.WireDebugName = ENT.Information
 end
 ENT.Editable       = true
 ENT.Author         = "DVD"
-ENT.Category       = "Laser"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
-ENT.Information    = ENT.PrintName
 
 function ENT:SetupDataTables()
   self:EditableSetVector("OriginLocal" , "General")
@@ -31,45 +31,45 @@ function ENT:SetupDataTables()
 end
 
 function ENT:SetBeamTransform()
-  local dir = Vector(0,0,1) -- Normal local direction
-  self:SetDirectLocal(dir)
+  local norm = Vector(0,0,1) -- Normal local direction
+  self:SetDirectLocal(norm)  -- Used as hit-normal check
   return self
 end
 
-function ENT:GetSensDirection()
+function ENT:GetUnitDirection()
   if(SERVER) then
-    local dir = self:WireRead("Direct", true)
-    if(dir) then dir:Normalize() else
-      dir = self:GetDirectLocal()
+    local norm = self:WireRead("Direct", true)
+    if(norm) then norm:Normalize() else
+      norm = self:GetDirectLocal()
     end -- Make sure length is one unit
-    self:SetNWVector("GetDirectLocal", dir)
-    self:WireWrite("Direct", dir)
-    return dir
+    self:SetNWVector("GetDirectLocal", norm)
+    self:WireWrite("Direct", norm)
+    return norm
   else
-    local dir = self:GetDirectLocal()
-    return self:GetNWFloat("GetDirectLocal", dir)
+    local norm = self:GetDirectLocal()
+    return self:GetNWFloat("GetDirectLocal", norm)
   end
 end
 
-function ENT:GetSensOrigin()
+function ENT:GetUnitOrigin()
   if(SERVER) then
-    local org = self:WireRead("Origin", true)
-    if(not org) then org = self:GetOriginLocal() end
-    self:SetNWVector("GetOriginLocal", org)
-    self:WireWrite("Origin", org)
-    return org
+    local opos = self:WireRead("Origin", true)
+    if(not opos) then opos = self:GetOriginLocal() end
+    self:SetNWVector("GetOriginLocal", opos)
+    self:WireWrite("Origin", opos)
+    return opos
   else
-    local org = self:GetOriginLocal()
-    return self:GetNWFloat("GetOriginLocal", org)
+    local opos = self:GetOriginLocal()
+    return self:GetNWFloat("GetOriginLocal", opos)
   end
 end
 
-function ENT:IsHitNormal(trace)
-  local dir = Vector(self:GetSensDirection())
-        dir:Rotate(self:GetAngles())
-  if(dir:IsZero()) then return 1, true end
+function ENT:GetHitNormal(trace)
+  local norm = Vector(self:GetUnitDirection())
+        norm:Rotate(self:GetAngles())
+  if(norm:IsZero()) then return 1, true end
   local dom = LaserLib.GetData("DOTM")
-  local dot = dir:Dot(trace.HitNormal)
+  local dot = norm:Dot(trace.HitNormal)
   return dot, (dot > (1 - dom))
 end
 
