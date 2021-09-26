@@ -20,6 +20,7 @@ DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery0
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
 DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
 DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the dimmer model")
+DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the splitter multy model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
@@ -59,22 +60,24 @@ DATA.CLS = {
   -- [1] Can the entity be considered and actual beam source
   -- [2] Does the entity have the inherited editable laser properties
   -- [3] Should the entity be checked for infinite loop sources
-  ["gmod_laser"         ] = {true , true , false},
-  ["gmod_laser_crystal" ] = {true , true , true },
-  ["gmod_laser_splitter"] = {true , true , true },
-  ["gmod_laser_divider" ] = {true , false, false},
-  ["gmod_laser_sensor"  ] = {false, true , false},
-  ["gmod_laser_dimmer"  ] = {true , false, false},
+  ["gmod_laser"          ] = {true , true , false},
+  ["gmod_laser_crystal"  ] = {true , true , true },
+  ["gmod_laser_splitter" ] = {true , true , true },
+  ["gmod_laser_divider"  ] = {true , false, false},
+  ["gmod_laser_sensor"   ] = {false, true , false},
+  ["gmod_laser_dimmer"   ] = {true , false, false},
+  ["gmod_laser_splitterm"] = {true , false, false},
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
-  {"gmod_laser"         , nil        , nil      }, -- Laser entity calss
-  {"gmod_laser_crystal" , "crystal"  , "CRYSTAL"}, -- Laser crystal class
-  {"prop_physics"       , "reflector", "REFLECT"}, -- Laser reflectors class
-  {"gmod_laser_splitter", "splitter" , "SPLITER"}, -- Laser beam splitter
-  {"gmod_laser_divider" , "divider"  , "DIVIDER"}, -- Laser beam divider
-  {"gmod_laser_sensor"  , "sensor"   , "SENSOR" }, -- Laser beam sensor
-  {"gmod_laser_dimmer"  , "dimmer"   , "DIMMER" }  -- Laser beam divider
+  {"gmod_laser"          , nil        , nil      }, -- Laser entity calss
+  {"gmod_laser_crystal"  , "crystal"  , "CRYSTAL"}, -- Laser crystal class
+  {"prop_physics"        , "reflector", "REFLECT"}, -- Laser reflectors class
+  {"gmod_laser_splitter" , "splitter" , "SPLITER"}, -- Laser beam splitter
+  {"gmod_laser_divider"  , "divider"  , "DIVIDER"}, -- Laser beam divider
+  {"gmod_laser_sensor"   , "sensor"   , "SENSOR" }, -- Laser beam sensor
+  {"gmod_laser_dimmer"   , "dimmer"   , "DIMMER" },  -- Laser beam divide
+  {"gmod_laser_splitterm", "splitterm", "SPLITRM"} -- Laser beam splitter multy
 }
 
 DATA.MOD = { -- Model used by the entities menu
@@ -84,7 +87,8 @@ DATA.MOD = { -- Model used by the entities menu
   DATA.MSPLITER:GetString(),
   DATA.MDIVIDER:GetString(),
   DATA.MSENSOR:GetString() , -- Portal catcher: models/props/laser_catcher_center.mdl
-  DATA.MDIMMER:GetString()
+  DATA.MDIMMER:GetString() ,
+  DATA.MSPLITRM:GetString()
 }
 
 DATA.MAT = {
@@ -94,6 +98,7 @@ DATA.MAT = {
   "models/dog/eyeglass"    ,
   "models/dog/eyeglass"    ,
   "models/props_combine/citadel_cable",
+  "models/dog/eyeglass"    ,
   "models/dog/eyeglass"
 }
 
@@ -392,7 +397,8 @@ end
    [1] > The calculated yaw result angle
 ]]
 function LaserLib.GetAngleSF(ply)
-  local yaw = (ply:GetAimVector():Angle().y + 180) % 360
+  local han, tan = (DATA.AMAX[2] / 2), DATA.AMAX[2]
+  local yaw = (ply:GetAimVector():Angle().y + han) % tan
   return Angle(0, yaw, 0)
 end
 

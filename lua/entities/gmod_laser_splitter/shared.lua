@@ -1,15 +1,15 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Splitter"
+ENT.Category       = "Laser"
+ENT.PrintName      = "Splitter Single"
+ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
-  ENT.WireDebugName = ENT.PrintName
+  ENT.WireDebugName = ENT.Information
 end
 ENT.Editable       = true
 ENT.Author         = "DVD"
-ENT.Category       = "Laser"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
-ENT.Information    = ENT.PrintName
 
 function ENT:SetupDataTables()
   self:EditableSetVector("OriginLocal"  , "General")

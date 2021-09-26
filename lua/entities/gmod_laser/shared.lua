@@ -1,17 +1,17 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Emiter"
+ENT.Category       = "Laser"
+ENT.PrintName      = "Emiter"
+ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
-  ENT.WireDebugName = ENT.PrintName
+  ENT.WireDebugName = ENT.Information
 else
   ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
 ENT.Author         = "MadJawa"
-ENT.Category       = ""
 ENT.Spawnable      = false
 ENT.AdminSpawnable = false
-ENT.Information    = ENT.PrintName
 
 local EFFECTTM = LaserLib.GetData("EFFECTTM")
 

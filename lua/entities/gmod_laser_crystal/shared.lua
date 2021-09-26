@@ -1,14 +1,15 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Crystal"
+ENT.Category       = "Laser"
+ENT.PrintName      = "Crystal"
+ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
-  ENT.WireDebugName = ENT.PrintName
+  ENT.WireDebugName = ENT.Information
 end
 ENT.Author         = "MadJawa"
-ENT.Category       = "Laser"
+
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
-ENT.Information    = ENT.PrintName
 
 -- Override the beam transormation
 function ENT:SetBeamTransform()

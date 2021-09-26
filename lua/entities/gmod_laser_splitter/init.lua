@@ -162,7 +162,8 @@ function ENT:Think()
   if(self:GetOn()) then
     local direc = self:GetDirectLocal()
     if(mcount > 1) then
-      local delta = 360 / mcount
+      local fulla = LaserLib.GetData("AMAX")[2]
+      local delta = fulla / mcount
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
       local eleva = self:GetElevatLocal()

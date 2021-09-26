@@ -1,15 +1,15 @@
 ENT.Type           = "anim"
-ENT.PrintName      = "Laser Divider"
+ENT.Category       = "Laser"
+ENT.PrintName      = "Divider"
+ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
-  ENT.WireDebugName = ENT.PrintName
+  ENT.WireDebugName = ENT.Information
 end
 ENT.Editable       = true
 ENT.Author         = "DVD"
-ENT.Category       = "Laser"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
-ENT.Information    = ENT.PrintName
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
@@ -84,34 +84,25 @@ function ENT:IsHitNormal(trace)
 end
 
 function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
+  local hdx = 0; self.hitSize = 0 -- Add sources in array
   self:ProcessSources(function(entity, index, trace, data)
     if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
-      self.hitSize = self.hitSize + 1 -- Point to next slot
-      self.hitArray[self.hitSize] = entity -- Store source
-    end -- Sources are located in the table hash part
-  end); return self:UpdateArrays("hitArray")
-end
-
---[[
- * Divides the input sources beams and calculates the kit reports
-]]
-function ENT:ManageSources()
-  if(self.hitSize and self.hitSize > 0) then local hdx = 0
-    self:ProcessSources(function(entity, index, trace, data)
-      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then -- Do same stuff here
-        local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
-        if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
-        else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
-        end
+      if(self.hitArray[self.hitSize] ~= entity) then
+        local hitSize = self.hitSize + 1
+        self.hitArray[hitSize] = entity -- Store source
+        self.hitSize = hitSize -- Point to next slot
       end
-    end) -- Check the rest of the beams and add power
-  self:RemHitReports(hdx)
-  end; return self
+      local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
+      if(CLIENT) then
+        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
+        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
+      else
+        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
+        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
+      end
+    end -- Sources are located in the table hash part
+  end); self:RemHitReports(hdx)
+  return self:UpdateArrays("hitArray")
 end
 
 --[[
