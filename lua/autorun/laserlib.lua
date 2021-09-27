@@ -353,17 +353,16 @@ function LaserLib.GetRatio()
   return DATA.GRAT
 end
 
+function LaserLib.GetZeroTransform()
+  return DATA.VZERO, DATA.AZERO
+end
+
 function LaserLib.IsUnit(ent, idx)
   if(not LaserLib.IsValid(ent)) then return false end
   local set = DATA.CLS[ent:GetClass()]
   if(not set) then return false end
   if(not idx) then return true end
   return set[idx]
-end
-
-function LaserLib.GetZeroTransform()
-  return LaserLib.GetZeroVector(),
-         LaserLib.GetZeroAngle()
 end
 
 function LaserLib.VecNegate(vec)

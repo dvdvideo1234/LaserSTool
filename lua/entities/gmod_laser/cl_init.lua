@@ -13,8 +13,7 @@ local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
  * source > Entity that has laser related properties
 ]]
 function ENT:DrawEndingEffect(trace, data, source)
-  local unit = LaserLib.IsUnit(source, 2)
-  local sent = (unit and source or self)
+  local sent = (source or self)
   if(trace and not trace.HitSky and
     sent:GetEndingEffect() and self.drawEffect)
   then
@@ -56,8 +55,7 @@ end
  * source > Entity that has laser related properties
 ]]
 function ENT:DrawTrace(data, source)
-  local unit = LaserLib.IsUnit(source, 2)
-  local sent = (unit and source or self)
+  local sent = (source or self)
   local color = sent:GetBeamColor()
   local ushit = LocalPlayer():GetEyeTrace().HitPos
   local bbmin = self:LocalToWorld(self:OBBMins())
