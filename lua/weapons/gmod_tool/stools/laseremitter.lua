@@ -227,6 +227,10 @@ function TOOL:LeftClick(trace)
     return true
   end
 
+  if(ply:KeyDown(IN_SPEED)) then
+    ent:SetNWInt("laseremiter_beamtarget", 357)
+  end
+
   local laser = LaserLib.New(ply        , pos         , ang         , model       ,
                              angleoffset, key         , width       , length      ,
                              damage     , material    , dissolvetype, startsound  ,

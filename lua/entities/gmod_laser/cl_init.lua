@@ -80,7 +80,7 @@ function ENT:DrawTrace(data, source)
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
 
-    if(org[5] or new[5]) then
+    if(org[5]) then
       -- Draw the actual beam texture
       local len = (ntx - otx):Length()
       local dtm = -(15 * CurTime())

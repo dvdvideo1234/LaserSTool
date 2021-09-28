@@ -315,9 +315,9 @@ function LaserLib.Call(time, func, ...)
 end
 
 -- Draw a position on the screen
-function LaserLib.DrawPoint(pos)
+function LaserLib.DrawPoint(pos, col)
   if(not CLIENT) then return end
-  local crw = LaserLib.GetColor("YELLOW")
+  local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 1, 25, 25, crw)
 end
@@ -880,7 +880,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
     local valid = LaserLib.IsValid(trace.Entity) -- Validate trace entity
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      if(valid and trace.Entity:GetClass() == "event_horizon") then -- trace.Entity
+      if(valid and (trace.Entity:GetClass() == "event_horizon" or
+                    trace.Entity:GetModel() == "models/props_c17/furniturewashingmachine001a.mdl")) then -- trace.Entity
+        LaserLib.DrawPoint(trace.HitPos, "RED")
         LaserLib.RegisterNode(data, trace.HitPos, isRfract, false)
       else
         LaserLib.RegisterNode(data, trace.HitPos, isRfract)
@@ -945,6 +947,24 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               LaserLib.DrawPoint(org)
               LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
               data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+            else
+              data.IsTrace = false
+              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+            end
+          elseif(trace.Entity:GetModel() == "models/props_c17/furniturewashingmachine001a.mdl") then
+            data.IsTrace = true
+            local ouEnt = Entity(trace.Entity:GetNWInt("laseremiter_beamtarget", 0))
+            if(LaserLib.IsValid(ouEnt) and not ouEnt:IsWorld()) then
+              ouVec = Vector(trace.HitPos)
+              ouVec:Set(trace.Entity:WorldToLocal(ouVec))
+              ouVec:Rotate(ouEnt:GetAngles())
+              ouVec:Add(ouEnt:GetPos())
+              data.VrOrigin:Set(ouVec)
+              LaserLib.VecNegate(data.VrDirect)
+              data.VrDirect:Set(trace.Entity:WorldToLocal(data.VrDirect + trace.Entity:GetPos()))
+              data.VrDirect:Rotate(ouEnt:GetAngles())
+              LaserLib.DrawPoint(ouVec)
+              LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
             else
               data.IsTrace = false
               data.NvLength = data.NvLength - data.NvLength * trace.Fraction
