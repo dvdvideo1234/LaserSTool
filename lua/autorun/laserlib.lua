@@ -36,6 +36,7 @@ DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.RNDB = 3               -- Decimals beam round for visibility check
 DATA.KWID = 5               -- Width coefficient used to calculate power
+DATA.NUGE = 0.1             -- Nuge amount for vectors to continue tracing
 DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
@@ -811,6 +812,39 @@ function LaserLib.RegisterNode(data, origin, bulen, bdraw)
 end
 
 --[[
+ * Caculates the beam posidion and direction when entity is a portal
+ * origin > Hit location vector placed on the furst entity surface
+ * direct > Direction that the beam goes inside the first entity
+ * Returns ouput position and direction from the second entity surface
+]]
+function LaserLib.GetBeamPortal(base, exit, origin, direct)
+  if(not LaserLib.IsValid(exit)) then return origin, direct end
+  local pos = Vector(origin)
+        pos:Set(base:WorldToLocal(pos))
+        pos:Set(exit:LocalToWorld(pos))
+  local dir = Vector(direct)
+        LaserLib.VecNegate(dir)
+        dir:Add(base:GetPos())
+        dir:Set(base:WorldToLocal(dir))
+        dir:Rotate(exit:GetAngles())
+  return pos, dir
+end
+
+--[[
+ * This is genrally used to offet the origin of a
+ * given ray back so the portalling functionality
+ * entities traces will not get stuck inside the prop
+ * pos > Ray position origin to offset back
+ * dir > Ray direction to go back among
+]]
+function LaserLib.GetReverse(pos, dir)
+  local out = Vector(dir)
+        out:Mul(-DATA.NUGE)
+        out:Add(pos)
+  return out, dir
+end
+
+--[[
  * Traces a laser beam from the entity provided
  * entity > Entity origin to the beam ( laser or crystal )
  * origin > Inititial ray world position vector
@@ -882,8 +916,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(valid and (trace.Entity:GetClass() == "event_horizon" or
                     trace.Entity:GetModel() == "models/props_c17/furniturewashingmachine001a.mdl")) then -- trace.Entity
-        LaserLib.DrawPoint(trace.HitPos, "RED")
-        LaserLib.RegisterNode(data, trace.HitPos, isRfract, false)
+        local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
+        LaserLib.RegisterNode(data, pos, isRfract, false)
+        ---LaserLib.DrawPoint(trace.HitPos, "RED")
       else
         LaserLib.RegisterNode(data, trace.HitPos, isRfract)
       end
@@ -933,41 +968,29 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end
         else -- Put special cases here
           if(trace.Entity:GetClass() == "event_horizon") then
-            data.IsTrace = true
-            if( not (CLIENT and (not trace.Entity.DrawRipple or trace.Entity.Target == NULL)) // HAX
-            and not (SERVER and (not trace.Entity:IsOpen() or trace.Entity.ShuttingDown))) then
-              local org, dir = trace.Entity:GetTeleportedVector(trace.HitPos, data.VrDirect)
-              data.VrOrigin:Set(org); data.VrDirect:Set(dir)
-              if(SERVER and entity.drawEffect) then
-                trace.Entity:EnterEffect(trace.HitPos, data.NvWidth);
-                if(LaserLib.IsValid(trace.Entity.Target)) then
-                  trace.Entity.Target:EnterEffect(data.VrOrigin, data.NvWidth)
-                end
-              end
-              LaserLib.DrawPoint(org)
-              LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
-              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-            else
-              data.IsTrace = false
-              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-            end
+            data.IsTrace = true -- Continue tracing after the gate
+            data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+            local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
+            pos, dir = trace.Entity:GetTeleportedVector(pos, dir)
+            data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
+            if(SERVER and entity.drawEffect) then
+              trace.Entity:EnterEffect(trace.HitPos, data.NvWidth);
+              if(LaserLib.IsValid(trace.Entity.Target)) then
+                trace.Entity.Target:EnterEffect(data.VrOrigin, data.NvWidth)
+              end -- Stargate ( CAP ) requires little nudge in the origin vector
+            end -- Otherwise the trace will get stick
+            LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
           elseif(trace.Entity:GetModel() == "models/props_c17/furniturewashingmachine001a.mdl") then
-            data.IsTrace = true
+            data.NvLength = data.NvLength - data.NvLength * trace.Fraction
             local ouEnt = Entity(trace.Entity:GetNWInt("laseremiter_beamtarget", 0))
             if(LaserLib.IsValid(ouEnt) and not ouEnt:IsWorld()) then
-              ouVec = Vector(trace.HitPos)
-              ouVec:Set(trace.Entity:WorldToLocal(ouVec))
-              ouVec:Rotate(ouEnt:GetAngles())
-              ouVec:Add(ouEnt:GetPos())
-              data.VrOrigin:Set(ouVec)
-              LaserLib.VecNegate(data.VrDirect)
-              data.VrDirect:Set(trace.Entity:WorldToLocal(data.VrDirect + trace.Entity:GetPos()))
-              data.VrDirect:Rotate(ouEnt:GetAngles())
-              LaserLib.DrawPoint(ouVec)
+              data.IsTrace = true
+              local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
+              pos, dir = LaserLib.GetBeamPortal(trace.Entity, ouEnt, pos, dir)
+              data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
               LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
-            else
+            else -- No beam output entity. Then stop
               data.IsTrace = false
-              data.NvLength = data.NvLength - data.NvLength * trace.Fraction
             end
           else
             data.TrMaters = GetMaterialID(trace, noverm)
