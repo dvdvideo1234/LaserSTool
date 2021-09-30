@@ -20,6 +20,7 @@ DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery0
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
 DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
 DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the dimmer model")
+DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Change to adjust the portal model")
 DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the splitter multy model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
@@ -68,6 +69,7 @@ DATA.CLS = {
   ["gmod_laser_sensor"   ] = {false, true , false},
   ["gmod_laser_dimmer"   ] = {true , false, false},
   ["gmod_laser_splitterm"] = {true , false, false},
+  ["gmod_laser_portal"   ] = {true , false, false},
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
@@ -77,8 +79,9 @@ DATA.CLS = {
   {"gmod_laser_splitter" , "splitter" , "SPLITER"}, -- Laser beam splitter
   {"gmod_laser_divider"  , "divider"  , "DIVIDER"}, -- Laser beam divider
   {"gmod_laser_sensor"   , "sensor"   , "SENSOR" }, -- Laser beam sensor
-  {"gmod_laser_dimmer"   , "dimmer"   , "DIMMER" },  -- Laser beam divide
-  {"gmod_laser_splitterm", "splitterm", "SPLITRM"} -- Laser beam splitter multy
+  {"gmod_laser_dimmer"   , "dimmer"   , "DIMMER" }, -- Laser beam divide
+  {"gmod_laser_splitterm", "splitterm", "SPLITRM"}, -- Laser beam splitter multy
+  {"gmod_laser_portal"   , "portal"   , "PORTAL" }  -- Laser beam divider
 }
 
 DATA.MOD = { -- Model used by the entities menu
@@ -89,7 +92,8 @@ DATA.MOD = { -- Model used by the entities menu
   DATA.MDIVIDER:GetString(),
   DATA.MSENSOR:GetString() , -- Portal catcher: models/props/laser_catcher_center.mdl
   DATA.MDIMMER:GetString() ,
-  DATA.MSPLITRM:GetString()
+  DATA.MSPLITRM:GetString(),
+  DATA.MPORTAL:GetString()
 }
 
 DATA.MAT = {
@@ -100,7 +104,8 @@ DATA.MAT = {
   "models/dog/eyeglass"    ,
   "models/props_combine/citadel_cable",
   "models/dog/eyeglass"    ,
-  "models/dog/eyeglass"
+  "models/dog/eyeglass"    ,
+  "models/props_combine/com_shield001a"
 }
 
 DATA.COLOR = {
@@ -221,13 +226,14 @@ DATA.TRACE = {
 
 -- Callbacks for console variables
 for idx = 2, #DATA.CLS do
-  local name = DATA.CLS[idx][3]
-  local varo = DATA["M"..name]
+  local vidx = DATA.CLS[idx][3]
+  local varo = DATA["M"..vidx]
   local varn = varo:GetName()
 
   cvars.RemoveChangeCallback(varn, varn)
   cvars.AddChangeCallback(varn,
     function(name, o, n)
+      print(name, o, n)
       local m = tostring(n):Trim()
       if(m:sub(1,1) == DATA.KEYD) then
         DATA.MOD[idx] = varo:GetDefault()
@@ -358,14 +364,6 @@ function LaserLib.GetZeroTransform()
   return DATA.VZERO, DATA.AZERO
 end
 
-function LaserLib.IsUnit(ent, idx)
-  if(not LaserLib.IsValid(ent)) then return false end
-  local set = DATA.CLS[ent:GetClass()]
-  if(not set) then return false end
-  if(not idx) then return true end
-  return set[idx]
-end
-
 function LaserLib.VecNegate(vec)
   vec.x = -vec.x
   vec.y = -vec.y
@@ -373,12 +371,28 @@ function LaserLib.VecNegate(vec)
   return vec
 end
 
-function LaserLib.GetClass(iK, iC)
-  local nK = math.floor(tonumber(iK) or 0)
-  local tC = DATA.CLS[nK] -- Pick elemrnt
-  if(not tC) then return nil end -- No info
+--[[
+ * Reads class name from the list
+ * idx (int) > When provided checks settings
+]]
+function LaserLib.GetClass(iR, iC)
+  local nR = math.floor(tonumber(iR) or 0)
+  local tS = DATA.CLS[nR] -- Pick elemrnt
+  if(not tS) then return nil end -- No info
   local nC = math.floor(tonumber(iC) or 0)
-  return tC[nC] -- Return whatever found
+  return tS[nC] -- Return whatever found
+end
+
+--[[
+ * Defines when the enty is laser library unit
+ * idx (int) > When provided checks for flags
+]]
+function LaserLib.IsUnit(ent, idx)
+  if(not LaserLib.IsValid(ent)) then return false end
+  local set = DATA.CLS[ent:GetClass()]
+  if(not set) then return false end
+  if(not idx) then return true end
+  return set[idx]
 end
 
 function LaserLib.GetModel(iK)
@@ -813,20 +827,28 @@ end
 
 --[[
  * Caculates the beam posidion and direction when entity is a portal
+ * base   > Base entity actime as a portal entrance
+ * base   > Exit entity actime as a portal beam output location
  * origin > Hit location vector placed on the furst entity surface
  * direct > Direction that the beam goes inside the first entity
- * Returns ouput position and direction from the second entity surface
+ * orgmir > Whenever to use origin mirroring when calculating output ray
+ * normal > Normal vector when using reflection for calculating output ray
+ * Returns the output beam ray position and direction
 ]]
-function LaserLib.GetBeamPortal(base, exit, origin, direct)
+function LaserLib.GetBeamPortal(base, exit, origin, direct, orgmir, normal)
   if(not LaserLib.IsValid(exit)) then return origin, direct end
-  local pos = Vector(origin)
-        pos:Set(base:WorldToLocal(pos))
-        pos:Set(exit:LocalToWorld(pos))
-  local dir = Vector(direct)
-        LaserLib.VecNegate(dir)
-        dir:Add(base:GetPos())
-        dir:Set(base:WorldToLocal(dir))
-        dir:Rotate(exit:GetAngles())
+  local pos, dir = Vector(origin)
+  if(orgmir) then pos.y = -pos.y end
+  pos:Set(base:WorldToLocal(pos))
+  pos:Set(exit:LocalToWorld(pos))
+  if(normal) then -- Normal for reflecting
+    dir = LaserLib.GetReflected(direct, normal)
+  else -- Calculate the direction going inside
+    dir = LaserLib.VecNegate(Vector(direct))
+  end
+  dir:Add(base:GetPos())
+  dir:Set(base:WorldToLocal(dir))
+  dir:Rotate(exit:GetAngles())
   return pos, dir
 end
 
@@ -914,8 +936,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
     local valid = LaserLib.IsValid(trace.Entity) -- Validate trace entity
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      if(valid and (trace.Entity:GetClass() == "event_horizon" or
-                    trace.Entity:GetModel() == "models/props_c17/furniturewashingmachine001a.mdl")) then -- trace.Entity
+      if(valid and (trace.Entity:GetClass() == "event_horizon")) then -- trace.Entity
         local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
         LaserLib.RegisterNode(data, pos, isRfract, false)
         ---LaserLib.DrawPoint(trace.HitPos, "RED")

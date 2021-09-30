@@ -72,7 +72,18 @@ function ENT:EditableSetInt(name, catg, min, max)
     }}); return self
 end
 
-function ENT:EditableSetComboString(name, catg, vals, key)
+function ENT:EditableSetStringGeneric(name, catg, min, max)
+  local typ, ord, id = self:EditableGetOrderID("String")
+  self:NetworkVar(typ, id, name, {
+    KeyName = name:lower(),
+    Edit = {
+      category = catg,
+      order    = ord,
+      type     = "Generic"
+    }}); return self
+end
+
+function ENT:EditableSetStringCombo(name, catg, vals, key)
   local val = vals -- Use provided values unless a table
   local typ, ord, id = self:EditableGetOrderID("String")
   if(key) then val = {} -- Allocate

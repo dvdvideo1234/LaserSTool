@@ -109,32 +109,6 @@ function ENT:SetDominant(ent)
   return self
 end
 
-function ENT:DoBeam(org, dir, idx)
-  self:DrawEffectBegin()
-  local force  = self:GetBeamForce()
-  local width  = self:GetBeamWidth()
-  local origin = self:GetBeamOrigin(org)
-  local length = self:GetBeamLength()
-  local damage = self:GetBeamDamage()
-  local usrfle = self:GetReflectRatio()
-  local usrfre = self:GetRefractRatio()
-  local direct = self:GetBeamDirection(dir)
-  local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
-  self:DrawEffectEnd()
-  return trace, data
-end
-
 function ENT:Think()
   if(self:GetOn()) then
     local trace, data = self:DoBeam()

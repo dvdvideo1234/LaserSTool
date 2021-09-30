@@ -35,11 +35,11 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
+  self:EditableSetStringCombo("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
-  self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  self:EditableSetStringCombo("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
   self:EditableRemoveOrderInfo()
 end
 
@@ -293,6 +293,30 @@ end
 
 function ENT:GetNonOverMater()
   return self:GetInNonOverMater()
+end
+
+function ENT:DoBeam(org, dir, idx)
+  local force  = self:GetBeamForce()
+  local width  = self:GetBeamWidth()
+  local origin = self:GetBeamOrigin(org)
+  local length = self:GetBeamLength()
+  local damage = self:GetBeamDamage()
+  local usrfle = self:GetReflectRatio()
+  local usrfre = self:GetRefractRatio()
+  local direct = self:GetBeamDirection(dir)
+  local noverm = self:GetNonOverMater()
+  local trace, data = LaserLib.DoBeam(self,
+                                      origin,
+                                      direct,
+                                      length,
+                                      width,
+                                      damage,
+                                      force,
+                                      usrfle,
+                                      usrfre,
+                                      noverm,
+                                      idx)
+  return trace, data
 end
 
 function ENT:Setup(width       , length     , damage     , material    ,
