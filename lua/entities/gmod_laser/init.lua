@@ -45,7 +45,9 @@ function ENT:Initialize()
   )
 
   local phys = self:GetPhysicsObject()
-  if(LaserLib.IsValid(phys)) then phys:Wake() end
+  if(LaserLib.IsValid(phys)) then
+    phys:Wake(); phys:SetMass(50)
+  end -- Apply decent mass
 
   self:WireWrite("Entity", self)
 end

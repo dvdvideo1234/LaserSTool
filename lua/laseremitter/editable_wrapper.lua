@@ -24,7 +24,7 @@ function ENT:EditableSetVector(name, catg)
     }}); return self
 end
 
-function ENT:EditableSetVectorColor(name, catg, min, max)
+function ENT:EditableSetVectorColor(name, catg)
   local typ, ord, id = self:EditableGetOrderID("Vector")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
@@ -72,14 +72,15 @@ function ENT:EditableSetInt(name, catg, min, max)
     }}); return self
 end
 
-function ENT:EditableSetStringGeneric(name, catg, min, max)
+function ENT:EditableSetStringGeneric(name, catg, enter)
   local typ, ord, id = self:EditableGetOrderID("String")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
-      category = catg,
-      order    = ord,
-      type     = "Generic"
+      category     = catg,
+      order        = ord,
+      waitforenter = tobool(enter),
+      type         = "Generic"
     }}); return self
 end
 

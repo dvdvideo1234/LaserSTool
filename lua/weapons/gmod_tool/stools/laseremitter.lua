@@ -56,7 +56,7 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".refractrate_con", "Refraction power ratio")
   language.Add("tool."..gsUnit..".refractrate", "Refract the amount of power according to the medium material type")
   language.Add("tool."..gsUnit..".enonvermater_con", "Non-override material")
-  language.Add("tool."..gsUnit..".enonvermater", "Interact with surfaces that still have their original material")
+  language.Add("tool."..gsUnit..".enonvermater", "Utilize the first material from the list. Otherwise use material type")
   language.Add("tool."..gsUnit..".openmaterial", "Default material override manager for: ")
   language.Add("Cleanup_"..gsUnit, "Lasers")
   language.Add("Cleaned_"..gsUnit, "Cleaned up all Lasers")
@@ -123,6 +123,12 @@ TOOL.Category = "Construction"
 TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
 if(SERVER) then
+  duplicator.RegisterEntityModifier("laseremitter_material",
+    function(ply, ent, data) LaserLib.SetMaterial(ent, data.MaterialOverride) end)
+
+  duplicator.RegisterEntityModifier("laseremitter_properties",
+    function(ply, ent, data) LaserLib.SetMaterial(ent, data.Material) end)
+
   CreateConVar("sbox_max"..gsUnit.."s", 20)
 end
 
@@ -241,6 +247,7 @@ function TOOL:LeftClick(trace)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
+  LaserLib.SetProperties(laser, "metal")
   self:ApplySpawn(laser, trace)
 
   undo.Create("LaserEmitter")

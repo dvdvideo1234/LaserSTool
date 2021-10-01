@@ -33,9 +33,11 @@ function ENT:Initialize()
   )
 
   local phys = self:GetPhysicsObject()
-  if(LaserLib.IsValid(phys)) then phys:Wake() end
+  if(LaserLib.IsValid(phys)) then
+    phys:Wake(); phys:SetMass(50)
+  end -- Apply decent mass
 
-  -- Detup default configuration
+  -- Setup default configuration
   self:InitSources()
   self:SetBeamForce(0)
   self:SetBeamWidth(0)
@@ -65,6 +67,7 @@ function ENT:SpawnFunction(ply, tr)
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(LaserLib.GetClass(4, 1))
   if(LaserLib.IsValid(ent)) then
+    LaserLib.SetProperties(ent, "metal")
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(4))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
