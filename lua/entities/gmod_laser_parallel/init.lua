@@ -2,7 +2,7 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-resource.AddFile("materials/vgui/entities/gmod_laser_splitterm.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser_parallel.vmt")
 
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
@@ -10,23 +10,19 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal"  , "VECTOR", "Splitter surface normal"}
+    {"Normal"  , "VECTOR", "Parallel surface normal"}
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Splitter working state" },
-    {"Normal"  , "VECTOR", "Splitter surface normal"},
-    {"Count"   , "NORMAL", "Splitter beam count"    },
-    {"Entity"  , "ENTITY", "Splitter entity itself" },
-    {"Array"   , "ARRAY" , "Splitter sources array" }
+    {"On"    , "NORMAL", "Parallel working state" },
+    {"Normal", "VECTOR", "Parallel surface normal"},
+    {"Entity", "ENTITY", "Parallel entity itself" },
+    {"Count" , "NORMAL", "Parallel beam count"    },
+    {"Array" , "ARRAY" , "Parallel sources array" }
   )
 
   self:InitSources()
-  self:SetBeamCount(0)
-  self:SetBeamLeanX(0)
-  self:SetBeamLeanY(0)
   self:SetStopSound("")
   self:SetStartSound("")
   self:SetBeamDimmer(false)
-  self:SetBeamReplicate(false)
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then
@@ -40,24 +36,21 @@ end
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(8, 1))
+  local ent = ents.Create(LaserLib.GetClass(10, 1))
   if(LaserLib.IsValid(ent)) then
     LaserLib.SetProperties(ent, "metal")
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(8))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(10))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    ent:SetModel(LaserLib.GetModel(8))
+    ent:SetModel(LaserLib.GetModel(10))
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
     ent:SetBeamTransform()
-    ent:SetBeamCount(LaserLib.GetData("NSPLITER"):GetInt())
-    ent:SetBeamLeanX(LaserLib.GetData("XSPLITER"):GetFloat())
-    ent:SetBeamLeanY(LaserLib.GetData("YSPLITER"):GetFloat())
     return ent
   end; return nil
 end
@@ -104,12 +97,12 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    self:WireWrite("Array", self.hitArray)
     self:WireWrite("Count", self.hitSize)
+    self:WireWrite("Array", self.hitArray)
   else
     self:RemHitReports()
-    self:WireWrite("Array")
     self:WireWrite("Count", 0)
+    self:WireWrite("Array")
   end
 
   self:NextThink(CurTime())

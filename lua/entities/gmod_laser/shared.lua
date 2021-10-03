@@ -21,12 +21,9 @@ include(LaserLib.GetTool().."/wire_wrapper.lua")
 AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-function ENT:SetupDataTables()
-  local amax = LaserLib.GetData("AMAX")
+function ENT:SetupGenericDataTables()
   self:EditableSetVector("OriginLocal" , "General")
   self:EditableSetVector("DirectLocal" , "General")
-  self:EditableSetFloat ("AngleOffset" , "General", amax[1], amax[2])
-  self:EditableSetBool  ("StartToggle" , "General")
   self:EditableSetBool  ("ForceCenter" , "General")
   self:EditableSetBool  ("ReflectRatio", "Material")
   self:EditableSetBool  ("RefractRatio", "Material")
@@ -35,11 +32,18 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
+  self:EditableSetStringCombo("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
-  self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  self:EditableSetStringCombo("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+end
+
+function ENT:SetupDataTables()
+  local amax = LaserLib.GetData("AMAX")
+  self:EditableSetFloat ("AngleOffset" , "General", amax[1], amax[2])
+  self:EditableSetBool  ("StartToggle" , "General")
+  self:SetupGenericDataTables()
   self:EditableRemoveOrderInfo()
 end
 
@@ -52,16 +56,25 @@ function ENT:SetBeamTransform()
   return self
 end
 
-function ENT:GetBeamOrigin(origin, world)
-  if(world) then return origin end
+function ENT:GetBeamOrigin(origin, nocnv)
+  if(nocnv) then return Vector(origin) end
   return self:LocalToWorld(origin or self:GetOriginLocal())
 end
 
-function ENT:GetBeamDirection(direct, world)
-  if(world) then return direct end
+function ENT:GetBeamDirection(direct, nocnv)
+  if(nocnv) then return Vector(direct) end
   local dir = Vector(direct or self:GetDirectLocal())
         dir:Rotate(self:GetAngles())
   return dir
+end
+
+function ENT:GetHitPower(normal, trace, data)
+  local norm = Vector(normal)
+        norm:Rotate(self:GetAngles())
+  local dotm = LaserLib.GetData("DOTM")
+  local dotv = math.abs(norm:Dot(data.VrDirect))
+  local dott = math.abs(norm:Dot(trace.HitNormal))
+  return (dott > (1 - dotm)), dotv
 end
 
 --[[ ----------------------
@@ -293,6 +306,30 @@ end
 
 function ENT:GetNonOverMater()
   return self:GetInNonOverMater()
+end
+
+function ENT:DoBeam(org, dir, idx)
+  local force  = self:GetBeamForce()
+  local width  = self:GetBeamWidth()
+  local origin = self:GetBeamOrigin(org)
+  local length = self:GetBeamLength()
+  local damage = self:GetBeamDamage()
+  local usrfle = self:GetReflectRatio()
+  local usrfre = self:GetRefractRatio()
+  local direct = self:GetBeamDirection(dir)
+  local noverm = self:GetNonOverMater()
+  local trace, data = LaserLib.DoBeam(self,
+                                      origin,
+                                      direct,
+                                      length,
+                                      width,
+                                      damage,
+                                      force,
+                                      usrfle,
+                                      usrfre,
+                                      noverm,
+                                      idx)
+  return trace, data
 end
 
 function ENT:Setup(width       , length     , damage     , material    ,

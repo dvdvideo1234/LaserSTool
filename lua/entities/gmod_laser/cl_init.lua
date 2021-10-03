@@ -80,7 +80,7 @@ function ENT:DrawTrace(data, source)
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
 
-    if(org[5] or new[5]) then
+    if(org[5]) then
       -- Draw the actual beam texture
       local len = (ntx - otx):Length()
       local dtm = -(15 * CurTime())
@@ -96,25 +96,8 @@ function ENT:DrawTrace(data, source)
   self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
 end
 
-
-function ENT:DrawBeam(org, dir, length, width)
-  local force  = self:GetBeamForce()
-  local origin = self:GetBeamOrigin(org)
-  local damage = self:GetBeamDamage()
-  local usrfle = self:GetReflectRatio()
-  local usrfre = self:GetRefractRatio()
-  local direct = self:GetBeamDirection(dir)
-  local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm)
+function ENT:DrawBeam()
+  local trace, data = self:DoBeam()
   if(not data) then return end
   self:DrawTrace(data) -- Draws the beam trace
   -- Handle drawing the effects when have to be drawwn
@@ -130,7 +113,7 @@ function ENT:Draw()
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
       self:DrawEffectBegin()
-      self:DrawBeam(nil, nil, length, width)
+      self:DrawBeam()
       self:DrawEffectEnd()
     end
   else

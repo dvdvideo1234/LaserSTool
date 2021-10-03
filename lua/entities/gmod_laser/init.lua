@@ -45,7 +45,9 @@ function ENT:Initialize()
   )
 
   local phys = self:GetPhysicsObject()
-  if(LaserLib.IsValid(phys)) then phys:Wake() end
+  if(LaserLib.IsValid(phys)) then
+    phys:Wake(); phys:SetMass(50)
+  end -- Apply decent mass
 
   self:WireWrite("Entity", self)
 end
@@ -107,32 +109,6 @@ function ENT:SetDominant(ent)
   LaserLib.SetPlayer(self, (ent.ply or ent.player))
 
   return self
-end
-
-function ENT:DoBeam(org, dir, idx)
-  self:DrawEffectBegin()
-  local force  = self:GetBeamForce()
-  local width  = self:GetBeamWidth()
-  local origin = self:GetBeamOrigin(org)
-  local length = self:GetBeamLength()
-  local damage = self:GetBeamDamage()
-  local usrfle = self:GetReflectRatio()
-  local usrfre = self:GetRefractRatio()
-  local direct = self:GetBeamDirection(dir)
-  local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
-  self:DrawEffectEnd()
-  return trace, data
 end
 
 function ENT:Think()

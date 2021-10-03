@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.Category       = "Laser"
-ENT.PrintName      = "Dimmer"
+ENT.PrintName      = "Parallel"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
@@ -12,9 +12,10 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
-  self:EditableSetBool  ("BeamReplicate", "General")
-  self:EditableSetBool  ("InPowerOn"    , "Internals")
+  local amax = LaserLib.GetData("AMAX")
+  self:EditableSetVector("NormalLocal", "General") -- Used as forward
+  self:EditableSetBool  ("BeamDimmer" , "General")
+  self:EditableSetBool  ("InPowerOn"  , "Internals")
   self:EditableRemoveOrderInfo()
 end
 
@@ -38,16 +39,10 @@ function ENT:InitSources()
     end
   else
     if(self.hitSources) then
-      table.Empty(self.hitFront)
-      table.Empty(self.hitLevel)
       table.Empty(self.hitArray)
-      table.Empty(self.hitIndex)
       table.Empty(self.hitSources)
     else
-      self.hitFront   = {} -- Array for surface hit normal
-      self.hitLevel   = {} -- Array for product coefficients
       self.hitArray   = {} -- Array to output for wiremod
-      self.hitIndex   = {} -- Array of the first index hit
       self.hitSources = {} -- Sources in notation `[ent] = true`
     end
   end
@@ -90,23 +85,20 @@ function ENT:UpdateSources()
       if(self.hitArray[self.hitSize] ~= entity) then
         local hitSize = self.hitSize + 1
         self.hitArray[hitSize] = entity -- Store source
-        if(SERVER) then
-          self.hitIndex[hitSize] = index -- Store index
-          self.hitLevel[hitSize] = mdot -- Store source
-          self.hitFront[hitSize] = (bdot and 1 or 0)
-        end
         self.hitSize = hitSize
       end
-      local vdot = (self:GetBeamReplicate() and 1 or mdot)
+      local dir = Vector(trace.HitNormal)
+      local vdot = (self:GetBeamDimmer() and mdot or 1)
+      local pos = trace.HitPos; LaserLib.VecNegate(dir)
       if(CLIENT) then
-        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx)
+        hdx = hdx + 1; self:DrawBeam(entity, pos, dir, data, vdot, hdx)
       else
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx))
+        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, pos, dir, data, vdot, hdx))
       end
     end -- Sources are located in the table hash part
   end); self:RemHitReports(hdx)
 
-  return self:UpdateArrays("hitArray", "hitLevel", "hitFront", "hitIndex")
+  return self:UpdateArrays("hitArray")
 end
 
 --[[

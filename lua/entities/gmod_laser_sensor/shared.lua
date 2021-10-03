@@ -12,21 +12,7 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("OriginLocal" , "General")
-  self:EditableSetVector("DirectLocal" , "General")
-  self:EditableSetBool  ("ForceCenter" , "General")
-  self:EditableSetBool  ("ReflectRatio", "Material")
-  self:EditableSetBool  ("RefractRatio", "Material")
-  self:EditableSetBool  ("InPowerOn"   , "Internals")
-  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  self:EditableSetComboString("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
-  self:EditableSetBool("InNonOverMater"  , "Internals")
-  self:EditableSetBool("EndingEffect"    , "Visuals")
-  self:EditableSetVectorColor("BeamColor", "Visuals")
-  self:EditableSetComboString("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  self:SetupGenericDataTables()
   self:EditableRemoveOrderInfo()
 end
 
@@ -62,15 +48,6 @@ function ENT:GetUnitOrigin()
     local opos = self:GetOriginLocal()
     return self:GetNWFloat("GetOriginLocal", opos)
   end
-end
-
-function ENT:GetHitNormal(trace)
-  local norm = Vector(self:GetUnitDirection())
-        norm:Rotate(self:GetAngles())
-  if(norm:IsZero()) then return 1, true end
-  local dom = LaserLib.GetData("DOTM")
-  local dot = norm:Dot(trace.HitNormal)
-  return dot, (dot > (1 - dom))
 end
 
 function ENT:SetOn(bool)

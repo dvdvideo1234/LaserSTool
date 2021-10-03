@@ -57,9 +57,11 @@ function ENT:Initialize()
   )
 
   local phys = self:GetPhysicsObject()
-  if(LaserLib.IsValid(phys)) then phys:Wake() end
+  if(LaserLib.IsValid(phys)) then
+    phys:Wake(); phys:SetMass(50)
+  end -- Apply decent mass
 
-  -- Detup default configuration
+  -- Setup default configuration
   self:InitSources()
   self:SetBeamForce(0)
   self:SetBeamWidth(0)
@@ -82,10 +84,10 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
-  -- Sets the right angle at spawn. Thanks to aVoN!
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(LaserLib.GetClass(6, 1))
   if(LaserLib.IsValid(ent)) then
+    LaserLib.SetProperties(ent, "metal")
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(6))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
@@ -112,7 +114,8 @@ function ENT:UpdateSources()
 
   self.hitSize = 0
   self:ProcessSources(function(entity, index, trace, data)
-    local mdot, bdot = self:GetHitNormal(trace)
+    local norm = self:GetUnitDirection()
+    local bdot, mdot = self:GetHitPower(norm, trace, data)
     if(trace and trace.Hit and data) then
       if(self.hitArray[self.hitSize] ~= entity) then
         local hitSize = self.hitSize + 1 -- Point to next slot
@@ -128,7 +131,7 @@ function ENT:UpdateSources()
         damage = damage + data.NvDamage
         force  = force  + data.NvForce
         if(npower > opower) then
-          normh  = mdot
+          normh  = (bdot and 1 or 0)
           normm  = mdot
           opower = npower
           domsrc = data.BmSource
