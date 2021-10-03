@@ -121,8 +121,8 @@ function ENT:IsHitNormal(trace)
 end
 
 function ENT:UpdateSources()
-  local hdx, count = 0, self:GetBeamCount()
   self.hitSize = 0 -- Add sources in array
+  local hdx, count = 0, self:GetBeamCount()
   if(count > 0) then
     self:ProcessSources(function(entity, index, trace, data)
       if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
@@ -133,7 +133,8 @@ function ENT:UpdateSources()
         end
         local welev = Vector(self:GetElevatLocal())
               welev:Rotate(self:GetAngles())
-        local bmorg, bsdir = trace.HitPos, -trace.HitNormal
+        local bsdir = Vector(trace.HitNormal)
+        local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
         local angle = bsdir:AngleEx(welev)
         local mrdotm = math.abs(data.VrDirect:Dot(bsdir))
         local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
@@ -173,14 +174,14 @@ end
  * sdat > Source beam trace data
  * idx  > Index to store the result
 ]]
-function ENT:DoBeam(ent, org, dir, sdat, mdot, idx)
+function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
   local noverm = sdat.BmNoover
   local count  = self:GetBeamCount()
   local replic = self:GetBeamReplicate()
-  local todiv  = (replic and 1 or (count / mdot))
+  local todiv  = (replic and 1 or (count / vdot))
   local damage = (sdat.NvDamage / todiv)
   local force  = (sdat.NvForce  / todiv)
   local width  = LaserLib.GetWidth((sdat.NvWidth / todiv))

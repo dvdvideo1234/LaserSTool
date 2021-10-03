@@ -114,7 +114,8 @@ function ENT:UpdateSources()
 
   self.hitSize = 0
   self:ProcessSources(function(entity, index, trace, data)
-    local mdot, bdot = self:GetHitNormal(trace)
+    local norm = self:GetUnitDirection()
+    local bdot, mdot = self:GetHitPower(norm, trace, data)
     if(trace and trace.Hit and data) then
       if(self.hitArray[self.hitSize] ~= entity) then
         local hitSize = self.hitSize + 1 -- Point to next slot
@@ -130,7 +131,7 @@ function ENT:UpdateSources()
         damage = damage + data.NvDamage
         force  = force  + data.NvForce
         if(npower > opower) then
-          normh  = mdot
+          normh  = (bdot and 1 or 0)
           normm  = mdot
           opower = npower
           domsrc = data.BmSource

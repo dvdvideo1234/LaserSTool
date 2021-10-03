@@ -21,12 +21,9 @@ include(LaserLib.GetTool().."/wire_wrapper.lua")
 AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-function ENT:SetupDataTables()
-  local amax = LaserLib.GetData("AMAX")
+function ENT:SetupGenericDataTables()
   self:EditableSetVector("OriginLocal" , "General")
   self:EditableSetVector("DirectLocal" , "General")
-  self:EditableSetFloat ("AngleOffset" , "General", amax[1], amax[2])
-  self:EditableSetBool  ("StartToggle" , "General")
   self:EditableSetBool  ("ForceCenter" , "General")
   self:EditableSetBool  ("ReflectRatio", "Material")
   self:EditableSetBool  ("RefractRatio", "Material")
@@ -40,6 +37,13 @@ function ENT:SetupDataTables()
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetStringCombo("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+end
+
+function ENT:SetupDataTables()
+  local amax = LaserLib.GetData("AMAX")
+  self:EditableSetFloat ("AngleOffset" , "General", amax[1], amax[2])
+  self:EditableSetBool  ("StartToggle" , "General")
+  self:SetupGenericDataTables()
   self:EditableRemoveOrderInfo()
 end
 
@@ -52,16 +56,25 @@ function ENT:SetBeamTransform()
   return self
 end
 
-function ENT:GetBeamOrigin(origin, world)
-  if(world) then return origin end
+function ENT:GetBeamOrigin(origin, nocnv)
+  if(nocnv) then return Vector(origin) end
   return self:LocalToWorld(origin or self:GetOriginLocal())
 end
 
-function ENT:GetBeamDirection(direct, world)
-  if(world) then return direct end
+function ENT:GetBeamDirection(direct, nocnv)
+  if(nocnv) then return Vector(direct) end
   local dir = Vector(direct or self:GetDirectLocal())
         dir:Rotate(self:GetAngles())
   return dir
+end
+
+function ENT:GetHitPower(normal, trace, data)
+  local norm = Vector(normal)
+        norm:Rotate(self:GetAngles())
+  local dotm = LaserLib.GetData("DOTM")
+  local dotv = math.abs(norm:Dot(data.VrDirect))
+  local dott = math.abs(norm:Dot(trace.HitNormal))
+  return (dott > (1 - dotm)), dotv
 end
 
 --[[ ----------------------

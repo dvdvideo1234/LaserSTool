@@ -2,7 +2,7 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-resource.AddFile("materials/vgui/entities/gmod_laser_divider.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser_parallel.vmt")
 
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
@@ -10,22 +10,19 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal"  , "VECTOR", "Dimmer surface normal"}
+    {"Normal"  , "VECTOR", "Parallel surface normal"}
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Dimmer working state"       },
-    {"Normal"  , "VECTOR", "Dimmer surface normal"      },
-    {"Entity"  , "ENTITY", "Dimmer entity itself"       },
-    {"Count"   , "NORMAL", "Dimmer beam count"          },
-    {"Array"   , "ARRAY" , "Dimmer sources array"       },
-    {"Level"   , "ARRAY" , "Dimmer power level array"   },
-    {"Index"   , "ARRAY" , "Dimmer first hit beam index"},
-    {"Front"   , "ARRAY" , "Dimmer frontal hit array"   }
+    {"On"    , "NORMAL", "Parallel working state" },
+    {"Normal", "VECTOR", "Parallel surface normal"},
+    {"Entity", "ENTITY", "Parallel entity itself" },
+    {"Count" , "NORMAL", "Parallel beam count"    },
+    {"Array" , "ARRAY" , "Parallel sources array" }
   )
 
   self:InitSources()
-  self:SetBeamReplicate(false)
   self:SetStopSound("")
   self:SetStartSound("")
+  self:SetBeamDimmer(false)
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then
@@ -39,17 +36,17 @@ end
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(7, 1))
+  local ent = ents.Create(LaserLib.GetClass(10, 1))
   if(LaserLib.IsValid(ent)) then
     LaserLib.SetProperties(ent, "metal")
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(7))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(10))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    ent:SetModel(LaserLib.GetModel(7))
+    ent:SetModel(LaserLib.GetModel(10))
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
@@ -102,16 +99,10 @@ function ENT:Think()
   if(self:GetOn()) then
     self:WireWrite("Count", self.hitSize)
     self:WireWrite("Array", self.hitArray)
-    self:WireWrite("Front", self.hitFront)
-    self:WireWrite("Index", self.hitIndex)
-    self:WireWrite("Level", self.hitLevel)
   else
     self:RemHitReports()
     self:WireWrite("Count", 0)
     self:WireWrite("Array")
-    self:WireWrite("Front")
-    self:WireWrite("Index")
-    self:WireWrite("Level")
   end
 
   self:NextThink(CurTime())

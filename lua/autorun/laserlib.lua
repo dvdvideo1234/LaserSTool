@@ -22,10 +22,11 @@ DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery0
 DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the dimmer model")
 DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Change to adjust the portal model")
 DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the splitter multy model")
+DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the paralleller multy model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
-DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.1, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
+DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.15, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
 DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
@@ -71,18 +72,20 @@ DATA.CLS = {
   ["gmod_laser_sensor"   ] = {false, true , false},
   ["gmod_laser_dimmer"   ] = {true , false, false},
   ["gmod_laser_splitterm"] = {true , false, false},
+  ["gmod_laser_parallel" ] = {true , false, false},
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
   {"gmod_laser"          , nil        , nil      }, -- Laser entity calss
-  {"gmod_laser_crystal"  , "crystal"  , "CRYSTAL"}, -- Laser crystal class
-  {"prop_physics"        , "reflector", "REFLECT"}, -- Laser reflectors class
-  {"gmod_laser_splitter" , "splitter" , "SPLITER"}, -- Laser beam splitter
-  {"gmod_laser_divider"  , "divider"  , "DIVIDER"}, -- Laser beam divider
-  {"gmod_laser_sensor"   , "sensor"   , "SENSOR" }, -- Laser beam sensor
-  {"gmod_laser_dimmer"   , "dimmer"   , "DIMMER" }, -- Laser beam divide
-  {"gmod_laser_splitterm", "splitterm", "SPLITRM"}, -- Laser beam splitter multy
-  {"gmod_laser_portal"   , "portal"   , "PORTAL" }  -- Laser beam portal
+  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class
+  {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class
+  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter
+  {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider
+  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor
+  {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide
+  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy
+  {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal
+  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel
 }
 
 DATA.MOD = { -- Model used by the entities menu
@@ -94,7 +97,8 @@ DATA.MOD = { -- Model used by the entities menu
   DATA.MSENSOR:GetString() , -- Portal catcher: models/props/laser_catcher_center.mdl
   DATA.MDIMMER:GetString() ,
   DATA.MSPLITRM:GetString(),
-  DATA.MPORTAL:GetString()   -- Portal: Well... Portals being entities
+  DATA.MPORTAL:GetString() , -- Portal: Well... Portals being entities
+  DATA.MPARALEL:GetString()
 }
 
 DATA.MAT = {
@@ -106,7 +110,8 @@ DATA.MAT = {
   "models/props_combine/citadel_cable",
   "models/dog/eyeglass"    ,
   "models/dog/eyeglass"    ,
-  "models/props_combine/com_shield001a"
+  "models/props_combine/com_shield001a",
+  "models/dog/eyeglass"
 }
 
 DATA.COLOR = {
@@ -227,8 +232,9 @@ DATA.TRACE = {
 
 -- Callbacks for console variables
 for idx = 2, #DATA.CLS do
-  local vidx = DATA.CLS[idx][3]
-  local varo = DATA["M"..vidx]
+  local vset = DATA.CLS[idx]
+  local vidx = (vset[3] or vset[2])
+  local varo = DATA["M"..vidx:upper()]
   local varn = varo:GetName()
 
   cvars.RemoveChangeCallback(varn, varn)
@@ -549,12 +555,12 @@ end
 --[[
  * https://wiki.facepunch.com/gmod/Enums/MAT
  * https://wiki.facepunch.com/gmod/Entity:GetMaterialType
- * Retrieves material override for an entity or use the default
- * ent > Entity to read data for
- * org > Toggle original material selecton when not available
- * trace > Trace data to take the material for
- * mator > Toggle material original selecton when not available
-           When flag is disabled uses the material type for checking
+ * Retrieves material override for a trace or use the default
+ * Toggles material original selecton when not available
+ * When flag is disabled uses the material type for checking
+ * The value must be available for client and server sides
+ * trace > Reference to trace result structure
+ * data  > Reference to current beam data parameters
  * Returns: Material extracted from the entity on server and client
 ]]
 local function GetMaterialID(trace, data)
@@ -785,6 +791,10 @@ if(SERVER) then
     local laser = ents.Create(LaserLib.GetClass(1, 1))
     if(not (LaserLib.IsValid(laser))) then return nil end
 
+    laser:SetCollisionGroup(COLLISION_GROUP_NONE)
+    laser:SetSolid(SOLID_VPHYSICS)
+    laser:SetMoveType(MOVETYPE_VPHYSICS)
+    laser:SetNotSolid(false)
     laser:SetPos(pos)
     laser:SetAngles(ang)
     laser:SetModel(Model(model))
