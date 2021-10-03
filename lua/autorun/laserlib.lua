@@ -945,9 +945,8 @@ DATA.PORTAL = {
  * noverm > Enable interactions with no material override
 ]]
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
-  local data, trace, target = {}
-  -- Configure data structure
-  data.TrMaters = ""
+  local data, trace, target = {} -- Configure data structure and target reference
+  data.TrMaters = "" -- This stores the current extracted material as string
   data.NvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
   data.NvCGroup = COLLISION_GROUP_NONE -- Collision group. Missing then COLLISION_GROUP_NONE
   data.IsTrace  = false -- Library is still tracing the beam
@@ -977,7 +976,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
   if(data.NvLength <= 0) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
-  if(not LaserLib.IsValid(data.TeFilter)) then return end
+  if(not LaserLib.IsValid(entity)) then return end
 
   LaserLib.RegisterNode(data, origin)
 
@@ -1219,14 +1218,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   end
 
   if(LaserLib.IsUnit(entity)) then
-    local target = trace.Entity -- Reduce indexing
-
     if(entity.SetHitReport) then
       -- Update the current beam source hit report
       -- This is done to know what we just hit
       entity:SetHitReport(trace, data, index)
-    end
-
+    end -- Reduce indexing by using last target
     if(LaserLib.IsValid(target) and target.RegisterSource) then
       target:RegisterSource(entity) -- Register source entity
     end
