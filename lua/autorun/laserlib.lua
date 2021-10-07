@@ -335,8 +335,8 @@ function LaserLib.DrawPoint(pos, col)
   render.DrawSphere(pos, 1, 25, 25, crw)
 end
 
-function LaserLib.GetReportID(key)
-  local out = (tonumber(key) or 1)
+function LaserLib.GetReportID(idx)
+  local out = (tonumber(idx) or 1)
         out = math.max(out, 1)
   return math.floor(out)
 end
@@ -433,7 +433,7 @@ end
 function LaserLib.GetAngleSF(ply)
   local han, tan = (DATA.AMAX[2] / 2), DATA.AMAX[2]
   local yaw = (ply:GetAimVector():Angle().y + han) % tan
-  return Angle(0, yaw, 0)
+  local ang = Angle(0, yaw, 0); ang:Normalize(); return ang
 end
 
 --[[
@@ -901,16 +901,19 @@ DATA.PORTAL = {
     data.IsTrace = true -- Assue that beam continues
     data.NvLength = data.NvLength - data.NvLength * trace.Fraction
     local ent, src = trace.Entity, data.BmSource
-    local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
-    pos, dir = ent:GetTeleportedVector(pos, dir)
-    data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
-    if(SERVER and entity.drawEffect) then
-      ent:EnterEffect(trace.HitPos, data.NvWidth);
-      if(LaserLib.IsValid(ent.Target)) then
-        ent.Target:EnterEffect(data.VrOrigin, data.NvWidth)
+    local pos, dir = trace.HitPos, data.VrDirect
+    local pob, dib = LaserLib.GetReverse(pos, dir)
+    local eff, tar = src.drawEffect, ent.Target
+    if(LaserLib.IsValid(tar)) then -- Leave networking to CAP
+      local pot, dit = ent:GetTeleportedVector(pob, dib)
+      if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
+        ent:EnterEffect(pob, data.NvWidth) -- Enter effect
+        tar:EnterEffect(pot, data.NvWidth) -- Exit effect
       end -- Stargate ( CAP ) requires little nudge in the origin vector
-    end -- Otherwise the trace will get stick
-    LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+      data.VrOrigin:Set(pot); data.VrDirect:Set(dit)
+      -- Otherwise the trace will get stick and will hit again
+      LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    else data.IsTrace = false end -- Invalid target. Stop
   end,
   ["gmod_laser_portal"] = function(trace, data)
     data.IsTrace = true -- Assue that beam continues
@@ -918,16 +921,18 @@ DATA.PORTAL = {
     local ent, src = trace.Entity, data.BmSource
     local idx = tonumber(ent:GetEntityExitID()) or 0
     if(idx <= 0) then data.IsTrace = false; return end
-    local out = Entity(idx); data.IsTrace = true
-    if(not LaserLib.IsValid(out)) then data.IsTrace = false; return end
-    if(out:IsWorld() or out:IsPlayer()) then data.IsTrace = false; return end
-    if(out:GetModel() ~= ent:GetModel()) then data.IsTrace = false; return end
-    local mir = ent:GetMirrorExitPos()
-    local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
-    local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
-    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, mir, nrm)
-    data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
-    LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    local out = Entity(idx)
+    if(LaserLib.IsValid(out) and -- Validate target portal
+      (out:GetModel() == ent:GetModel()) and not
+      (out:IsWorld() or out:IsPlayer() or out:IsNPC()))
+    then
+      local mir = ent:GetMirrorExitPos()
+      local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
+      local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
+      pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, mir, nrm)
+      data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
+      LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    else data.IsTrace = false end -- Invalid target. Stop
   end
 }
 
@@ -972,7 +977,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.BrReflec = usrfle -- Beam reflection ratio flag. Reduce beam power when reflecting
   data.BrRefrac = usrfre -- Beam refraction ratio flag. Reduce beam power when refracting
   data.BmNoover = noverm -- Beam no override material flag. Try to extract original material
-  data.RepIndex = index  -- Beam hit report index. Usually one if not provided
+  data.BmIdenty = index  -- Beam hit report index. Usually one if not provided
 
   if(data.NvLength <= 0) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end

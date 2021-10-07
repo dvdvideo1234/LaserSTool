@@ -124,6 +124,7 @@ function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
   local hdx, count = 0, self:GetBeamCount()
   if(count > 0) then
+    self:DrawEffectBegin()
     self:ProcessSources(function(entity, index, trace, data)
       if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
         if(self.hitArray[self.hitSize] ~= entity) then
@@ -162,6 +163,7 @@ function ENT:UpdateSources()
         end
       end -- Sources are located in the table hash part
     end)
+    self:DrawEffectEnd()
   end; self:RemHitReports(hdx)
   return self:UpdateArrays("hitArray")
 end
