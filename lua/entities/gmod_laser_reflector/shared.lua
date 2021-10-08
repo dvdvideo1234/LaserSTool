@@ -11,3 +11,4 @@ end
 ENT.Author         = "MadJawa"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
+ENT.RenderGroup    = RENDERGROUP_BOTH

@@ -156,12 +156,14 @@ function ENT:Think()
       local marby = self:GetBeamLeanY()
       local eleva = self:GetElevatLocal()
       local angle = direc:AngleEx(eleva)
+      self:DrawEffectBegin()
       for index = 1, mcount do
         local dir = marby * angle:Up()
               dir:Add(marbx * angle:Forward())
         self:DoDamage(self:DoBeam(nil, dir, index))
         angle:RotateAroundAxis(direc, delta)
       end
+      self:DrawEffectEnd()
     else
       self:DoDamage(self:DoBeam(nil, direc))
     end

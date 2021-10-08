@@ -10,6 +10,7 @@ ENT.Editable       = true
 ENT.Author         = "DVD"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
+ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
   local amax = LaserLib.GetData("AMAX")

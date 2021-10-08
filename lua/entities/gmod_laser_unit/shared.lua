@@ -11,3 +11,4 @@ end
 ENT.Author         = "DVD"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
+ENT.RenderGroup    = RENDERGROUP_BOTH

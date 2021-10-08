@@ -12,6 +12,7 @@ ENT.Editable       = true
 ENT.Author         = "MadJawa"
 ENT.Spawnable      = false
 ENT.AdminSpawnable = false
+ENT.RenderGroup    = RENDERGROUP_BOTH
 
 local EFFECTTM = LaserLib.GetData("EFFECTTM")
 

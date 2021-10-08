@@ -337,8 +337,8 @@ end
 
 function LaserLib.GetReportID(idx)
   local out = (tonumber(idx) or 1)
-        out = math.max(out, 1)
-  return math.floor(out)
+        out = math.floor(out)
+  return math.max(out, 1)
 end
 
 function LaserLib.GetIcon(icon)
@@ -921,11 +921,11 @@ DATA.PORTAL = {
     local ent, src = trace.Entity, data.BmSource
     local idx = tonumber(ent:GetEntityExitID()) or 0
     if(idx <= 0) then data.IsTrace = false; return end
-    local out = Entity(idx)
+    local out = Entity(idx) -- Does entity exists with such ID
     if(LaserLib.IsValid(out) and -- Validate target portal
       (out:GetModel() == ent:GetModel()) and not
       (out:IsWorld() or out:IsPlayer() or out:IsNPC()))
-    then
+    then -- Output model is validated. Calculate portalling
       local mir = ent:GetMirrorExitPos()
       local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
       local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
