@@ -278,21 +278,17 @@ function ENT:GetBeamForce()
   end
 end
 
---[[ ----------------------
-      Effects draw handling
----------------------- ]]
-
-function ENT:DrawEffectBegin()
-  if(not self.nextEffect or CurTime() > self.nextEffect) then
-    local time = EFFECTTM:GetFloat()
-    self.drawEffect = true
-    self.nextEffect = CurTime() + time
-  end
-end
-
-function ENT:DrawEffectEnd()
-  if(self.drawEffect) then
-    self.drawEffect = false
+--[[
+ * Effects draw handling decides whenever
+ * the current tick has to draw the effects
+ * Flag is automatically reset in every call
+ * then becomes true when it meets requirements
+]]
+function ENT:DrawEffects()
+  local time = CurTime(); self.drawEffect = false
+  if(not self.nextEffect or time > self.nextEffect) then
+    local dt = EFFECTTM:GetFloat() -- Read configuration
+    self.drawEffect, self.nextEffect = true, time + dt
   end
 end
 

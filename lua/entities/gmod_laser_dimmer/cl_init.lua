@@ -13,8 +13,7 @@ function ENT:Draw()
   self:DrawShadow(false)
   self:InitSources()
   if(self:GetOn()) then
-    self:DrawEffectBegin()
+    self:DrawEffects()
     self:UpdateSources()
-    self:DrawEffectEnd()
   end
 end

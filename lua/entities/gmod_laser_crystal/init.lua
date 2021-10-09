@@ -169,9 +169,8 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    self:DrawEffectBegin()
+    self:DrawEffects()
     local trace, data = self:DoBeam()
-    self:DrawEffectEnd()
 
     if(data) then
       self:WireWrite("Range", data.RaLength)

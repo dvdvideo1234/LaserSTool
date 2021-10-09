@@ -249,44 +249,50 @@ for idx = 2, #DATA.CLS do
   varn)
 end
 
-function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
+function LaserLib.TraceCAP(origin, direct, length, filter)
   if(StarGate ~= nil) then
     DATA.TRACE.start:Set(origin)
     DATA.TRACE.endpos:Set(direct)
     DATA.TRACE.endpos:Normalize()
-    DATA.TRACE.endpos:Mul(length)
-    return StarGate.Trace:New(DATA.TRACE.start, DATA.TRACE.endpos, filter);
+    DATA.TRACE.endpos:Mul(length) -- If CAP specific entity is hit return trace
+    local tr = StarGate.Trace:New(DATA.TRACE.start, DATA.TRACE.endpos, filter);
+    if(StarGate.Trace.Entities[tr.Entity]) then return tr end
+  end; return nil -- Otherwise use the reglar trace for refraction control
+end
+
+-- CAP: https://github.com/RafaelDeJongh/cap/lua/stargate/shared/tracelines.lua
+function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
+  local tr = LaserLib.TraceCAP(origin, direct, length, filter)
+  if(tr) then return tr end -- Return when CAP stuff is currently being hit
+  DATA.TRACE.start:Set(origin)
+  DATA.TRACE.endpos:Set(direct)
+  DATA.TRACE.endpos:Normalize()
+  DATA.TRACE.endpos:Mul(length)
+  DATA.TRACE.endpos:Add(origin)
+  DATA.TRACE.filter = filter
+  if(mask ~= nil) then
+    DATA.TRACE.mask = mask
+  else -- Default trace mask
+    DATA.TRACE.mask = MASK_SOLID
+  end
+  if(iworld ~= nil) then
+    DATA.TRACE.ignoreworld = iworld
+  else -- Default world ignore
+    DATA.TRACE.ignoreworld = false
+  end
+  if(colgrp ~= nil) then
+    DATA.TRACE.collisiongroup = colgrp
+  else -- Default collision group
+    DATA.TRACE.collisiongroup = COLLISION_GROUP_NONE
+  end
+  if(result ~= nil) then
+    DATA.TRACE.output = result
+    util.TraceLine(DATA.TRACE)
+    DATA.TRACE.output = nil
+    return result
   else
-    DATA.TRACE.start:Set(origin)
-    DATA.TRACE.endpos:Set(direct)
-    DATA.TRACE.endpos:Normalize()
-    DATA.TRACE.endpos:Mul(length)
-    DATA.TRACE.endpos:Add(origin)
-    DATA.TRACE.filter = filter
-    if(mask ~= nil) then
-      DATA.TRACE.mask = mask
-    else -- Default trace mask
-      DATA.TRACE.mask = MASK_SOLID
-    end
-    if(iworld ~= nil) then
-      DATA.TRACE.ignoreworld = iworld
-    else -- Default world ignore
-      DATA.TRACE.ignoreworld = false
-    end
-    if(colgrp ~= nil) then
-      DATA.TRACE.collisiongroup = colgrp
-    else -- Default collision group
-      DATA.TRACE.collisiongroup = COLLISION_GROUP_NONE
-    end
-    if(result ~= nil) then
-      DATA.TRACE.output = result
-      util.TraceLine(DATA.TRACE)
-      DATA.TRACE.output = nil
-      return result
-    else
-      DATA.TRACE.output = nil
-      return util.TraceLine(DATA.TRACE)
-    end
+    DATA.TRACE.output = nil
+    return util.TraceLine(DATA.TRACE)
   end
 end
 
@@ -333,6 +339,16 @@ function LaserLib.DrawPoint(pos, col)
   local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 1, 25, 25, crw)
+end
+
+-- Draw a position on the screen
+function LaserLib.DrawVector(pos, dir, mag, col)
+  if(not CLIENT) then return end
+  local ven = pos + (dir * (tonumber(mag) or 1))
+  local crw = LaserLib.GetColor(col or "YELLOW")
+  render.SetColorMaterial()
+  render.DrawSphere(pos, 1, 25, 25, crw)
+  render.DrawLine(pos, ven, crw, false)
 end
 
 function LaserLib.GetReportID(idx)
@@ -1055,6 +1071,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 LaserLib.VecNegate(data.VrDirect)
               end
             end
+
+            LaserLib.DrawVector(data.VrOrigin, data.VrDirect, 10)
+
             if(usrfre) then
               LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
             end
@@ -1082,7 +1101,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 -- Substact traced lenght from total length
                 data.NvLength = data.NvLength - data.NvLength * trace.Fraction
                 -- Calculated refraction ray. Reflect when not possible
-                local rent, vdir, bout = target -- Refraction entity
+                local vdir, bout = target -- Refraction entity
                 if(data.StRfract) then
                   vdir = Vector(direct); data.StRfract = false
                 else
@@ -1101,7 +1120,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 data.VrOrigin:Add(trace.HitPos)
                 LaserLib.VecNegate(data.VrDirect)
                 -- Must trace only this entity otherwise invalid
-                data.TeFilter = function(ent) return (ent == rent) end
+                LaserLib.DrawVector(data.VrOrigin, data.VrDirect, 10)
+                data.TeFilter = function(ent) return (ent == target) end
                 data.NvIWorld = true -- Ignore world too for precision  ws
                 data.IsRfract[1] = true -- Raise the bounce off refract flag
                 data.TrRfract = 2 * data.DmRfract * DATA.ERAD -- Scale again to make it hit

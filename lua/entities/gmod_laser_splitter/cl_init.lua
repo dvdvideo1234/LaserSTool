@@ -25,18 +25,16 @@ function ENT:Draw()
         local marx = self:GetBeamLeanX()
         local mary = self:GetBeamLeanY()
         local angle = direc:AngleEx(eleva)
-        self:DrawEffectBegin()
+        self:DrawEffects()
         for index = 1, mcount do
           local dir = mary * angle:Up()
                 dir:Add(marx * angle:Forward())
           self:DrawBeam(nil, dir, index)
           angle:RotateAroundAxis(direc, delta)
         end
-        self:DrawEffectEnd()
       elseif(mcount == 1) then
-        self:DrawEffectBegin()
+        self:DrawEffects()
         self:DrawBeam()
-        self:DrawEffectEnd()
       end
       self:RemHitReports(mcount)
     end

@@ -91,9 +91,8 @@ function ENT:DoDamage(trace, data)
 end
 
 function ENT:Think()
-  self:DrawEffectBegin()
+  self:DrawEffects()
   self:UpdateSources()
-  self:DrawEffectEnd()
 
   if(self.hitSize > 0) then
     self:SetOn(true)
