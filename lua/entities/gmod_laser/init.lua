@@ -113,6 +113,7 @@ end
 
 function ENT:Think()
   if(self:GetOn()) then
+    self:DrawEffects()
     local trace, data = self:DoBeam()
 
     if(data) then

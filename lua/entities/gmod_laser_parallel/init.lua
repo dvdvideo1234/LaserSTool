@@ -88,6 +88,7 @@ function ENT:DoDamage(trace, data)
 end
 
 function ENT:Think()
+  self:DrawEffects()
   self:UpdateSources()
 
   if(self.hitSize > 0) then

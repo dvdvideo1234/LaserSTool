@@ -112,9 +112,8 @@ function ENT:Draw()
           width = LaserLib.GetWidth(width)
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
-      self:DrawEffectBegin()
+      self:DrawEffects()
       self:DrawBeam()
-      self:DrawEffectEnd()
     end
   else
     local color = LaserLib.GetColor("YELLOW")

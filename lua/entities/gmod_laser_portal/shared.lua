@@ -12,6 +12,7 @@ ENT.Editable       = true
 ENT.Author         = "DVD"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
+ENT.RenderGroup    = RENDERGROUP_BOTH
 
 AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")

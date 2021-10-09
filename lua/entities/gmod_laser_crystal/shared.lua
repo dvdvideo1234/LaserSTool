@@ -7,9 +7,9 @@ if(WireLib) then
   ENT.WireDebugName = ENT.Information
 end
 ENT.Author         = "MadJawa"
-
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
+ENT.RenderGroup    = RENDERGROUP_BOTH
 
 -- Override the beam transormation
 function ENT:SetBeamTransform()
