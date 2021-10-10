@@ -14,7 +14,8 @@ ENT.Spawnable      = false
 ENT.AdminSpawnable = false
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
-local EFFECTTM = LaserLib.GetData("EFFECTTM")
+local EFFECTDT = LaserLib.GetData("EFFECTDT")
+local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
@@ -284,11 +285,21 @@ end
  * Flag is automatically reset in every call
  * then becomes true when it meets requirements
 ]]
-function ENT:DrawEffects()
-  local time = CurTime(); self.drawEffect = false
+function ENT:UpdateFlags()
+  local time = CurTime()
+
+  self.isEffect = false -- Reset the frame effects
   if(not self.nextEffect or time > self.nextEffect) then
-    local dt = EFFECTTM:GetFloat() -- Read configuration
-    self.drawEffect, self.nextEffect = true, time + dt
+    local dt = EFFECTDT:GetFloat() -- Read configuration
+    self.isEffect, self.nextEffect = true, time + dt
+  end
+
+  if(SERVER) then -- Damage exists only on the server
+    self.isDamage = false -- Reset the frame damage
+    if(not self.nextDamage or time > self.nextDamage) then
+      local dt = DAMAGEDT:GetFloat() -- Read configuration
+      self.isDamage, self.nextDamage = true, time + dt
+    end
   end
 end
 
@@ -332,7 +343,7 @@ end
 function ENT:Setup(width       , length     , damage     , material    ,
                    dissolveType, startSound , stopSound  , killSound   ,
                    toggle      , startOn    , pushForce  , endingEffect,
-                   reflectRate , refractRate, forceCenter, enOnverMater, update)
+                   reflectRate , refractRate, forceCenter, enOverMater, update)
   self:SetBeamWidth(width)
   self:SetBeamLength(length)
   self:SetBeamDamage(damage)
@@ -349,7 +360,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self:SetEndingEffect(endingEffect)
   self:SetReflectRatio(reflectRate)
   self:SetRefractRatio(refractRate)
-  self:SetNonOverMater(enOnverMater)
+  self:SetNonOverMater(enOverMater)
   self:SetBeamTransform()
 
   table.Merge(self:GetTable(), {
@@ -369,7 +380,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
     reflectRate  = reflectRate,
     refractRate  = refractRate,
     forceCenter  = forceCenter,
-    enOnverMater = enOnverMater
+    enOverMater = enOverMater
   })
 
   if((not update) or

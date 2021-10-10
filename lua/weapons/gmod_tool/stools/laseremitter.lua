@@ -1,5 +1,7 @@
 local gsUnit = LaserLib.GetTool()
+local gsNoAV = LaserLib.GetData("NOAV")
 local gsLaseremCls = LaserLib.GetClass(1, 1)
+local gsLaserptCls = LaserLib.GetClass(9, 1)
 
 if(CLIENT) then
 
@@ -169,6 +171,7 @@ TOOL.ClientConVar =
   [ "refractused"  ] = LaserLib.DataRefract(),
   [ "enonvermater" ] = 0,
   [ "forcecenter"  ] = 0,
+  [ "portalexit"   ] = 0,
   [ "frozen"       ] = 1 -- The cold never bothered me anyway
 }
 
@@ -193,6 +196,12 @@ end
 ]]
 function TOOL:ApplySpawn(ent, trace)
   LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, self:GetAngleOffset())
+end
+
+function TOOL:GetUnit(ent)
+  if(not LaserLib.IsValid(ent)) then return LaserLib.GetData("NOAV") end
+  local css = ent:GetClass():gsub(gsLaseremCls, ""):gsub("^_", "")
+  return ((css:len() > 0) and (" "..css.." ") or (" "))
 end
 
 function TOOL:LeftClick(trace)
@@ -231,10 +240,9 @@ function TOOL:LeftClick(trace)
               toggle      , starton    , pushforce  , endingeffect,
               reflectrate , refractrate, forcecenter, enonvermater, true)
     return true
-  end
-
-  if(ply:KeyDown(IN_SPEED)) then
-    ent:SetNWInt("laseremiter_beamtarget", 357)
+  elseif(LaserLib.IsValid(ent) and ent:GetClass() == gsLaserptCls) then
+    local idx = self:GetClientInfo("portalexit"); ent:SetEntityExitID(idx)
+    LaserLib.Notify(ply, "Paste ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
     return true
   end
 
@@ -277,8 +285,6 @@ function TOOL:RightClick(trace)
   if(not LaserLib.IsValid(ent)) then return false end
 
   if(LaserLib.IsUnit(ent, 2)) then
-    local css = ent:GetClass():gsub(gsLaseremCls, ""):gsub("^_", "")
-    local cvs = ((css:len() > 0) and (" "..css.." ") or (" "))
     LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
     LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
     LaserLib.ConCommand(ply, "damage"      , ent:GetBeamDamage())
@@ -295,7 +301,11 @@ function TOOL:RightClick(trace)
     LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
     LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
     LaserLib.ConCommand(ply, "enonvermater", (ent:GetNonOverMater() and 1 or 0))
-    LaserLib.Notify(ply, "Copy"..cvs.."["..ent:EntIndex().."] settings !", "UNDO")
+    LaserLib.Notify(ply, "Copy"..self:GetUnit(ent).."["..ent:EntIndex().."] settings !", "UNDO")
+  elseif(ent:GetClass() == gsLaserptCls) then
+    local idx = tostring(ent:EntIndex())
+    LaserLib.ConCommand(ply, "portalexit", idx)
+    LaserLib.Notify(ply, "Copy ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
   else
     local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
                            math.Round(trace.HitNormal:Dot(ent:GetForward()), 3))
@@ -331,7 +341,13 @@ function TOOL:Reload(trace)
     elseif(ply:KeyDown(IN_DUCK) and ent:GetCreator() == ply) then
       ent:Remove()
     else
-      LaserLib.SetMaterial(ent)
+      if(ent:GetClass() == gsLaserptCls) then
+        local idx = (tonumber(ent:GetEntityExitID()) or 0)
+        local txt = ((idx ~= 0) and tostring(idx) or gsNoAV); ent:SetEntityExitID(0)
+        LaserLib.Notify(ply, "Clear ID"..self:GetUnit(ent).."["..txt.."] !", "UNDO")
+      else
+        LaserLib.SetMaterial(ent)
+      end
     end
   end
 
@@ -345,7 +361,7 @@ if(SERVER) then
     "damage"     , "material"    , "dissolveType", "startSound" ,
     "stopSound"  , "killSound"   , "toggle"      , "startOn"    ,
     "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
-    "forceCenter", "frozen"      , "enOnverMater")
+    "forceCenter", "frozen"      , "enOverMater")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -358,9 +374,10 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
 
   self:ApplySpawn(ent, trace)
 
-  if(not trace.Hit or
-         trace.Entity:IsPlayer() or
-         trace.Entity:GetClass() == gsLaseremCls)
+  if(not trace.Hit
+      or trace.Entity:IsPlayer()
+      or trace.Entity:GetClass() == gsLaseremCls
+      or trace.Entity:GetClass() == gsLaserptCls)
   then
     ent:SetNoDraw(true)
     return

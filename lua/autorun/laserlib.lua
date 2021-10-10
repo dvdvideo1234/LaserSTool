@@ -26,7 +26,7 @@ DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/Furnitur
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
-DATA.EFFECTTM = CreateConVar("laseremitter_effecttm", 0.15, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
+DATA.EFFECTDT = CreateConVar("laseremitter_effectdt", 0.15, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
 DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
@@ -45,7 +45,7 @@ DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.NMAR = 0.0001          -- Margin amount to push vectors with
 DATA.ERAD = 2               -- Entity radius coefficient for traces
 DATA.NTIF = {}              -- User notification configuration type
-DATA.AMAX = {-360, 360}
+DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 
@@ -123,7 +123,8 @@ DATA.COLOR = {
   ["YELLOW"]  = Color(255, 255,  0 , 255),
   ["MAGENTA"] = Color(255,  0 , 255, 255),
   ["CYAN"]    = Color( 0 , 255, 255, 255),
-  ["WHITE"]   = Color(255, 255, 255, 255)
+  ["WHITE"]   = Color(255, 255, 255, 255),
+  ["BACKGR"]  = Color(150, 150, 255, 190)
 }
 
 DATA.DISTYPE = {
@@ -260,7 +261,7 @@ function LaserLib.TraceCAP(origin, direct, length, filter)
   end; return nil -- Otherwise use the reglar trace for refraction control
 end
 
--- CAP: https://github.com/RafaelDeJongh/cap/lua/stargate/shared/tracelines.lua
+-- CAP: https://github.com/RafaelDeJongh/cap/blob/master/lua/stargate/shared/tracelines.lua
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, result)
   local tr = LaserLib.TraceCAP(origin, direct, length, filter)
   if(tr) then return tr end -- Return when CAP stuff is currently being hit
@@ -712,8 +713,19 @@ if(SERVER) then
 
   AddCSLuaFile("autorun/laserlib.lua")
 
+  DATA.DMGI = DamageInfo() -- Create a server-side damage information class
+
+  -- https://wiki.facepunch.com/gmod/Global.DamageInfo
+  function LaserLib.TakeDamage(victim, damage, attacker, laser)
+    DATA.DMGI:SetDamage(damage)
+    DATA.DMGI:SetAttacker(attacker)
+    DATA.DMGI:SetInflictor(laser)
+    DATA.DMGI:SetDamageType(DMG_ENERGYBEAM)
+    victim:TakeDamageInfo(DATA.DMGI)
+  end
+
   -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
-  function LaserLib.SpawnDissolver(base, position, attacker, disstype)
+  function LaserLib.GetTorch(base, position, attacker, disstype)
     local ent = ents.Create("env_entity_dissolver")
     if(not LaserLib.IsValid(ent)) then return nil end
     ent.Target = "laserdissolve"..base:EntIndex()
@@ -725,22 +737,19 @@ if(SERVER) then
     return ent
   end
 
-  function LaserLib.DoDamage(target   , hitPos     , normal  , beamDir     ,
-                             damage   , pushForce  , attacker, dissolveType,
-                             killSound, forceCenter, laserEnt)
-    local dmgtm = DATA.DAMAGEDT:GetFloat()
-    laserEnt.nextDamage = laserEnt.nextDamage or CurTime()
-
+  function LaserLib.DoDamage(target, origin , normal  , direct  ,
+                             damage, force  , attacker, dissolve,
+                             noise , fcenter, laser)
     local phys = target:GetPhysicsObject()
-    if(pushForce and LaserLib.IsValid(phys)) then
-      if(forceCenter) then
-        phys:ApplyForceCenter(beamDir * pushForce)
-      else
-        phys:ApplyForceOffset(beamDir * pushForce, hitPos)
-      end
+    if(force and LaserLib.IsValid(phys)) then
+      if(fcenter) then -- Force relative to mass center
+        phys:ApplyForceCenter(direct * force)
+      else -- Keep force separate from damage inflicting
+        phys:ApplyForceOffset(direct * force, origin)
+      end -- This is the way laser can be used as forcer
     end
 
-    if(CurTime() >= laserEnt.nextDamage) then
+    if(laser.isDamage) then
       if(target:IsVehicle()) then
         local driver = target:GetDriver()
         -- Take damage doesn't work on player inside a vehicle.
@@ -751,45 +760,43 @@ if(SERVER) then
 
       if(target:GetClass() == "shield") then
         local damage = math.Clamp(damage / 2500 * 3, 0, 4)
-        target:Hit(laserEnt, hitPos, damage, -1 * normal)
-        laserEnt.nextDamage = CurTime() + dmgtm
+        target:Hit(laser, origin, damage, -1 * normal)
         return -- We stop here because we hit a shield!
       end
 
       if(target:Health() <= damage) then
         if(target:IsNPC() or target:IsPlayer()) then
-          local odissolve = LaserLib.SpawnDissolver(laserEnt, target:GetPos(), attacker, dissolveType)
+          local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
+          if(LaserLib.IsValid(torch)) then
+            if(target:IsPlayer()) then
+              LaserLib.TakeDamage(target, damage, attacker, laser)
 
-          if(target:IsPlayer()) then
-            target:TakeDamage(damage, attacker, laserEnt)
+              local doll = target:GetRagdollEntity()
+              -- We need to kill the player first to get his ragdoll.
+              if(not LaserLib.IsValid(doll)) then return end
+              -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way.
+              doll:SetName(torch.Target)
+            else
+              target:SetName(torch.Target)
 
-            local tardoll = target:GetRagdollEntity()
-            -- We need to kill the player first to get his ragdoll.
-            if(not LaserLib.IsValid(tardoll)) then return end
-            -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way.
-            tardoll:SetName(odissolve.Target)
-          else
-            target:SetName(odissolve.Target)
-
-            local tarwep = target:GetActiveWeapon()
-            if(LaserLib.IsValid(tarwep)) then
-              tarwep:SetName(odissolve.Target)
+              local swep = target:GetActiveWeapon()
+              if(LaserLib.IsValid(swep)) then
+                swep:SetName(torch.Target)
+              end
             end
+
+            torch:Fire("Dissolve", torch.Target, 0)
+            torch:Fire("Kill", "", 0.1)
           end
-
-          odissolve:Fire("Dissolve", odissolve.Target, 0)
-          odissolve:Fire("Kill", "", 0.1)
         end
 
-        if(killSound ~= nil and (target:Health() > 0 or target:IsPlayer())) then
-          sound.Play(killSound, target:GetPos())
-          target:EmitSound(Sound(killSound))
+        if(noise ~= nil and (target:Health() > 0 or target:IsPlayer())) then
+          sound.Play(noise, target:GetPos())
+          target:EmitSound(Sound(noise))
         end
-      else
-        laserEnt.nextDamage = CurTime() + dmgtm
       end
 
-      target:TakeDamage(damage, attacker, laserEnt)
+      LaserLib.TakeDamage(target, damage, attacker, laser)
     end
   end
 
@@ -798,7 +805,7 @@ if(SERVER) then
                         damage     , material    , dissolveType, startSound ,
                         stopSound  , killSound   , toggle      , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
-                        forceCenter, frozen      , enOnverMater)
+                        forceCenter, frozen      , enOverMater)
 
     local unit = LaserLib.GetTool()
     if(not (LaserLib.IsValid(user) and user:IsPlayer())) then return nil end
@@ -820,7 +827,7 @@ if(SERVER) then
     laser:Setup(width       , length     , damage     , material    ,
                 dissolveType, startSound , stopSound  , killSound   ,
                 toggle      , startOn    , pushForce  , endingEffect,
-                reflectRate , refractRate, forceCenter, enOnverMater, false)
+                reflectRate , refractRate, forceCenter, enOverMater, false)
 
     local phys = laser:GetPhysicsObject()
     if(LaserLib.IsValid(phys)) then
@@ -919,7 +926,7 @@ DATA.PORTAL = {
     local ent, src = trace.Entity, data.BmSource
     local pos, dir = trace.HitPos, data.VrDirect
     local pob, dib = LaserLib.GetReverse(pos, dir)
-    local eff, tar = src.drawEffect, ent.Target
+    local eff, tar = src.isEffect, ent.Target
     if(LaserLib.IsValid(tar)) then -- Leave networking to CAP
       local pot, dit = ent:GetTeleportedVector(pob, dib)
       if(SERVER and ent:IsOpen() and eff) then -- Library effect flag

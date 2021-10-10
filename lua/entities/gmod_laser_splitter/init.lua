@@ -156,7 +156,7 @@ function ENT:Think()
       local marby = self:GetBeamLeanY()
       local eleva = self:GetElevatLocal()
       local angle = direc:AngleEx(eleva)
-      self:DrawEffects()
+      self:UpdateFlags()
       for index = 1, mcount do
         local dir = marby * angle:Up()
               dir:Add(marbx * angle:Forward())

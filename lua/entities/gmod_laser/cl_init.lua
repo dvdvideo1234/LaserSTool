@@ -15,7 +15,7 @@ local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
 function ENT:DrawEndingEffect(trace, data, source)
   local sent = (source or self)
   if(trace and not trace.HitSky and
-    sent:GetEndingEffect() and self.drawEffect)
+    sent:GetEndingEffect() and self.isEffect)
   then
     if(not self.beamEffect) then
       self.beamEffect = EffectData()
@@ -112,7 +112,7 @@ function ENT:Draw()
           width = LaserLib.GetWidth(width)
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
-      self:DrawEffects()
+      self:UpdateFlags()
       self:DrawBeam()
     end
   else
