@@ -124,7 +124,8 @@ DATA.COLOR = {
   ["MAGENTA"] = Color(255,  0 , 255, 255),
   ["CYAN"]    = Color( 0 , 255, 255, 255),
   ["WHITE"]   = Color(255, 255, 255, 255),
-  ["BACKGR"]  = Color(150, 150, 255, 190)
+  ["BACKGR"]  = Color(150, 150, 255, 190),
+  ["FOREGR"]  = Color(150, 255, 150, 240)
 }
 
 DATA.DISTYPE = {
@@ -198,7 +199,7 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurites
   ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
   ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
-  ["models/props_combine/com_shield001a"]       = {1.573, 0.653},
+  ["models/props_combine/com_shield001a"]       = {1.573, 0.653}, -- Dycamically changing slass
   ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurites
   ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
   ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles glass

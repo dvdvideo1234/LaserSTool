@@ -41,3 +41,14 @@ function ENT:IsHitNormal(trace)
   local dotm = LaserLib.GetData("DOTM")
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
 end
+
+function ENT:GetTransitID(idx)
+  local idx = (tonumber(idx) or 0)
+  return ((idx ~= 0) and tostring(idx) or gsNA)
+end
+
+function ENT:GetTransfer()
+  local bas = self:GetTransitID(self:EntIndex())
+  local txt = self:GetTransitID(self:GetEntityExitID())
+  return ("["..bas.."] > ["..txt.."]")
+end

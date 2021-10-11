@@ -335,8 +335,10 @@ function TOOL:Reload(trace)
     if(not LaserLib.IsValid(ent))  then return false end
     if(ent:IsPlayer()) then return false end
     if(ply:KeyDown(IN_USE)) then
+      if(ent:GetClass() == gsLaserptCls) then return false end
       LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
     elseif(ply:KeyDown(IN_SPEED)) then
+      if(ent:GetClass() == gsLaserptCls) then return false end
       LaserLib.SetMaterial(ent, self:GetClientInfo("reflectused"))
     elseif(ply:KeyDown(IN_DUCK) and ent:GetCreator() == ply) then
       ent:Remove()
@@ -384,6 +386,20 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
   end
 
   ent:SetNoDraw(false)
+end
+
+local BACKGR = LaserLib.GetColor("BACKGR")
+local BLACK  = LaserLib.GetColor("BLACK")
+
+function TOOL:DrawHUD()
+  local ply = LocalPlayer()
+  local ent = ply:GetEyeTrace().Entity
+  if(ent:GetClass() == gsLaserptCls) then
+    local rad = ent:BoundingRadius()
+    local pos = Vector(0,0,rad); pos:Add(ent:GetPos())
+    local pxy, txt = pos:ToScreen(), ent:GetTransfer()
+    draw.WordBox(4, pxy.x, pxy.y, txt, "Trebuchet24", BACKGR, BLACK, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+  end
 end
 
 function TOOL:Think()
