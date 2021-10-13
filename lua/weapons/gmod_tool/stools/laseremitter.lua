@@ -388,20 +388,6 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
   ent:SetNoDraw(false)
 end
 
-local BACKGR = LaserLib.GetColor("BACKGR")
-local BLACK  = LaserLib.GetColor("BLACK")
-
-function TOOL:DrawHUD()
-  local ply = LocalPlayer()
-  local ent = ply:GetEyeTrace().Entity
-  if(ent:GetClass() == gsLaserptCls) then
-    local rad = ent:BoundingRadius()
-    local pos = Vector(0,0,rad); pos:Add(ent:GetPos())
-    local pxy, txt = pos:ToScreen(), ent:GetTransfer()
-    draw.WordBox(4, pxy.x, pxy.y, txt, "Trebuchet24", BACKGR, BLACK, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-  end
-end
-
 function TOOL:Think()
   local model = self:GetClientInfo("model")
 

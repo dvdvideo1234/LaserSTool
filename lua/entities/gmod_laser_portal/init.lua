@@ -15,6 +15,7 @@ function ENT:Initialize()
 
   -- Mirror the exit position by default
   self:SetMirrorExitPos(true) -- Use list
+  self:SetDrawTransfer(true) -- Overlay
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then

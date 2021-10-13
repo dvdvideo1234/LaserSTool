@@ -43,7 +43,7 @@ DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.NMAR = 0.0001          -- Margin amount to push vectors with
-DATA.ERAD = 2               -- Entity radius coefficient for traces
+DATA.ERAD = 1               -- Entity refract coefficient for back trace origins
 DATA.NTIF = {}              -- User notification configuration type
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
@@ -945,11 +945,8 @@ DATA.PORTAL = {
     local ent, src = trace.Entity, data.BmSource
     local idx = tonumber(ent:GetEntityExitID()) or 0
     if(idx <= 0) then data.IsTrace = false; return end
-    local out = Entity(idx) -- Does entity exists with such ID
-    if(LaserLib.IsValid(out) and -- Validate target portal
-      (out:GetModel() == ent:GetModel()) and not
-      (out:IsWorld() or out:IsPlayer() or out:IsNPC()))
-    then -- Output model is validated. Calculate portalling
+    local out = ent:GetCorrectExit() -- Validate output entity
+    if(out) then -- Output model is validated. Calculate portalling
       local mir = ent:GetMirrorExitPos()
       local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
       local pos, dir = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
@@ -1040,10 +1037,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         LaserLib.RegisterNode(data, trace.HitPos, isRfract)
       end
     else
-      if(data.TvPoints.Size == 1) then
-        data.StRfract = true -- Beam starts inside a refractive solid
-      end -- Continue straight and ignore the zero fraction node
+      if(data.NvBounce == data.MxBounce) then data.StRfract = true end
     end -- Do not put a node when beam starts in a solid
+    -- Initial start so the beam separate from the entity
+    if(data.NvBounce == data.MxBounce) then data.TeFilter = nil end
 
     if(trace.Hit and not LaserLib.IsUnit(target)) then
       -- Refresh medium pass trough information
@@ -1079,9 +1076,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 LaserLib.VecNegate(data.VrDirect)
               end
             end
-
-            LaserLib.DrawVector(data.VrOrigin, data.VrDirect, 10)
-
             if(usrfre) then
               LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
             end
@@ -1128,7 +1122,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 data.VrOrigin:Add(trace.HitPos)
                 LaserLib.VecNegate(data.VrDirect)
                 -- Must trace only this entity otherwise invalid
-                LaserLib.DrawVector(data.VrOrigin, data.VrDirect, 10)
                 data.TeFilter = function(ent) return (ent == target) end
                 data.NvIWorld = true -- Ignore world too for precision  ws
                 data.IsRfract[1] = true -- Raise the bounce off refract flag
