@@ -43,7 +43,7 @@ function ENT:Draw()
     fwd:Rotate(ang)
     ang:RotateAroundAxis(ang:Up(), 90);
     ang:RotateAroundAxis(ang:Forward(), 90);
-    local dir = LocalPlayer():GetPos(); dir:Sub(pos)
+    local dir = LocalPlayer():EyePos(); dir:Sub(pos)
     local rot = (fwd:Dot(dir) < 0)
 
     self:DrawTransfer(ang, rot)

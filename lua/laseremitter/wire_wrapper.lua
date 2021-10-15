@@ -132,7 +132,7 @@ function ENT:WirePreEntityCopy()
 end
 
 --[[
- * Function. Helper routine for `WirePostEntityPaste`
+ * Function. Helper routine factory for `WirePostEntityPaste`
  * Returns wire specific and related entity picker
 ]]
 local function EntityLookup(created)

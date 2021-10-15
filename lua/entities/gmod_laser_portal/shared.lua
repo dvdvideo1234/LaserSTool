@@ -59,13 +59,17 @@ function ENT:GetTransitID(idx, ent)
   end
 end
 
+function ENT:IsValidExit(ent)
+  if(not LaserLib.IsValid(ent)) then return false end
+  if(self:GetModel() ~= ent:GetModel()) then return false end
+  if(ent:IsWorld() or ent:IsPlayer() or ent:IsNPC()) then return false end
+  return true -- The output entity has been validated
+end
+
 function ENT:GetCorrectExit()
   local idx = self:GetEntityExitID()
   local out = self:GetTransitID(idx, true)
-  if(not LaserLib.IsValid(out)) then return end
-  if(self:GetModel() ~= out:GetModel()) then return end
-  if(out:IsWorld() or out:IsPlayer() or out:IsNPC()) then return end
-  return out -- When successfull returns the valid transit entity
+  return (self:IsValidExit(out) and out or nil)
 end
 
 function ENT:GetOverlayTransfer()
