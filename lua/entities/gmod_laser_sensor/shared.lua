@@ -13,7 +13,7 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
-  self:SetupGenericDataTables()
+  self:SetupSourceDataTables()
   self:EditableRemoveOrderInfo()
 end
 

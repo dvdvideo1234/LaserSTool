@@ -18,7 +18,7 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("ElevatLocal"  , "General")
-  self:SetupGenericDataTables()
+  self:SetupSourceDataTables()
   self:EditableRemoveOrderInfo()
 end
 

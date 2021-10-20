@@ -23,7 +23,7 @@ include(LaserLib.GetTool().."/wire_wrapper.lua")
 AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-function ENT:SetupGenericDataTables()
+function ENT:SetupSourceDataTables()
   self:EditableSetVector("OriginLocal" , "General")
   self:EditableSetVector("DirectLocal" , "General")
   self:EditableSetBool  ("ForceCenter" , "General")
@@ -45,7 +45,7 @@ function ENT:SetupDataTables()
   local amax = LaserLib.GetData("AMAX")
   self:EditableSetFloat ("AngleOffset" , "General", amax[1], amax[2])
   self:EditableSetBool  ("StartToggle" , "General")
-  self:SetupGenericDataTables()
+  self:SetupSourceDataTables()
   self:EditableRemoveOrderInfo()
 end
 
@@ -289,16 +289,16 @@ function ENT:UpdateFlags()
   local time = CurTime()
 
   self.isEffect = false -- Reset the frame effects
-  if(not self.nextEffect or time > self.nextEffect) then
+  if(not self.nxEffect or time > self.nxEffect) then
     local dt = EFFECTDT:GetFloat() -- Read configuration
-    self.isEffect, self.nextEffect = true, time + dt
+    self.isEffect, self.nxEffect = true, time + dt
   end
 
   if(SERVER) then -- Damage exists only on the server
     self.isDamage = false -- Reset the frame damage
-    if(not self.nextDamage or time > self.nextDamage) then
+    if(not self.nxDamage or time > self.nxDamage) then
       local dt = DAMAGEDT:GetFloat() -- Read configuration
-      self.isDamage, self.nextDamage = true, time + dt
+      self.isDamage, self.nxDamage = true, time + dt
     end
   end
 end
