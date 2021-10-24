@@ -14,24 +14,22 @@ DATA.MXBMDAMG = CreateConVar("laseremitter_maxbmdamg", 5000, DATA.FGSRVCN, "Maxi
 DATA.MXBMFORC = CreateConVar("laseremitter_maxbmforc", 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
 DATA.MXBMLENG = CreateConVar("laseremitter_maxbmleng", 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
 DATA.MBOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
-DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Change to adjust the crystal model")
-DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Change to adjust the reflector model")
-DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Change to adjust the splitter model")
-DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the divider model")
-DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Change to adjust the sensor model")
-DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the dimmer model")
-DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Change to adjust the portal model")
-DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the splitter multy model")
-DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Change to adjust the paralleller multy model")
-DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Change to adjust the default splitter outputs count", 0, 16)
-DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter X direction", 0, 1)
-DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Change to adjust the default splitter Y direction", 0, 1)
-DATA.EFFECTDT = CreateConVar("laseremitter_effectdt", 0.15, DATA.FGINDCN, "Change to adjust the time between effect drawing", 0, 5)
+DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
+DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
+DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
+DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the divider model")
+DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Controls the sensor model")
+DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the dimmer model")
+DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the portal model")
+DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the splitter multy model")
+DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the paralleller multy model")
+DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
+DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
+DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
+DATA.EFFECTDT = CreateConVar("laseremitter_effectdt", 0.15, DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
 DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
-DATA.TRBEAMWD = CreateConVar("laseremitter_trbeamwd", 0.1, DATA.FGSRVCN, "Chenge to adjust the traced beam width when refracting", 0, 5)
-DATA.PORTALMR = CreateConVar("laseremitter_portalmr", 0.2, DATA.FGSRVCN, "Chenge to adjust the portal teleportataon nidging", 0, 5)
 
 DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
@@ -45,9 +43,12 @@ DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.ERAD = 1               -- Entity refract coefficient for back trace origins
+DATA.TRWD = 0.1             -- Beam backtrace trace width when refracting
+DATA.PRMG = 0.2             -- Portal teleportataon entrance displacement
 DATA.NTIF = {}              -- User notification configuration type
 DATA.TEST = false           -- Used for testing perposes
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
+DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 
@@ -270,18 +271,19 @@ end
 function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, width, result)
   local tr = LaserLib.TraceCAP(origin, direct, length, filter)
   if(tr) then return tr end -- Return when CAP stuff is currently being hit
-  DATA.TRACE.funct = util.TraceLine
   DATA.TRACE.start:Set(origin)
   DATA.TRACE.endpos:Set(direct)
   DATA.TRACE.endpos:Normalize()
   DATA.TRACE.endpos:Mul(length)
   DATA.TRACE.endpos:Add(origin)
   DATA.TRACE.filter = filter
-  if(width ~= nil) then
+  if(width ~= nil and width > 0) then
     local m = width / 2
     DATA.TRACE.funct = util.TraceHull
     DATA.TRACE.mins:SetUnpacked(-m, -m, -m)
     DATA.TRACE.maxs:SetUnpacked( m,  m,  m)
+  else
+    DATA.TRACE.funct = util.TraceLine
   end
   if(mask ~= nil) then
     DATA.TRACE.mask = mask
@@ -426,9 +428,9 @@ end
  * pos > Ray position origin to offset back
  * dir > Ray direction to go back among
 ]]
-function LaserLib.GetReverse(pos, dir, mrg)
-  local out = Vector(dir); out:Mul(-mrg)
-  out:Add(pos); return out
+function LaserLib.GetReverse(pos, dir)
+  local out = Vector(dir); out:Mul(-DATA.PRMG)
+  out:Add(pos); return out -- Adjusted position
 end
 
 --[[
@@ -478,36 +480,36 @@ end
 
 --[[
  * Reflects a beam from a surface with material override
- * incident > The incident direction vector ( normalized )
- * normal   > Surface normal vector trace.HitNormal ( normalized )
+ * direct > The incident direction vector
+ * normal > Surface normal vector trace.HitNormal ( normalized )
  * Return the refracted ray and beam status
   [1] > The refracted ray direction vector
 ]]
-function LaserLib.GetReflected(incident, normal)
-  local ref = normal:GetNormalized()
-  local inc = incident:GetNormalized()
-  ref:Mul(-2 * ref:Dot(inc)); ref:Add(inc)
-  return ref
+function LaserLib.GetReflected(direct, normal)
+  local ref = Vector(normal) -- Always normalized
+  local inc = direct:GetNormalized()
+  local mul = (-2 * inc:Dot(ref))
+  ref:Mul(mul); ref:Add(inc); return ref
 end
 
 --[[
  * Refracts a beam across two mediums by returning the refracted vector
- * incident > The incident direction vector ( normalized )
- * normal   > Surface normal vector trace.HitNormal ( normalized )
- * source   > Refraction index of the source medium
- * destin   > Refraction index of the destination medium
+ * direct > The incident direction vector
+ * normal > Surface normal vector trace.HitNormal ( normalized )
+ * source > Refraction index of the source medium
+ * destin > Refraction index of the destination medium
  * Return the refracted ray and beam status
   [1] > The refracted ray direction vector
   [2] > Will the beam go out of the medium
 ]]
-function LaserLib.GetRefracted(incident, normal, source, destin)
-  local inc = incident:GetNormalized()
-  local nrm = Vector(normal); nrm:Normalize()
+function LaserLib.GetRefracted(direct, normal, source, destin)
+  local nrm = Vector(normal) -- Always normalized
+  local inc = direct:GetNormalized()
   local vcr = inc:Cross(LaserLib.VecNegate(nrm))
-  local ang, sii, deg = nrm:AngleEx(vcr), vcr:Length(), 0
+  local ang, sii = nrm:AngleEx(vcr), vcr:Length()
   local sio = math.asin(sii / (destin / source))
   if(sio ~= sio) then -- Argument sine is undefined so reflect (NaN)
-    return LaserLib.GetReflected(incident, normal), false
+    return LaserLib.GetReflected(direct, nrm), false
   else -- Arg sine is defined so refract. Exit medium
     ang:RotateAroundAxis(ang:Up(), -math.deg(sio))
     return ang:Forward(), true
@@ -949,7 +951,7 @@ DATA.PORTAL = {
     local pos, dir = trace.HitPos, data.VrDirect
     local eff, tar = src.isEffect, ent.Target
     if(LaserLib.IsValid(tar)) then -- Leave networking to CAP
-      local pob = LaserLib.GetReverse(pos, dir, data.MgPortal)
+      local pob = LaserLib.GetReverse(pos, dir)
       -- LaserLib.DrawVector(pob, dir, 10)
       local pot, dit = ent:GetTeleportedVector(pob, dir)
       if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
@@ -971,7 +973,7 @@ DATA.PORTAL = {
     if(out) then -- Output model is validated. Calculate portalling
       local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
       local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
-      local pos = LaserLib.GetReverse(trace.HitPos, dir, data.MgPortal)
+      local pos = LaserLib.GetReverse(trace.HitPos, dir)
       pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, mir, nrm)
       data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
       LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
@@ -1009,9 +1011,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvDamage = math.max(tonumber(damage) or 0, 0)
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
   data.NvForce  = math.max(tonumber(force ) or 0, 0)
-  data.MgPortal = DATA.PORTALMR:GetFloat() -- Portal entrance matgin nudge
   data.TrMedium = {S = {DATA.REFRACT["air"], "air"}}
-  data.BmTracew = DATA.TRBEAMWD:GetFloat() -- Make sure beam is not zero width
+  data.BmTracew = DATA.TRWD -- Make sure beam is not zero width
   data.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce = data.MxBounce -- Amount of bounces to control the infinite loop
   data.RaLength = data.BmLength -- Range of the length. Just like wire ranger
@@ -1034,7 +1035,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     --[[
       TODO: Fix world water to air refraction
       When beam goes up has to be checked when comes out of the water
-      if(DATA.VDRUP:Dot(data.VrDirect) and )
+      if(DATA.VDRUP:Dot(data.VrDirect) and ??)
     ]]
 
     local isRfract = (data.IsRfract[1] or data.IsRfract[2])
@@ -1051,8 +1052,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            data.NvIWorld, data.BmTracew); target = trace.Entity
 
     if(data.BmTracew and trace and trace.Hit) then
-      trace.HitPos:Add(-0.95 * data.BmTracew * trace.HitNormal)
-    end
+      local mul = (-DATA.TRDG * data.BmTracew)
+      trace.HitPos:Add(mul * trace.HitNormal)
+    end -- Make sure we account for the trace width cube diagonal
 
     --LaserLib.DrawVector(trace.HitPos, trace.HitNormal, 10, nil, data.NvBounce)
 
@@ -1061,7 +1063,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(valid) then -- Target is valis and it is a portal
         if(class and DATA.PORTAL[class]) then
-          local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect, data.MgPortal)
+          local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
           LaserLib.RegisterNode(data, pos, isRfract, false)
         else
           LaserLib.RegisterNode(data, trace.HitPos, isRfract)
