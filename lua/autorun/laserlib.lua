@@ -42,9 +42,9 @@ DATA.NUGE = 0.1             -- Nuge amount for vectors to continue tracing
 DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
-DATA.ERAD = 1               -- Entity refract coefficient for back trace origins
-DATA.TRWD = 0.1             -- Beam backtrace trace width when refracting
-DATA.PRMG = 0.2             -- Portal teleportataon entrance displacement
+DATA.ERAD = 1.12            -- Entity refract coefficient for back trace origins
+DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
+DATA.PRMG = 0.25            -- Portal teleportataon entrance displacement
 DATA.NTIF = {}              -- User notification configuration type
 DATA.TEST = false           -- Used for testing perposes
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
@@ -945,39 +945,42 @@ DATA.PORTAL = {
     * trace  > Reference to trace beam data
    ]]
   ["event_horizon"] = function(trace, data)
-    data.IsTrace = true -- Assue that beam continues
+    data.IsTrace = false -- Assue that beam stops traversing
     data.NvLength = data.NvLength - data.NvLength * trace.Fraction
     local ent, src = trace.Entity, data.BmSource
     local pos, dir = trace.HitPos, data.VrDirect
     local eff, tar = src.isEffect, ent.Target
-    if(LaserLib.IsValid(tar)) then -- Leave networking to CAP
-      local pob = LaserLib.GetReverse(pos, dir)
-      -- LaserLib.DrawVector(pob, dir, 10)
-      local pot, dit = ent:GetTeleportedVector(pob, dir)
-      if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
-        ent:EnterEffect(pob, data.NvWidth) -- Enter effect
-        tar:EnterEffect(pot, data.NvWidth) -- Exit effect
-      end -- Stargate ( CAP ) requires little nudge in the origin vector
-      data.VrOrigin:Set(pot); data.VrDirect:Set(dit)
-      -- Otherwise the trace will get stick and will hit again
-      LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
-    else data.IsTrace = false end -- Invalid target. Stop
+    if(tar == ent) then return end -- We need to go somewhere
+    if(not LaserLib.IsValid(tar)) then return end
+    -- Leave networking to CAP. Invalid target. Stop
+    local pob = LaserLib.GetReverse(pos, dir)
+    -- LaserLib.DrawVector(pob, dir, 10)
+    local pot, dit = ent:GetTeleportedVector(pob, dir)
+    if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
+      ent:EnterEffect(pob, data.NvWidth) -- Enter effect
+      tar:EnterEffect(pot, data.NvWidth) -- Exit effect
+    end -- Stargate ( CAP ) requires little nudge in the origin vector
+    data.VrOrigin:Set(pot); data.VrDirect:Set(dit)
+    -- Otherwise the trace will get stick and will hit again
+    LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    data.IsTrace = true -- CAP networking is correct. Continue
   end,
   ["gmod_laser_portal"] = function(trace, data)
-    data.IsTrace = true -- Assue that beam continues
+    data.IsTrace = false -- Assue that beam stops traversing
     data.NvLength = data.NvLength - data.NvLength * trace.Fraction
     local ent, src = trace.Entity, data.BmSource
-    local idx = tonumber(ent:GetEntityExitID()) or 0
-    if(idx <= 0) then data.IsTrace = false; return end
+    if(not ent:IsHitNormal(trace)) then return end
+    local idx = (tonumber(ent:GetEntityExitID()) or 0)
+    if(idx <= 0) then return end -- No output ID chosen
     local out = ent:GetCorrectExit() -- Validate output entity
-    if(out) then -- Output model is validated. Calculate portalling
-      local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
-      local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
-      local pos = LaserLib.GetReverse(trace.HitPos, dir)
-      pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, mir, nrm)
-      data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
-      LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
-    else data.IsTrace = false end -- Invalid target. Stop
+    if(not out) then return end -- No output ID. Missing ent
+    local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
+    local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
+    local pos = LaserLib.GetReverse(trace.HitPos, dir)
+    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, mir, nrm)
+    data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
+    LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    data.IsTrace = true -- Output model is validated. Continue
   end
 }
 
@@ -1012,7 +1015,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvWidth  = math.max(tonumber(width ) or 0, 0)
   data.NvForce  = math.max(tonumber(force ) or 0, 0)
   data.TrMedium = {S = {DATA.REFRACT["air"], "air"}}
-  data.BmTracew = DATA.TRWD -- Make sure beam is not zero width
+  data.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
   data.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce = data.MxBounce -- Amount of bounces to control the infinite loop
   data.RaLength = data.BmLength -- Range of the length. Just like wire ranger
@@ -1051,10 +1054,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            data.NvCGroup,
                            data.NvIWorld, data.BmTracew); target = trace.Entity
 
-    if(data.BmTracew and trace and trace.Hit) then
-      local mul = (-DATA.TRDG * data.BmTracew)
-      trace.HitPos:Add(mul * trace.HitNormal)
-    end -- Make sure we account for the trace width cube diagonal
+    if(isRfract and trace and trace.Hit and data.BmTracew and data.BmTracew > 0) then
+      local mul = (-DATA.TRDG * data.BmTracew); trace.HitPos:Add(mul * trace.HitNormal)
+    end -- Make sure we account for the trace width cube half diagonal
 
     --LaserLib.DrawVector(trace.HitPos, trace.HitNormal, 10, nil, data.NvBounce)
 
@@ -1099,7 +1101,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 data.IsRfract[1] = false
                 -- Restore the filter and hit world for tracing something else
                 data.TeFilter = target -- We prepare to hit something else anyway
-                data.BmTracew = nil -- Use zero width beam traces
+                data.BmTracew = 0 -- Use zero width beam traces
                 data.NvIWorld = false -- Revert ignoring world
                 -- Appy origin and direction when beam exits the medium
                 data.VrDirect:Set(vdir)
@@ -1107,7 +1109,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               else -- Get the trace ready to check the other side and register the location
                 data.VrDirect:Set(vdir)
                 data.VrOrigin:Set(vdir)
-                data.VrOrigin:Mul(data.DmRfract * DATA.ERAD)
+                data.VrOrigin:Mul(data.DmRfract)
                 data.VrOrigin:Add(trace.HitPos)
                 LaserLib.VecNegate(data.VrDirect)
               end
@@ -1154,7 +1156,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 data.DmRfract = (2 * target:BoundingRadius())
                 data.VrDirect:Set(vdir)
                 data.VrOrigin:Set(vdir)
-                data.VrOrigin:Mul(data.DmRfract * DATA.ERAD)
+                data.VrOrigin:Mul(data.DmRfract)
                 data.VrOrigin:Add(trace.HitPos)
                 LaserLib.VecNegate(data.VrDirect)
                 -- LaserLib.DrawVector(data.VrOrigin, data.VrDirect, 10, "RED")
@@ -1162,7 +1164,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 data.TeFilter = function(ent) return (ent == target) end
                 data.NvIWorld = true -- Ignore world too for precision  ws
                 data.IsRfract[1] = true -- Raise the bounce off refract flag
-                data.TrRfract = (1.5 * data.DmRfract * DATA.ERAD) -- Scale again to make it hit
+                data.BmTracew = DATA.TRWD -- Increase the beam width for back track
+                data.TrRfract = (DATA.ERAD * data.DmRfract) -- Scale again to make it hit
                 if(usrfre and data.TrMedium.D[1]) then
                   LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
                 end

@@ -39,7 +39,7 @@ function ENT:SetBeamTransform()
 end
 
 function ENT:IsHitNormal(trace)
-  local normal = Vector(self:GetHitNormal())
+  local normal = Vector(self:GetNormalLocal())
         normal:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
@@ -51,18 +51,16 @@ end
  * ent > Force entity outpout instead of string
 ]]
 function ENT:GetTransitID(idx, ent)
-  local idx = (tonumber(idx) or 0)
-  if(ent) then
-    return ((idx ~= 0) and Entity(idx) or nil)
-  else
-    return ((idx ~= 0) and tostring(idx) or gsNA)
-  end
+  local idx = (tonumber(idx) or 0) -- Convert the number
+  if(ent) then return ((idx ~= 0) and Entity(idx) or nil)
+  else return ((idx ~= 0) and tostring(idx) or gsNA) end
 end
 
 function ENT:IsValidExit(ent)
   if(not LaserLib.IsValid(ent)) then return false end
   if(self:GetModel() ~= ent:GetModel()) then return false end
-  if(ent:IsWorld() or ent:IsPlayer() or ent:IsNPC()) then return false end
+  if(ent:IsWorld() or ent:IsPlayer() or
+     ent:IsNPC()   or ent:IsWidget()) then return false end
   return true -- The output entity has been validated
 end
 
