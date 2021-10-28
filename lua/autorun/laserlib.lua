@@ -981,6 +981,25 @@ DATA.PORTAL = {
     data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
     data.IsTrace = true -- Output model is validated. Continue
+  end,
+  ["prop_portal"] = function(trace, data)
+    data.IsTrace = false -- Assue that beam stops traversing
+    data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+    local ent, src, out = trace.Entity, data.BmSource
+    if(not ent:IsLinked()) then return end -- No linked pair
+    if(SERVER) then
+      out = ent:FindOpenPair(); if(LaserLib.IsValid(out)) then
+        ent:SetNWInt("laser_prop_portal", out:EntIndex()) end
+    else
+      out = Entity(ent:GetNWInt("laser_prop_portal", 0))
+    end
+    if(not LaserLib.IsValid(out)) then return end -- No linked pair
+    local dir, nrm = data.VrDirect, trace.HitNormal
+    local pos = LaserLib.GetReverse(trace.HitPos, dir)
+    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, true)
+    dir.z = -dir.z; data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
+    LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    data.IsTrace = true -- Output portal is validated. Continue
   end
 }
 
