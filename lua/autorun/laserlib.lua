@@ -45,6 +45,7 @@ DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.ERAD = 1.12            -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
 DATA.PRMG = 0.25            -- Portal teleportataon entrance displacement
+DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.NTIF = {}              -- User notification configuration type
 DATA.TEST = false           -- Used for testing perposes
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
@@ -912,28 +913,31 @@ end
 
 --[[
  * Caculates the beam posidion and direction when entity is a portal
- * base   > Base entity actime as a portal entrance
- * base   > Exit entity actime as a portal beam output location
- * origin > Hit location vector placed on the furst entity surface
- * direct > Direction that the beam goes inside the first entity
- * orgmir > Whenever to use origin mirroring when calculating output ray
- * normal > Normal vector when using reflection for calculating output ray
+ * This assumes that the neam enters th +X and exits at +X
+ * This will lead to correct beam representation across portal Y axis
+ * base    > Base entity actime as a portal entrance
+ * base    > Exit entity actime as a portal beam output location
+ * origin  > Hit location vector placed on the furst entity surface
+ * direct  > Direction that the beam goes inside the first entity
+ * forigin > Origin custom modifier function. Negates X, Y by default
+ * fdirect > Direction custom modifier function. Negates X, Y by default
  * Returns the output beam ray position and direction
 ]]
-function LaserLib.GetBeamPortal(base, exit, origin, direct, orgmir, normal)
+function LaserLib.GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
+  if(not LaserLib.IsValid(base)) then return origin, direct end
   if(not LaserLib.IsValid(exit)) then return origin, direct end
-  local pos, dir = Vector(origin)
-  pos:Set(base:WorldToLocal(pos))
-  if(orgmir) then pos.y = -pos.y end
+  local pos, dir = Vector(origin), Vector(direct)
+  pos:Set(base:WorldToLocal(pos)); dir:Mul(DATA.WLMR)
+  if(forigin) then local ok, err = pcall(forigin, pos)
+    if(not ok) then error("Origin error: "..err) end
+  else pos.x, pos.y = -pos.x, -pos.y end
   pos:Set(exit:LocalToWorld(pos))
-  if(normal) then -- Normal for reflecting
-    dir = LaserLib.GetReflected(direct, normal)
-  else -- Calculate the direction going inside
-    dir = LaserLib.VecNegate(Vector(direct))
-  end
   dir:Add(base:GetPos())
   dir:Set(base:WorldToLocal(dir))
-  dir:Rotate(exit:GetAngles())
+  if(fdirect) then local ok, err = pcall(fdirect, dir)
+    if(not ok) then error("Direction error: "..err) end
+  else dir.x, dir.y = -dir.x, -dir.y end
+  dir:Rotate(exit:GetAngles()); dir:Normalize()
   return pos, dir
 end
 
@@ -975,9 +979,17 @@ DATA.PORTAL = {
     local out = ent:GetCorrectExit() -- Validate output entity
     if(not out) then return end -- No output ID. Missing ent
     local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
-    local nrm = (ent:GetReflectExitDir() and trace.HitNormal or nil)
     local pos = LaserLib.GetReverse(trace.HitPos, dir)
-    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, mir, nrm)
+    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir,
+      function(ppos)
+        if(mir) then ppos.y = -ppos.y end
+      end,
+      function(pdir)
+        if(ent:GetReflectExitDir()) then
+          local nrm = ent:GetNormalLocal()
+          pdir:Set(LaserLib.GetReflected(pdir, nrm))
+        else pdir.x, pdir.y = -pdir.x, -pdir.y end
+      end)
     data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
     data.IsTrace = true -- Output model is validated. Continue
@@ -987,18 +999,24 @@ DATA.PORTAL = {
     data.NvLength = data.NvLength - data.NvLength * trace.Fraction
     local ent, src, out = trace.Entity, data.BmSource
     if(not ent:IsLinked()) then return end -- No linked pair
-    if(SERVER) then
-      out = ent:FindOpenPair(); if(LaserLib.IsValid(out)) then
-        ent:SetNWInt("laser_prop_portal", out:EntIndex()) end
-    else
-      out = Entity(ent:GetNWInt("laser_prop_portal", 0))
-    end
+    if(SERVER) then out = ent:FindOpenPair() -- Retrieve open pair
+    else out = Entity(ent:GetNWInt("laser_prop_portal", 0))
+    end -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
+    ent:SetNWInt("laser_prop_portal", out:EntIndex())
+    local inf = data.TvPoints; inf[inf.Size][5] = true
     local dir, nrm = data.VrDirect, trace.HitNormal
     local pos = LaserLib.GetReverse(trace.HitPos, dir)
-    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir, true)
-    dir.z = -dir.z; data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
-    LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    local eps, ean, mav = ent:GetPos(), ent:GetAngles(), Vector(dir)
+    local fwd, wvc = ent:GetForward(), Vector(pos); wvc:Sub(eps)
+    local mar = math.abs(wvc:Dot(fwd)) -- Project entrance vector
+    local vsm = mar / math.cos(math.asin(fwd:Cross(dir):Length()))
+    vsm = 2 * vsm; mav:Set(dir); mav:Mul(vsm); mav:Add(trace.HitPos)
+    LaserLib.RegisterNode(data, mav, nil, false)
+    local nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir)
+    LaserLib.RegisterNode(data, nps); nps:Add(vsm * ndr)
+    data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
+    LaserLib.RegisterNode(data, nps)
     data.IsTrace = true -- Output portal is validated. Continue
   end
 }
