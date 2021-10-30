@@ -38,6 +38,7 @@ DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.RNDB = 3               -- Decimals beam round for visibility check
 DATA.KWID = 5               -- Width coefficient used to calculate power
+DATA.CLMX = 255             -- Maximum value for valid coloring
 DATA.NUGE = 0.1             -- Nuge amount for vectors to continue tracing
 DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
@@ -830,7 +831,7 @@ if(SERVER) then
                         damage     , material    , dissolveType, startSound ,
                         stopSound  , killSound   , toggle      , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
-                        forceCenter, frozen      , enOverMater)
+                        forceCenter, frozen      , enOverMater , rayColor )
 
     local unit = LaserLib.GetTool()
     if(not (LaserLib.IsValid(user) and user:IsPlayer())) then return nil end
@@ -852,7 +853,7 @@ if(SERVER) then
     laser:Setup(width       , length     , damage     , material    ,
                 dissolveType, startSound , stopSound  , killSound   ,
                 toggle      , startOn    , pushForce  , endingEffect,
-                reflectRate , refractRate, forceCenter, enOverMater, false)
+                reflectRate , refractRate, forceCenter, enOverMater , rayColor, false)
 
     local phys = laser:GetPhysicsObject()
     if(LaserLib.IsValid(phys)) then
@@ -981,10 +982,7 @@ DATA.PORTAL = {
     local nrm = ent:GetNormalLocal() -- Read current normal
     local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
     local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
-    local pos, mar = LaserLib.GetReverse(trace.HitPos, dir)
-
-    --LaserLib.DrawPoint(pos)
-
+    local pos = LaserLib.GetReverse(trace.HitPos, dir)
     nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(ppos)
         if(mir and bnr) then ppos.y = -ppos.y end
@@ -993,15 +991,10 @@ DATA.PORTAL = {
         if(ent:GetReflectExitDir()) then
           local trn = Vector(trace.HitNormal)
           trn:Mul(DATA.WLMR); trn:Add(ent:GetPos())
-          print(1) -- TODO: Fix proper reflaection
-          LaserLib.DrawVector(trace.HitPos, trn, 10 / DATA.WLMR, "GREEN")
-
-          trn:Set(ent:LocalToWorld(trn)); trn:Div(DATA.WLMR)
-          local pref = LaserLib.GetReflected(pdir, trn)
-          pdir:Set(pref)
+          trn:Set(ent:WorldToLocal(trn)); trn:Div(DATA.WLMR)
+          pdir:Set(LaserLib.GetReflected(pdir, trn))
         else pdir.x, pdir.y = -pdir.x, -pdir.y end
       end)
-    --LaserLib.DrawPoint(nps, "RED")
     data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
     data.IsTrace = true -- Output model is validated. Continue

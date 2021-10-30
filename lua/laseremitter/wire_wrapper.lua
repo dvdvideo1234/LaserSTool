@@ -1,3 +1,5 @@
+-- Wrapper for: https://github.com/wiremod/wire/blob/master/lua/wire/server/wirelib.lua
+
 --[[
  * For override
  * Defines what should happen when

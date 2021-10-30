@@ -56,7 +56,8 @@ end
 ]]
 function ENT:DrawTrace(data, source)
   local sent = (source or self)
-  local color = sent:GetBeamColor()
+  local rgba = sent:GetBeamColor():ToColor()
+        rgba.a = sent:GetBeamAlpha()
   local ushit = LocalPlayer():GetEyeTrace().HitPos
   local bbmin = self:LocalToWorld(self:OBBMins())
   local bbmax = self:LocalToWorld(self:OBBMaxs())
@@ -89,7 +90,7 @@ function ENT:DrawTrace(data, source)
                       wdt,
                       dtm,
                       (dtm + len / 24),
-                      color:ToColor())
+                      rgba)
     end
   end
   -- Adjust the render bounds with world-space coordinates

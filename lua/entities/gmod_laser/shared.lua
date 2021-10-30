@@ -38,6 +38,7 @@ function ENT:SetupSourceDataTables()
   self:EditableSetBool("InNonOverMater"  , "Internals")
   self:EditableSetBool("EndingEffect"    , "Visuals")
   self:EditableSetVectorColor("BeamColor", "Visuals")
+  self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
   self:EditableSetStringCombo("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
 end
 
@@ -343,13 +344,21 @@ end
 function ENT:Setup(width       , length     , damage     , material    ,
                    dissolveType, startSound , stopSound  , killSound   ,
                    toggle      , startOn    , pushForce  , endingEffect,
-                   reflectRate , refractRate, forceCenter, enOverMater, update)
+                   reflectRate , refractRate, forceCenter, enOverMater , rayColor, update)
   self:SetBeamWidth(width)
   self:SetBeamLength(length)
   self:SetBeamDamage(damage)
   self:SetBeamForce(pushForce)
   -- These are not controlled by wire and are stored in the laser itself
-  self:SetBeamColor(Vector(1,1,1))
+  local m = LaserLib.GetData("CLMX")
+  local r = (rayColor[1] or rayColor["r"]) -- [0-255]
+  local g = (rayColor[2] or rayColor["g"]) -- [0-255]
+  local b = (rayColor[3] or rayColor["b"]) -- [0-255]
+  local a = (rayColor[4] or rayColor["a"]) -- [0-255]
+  local rgb = Vector(r, g, b); rgb:Div(m)  -- [0-1]
+  -- Apply the beam color and alpha separately
+  self:SetBeamColor(rgb)
+  self:SetBeamAlpha(a)
   self:SetForceCenter(forceCenter)
   self:SetBeamMaterial(material)
   self:SetDissolveType(dissolveType)
@@ -380,7 +389,8 @@ function ENT:Setup(width       , length     , damage     , material    ,
     reflectRate  = reflectRate,
     refractRate  = refractRate,
     forceCenter  = forceCenter,
-    enOverMater = enOverMater
+    enOverMater  = enOverMater,
+    rayColor     = {r, g, b, a}
   })
 
   if((not update) or
