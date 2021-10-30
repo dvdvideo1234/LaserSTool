@@ -12,7 +12,7 @@ function ENT:PostEntityPaste(ply, ent, created)
   self:WirePostEntityPaste(ply, ent, created)
   local idx = (tonumber(self:GetEntityExitID()) or 0)
   local ent = created[idx]; self:SetEntityExitID(0)
-  if(not self:IsValidExit(ent)) then return end
+  if(not self:IsTrueExit(ent)) then return end
   self:SetEntityExitID(tostring(ent:EntIndex()))
 end
 

@@ -38,6 +38,7 @@ DATA.NOAV = "N/A"           -- Not available as string
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.RNDB = 3               -- Decimals beam round for visibility check
 DATA.KWID = 5               -- Width coefficient used to calculate power
+DATA.CLMX = 255             -- Maximum value for valid coloring
 DATA.NUGE = 0.1             -- Nuge amount for vectors to continue tracing
 DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
@@ -830,7 +831,7 @@ if(SERVER) then
                         damage     , material    , dissolveType, startSound ,
                         stopSound  , killSound   , toggle      , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
-                        forceCenter, frozen      , enOverMater)
+                        forceCenter, frozen      , enOverMater , rayColor )
 
     local unit = LaserLib.GetTool()
     if(not (LaserLib.IsValid(user) and user:IsPlayer())) then return nil end
@@ -852,7 +853,7 @@ if(SERVER) then
     laser:Setup(width       , length     , damage     , material    ,
                 dissolveType, startSound , stopSound  , killSound   ,
                 toggle      , startOn    , pushForce  , endingEffect,
-                reflectRate , refractRate, forceCenter, enOverMater, false)
+                reflectRate , refractRate, forceCenter, enOverMater , rayColor, false)
 
     local phys = laser:GetPhysicsObject()
     if(LaserLib.IsValid(phys)) then
@@ -937,7 +938,7 @@ function LaserLib.GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   if(fdirect) then local ok, err = pcall(fdirect, dir)
     if(not ok) then error("Direction error: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
-  dir:Rotate(exit:GetAngles()); dir:Normalize()
+  dir:Rotate(exit:GetAngles()); dir:Div(DATA.WLMR)
   return pos, dir
 end
 
@@ -976,21 +977,25 @@ DATA.PORTAL = {
     if(not ent:IsHitNormal(trace)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
     if(idx <= 0) then return end -- No output ID chosen
-    local out = ent:GetCorrectExit() -- Validate output entity
+    local out = ent:GetActiveExit(idx) -- Validate output entity
     if(not out) then return end -- No output ID. Missing ent
+    local nrm = ent:GetNormalLocal() -- Read current normal
+    local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
     local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
     local pos = LaserLib.GetReverse(trace.HitPos, dir)
-    pos, dir = LaserLib.GetBeamPortal(ent, out, pos, dir,
+    nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(ppos)
-        if(mir) then ppos.y = -ppos.y end
+        if(mir and bnr) then ppos.y = -ppos.y end
       end,
       function(pdir)
         if(ent:GetReflectExitDir()) then
-          local nrm = ent:GetNormalLocal()
-          pdir:Set(LaserLib.GetReflected(pdir, nrm))
+          local trn = Vector(trace.HitNormal)
+          trn:Mul(DATA.WLMR); trn:Add(ent:GetPos())
+          trn:Set(ent:WorldToLocal(trn)); trn:Div(DATA.WLMR)
+          pdir:Set(LaserLib.GetReflected(pdir, trn))
         else pdir.x, pdir.y = -pdir.x, -pdir.y end
       end)
-    data.VrOrigin:Set(pos); data.VrDirect:Set(dir)
+    data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
     data.IsTrace = true -- Output model is validated. Continue
   end,
@@ -1000,8 +1005,8 @@ DATA.PORTAL = {
     local ent, src, out = trace.Entity, data.BmSource
     if(not ent:IsLinked()) then return end -- No linked pair
     if(SERVER) then out = ent:FindOpenPair() -- Retrieve open pair
-    else out = Entity(ent:GetNWInt("laser_prop_portal", 0))
-    end -- Assume that output portal will have the same surface offset
+    else out = Entity(ent:GetNWInt("laser_prop_portal", 0)) end
+    -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
     ent:SetNWInt("laser_prop_portal", out:EntIndex())
     local inf = data.TvPoints; inf[inf.Size][5] = true

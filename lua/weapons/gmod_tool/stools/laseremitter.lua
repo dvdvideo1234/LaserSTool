@@ -6,20 +6,22 @@ local gsLaserptCls = LaserLib.GetClass(9, 1)
 if(CLIENT) then
 
   TOOL.Information = {
-    {name = "info"      , icon = "gui/info"   , icon2 = ""},
-    {name = "left"      , icon = "gui/lmb.png", icon2 = ""},
-    {name = "right"     , icon = "gui/rmb.png", icon2 = ""},
-    {name = "reload"    , icon = "gui/r.png"  , icon2 = ""},
+    {name = "info"      , icon = "gui/info"       },
+    {name = "mater"     , icon = "icon16/wand.png"},
+    {name = "left"      , icon = "gui/lmb.png"    },
+    {name = "right"     , icon = "gui/rmb.png"    },
+    {name = "reload"    , icon = "gui/r.png"      },
     {name = "reload_use", icon = "gui/r.png"  , icon2 = "gui/e.png"},
   }
 
   language.Add("tool."..gsUnit..".name", "Laser Spawner")
   language.Add("tool."..gsUnit..".desc", "Spawn very dangerous lasers!")
-  language.Add("tool."..gsUnit..".0", "Do not look into beam with remaining eye!")
-  language.Add("tool."..gsUnit..".left", "Create/Update a laser where you are aiming")
-  language.Add("tool."..gsUnit..".right", "Retrieve laser settings form trace entity")
-  language.Add("tool."..gsUnit..".reload", "Reset material. Hold SHIFT to make prop mirror")
-  language.Add("tool."..gsUnit..".reload_use", "Apply transparent texture to trace prop")
+  language.Add("tool."..gsUnit..".0", "Do not look into the beam source with the remaining eye!")
+  language.Add("tool."..gsUnit..".mater", "Hit world to select active mirror or transparent material")
+  language.Add("tool."..gsUnit..".left", "Create or update a laser where you are aiming")
+  language.Add("tool."..gsUnit..".right", "Retrieve laser settings from trace entity")
+  language.Add("tool."..gsUnit..".reload", "Reset material. Hold SHIFT to apply mirror. Hold DUCK to remove your props")
+  language.Add("tool."..gsUnit..".reload_use", "Apply transparent material to trace prop")
   language.Add("tool."..gsUnit..".frozen_con", "Freeze on creation")
   language.Add("tool."..gsUnit..".frozen", "Freezes the laser when created")
   language.Add("tool."..gsUnit..".key_con", "Control key")
@@ -33,6 +35,8 @@ if(CLIENT) then
   language.Add("tool."..gsUnit..".material", "Select laser beam material form the ones shown here")
   language.Add("tool."..gsUnit..".model_con", "Laser entity model:")
   language.Add("tool."..gsUnit..".model", "Select laser visual model form the ones shown here")
+  language.Add("tool."..gsUnit..".color", "Controls the laser beam material base color when supported")
+  language.Add("tool."..gsUnit..".color_con", "Beam material color:")
   language.Add("tool."..gsUnit..".dissolvetype_con", "Dissolve type:")
   language.Add("tool."..gsUnit..".dissolvetype", "Controls visuals used when dissolving players")
   language.Add("tool."..gsUnit..".startsound_con", "Start sound:")
@@ -67,23 +71,25 @@ if(CLIENT) then
 
   concommand.Add(gsUnit.."_openmaterial",
     function(ply, cmd, args)
-      local ratM, datM = LaserLib.GetRatio()
-      local keyM = tostring(args[1] or ""):upper()
-      if(keyM == "REFLECT") then
-        datM = LaserLib.DataReflect("*")
-      elseif(keyM == "REFRACT") then
-        datM = LaserLib.DataRefract("*")
+      local rate, data = LaserLib.GetRatio()
+      local argm = tostring(args[1] or ""):upper()
+      if(argm == "MIRROR") then
+        sors = "REFLECT"
+        data = LaserLib.DataReflect("*")
+      elseif(argm == "TRANSPARENT") then
+        sors = "REFRACT"
+        data = LaserLib.DataRefract("*")
       else
         return nil
       end
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
-      pnFrame:SetTitle(language.GetPhrase("tool."..gsUnit..".openmaterial")..keyM)
+      pnFrame:SetTitle(language.GetPhrase("tool."..gsUnit..".openmaterial")..argm)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(false)
       pnFrame:SetPos(0, 0)
-      pnFrame:SetSize(scrW / (1.4 * ratM), scrH / (1.4 * ratM))
+      pnFrame:SetSize(scrW / (1.4 * rate), scrH / (1.4 * rate))
       local pnMat = vgui.Create("MatSelect"); if(not IsValid(pnMat)) then return nil end
             pnMat:SetParent(pnFrame)
             pnMat:DockPadding(3, 3, 3, 3)
@@ -91,7 +97,7 @@ if(CLIENT) then
             pnMat:SetItemWidth(0.16)
             pnMat:SetItemHeight(0.22)
             pnMat:InvalidateLayout(true)
-      for key, val in pairs(datM) do
+      for key, val in pairs(data) do
         if(type(val) == "table" and tostring(key):find("/")) then
           local matL = "{"..table.concat(val, "|").."} "..key
           local matB = vgui.Create("DImageButton"); if(not IsValid(matB)) then return nil end
@@ -100,7 +106,7 @@ if(CLIENT) then
                 matB.AutoSize, matB.Value = false, key
                 matB:SetTooltip(matL)
                 matB.DoClick = function(button)
-                  LaserLib.ConCommand(nil, keyM:lower().."used", key)
+                  LaserLib.ConCommand(nil, sors:lower().."used", key)
                 end
                 matB.DoRightClick = function(button)
                   local matM = DermaMenu()
@@ -153,6 +159,10 @@ TOOL.ClientConVar =
   [ "width"        ] = 4,
   [ "length"       ] = 30000,
   [ "damage"       ] = 2500,
+  [ "colorr"       ] = 255,
+  [ "colorg"       ] = 255,
+  [ "colorb"       ] = 255,
+  [ "colora"       ] = 255,
   [ "material"     ] = "trails/laser",
   [ "model"        ] = "models/props_combine/headcrabcannister01a_skybox.mdl",
   [ "dissolvetype" ] = "core",
@@ -204,6 +214,14 @@ function TOOL:GetUnit(ent)
   return ((css:len() > 0) and (" "..css.." ") or (" "))
 end
 
+function TOOL:GetBeamRayColor()
+ local r = self:GetClientNumber("colorr", 0)
+ local g = self:GetClientNumber("colorg", 0)
+ local b = self:GetClientNumber("colorb", 0)
+ local a = self:GetClientNumber("colora", 0)
+ return Color(r, g, b, a)
+end
+
 function TOOL:LeftClick(trace)
   if(CLIENT) then return true end
   if(not trace.HitPos) then return false end
@@ -214,6 +232,7 @@ function TOOL:LeftClick(trace)
   local damage       = math.Clamp(self:GetClientNumber("damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   local pushforce    = math.Clamp(self:GetClientNumber("pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   local angleoffset  = self:GetAngleOffset()
+  local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
   local model        = self:GetClientInfo("model")
   local material     = self:GetClientInfo("material")
@@ -238,7 +257,7 @@ function TOOL:LeftClick(trace)
     ent:Setup(width       , length     , damage     , material    ,
               dissolvetype, startsound , stopsound  , killsound   ,
               toggle      , starton    , pushforce  , endingeffect,
-              reflectrate , refractrate, forcecenter, enonvermater, true)
+              reflectrate , refractrate, forcecenter, enonvermater, raycolor, true)
     return true
   elseif(LaserLib.IsValid(ent) and ent:GetClass() == gsLaserptCls) then
     local idx = self:GetClientInfo("portalexit"); ent:SetEntityExitID(idx)
@@ -251,7 +270,7 @@ function TOOL:LeftClick(trace)
                              damage     , material    , dissolvetype, startsound  ,
                              stopsound  , killsound   , toggle      , starton     ,
                              pushforce  , endingeffect, reflectrate , refractrate ,
-                             forcecenter, frozen      , enonvermater)
+                             forcecenter, frozen      , enonvermater, raycolor)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
@@ -285,6 +304,11 @@ function TOOL:RightClick(trace)
   if(not LaserLib.IsValid(ent)) then return false end
 
   if(LaserLib.IsUnit(ent, 2)) then
+    local rgba = ent:GetBeamColor():ToColor(); rgba.a = ent:GetBeamAlpha()
+    LaserLib.ConCommand(ply, "colorr"      , rgba.r)
+    LaserLib.ConCommand(ply, "colorg"      , rgba.g)
+    LaserLib.ConCommand(ply, "colorb"      , rgba.b)
+    LaserLib.ConCommand(ply, "colora"      , rgba.a)
     LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
     LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
     LaserLib.ConCommand(ply, "damage"      , ent:GetBeamDamage())
@@ -327,9 +351,9 @@ function TOOL:Reload(trace)
   local ply, ent = self:GetOwner(), trace.Entity
   if(trace.HitWorld) then
     if(ply:KeyDown(IN_USE)) then
-      LaserLib.ConCommand(ply, "openmaterial", "refract")
+      LaserLib.ConCommand(ply, "openmaterial", "transparent")
     elseif(ply:KeyDown(IN_SPEED)) then
-      LaserLib.ConCommand(ply, "openmaterial", "reflect")
+      LaserLib.ConCommand(ply, "openmaterial", "mirror")
     end
   else
     if(not LaserLib.IsValid(ent))  then return false end
@@ -363,7 +387,7 @@ if(SERVER) then
     "damage"     , "material"    , "dissolveType", "startSound" ,
     "stopSound"  , "killSound"   , "toggle"      , "startOn"    ,
     "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
-    "forceCenter", "frozen"      , "enOverMater")
+    "forceCenter", "frozen"      , "enOverMater" , "rayColor")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -432,6 +456,16 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem = panel:MatSelect(gsUnit.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
   pItem.Label:SetText(language.GetPhrase("tool."..gsUnit..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".material"))
+
+  pItem = vgui.Create("CtrlColor", panel)
+  pItem:Dock(TOP); pItem:SetTall(250)
+  pItem:SetLabel(language.GetPhrase("tool."..gsUnit..".color_con"))
+  pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".color"))
+  pItem:SetConVarR(gsUnit.."_colorr")
+  pItem:SetConVarG(gsUnit.."_colorg")
+  pItem:SetConVarB(gsUnit.."_colorb")
+  pItem:SetConVarA(gsUnit.."_colora")
+  panel:AddPanel(pItem)
 
   pItem = vgui.Create("PropSelect", panel)
   pItem:Dock(TOP); pItem:SetTall(100)
