@@ -33,16 +33,16 @@ end
 
 -- Override the beam transormation
 function ENT:SetBeamTransform()
-  local normal = Vector(1,0,0) -- Local surface normal
-  self:SetNormalLocal(normal)
+  self:SetNormalLocal(Vector(1,0,0)) -- Local surface normal
   return self
 end
 
 function ENT:IsHitNormal(trace)
-  local normal = Vector(self:GetNormalLocal())
-        normal:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
-  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
+  local norm = Vector(self:GetNormalLocal())
+  if(norm:LengthSqr() < dotm) then return true end
+  norm:Rotate(self:GetAngles())
+  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - dotm))
 end
 
 --[[
@@ -56,7 +56,9 @@ function ENT:GetTransitID(idx, ent)
   else return ((idx ~= 0) and tostring(idx) or gsNA) end
 end
 
-function ENT:IsValidExit(ent)
+function ENT:IsTrueExit(out) local ent
+  if(out) then ent = out else -- Retrieve only when needed
+    ent = self:GetTransitID(self:GetEntityExitID(), true) end
   if(not LaserLib.IsValid(ent)) then return false end
   if(self:GetModel() ~= ent:GetModel()) then return false end
   if(ent:IsWorld() or ent:IsPlayer() or
@@ -64,10 +66,11 @@ function ENT:IsValidExit(ent)
   return true -- The output entity has been validated
 end
 
-function ENT:GetCorrectExit()
-  local idx = self:GetEntityExitID()
+function ENT:GetActiveExit(eid) local idx
+  if(eid) then idx = eid else
+    idx = self:GetEntityExitID() end
   local out = self:GetTransitID(idx, true)
-  return (self:IsValidExit(out) and out or nil)
+  return (self:IsTrueExit(out) and out or nil)
 end
 
 function ENT:GetOverlayTransfer()
