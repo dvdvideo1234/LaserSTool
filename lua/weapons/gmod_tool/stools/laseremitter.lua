@@ -301,44 +301,50 @@ function TOOL:RightClick(trace)
   if(not trace) then return false end
   local ply, ent = self:GetOwner(), trace.Entity
 
-  if(not LaserLib.IsValid(ent)) then return false end
-
-  if(LaserLib.IsUnit(ent, 2)) then
-    local rgba = ent:GetBeamColor():ToColor(); rgba.a = ent:GetBeamAlpha()
-    LaserLib.ConCommand(ply, "colorr"      , rgba.r)
-    LaserLib.ConCommand(ply, "colorg"      , rgba.g)
-    LaserLib.ConCommand(ply, "colorb"      , rgba.b)
-    LaserLib.ConCommand(ply, "colora"      , rgba.a)
-    LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
-    LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
-    LaserLib.ConCommand(ply, "damage"      , ent:GetBeamDamage())
-    LaserLib.ConCommand(ply, "material"    , ent:GetBeamMaterial())
-    LaserLib.ConCommand(ply, "dissolvetype", ent:GetDissolveType())
-    LaserLib.ConCommand(ply, "startsound"  , ent:GetStartSound())
-    LaserLib.ConCommand(ply, "stopsound"   , ent:GetStopSound())
-    LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
-    LaserLib.ConCommand(ply, "pushforce"   , ent:GetBeamForce())
-    LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
-    LaserLib.ConCommand(ply, "toggle"      , (ent:GetStartToggle() and 1 or 0))
-    LaserLib.ConCommand(ply, "forcecenter" , (ent:GetForceCenter() and 1 or 0))
-    LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
-    LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
-    LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
-    LaserLib.ConCommand(ply, "enonvermater", (ent:GetNonOverMater() and 1 or 0))
-    LaserLib.Notify(ply, "Copy"..self:GetUnit(ent).."["..ent:EntIndex().."] settings !", "UNDO")
-  elseif(ent:GetClass() == gsLaserptCls) then
-    local idx = tostring(ent:EntIndex())
-    LaserLib.ConCommand(ply, "portalexit", idx)
-    LaserLib.Notify(ply, "Copy ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
+  if(trace.HitWorld) then
+    return false -- TODO: Make it actually do something
   else
-    local ang = math.atan2(math.Round(trace.HitNormal:Dot(ent:GetUp()), 3),
-                           math.Round(trace.HitNormal:Dot(ent:GetForward()), 3))
-    local mod, ang = ent:GetModel(), math.deg(ang)
-    LaserLib.ConCommand(ply, "model", mod)
-    LaserLib.ConCommand(ply, "angleoffset", ang)
-    LaserLib.Notify(ply, "Model: "..mod.." ["..ang.."]", "UNDO")
-    if(ply:KeyDown(IN_SPEED)) then -- Easy export export
-      print("table.insert(data, {\""..mod.."\","..ang.."})")
+    if(not LaserLib.IsValid(ent)) then return false end
+
+    if(LaserLib.IsUnit(ent, 2)) then
+      local r, g, b, a = ent:GetBeamColorRGBA()
+      LaserLib.ConCommand(ply, "colorr"      , r)
+      LaserLib.ConCommand(ply, "colorg"      , g)
+      LaserLib.ConCommand(ply, "colorb"      , b)
+      LaserLib.ConCommand(ply, "colora"      , a)
+      LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
+      LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
+      LaserLib.ConCommand(ply, "damage"      , ent:GetBeamDamage())
+      LaserLib.ConCommand(ply, "material"    , ent:GetBeamMaterial())
+      LaserLib.ConCommand(ply, "dissolvetype", ent:GetDissolveType())
+      LaserLib.ConCommand(ply, "startsound"  , ent:GetStartSound())
+      LaserLib.ConCommand(ply, "stopsound"   , ent:GetStopSound())
+      LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
+      LaserLib.ConCommand(ply, "pushforce"   , ent:GetBeamForce())
+      LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
+      LaserLib.ConCommand(ply, "toggle"      , (ent:GetStartToggle() and 1 or 0))
+      LaserLib.ConCommand(ply, "forcecenter" , (ent:GetForceCenter() and 1 or 0))
+      LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
+      LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
+      LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
+      LaserLib.ConCommand(ply, "enonvermater", (ent:GetNonOverMater() and 1 or 0))
+      LaserLib.Notify(ply, "Copy"..self:GetUnit(ent).."["..ent:EntIndex().."] settings !", "UNDO")
+    elseif(ent:GetClass() == gsLaserptCls) then
+      local idx = tostring(ent:EntIndex())
+      LaserLib.ConCommand(ply, "portalexit", idx)
+      LaserLib.Notify(ply, "Copy ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
+    else
+      local nor, rnd = trace.HitNormal, 3
+      local ang = math.atan2(math.Round(nor:Dot(ent:GetUp()), rnd),
+                             math.Round(nor:Dot(ent:GetForward()), rnd))
+      local mod, ang = ent:GetModel(), math.deg(ang)
+      LaserLib.Notify(ply, "Model: "..mod.." ["..ang.."]", "UNDO")
+      if(ply:KeyDown(IN_SPEED)) then -- Easy export selected model
+        print("table.insert(data, {\""..mod.."\","..ang.."})")
+      else
+        LaserLib.ConCommand(ply, "model", mod)
+        LaserLib.ConCommand(ply, "angleoffset", ang)
+      end
     end
   end
 

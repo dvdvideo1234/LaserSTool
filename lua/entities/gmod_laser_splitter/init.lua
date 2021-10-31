@@ -57,7 +57,7 @@ function ENT:Initialize()
   self:SetRefractRatio(false)
   self:SetForceCenter(false)
   self:SetNonOverMater(false)
-  self:SetBeamColor(Vector(1,1,1))
+  self:SetBeamColorRGBA(255,255,255,255)
 
   self:WireWrite("Entity", self)
 end

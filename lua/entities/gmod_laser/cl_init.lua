@@ -56,8 +56,7 @@ end
 ]]
 function ENT:DrawTrace(data, source)
   local sent = (source or self)
-  local rgba = sent:GetBeamColor():ToColor()
-        rgba.a = sent:GetBeamAlpha()
+  local rgba = sent:GetBeamColorRGBA(true)
   local ushit = LocalPlayer():GetEyeTrace().HitPos
   local bbmin = self:LocalToWorld(self:OBBMins())
   local bbmax = self:LocalToWorld(self:OBBMaxs())
