@@ -127,6 +127,7 @@ if(CLIENT) then
     end)
 end
 
+TOOL.Settings = {}
 TOOL.Category = "Construction"
 TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
@@ -163,6 +164,9 @@ TOOL.ClientConVar =
   [ "colorg"       ] = 255,
   [ "colorb"       ] = 255,
   [ "colora"       ] = 255,
+  [ "angle"        ] = 270,
+  [ "origin"       ] = "",
+  [ "direct"       ] = "",
   [ "material"     ] = "trails/laser",
   [ "model"        ] = "models/props_combine/headcrabcannister01a_skybox.mdl",
   [ "dissolvetype" ] = "core",
@@ -174,7 +178,6 @@ TOOL.ClientConVar =
   [ "pushforce"    ] = 100,
   [ "endingeffect" ] = 1,
   [ "worldweld"    ] = 0,
-  [ "angleoffset"  ] = 270,
   [ "reflectrate"  ] = 1,
   [ "refractrate"  ] = 1,
   [ "reflectused"  ] = LaserLib.DataReflect(),
@@ -194,8 +197,21 @@ cleanup.Register(gsUnit.."s")
 
 function TOOL:GetAngleOffset()
   local amax = LaserLib.GetData("AMAX")
-  local nang = self:GetClientNumber("angleoffset", 0)
+  local nang = self:GetClientNumber("angle", 0)
   return math.Clamp(nang, amax[1], amax[2])
+end
+
+function TOOL:GetTransform()
+  local tset = self.Settings
+  local nang = self:GetAngleOffset()
+  local orgn = self:GetClientInfo("origin")
+  local dirc = self:GetClientInfo("direct")
+  if(orgn and orgn ~= "") then -- Try converting origin
+    orgn = Vector(LaserLib.ByString(orgn)) else orgn = nil end
+  if(dirc and dirc ~= "") then -- Try converting direction
+    dirc = Vector(LaserLib.ByString(dirc)) else dirc = nil end
+  tset[1], tset[2], tset[3] = nang, orgn, dirc
+  return LaserLib.SetupTransform(tset)
 end
 
 --[[
@@ -205,7 +221,12 @@ end
  * trace > The trace that player is aiming for
 ]]
 function TOOL:ApplySpawn(ent, trace)
-  LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, self:GetAngleOffset())
+  local tran = self:GetTransform()
+  if(tran[2] and tran[3]) then
+    ent:SetPos(trace.HitPos + ent:BoundingRadius() * trace.HitNormal)
+  else
+    LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, tran[1])
+  end
 end
 
 function TOOL:GetUnit(ent)
@@ -231,7 +252,7 @@ function TOOL:LeftClick(trace)
   local length       = math.Clamp(self:GetClientNumber("length", 0), 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   local damage       = math.Clamp(self:GetClientNumber("damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   local pushforce    = math.Clamp(self:GetClientNumber("pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  local angleoffset  = self:GetAngleOffset()
+  local trandata     = self:GetTransform()
   local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
   local model        = self:GetClientInfo("model")
@@ -256,7 +277,7 @@ function TOOL:LeftClick(trace)
     LaserLib.Notify(ply, "Paste settings !", "UNDO")
     ent:Setup(width       , length     , damage     , material    ,
               dissolvetype, startsound , stopsound  , killsound   ,
-              toggle      , starton    , pushforce  , endingeffect,
+              toggle      , starton    , pushforce  , endingeffect, trandata,
               reflectrate , refractrate, forcecenter, enonvermater, raycolor, true)
     return true
   elseif(LaserLib.IsValid(ent) and ent:GetClass() == gsLaserptCls) then
@@ -266,7 +287,7 @@ function TOOL:LeftClick(trace)
   end
 
   local laser = LaserLib.New(ply        , pos         , ang         , model       ,
-                             angleoffset, key         , width       , length      ,
+                             trandata   , key         , width       , length      ,
                              damage     , material    , dissolvetype, startsound  ,
                              stopsound  , killsound   , toggle      , starton     ,
                              pushforce  , endingeffect, reflectrate , refractrate ,
@@ -322,7 +343,7 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
       LaserLib.ConCommand(ply, "pushforce"   , ent:GetBeamForce())
       LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
-      LaserLib.ConCommand(ply, "toggle"      , (ent:GetStartToggle() and 1 or 0))
+      LaserLib.ConCommand(ply, "toggle"      , (ent:GetTable().runToggle and 1 or 0))
       LaserLib.ConCommand(ply, "forcecenter" , (ent:GetForceCenter() and 1 or 0))
       LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
       LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
@@ -334,16 +355,35 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(ply, "portalexit", idx)
       LaserLib.Notify(ply, "Copy ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
     else
-      local nor, rnd = trace.HitNormal, 3
+      local nor, rnd, mar = trace.HitNormal, 3, LaserLib.GetData("WLMR")
       local ang = math.atan2(math.Round(nor:Dot(ent:GetUp()), rnd),
                              math.Round(nor:Dot(ent:GetForward()), rnd))
       local mod, ang = ent:GetModel(), math.deg(ang)
-      LaserLib.Notify(ply, "Model: "..mod.." ["..ang.."]", "UNDO")
+      local dir = Vector(trace.HitNormal); dir:Mul(mar)
+      dir:Add(ent:GetPos()); dir:Set(ent:WorldToLocal(dir)); dir:Div(mar)
+      local org = Vector(trace.HitPos); org:Set(ent:WorldToLocal(org))
+      dir = tostring(dir):Trim():gsub("%s+", ",")
+      org = tostring(org):Trim():gsub("%s+", ",")
       if(ply:KeyDown(IN_SPEED)) then -- Easy export selected model
-        print("table.insert(data, {\""..mod.."\","..ang.."})")
+        if(ply:KeyDown(IN_DUCK)) then -- Easy export selected model
+          dir = "\""..tostring(dir):Trim():gsub("%s+", ",").."\""
+          org = "\""..tostring(org):Trim():gsub("%s+", ",").."\""
+          print("table.insert(data, {\""..mod.."\",0,\""..org.."\",\""..dir.."\"})")
+        else
+          print("table.insert(data, {\""..mod.."\","..ang.."})")
+        end
       else
-        LaserLib.ConCommand(ply, "model", mod)
-        LaserLib.ConCommand(ply, "angleoffset", ang)
+        if(ply:KeyDown(IN_DUCK)) then
+          LaserLib.ConCommand(ply, "model" , mod)
+          LaserLib.ConCommand(ply, "angle" , ang)
+          LaserLib.ConCommand(ply, "origin", org)
+          LaserLib.ConCommand(ply, "direct", dir)
+          LaserLib.Notify(ply, "Model(C): "..mod.." ["..ang.."]", "UNDO")
+        else
+          LaserLib.ConCommand(ply, "model", mod)
+          LaserLib.ConCommand(ply, "angle", ang)
+          LaserLib.Notify(ply, "Model(A): "..mod.." ["..ang.."]", "UNDO")
+        end
       end
     end
   end
@@ -389,9 +429,9 @@ end
 if(SERVER) then
   duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New     ,
     --[[  ply  ]]  "pos"         , "ang"         , "model"      ,
-    "angleOffset", "key"         , "width"       , "length"     ,
+    "tranData"   , "key"         , "width"       , "length"     ,
     "damage"     , "material"    , "dissolveType", "startSound" ,
-    "stopSound"  , "killSound"   , "toggle"      , "startOn"    ,
+    "stopSound"  , "killSound"   , "runToggle"   , "startOn"    ,
     "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
     "forceCenter", "frozen"      , "enOverMater" , "rayColor")
 end

@@ -48,6 +48,7 @@ DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
 DATA.PRMG = 0.25            -- Portal teleportataon entrance displacement
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.NTIF = {}              -- User notification configuration type
+DATA.FMVA = "%f,%f,%f"
 DATA.TEST = false           -- Used for testing perposes
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
@@ -421,6 +422,30 @@ function LaserLib.VecNegate(vec)
   vec.y = -vec.y
   vec.z = -vec.z
   return vec
+end
+
+function LaserLib.ToString(tav)
+  local a = tav[1] or tav.x or tav.p
+  local b = tav[2] or tav.y or tav.y
+  local c = tav[3] or tav.z or tav.r
+  return DATA.FMVA:format(a, b, c)
+end
+
+function LaserLib.ByString(str)
+  local str = tostring(str or ""):Trim()
+  local tav = (","):Explode(str)
+  local a = (tonumber(tav[1]) or 0)
+  local b = (tonumber(tav[2]) or 0)
+  local c = (tonumber(tav[3]) or 0)
+  return a, b, c
+end
+
+function LaserLib.SetupTransform(tran)
+  local amax = LaserLib.GetData("AMAX")
+  tran[1] = math.Clamp(tonumber(tran[1]) or 0, amax[1], amax[2])
+  tran[2] = ((tran[2] and tran[2] ~= "") and tran[2] or nil)
+  tran[3] = ((tran[3] and tran[3] ~= "") and tran[3] or nil)
+  return tran
 end
 
 --[[
@@ -827,9 +852,9 @@ if(SERVER) then
   end
 
   function LaserLib.New(user       , pos         , ang         , model      ,
-                        angleOffset, key         , width       , length     ,
+                        trandata   , key         , width       , length     ,
                         damage     , material    , dissolveType, startSound ,
-                        stopSound  , killSound   , toggle      , startOn    ,
+                        stopSound  , killSound   , runToggle   , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
                         forceCenter, frozen      , enOverMater , rayColor )
 
@@ -847,12 +872,11 @@ if(SERVER) then
     laser:SetPos(pos)
     laser:SetAngles(ang)
     laser:SetModel(Model(model))
-    laser:SetAngleOffset(angleOffset)
     laser:Spawn()
     laser:SetCreator(user)
     laser:Setup(width       , length     , damage     , material    ,
                 dissolveType, startSound , stopSound  , killSound   ,
-                toggle      , startOn    , pushForce  , endingEffect,
+                runToggle   , startOn    , pushForce  , endingEffect, trandata,
                 reflectRate , refractRate, forceCenter, enOverMater , rayColor, false)
 
     local phys = laser:GetPhysicsObject()
@@ -869,7 +893,6 @@ if(SERVER) then
       ply         = laser:GetCreator(),
       player      = laser:GetCreator(),
       key         = key,
-      angleOffset = angleOffset,
       frozen      = frozen
     })
 
@@ -1436,6 +1459,9 @@ function LaserLib.SetupModels()
   end
 
   if(IsMounted("hl2")) then -- HL2 is mounted
+
+    table.insert(data, {"models/props_c17/furniturewashingmachine001a.mdl",0,"-13.712593,10.547124,18.432068","-1,0,0"})
+
     table.insert(data, {"models/items/ar2_grenade.mdl"})
     table.insert(data, {"models/weapons/w_missile_closed.mdl"})
     table.insert(data, {"models/weapons/w_missile_launch.mdl"})
@@ -1472,9 +1498,13 @@ function LaserLib.SetupModels()
     local rec = data[idx]
     local mod = tostring(rec[1] or "")
     local ang = (tonumber(rec[2]) or 0)
+    local org = tostring(rec[3] or "")
+    local dir = tostring(rec[4] or "")
     table.Empty(rec)
-    rec[DATA.TOOL.."_model"      ] = mod
-    rec[DATA.TOOL.."_angleoffset"] = ang
+    rec[DATA.TOOL.."_model" ] = mod
+    rec[DATA.TOOL.."_angle" ] = ang
+    rec[DATA.TOOL.."_origin"] = org
+    rec[DATA.TOOL.."_direct"] = dir
     list.Set("LaserEmitterModels", mod, rec)
   end
 end
