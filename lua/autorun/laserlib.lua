@@ -48,6 +48,7 @@ DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
 DATA.PRMG = 0.25            -- Portal teleportataon entrance displacement
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.NTIF = {}              -- User notification configuration type
+DATA.FMVA = "%f,%f,%f"
 DATA.TEST = false           -- Used for testing perposes
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
@@ -58,6 +59,11 @@ DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 DATA.AZERO = Angle()
 DATA.VZERO = Vector()
 DATA.VDRUP = Vector(0,0,1)
+DATA.TCUST = {
+  "Forward", "Right", "Up",
+  H = {ID = 0, V = 0, M = 0},
+  L = {ID = 0, V = 0, M = 0}
+}
 
 -- The default key in a collection point to take when not found
 DATA.KEYD = "#"
@@ -423,6 +429,30 @@ function LaserLib.VecNegate(vec)
   return vec
 end
 
+function LaserLib.ToString(tav)
+  local a = tav[1] or tav.x or tav.p
+  local b = tav[2] or tav.y or tav.y
+  local c = tav[3] or tav.z or tav.r
+  return DATA.FMVA:format(a, b, c)
+end
+
+function LaserLib.ByString(str)
+  local str = tostring(str or ""):Trim()
+  local tav = (","):Explode(str)
+  local a = (tonumber(tav[1]) or 0)
+  local b = (tonumber(tav[2]) or 0)
+  local c = (tonumber(tav[3]) or 0)
+  return a, b, c
+end
+
+function LaserLib.SetupTransform(tran)
+  local amax = LaserLib.GetData("AMAX")
+  tran[1] = math.Clamp(tonumber(tran[1]) or 0, amax[1], amax[2])
+  tran[2] = ((tran[2] and tran[2] ~= "") and tran[2] or nil)
+  tran[3] = ((tran[3] and tran[3] ~= "") and tran[3] or nil)
+  return tran
+end
+
 --[[
  * This is genrally used to offet the origin of a
  * given ray back so the portalling functionality
@@ -679,11 +709,12 @@ end
 
 --[[
  * Calculates the local beam origin offset
- * according tho the base entity and direction provided
+ * according to the base entity and direction provided
  * base   > Base entity to calculate the vector for
  * direct > Local direction vector according to `base`
  * Returns the local entity origin offcet vector
- * obcen  > The local entity origin vector
+ * obcen  > Beam origin as a local offset vector
+ * kmulv  > Width relative to the given local direction
 ]]
 function LaserLib.GetBeamOrigin(base, direct)
   if(not LaserLib.IsValid(base)) then return Vector(DATA.VZERO) end
@@ -691,7 +722,7 @@ function LaserLib.GetBeamOrigin(base, direct)
   local obdir = base:OBBMaxs(); obdir:Sub(base:OBBMins())
   local kmulv = math.abs(obdir:Dot(vbeam))
         vbeam:Mul(kmulv / 2); obcen:Add(vbeam)
-  return obcen
+  return obcen, kmulv
 end
 
 --[[
@@ -721,18 +752,46 @@ function LaserLib.SnapNormal(base, hitp, norm, angle)
   local ang = norm:Angle()
         ang:RotateAroundAxis(ang:Right(), -angle)
   local dir = LaserLib.GetBeamDirection(base, angle)
+        LaserLib.VecNegate(dir)
   local org = LaserLib.GetBeamOrigin(base, dir)
-  local obb = base:OBBCenter()
-        org:Sub(obb)
         LaserLib.VecNegate(org)
-        org:Add(obb)
-  local pos = base:LocalToWorld(org)
-        org:Set(base:WorldToLocal(pos))
-        pos:Set(norm)
-        pos:Mul(math.abs(org:Dot(dir)))
-        pos:Add(hitp)
-  base:SetPos(pos)
-  base:SetAngles(ang)
+  dir:Rotate(ang); org:Rotate(ang); org:Add(hitp)
+  base:SetPos(org); base:SetAngles(ang)
+end
+
+function LaserLib.SnapCustom(base, hitp, norm, origin, direct)
+  local tab, tra = base:GetTable(), norm:Angle()
+  local dir, ang = Vector(direct), Angle(); LaserLib.VecNegate(dir)
+  local pos = LaserLib.GetBeamOrigin(base, dir)
+  if(not tab.anCustom) then
+    local az, mt = DATA.AZERO, DATA.TCUST
+    local th, tl = mt.H, mt.L
+    th.ID, tl.ID, th.V, tl.V = 0, 0, 0, 0 -- Wipe ID
+    for idx = 1, #mt do
+      local nam = mt[idx]
+      local val = direct:Dot(az[nam](az))
+      local mar = math.abs(val)
+      local sgn = val / mar
+      if(th.ID == 0 or mar >= th.M) then
+        th.ID = idx; th.M = mar
+        th.V = ((mar ~= 0) and val or 1)
+      end
+      if(tl.ID == 0 or mar <= tl.M) then
+        tl.ID = idx; tl.M = mar
+        tl.V = ((mar ~= 0) and val or 1)
+      end
+    end
+    local f = az[mt[th.ID]](az) * th.V; f:Normalize()
+    local u = az[mt[tl.ID]](az) * tl.V; u:Normalize()
+    local r, a = f:Cross(u), f:AngleEx(u)
+    a:RotateAroundAxis(r, -90)
+    tab.anCustom = a -- Cache angle
+  end
+  ang:Set(tab.anCustom)
+  tra:RotateAroundAxis(tra:Right(), -90)
+  ang:Set(base:AlignAngles(base:LocalToWorldAngles(ang), tra))
+  pos:Rotate(ang); LaserLib.VecNegate(pos); pos:Add(hitp)
+  base:SetPos(pos); base:SetAngles(ang)
 end
 
 if(SERVER) then
@@ -827,9 +886,9 @@ if(SERVER) then
   end
 
   function LaserLib.New(user       , pos         , ang         , model      ,
-                        angleOffset, key         , width       , length     ,
+                        trandata   , key         , width       , length     ,
                         damage     , material    , dissolveType, startSound ,
-                        stopSound  , killSound   , toggle      , startOn    ,
+                        stopSound  , killSound   , runToggle   , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
                         forceCenter, frozen      , enOverMater , rayColor )
 
@@ -847,12 +906,11 @@ if(SERVER) then
     laser:SetPos(pos)
     laser:SetAngles(ang)
     laser:SetModel(Model(model))
-    laser:SetAngleOffset(angleOffset)
     laser:Spawn()
     laser:SetCreator(user)
     laser:Setup(width       , length     , damage     , material    ,
                 dissolveType, startSound , stopSound  , killSound   ,
-                toggle      , startOn    , pushForce  , endingEffect,
+                runToggle   , startOn    , pushForce  , endingEffect, trandata,
                 reflectRate , refractRate, forceCenter, enOverMater , rayColor, false)
 
     local phys = laser:GetPhysicsObject()
@@ -869,7 +927,6 @@ if(SERVER) then
       ply         = laser:GetCreator(),
       player      = laser:GetCreator(),
       key         = key,
-      angleOffset = angleOffset,
       frozen      = frozen
     })
 
@@ -1426,17 +1483,27 @@ function LaserLib.SetupModels()
     {"models/props_combine/headcrabcannister01a_skybox.mdl",180}
   }
 
-  if(IsMounted("portal")) then -- Portal is mounted
+  if(IsMounted("portal")) then -- Portal
     table.insert(data, {"models/props_bts/rocket.mdl"})
     table.insert(data, {"models/props/cake/cake.mdl",90})
     table.insert(data, {"models/Weapons/w_portalgun.mdl",180})
     table.insert(data, {"models/props/laser_emitter_center.mdl"})
     table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
     table.insert(data, {"models/props/water_bottle/water_bottle.mdl",90})
+    table.insert(data, {"models/props_bts/projector.mdl",0,"1,-10,5","0,-1,0"})
+    table.insert(data, {"models/props/laser_emitter.mdl",0,"16,0,-14","1,0,0"})
+    table.insert(data, {"models/props_bts/glados_ball_reference.mdl",0,"0,15,0","0,1,0"})
   end
 
-  if(IsMounted("hl2")) then -- HL2 is mounted
+  if(IsMounted("portal2")) then -- Portal 2
+    table.insert(data, {"models/br_debris/deb_s8_cube.mdl"})
+    table.insert(data, {"models/npcs/turret/turret.mdl",0,"15,0,37.18","1,0,0"})
+    table.insert(data, {"models/npcs/turret/turret_skeleton.mdl",0,"15,0,38.27","1,0,0"})
+  end
+
+  if(IsMounted("hl2")) then -- HL2
     table.insert(data, {"models/items/ar2_grenade.mdl"})
+    table.insert(data, {"models/props_lab/huladoll.mdl",90})
     table.insert(data, {"models/weapons/w_missile_closed.mdl"})
     table.insert(data, {"models/weapons/w_missile_launch.mdl"})
     table.insert(data, {"models/props_c17/canister01a.mdl",90})
@@ -1447,14 +1514,29 @@ function LaserLib.SetupModels()
     table.insert(data, {"models/props_borealis/door_wheel001a.mdl",180})
     table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",-90})
     table.insert(data, {"models/props_trainstation/trashcan_indoor001b.mdl",-90})
+    table.insert(data, {"models/props_lab/reciever01b.mdl",0,"-7.12,-6.56,0.35","-1,0,0"})
+    table.insert(data, {"models/props_c17/trappropeller_lever.mdl",0,"0,-6,-0.15","0,-1,0"})
   end
 
-  if(IsMounted("dod")) then -- DoD is mounted
+  if(IsMounted("dod")) then -- DoD
     table.insert(data, {"models/weapons/w_smoke_ger.mdl",-90})
   end
 
-  if(IsMounted("cstrike")) then -- Counter-Strike is mounted
+  if(IsMounted("ep2")) then -- HL2 EP2
+    table.insert(data, {"models/props_junk/gnome.mdl",0,"-3,0.94,6","-1,0,0"})
+  end
+
+  if(IsMounted("cstrike")) then -- Counter-Strike Source
     table.insert(data, {"models/props/de_nuke/emergency_lighta.mdl",90})
+  end
+
+  if(IsMounted("left4dead")) then -- Left 4 Dead
+    table.insert(data, {"models/props_unique/airport/line_post.mdl",90})
+    table.insert(data, {"models/props_street/firehydrant.mdl",0,"-0.081,0.052,39.31","0,0,1"})
+  end
+
+  if(IsMounted("tf")) then -- Team Fortress 2
+    table.insert(data, {"models/props_hydro/road_bumper01.mdl",90})
   end
 
   if(WireLib) then -- Make these model available only if the player has Wire
@@ -1472,9 +1554,13 @@ function LaserLib.SetupModels()
     local rec = data[idx]
     local mod = tostring(rec[1] or "")
     local ang = (tonumber(rec[2]) or 0)
+    local org = tostring(rec[3] or "")
+    local dir = tostring(rec[4] or "")
     table.Empty(rec)
-    rec[DATA.TOOL.."_model"      ] = mod
-    rec[DATA.TOOL.."_angleoffset"] = ang
+    rec[DATA.TOOL.."_model" ] = mod
+    rec[DATA.TOOL.."_angle" ] = ang
+    rec[DATA.TOOL.."_origin"] = org
+    rec[DATA.TOOL.."_direct"] = dir
     list.Set("LaserEmitterModels", mod, rec)
   end
 end

@@ -14,9 +14,10 @@ function ENT:SpawnFunction(ply, tr)
   local length       = math.Clamp(ply:GetInfoNum(prefix.."length", 0), 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   local damage       = math.Clamp(ply:GetInfoNum(prefix.."damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   local pushforce    = math.Clamp(ply:GetInfoNum(prefix.."pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  local angleoffset  = math.Clamp(ply:GetInfoNum(prefix.."angleoffset", 0), amax[1], amax[2])
+  local angle        = math.Clamp(ply:GetInfoNum(prefix.."angle", 0), amax[1], amax[2])
+  local trandata     = LaserLib.SetupTransform({angle, ply:GetInfo("origin"), ply:GetInfo("direct")})
   local key          = ply:GetInfoNum(prefix.."key", 0)
-  local model        = ply:GetInfo(prefix.."model") -- ; print(model)
+  local model        = ply:GetInfo(prefix.."model")
   local material     = ply:GetInfo(prefix.."material")
   local stopsound    = ply:GetInfo(prefix.."stopsound")
   local killsound    = ply:GetInfo(prefix.."killsound")
@@ -31,14 +32,14 @@ function ENT:SpawnFunction(ply, tr)
   local forcecenter  = (ply:GetInfoNum(prefix.."forcecenter", 0) ~= 0)
   local enonvermater = (ply:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
   local laser        = LaserLib.New(ply        , tr.HitPos   , ang         , model       ,
-                                    angleoffset, key         , width       , length      ,
+                                    trandata   , key         , width       , length      ,
                                     damage     , material    , dissolvetype, startsound  ,
                                     stopsound  , killsound   , toggle      , starton     ,
                                     pushforce  , endingeffect, reflectrate , refractrate ,
                                     forcecenter, frozen      , enonvermater);
   if(LaserLib.IsValid(laser)) then
     LaserLib.SetProperties(laser, "metal")
-    LaserLib.SnapNormal(laser, tr.HitPos, tr.HitNormal, angleoffset)
+    LaserLib.SnapNormal(laser, tr.HitPos, tr.HitNormal, angle)
     return laser
   end; return nil
 end

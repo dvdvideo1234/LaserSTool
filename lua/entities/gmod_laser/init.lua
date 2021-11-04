@@ -159,7 +159,7 @@ end
 local function Off(ply, ent)
   if(not LaserLib.IsValid(ent)) then return end
   if(ent:WireIsConnected("On")) then return end
-  if(ent:GetStartToggle()) then return end
+  if(ent:GetTable().runToggle) then return end
   ent:SetOn(not ent:GetOn())
 end
 
