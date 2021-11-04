@@ -15,11 +15,11 @@ if(CLIENT) then
   }
 
   language.Add("tool."..gsUnit..".name", "Laser Spawner")
-  language.Add("tool."..gsUnit..".desc", "Spawn very dangerous lasers!")
+  language.Add("tool."..gsUnit..".desc", "Spawns very dangerous lasers!")
   language.Add("tool."..gsUnit..".0", "Do not look into the beam source with the remaining eye!")
   language.Add("tool."..gsUnit..".mater", "Hit world to select active mirror or transparent material")
   language.Add("tool."..gsUnit..".left", "Create or update a laser where you are aiming")
-  language.Add("tool."..gsUnit..".right", "Retrieve laser settings from trace entity")
+  language.Add("tool."..gsUnit..".right", "Retrieve settings from trace entity. Hold SHIFT to use custom offsets")
   language.Add("tool."..gsUnit..".reload", "Reset material. Hold SHIFT to apply mirror. Hold DUCK to remove your props")
   language.Add("tool."..gsUnit..".reload_use", "Apply transparent material to trace prop")
   language.Add("tool."..gsUnit..".frozen_con", "Freeze on creation")
@@ -223,7 +223,7 @@ end
 function TOOL:ApplySpawn(ent, trace)
   local tran = self:GetTransform()
   if(tran[2] and tran[3]) then
-    ent:SetPos(trace.HitPos + ent:BoundingRadius() * trace.HitNormal)
+    LaserLib.SnapCustom(ent, trace.HitPos, trace.HitNormal, tran[2], tran[3])
   else
     LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, tran[1])
   end
@@ -364,24 +364,26 @@ function TOOL:RightClick(trace)
       local org = Vector(trace.HitPos); org:Set(ent:WorldToLocal(org))
       dir = tostring(dir):Trim():gsub("%s+", ",")
       org = tostring(org):Trim():gsub("%s+", ",")
-      if(ply:KeyDown(IN_SPEED)) then -- Easy export selected model
-        if(ply:KeyDown(IN_DUCK)) then -- Easy export selected model
+      if(ply:KeyDown(IN_DUCK)) then -- Easy export selected model
+        if(ply:KeyDown(IN_SPEED)) then -- Easy export custom model
           dir = "\""..tostring(dir):Trim():gsub("%s+", ",").."\""
           org = "\""..tostring(org):Trim():gsub("%s+", ",").."\""
-          print("table.insert(data, {\""..mod.."\",0,\""..org.."\",\""..dir.."\"})")
+          print("table.insert(data, {\""..mod.."\",0,"..org..","..dir.."})")
         else
           print("table.insert(data, {\""..mod.."\","..ang.."})")
         end
       else
-        if(ply:KeyDown(IN_DUCK)) then
+        if(ply:KeyDown(IN_SPEED)) then
           LaserLib.ConCommand(ply, "model" , mod)
           LaserLib.ConCommand(ply, "angle" , ang)
           LaserLib.ConCommand(ply, "origin", org)
           LaserLib.ConCommand(ply, "direct", dir)
-          LaserLib.Notify(ply, "Model(C): "..mod.." ["..ang.."]", "UNDO")
+          LaserLib.Notify(ply, "Model(B): "..mod.." ["..ang.."]", "UNDO")
         else
-          LaserLib.ConCommand(ply, "model", mod)
-          LaserLib.ConCommand(ply, "angle", ang)
+          LaserLib.ConCommand(ply, "origin")
+          LaserLib.ConCommand(ply, "direct")
+          LaserLib.ConCommand(ply, "model" , mod)
+          LaserLib.ConCommand(ply, "angle" , ang)
           LaserLib.Notify(ply, "Model(A): "..mod.." ["..ang.."]", "UNDO")
         end
       end
@@ -516,7 +518,7 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem = vgui.Create("PropSelect", panel)
   pItem:Dock(TOP); pItem:SetTall(100)
   pItem:SetTooltip(language.GetPhrase("tool."..gsUnit..".model"))
-  pItem:ControlValues({
+  pItem:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
     models = list.GetForEdit("LaserEmitterModels"),
     label  = language.GetPhrase("tool."..gsUnit..".model_con")
   }); panel:AddItem(pItem)
