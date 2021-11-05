@@ -127,7 +127,7 @@ if(CLIENT) then
     end)
 end
 
-TOOL.Settings = {}
+TOOL.Settings = {0, "", ""}
 TOOL.Category = "Construction"
 TOOL.Name     = (language and language.GetPhrase("tool."..gsUnit..".name"))
 
@@ -203,30 +203,10 @@ end
 
 function TOOL:GetTransform()
   local tset = self.Settings
-  local nang = self:GetAngleOffset()
-  local orgn = self:GetClientInfo("origin")
-  local dirc = self:GetClientInfo("direct")
-  if(orgn and orgn ~= "") then -- Try converting origin
-    orgn = Vector(LaserLib.ByString(orgn)) else orgn = nil end
-  if(dirc and dirc ~= "") then -- Try converting direction
-    dirc = Vector(LaserLib.ByString(dirc)) else dirc = nil end
-  tset[1], tset[2], tset[3] = nang, orgn, dirc
+  tset[1] = self:GetAngleOffset()
+  tset[2] = self:GetClientInfo("origin")
+  tset[3] = self:GetClientInfo("direct")
   return LaserLib.SetupTransform(tset)
-end
-
---[[
- * Applies the final posutional and angular offsets to the laser spawned
- * Adjusts the custom model angle and calculates the touch position
- * ent   > The laser entity to preform the operation for
- * trace > The trace that player is aiming for
-]]
-function TOOL:ApplySpawn(ent, trace)
-  local tran = self:GetTransform()
-  if(tran[2] and tran[3]) then
-    LaserLib.SnapCustom(ent, trace.HitPos, trace.HitNormal, tran[2], tran[3])
-  else
-    LaserLib.SnapNormal(ent, trace.HitPos, trace.HitNormal, tran[1])
-  end
 end
 
 function TOOL:GetUnit(ent)
@@ -296,7 +276,7 @@ function TOOL:LeftClick(trace)
   if(not (LaserLib.IsValid(laser))) then return false end
 
   LaserLib.SetProperties(laser, "metal")
-  self:ApplySpawn(laser, trace)
+  LaserLib.ApplySpawn(laser, trace, self:GetTransform())
 
   undo.Create("LaserEmitter")
     undo.AddEntity(laser)
@@ -446,7 +426,7 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
 
   local trace = ply:GetEyeTrace()
 
-  self:ApplySpawn(ent, trace)
+  LaserLib.ApplySpawn(ent, trace, self:GetTransform())
 
   if(not trace.Hit
       or trace.Entity:IsPlayer()

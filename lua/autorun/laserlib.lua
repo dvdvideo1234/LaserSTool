@@ -448,9 +448,26 @@ end
 function LaserLib.SetupTransform(tran)
   local amax = LaserLib.GetData("AMAX")
   tran[1] = math.Clamp(tonumber(tran[1]) or 0, amax[1], amax[2])
-  tran[2] = ((tran[2] and tran[2] ~= "") and tran[2] or nil)
-  tran[3] = ((tran[3] and tran[3] ~= "") and tran[3] or nil)
-  return tran
+  if(not tran[2] or tran[2] == "") then tran[2] = nil -- Origin
+  else tran[2] = Vector(LaserLib.ByString(tran[2])) end
+  if(not tran[3] or tran[3] == "") then tran[3] = nil -- Direction
+  else tran[3] = Vector(LaserLib.ByString(tran[3])) end
+  return tran -- Return the converted transform
+end
+
+--[[
+ * Applies the final posutional and angular offsets to the laser spawned
+ * Adjusts the custom model angle and calculates the touch position
+ * base  > The laser entity to preform the operation for
+ * trace > The trace that player is aiming for
+ * tran  > Transform data array information
+]]
+function LaserLib.ApplySpawn(base, trace, tran)
+  if(tran[2] and tran[3]) then
+    LaserLib.SnapCustom(base, trace.HitPos, trace.HitNormal, tran[2], tran[3])
+  else
+    LaserLib.SnapNormal(base, trace.HitPos, trace.HitNormal, tran[1])
+  end
 end
 
 --[[
@@ -501,7 +518,7 @@ end
 
 --[[
  * Returns the yaw angle for the spawn function
- * ply > Player to calc the angle for
+ * ply > Player to calculate the angle for
    [1] > The calculated yaw result angle
 ]]
 function LaserLib.GetAngleSF(ply)
@@ -1497,8 +1514,8 @@ function LaserLib.SetupModels()
 
   if(IsMounted("portal2")) then -- Portal 2
     table.insert(data, {"models/br_debris/deb_s8_cube.mdl"})
-    table.insert(data, {"models/npcs/turret/turret.mdl",0,"15,0,37.18","1,0,0"})
-    table.insert(data, {"models/npcs/turret/turret_skeleton.mdl",0,"15,0,38.27","1,0,0"})
+    table.insert(data, {"models/npcs/turret/turret.mdl",0,"13,0,37.35","1,0,0"})
+    table.insert(data, {"models/npcs/turret/turret_skeleton.mdl",0,"13,0,36.65","1,0,0"})
   end
 
   if(IsMounted("hl2")) then -- HL2
