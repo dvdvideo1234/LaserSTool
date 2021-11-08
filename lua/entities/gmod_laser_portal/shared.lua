@@ -24,6 +24,7 @@ local gsNA = LaserLib.GetData("NOAV")
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal" , "General") -- Used as forward
+  self:EditableSetVector("UpwardLocal" , "General") -- Used as forward
   self:EditableSetBool("MirrorExitPos" , "General") -- Mirror the exit ray location
   self:EditableSetBool("ReflectExitDir", "General") -- Reflect the exit ray direction
   self:EditableSetBool("DrawTransfer", "General") -- Draw transfer overlay entity
@@ -34,7 +35,20 @@ end
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   self:SetNormalLocal(Vector(1,0,0)) -- Local surface normal
+  self:SetUpwardLocal(Vector(0,0,1)) -- Local surface normal
   return self
+end
+
+function ENT:UpdateVectors()
+  local mdt = LaserLib.GetData("DOTM")
+  local dir = self:GetNormalLocal()
+  local upw = self:GetUpwardLocal()
+  if(math.abs(dir:Dot(upw)) >= mdt) then
+    local piv = dir:Cross(upw)
+    upw:Set(piv:Cross(dir))
+    upw:Normalize()
+    self:SetUpwardLocal(upw)
+  end
 end
 
 function ENT:IsHitNormal(trace)

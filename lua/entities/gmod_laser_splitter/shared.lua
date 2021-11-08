@@ -17,7 +17,7 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
-  self:EditableSetVector("ElevatLocal"  , "General")
+  self:EditableSetVector("UpwardLocal"  , "General")
   self:SetupSourceDataTables()
   self:EditableRemoveOrderInfo()
 end
@@ -25,25 +25,23 @@ end
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local direct = Vector(0,0,1) -- Local beam birection
-  local elevat = Vector(0,1,0)
+  local upward = Vector(0,1,0)
   local origin = LaserLib.GetBeamOrigin(self, direct)
   self:SetOriginLocal(origin)
   self:SetDirectLocal(direct)
-  self:SetElevatLocal(elevat)
+  self:SetUpwardLocal(upward)
   return self
 end
 
 function ENT:UpdateVectors()
   local mdt = LaserLib.GetData("DOTM")
   local dir = self:GetDirectLocal()
-  local elv = self:GetElevatLocal()
-  if(math.abs(dir:Dot(elv)) >= mdt) then
-    local piv = dir:Cross(elv)
-    elv:Set(piv:Cross(dir))
-    elv:Normalize()
-    dir:Normalize()
-    self:SetElevatLocal(elv)
-    self:SetDirectLocal(dir)
+  local upw = self:GetUpwardLocal()
+  if(math.abs(dir:Dot(upw)) >= mdt) then
+    local piv = dir:Cross(upw)
+    upw:Set(piv:Cross(dir))
+    upw:Normalize()
+    self:SetUpwardLocal(upw)
   end
 end
 

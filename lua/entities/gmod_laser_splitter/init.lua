@@ -154,8 +154,8 @@ function ENT:Think()
       local delta = fulla / mcount
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
-      local eleva = self:GetElevatLocal()
-      local angle = direc:AngleEx(eleva)
+      local upwrd = self:GetUpwardLocal()
+      local angle = direc:AngleEx(upwrd)
       self:UpdateFlags()
       for index = 1, mcount do
         local dir = marby * angle:Up()

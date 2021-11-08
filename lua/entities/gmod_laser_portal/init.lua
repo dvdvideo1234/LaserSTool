@@ -63,3 +63,7 @@ function ENT:SpawnFunction(ply, tr)
     return ent
   end; return nil
 end
+
+function ENT:Think()
+  self:UpdateVectors()
+end

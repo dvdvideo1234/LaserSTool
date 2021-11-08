@@ -14,7 +14,7 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
-  self:EditableSetVector("ElevatLocal"  , "General")
+  self:EditableSetVector("UpwardLocal"  , "General")
   self:EditableSetBool  ("BeamDimmer"   , "General")
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("InPowerOn"    , "Internals")
@@ -31,10 +31,22 @@ end
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local normal = Vector(0,0,1) -- Local surface normal
-  local elevat = Vector(0,1,0)
-  self:SetElevatLocal(elevat)
+  local upward = Vector(0,1,0)
+  self:SetUpwardLocal(upward)
   self:SetNormalLocal(normal)
   return self
+end
+
+function ENT:UpdateVectors()
+  local mdt = LaserLib.GetData("DOTM")
+  local dir = self:GetNormalLocal()
+  local upw = self:GetUpwardLocal()
+  if(math.abs(dir:Dot(upw)) >= mdt) then
+    local piv = dir:Cross(upw)
+    upw:Set(piv:Cross(dir))
+    upw:Normalize()
+    self:SetUpwardLocal(upw)
+  end
 end
 
 function ENT:SetBeamCount(num)
@@ -132,11 +144,11 @@ function ENT:UpdateSources()
           self.hitArray[hitSize] = entity -- Store source
           self.hitSize = hitSize -- Point to next slot
         end
-        local welev = Vector(self:GetElevatLocal())
-              welev:Rotate(self:GetAngles())
+        local upwrd = Vector(self:GetUpwardLocal())
+              upwrd:Rotate(self:GetAngles())
         local bsdir = Vector(trace.HitNormal)
         local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
-        local angle = bsdir:AngleEx(welev)
+        local angle = bsdir:AngleEx(upwrd)
         local mrdotm = math.abs(data.VrDirect:Dot(bsdir))
         local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
         if(count > 1) then

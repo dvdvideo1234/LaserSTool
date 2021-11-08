@@ -95,6 +95,7 @@ function ENT:DoDamage(trace, data)
 end
 
 function ENT:Think()
+  self:UpdateVectors()
   self:UpdateFlags()
   self:UpdateSources()
 

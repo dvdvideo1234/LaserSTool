@@ -58,7 +58,9 @@ DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 -- Store zero angle and vector
 DATA.AZERO = Angle()
 DATA.VZERO = Vector()
-DATA.VDRUP = Vector(0,0,1)
+DATA.VDFWD = Vector(1, 0, 0)
+DATA.VDRGH = Vector(0,-1, 0) -- Positive direction is to the left
+DATA.VDRUP = Vector(0, 0, 1)
 DATA.TCUST = {
   "Forward", "Right", "Up",
   H = {ID = 0, V = 0, M = 0},
@@ -357,33 +359,50 @@ function LaserLib.Call(time, func, ...)
 end
 
 -- Draw a position on the screen
-function LaserLib.DrawPoint(pos, col)
+function LaserLib.DrawPoint(pos, col, idx, msg)
   if(not CLIENT) then return end
   local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 1, 25, 25, crw)
+  if(idx or msg) then
+    local txt, mrg, fnt = "", 6, "Trebuchet24"
+    if(idx) then txt = txt..tostring(idx)
+      if(msg) then txt = txt..": " end end
+    if(msg) then txt = txt..tostring(msg) end
+    local ang = dir:AngleEx(DATA.VDRUP)
+    ang:RotateAroundAxis(ang:Up(), 90)
+    ang:RotateAroundAxis(ang:Forward(), 90)
+    cam.Start3D2D(pos, ang, 0.16)
+      surface.SetFont(fnt)
+      local w, h = surface.GetTextSize(txt)
+      draw.RoundedBox(8, -(w/2)-mrg, -(h/2)-mrg/1.5, w+2*mrg, h+2*mrg, DATA.COLOR.BACKGR)
+      draw.SimpleText(txt,fnt,0,0,DATA.COLOR.BLACK,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
+    cam.End3D2D()
+  end
 end
 
 -- Draw a position on the screen
-function LaserLib.DrawVector(pos, dir, mag, col, idx)
+function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   if(not CLIENT) then return end
   local ven = pos + (dir * (tonumber(mag) or 1))
   local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 1, 25, 25, crw)
   render.DrawLine(pos, ven, crw, false)
-  if(idx) then
-    local mrg, fnt = 6, "Trebuchet24"
-    local txt = tostring(idx or "")
+  if(idx or msg) then
+    local txt, mrg, fnt = "", 6, "Trebuchet24"
+    if(idx) then txt = txt..tostring(idx)
+      if(msg) then txt = txt..": " end end
+    if(msg) then txt = txt..tostring(msg) end
     local ang = dir:AngleEx(DATA.VDRUP)
-    ang:RotateAroundAxis(ang:Up(), 90);
-    ang:RotateAroundAxis(ang:Forward(), 90);
-    cam.Start3D2D(pos, ang, 0.16);
+    ang:RotateAroundAxis(ang:Up(), 90)
+    ang:RotateAroundAxis(ang:Forward(), 90)
+    cam.Start3D2D(pos, ang, 0.16)
       surface.SetFont(fnt)
       local w, h = surface.GetTextSize(txt)
       draw.RoundedBox(8, -(w/2)-mrg, -(h/2)-mrg/1.5, w+2*mrg, h+2*mrg, DATA.COLOR.BACKGR)
       draw.SimpleText(txt,fnt,0,0,DATA.COLOR.BLACK,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
-    cam.End3D2D();
+    cam.End3D2D()
   end
 end
 
@@ -1016,7 +1035,7 @@ function LaserLib.GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   return pos, dir
 end
 
-DATA.PORTAL = {
+DATA.ACTOR = {
    --[[
     * Function handler for calculating portal routines
     * entity > The actual beam source
@@ -1033,7 +1052,6 @@ DATA.PORTAL = {
     if(not LaserLib.IsValid(tar)) then return end
     -- Leave networking to CAP. Invalid target. Stop
     local pob = LaserLib.GetReverse(pos, dir)
-    -- LaserLib.DrawVector(pob, dir, 10)
     local pot, dit = ent:GetTeleportedVector(pob, dir)
     if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
       ent:EnterEffect(pob, data.NvWidth) -- Enter effect
@@ -1067,7 +1085,16 @@ DATA.PORTAL = {
           trn:Mul(DATA.WLMR); trn:Add(ent:GetPos())
           trn:Set(ent:WorldToLocal(trn)); trn:Div(DATA.WLMR)
           pdir:Set(LaserLib.GetReflected(pdir, trn))
-        else pdir.x, pdir.y = -pdir.x, -pdir.y end
+        else
+          LaserLib.VecNegate(pdir)
+          local fw = ent:GetNormalLocal()
+          local up = ent:GetUpwardLocal()
+          local rg, vd = fw:Cross(up), Vector()
+          vdir:Add(pdir:Dot(fw) * fw)
+          vdir:Add(pdir:Dot(rg) * rg)
+          vdir:Add(-pdir:Dot(up) * up)
+          pdir:Set(vdir)
+        end
       end)
     data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
@@ -1180,7 +1207,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(valid) then class = target:GetClass() end
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(valid) then -- Target is valis and it is a portal
-        if(class and DATA.PORTAL[class]) then
+        if(class and DATA.ACTOR[class]) then
           local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
           LaserLib.RegisterNode(data, pos, isRfract, false)
         else
@@ -1235,9 +1262,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             end
           end
         else -- Put special cases here
-          if(class and DATA.PORTAL[class]) then
-            local suc, err = pcall(DATA.PORTAL[class], trace, data)
-            if(not suc) then data.IsTrace = false; error("Portalling error: "..err) end
+          if(class and DATA.ACTOR[class]) then
+            local suc, err = pcall(DATA.ACTOR[class], trace, data)
+            if(not suc) then data.IsTrace = false; error("Actor error: "..err) end
           else
             data.TrMaters = GetMaterialID(trace, data)
             data.IsTrace  = true -- Still tracing the beam
@@ -1317,9 +1344,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             end
           end
         else
-          if(class and DATA.PORTAL[class]) then
-            local suc, err = pcall(DATA.PORTAL[class], trace, data)
-            if(not suc) then data.IsTrace = false; error("Portalling error: ".. err) end
+          if(class and DATA.ACTOR[class]) then
+            local suc, err = pcall(DATA.ACTOR[class], trace, data)
+            if(not suc) then data.IsTrace = false; error("Actor error: "..err) end
           else
             data.TrMaters = GetMaterialID(trace, data)
             data.IsTrace  = true -- Still tracing the beam
@@ -1343,10 +1370,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 if(data.StRfract) then
                   data.StRfract = false
                   data.VrDirect:Set(direct)
-                  data.VrOrigin:Set(direct)
-                  data.VrOrigin:Add(trace.HitPos)
-                  LaserLib.VecNegate(data.VrDirect)
-                  data.IsRfract[2] = true
+                  data.VrOrigin:Set(trace.HitPos)
+                  data.NvMask = MASK_SOLID
+                  data.TeFilter = nil
+                  data.TrMedium.S = data.TrMedium.D
                 else
                   if(data.TrMedium.D[1]) then -- From air to water
                     local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
@@ -1355,8 +1382,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                                                              data.TrMedium.D[1][1])
                     if(vdir) then -- Get the trace tready to check the other side and point and register the location
                       data.VrDirect:Set(vdir)
-                      data.VrOrigin:Set(vdir)
-                      data.VrOrigin:Add(trace.HitPos)
+                      data.VrOrigin:Set(trace.HitPos)
                       data.TeFilter = nil
                       data.NvMask   = MASK_SOLID
                       data.TrMedium.S, data.TrMedium.D = data.TrMedium.D, data.TrMedium.S
