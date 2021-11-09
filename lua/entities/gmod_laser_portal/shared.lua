@@ -41,14 +41,26 @@ end
 
 function ENT:UpdateVectors()
   local mdt = LaserLib.GetData("DOTM")
-  local dir = self:GetNormalLocal()
+  local fwd = self:GetNormalLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(dir:Dot(upw)) >= mdt) then
-    local piv = dir:Cross(upw)
-    upw:Set(piv:Cross(dir))
+  if(math.abs(fwd:Dot(upw)) >= mdt) then
+    local rgh = fwd:Cross(upw)
+    upw:Set(rgh:Cross(fwd))
     upw:Normalize()
     self:SetUpwardLocal(upw)
-  end
+  end; return self
+end
+
+function ENT:ToCustomUCS(vec)
+  local ret = Vector()
+  local ox = self:GetNormalLocal()
+  local oz = self:GetUpwardLocal()
+  local ucs = ox:AngleEx(oz)
+  local x = vec:Dot(ox)
+  local z = vec:Dot(oz)
+  local y = vec:Dot(ucs:Right())
+  ret:SetUnpacked(x, -y, z)
+  return ret, ucs
 end
 
 function ENT:IsHitNormal(trace)

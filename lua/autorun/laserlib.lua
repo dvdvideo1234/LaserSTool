@@ -1077,7 +1077,13 @@ DATA.ACTOR = {
     local pos = LaserLib.GetReverse(trace.HitPos, dir)
     nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(ppos)
-        if(mir and bnr) then ppos.y = -ppos.y end
+        if(mir and bnr) then
+          local v, a = ent:ToCustomUCS(ppos)
+          v.y = -v.y; ppos:Set(v); ppos:Rotate(a)
+        else
+          local v, a = ent:ToCustomUCS(ppos)
+          ppos:Set(v); ppos:Rotate(a)
+        end
       end,
       function(pdir)
         if(ent:GetReflectExitDir()) then
@@ -1086,14 +1092,9 @@ DATA.ACTOR = {
           trn:Set(ent:WorldToLocal(trn)); trn:Div(DATA.WLMR)
           pdir:Set(LaserLib.GetReflected(pdir, trn))
         else
-          LaserLib.VecNegate(pdir)
-          local fw = ent:GetNormalLocal()
-          local up = ent:GetUpwardLocal()
-          local rg, vd = fw:Cross(up), Vector()
-          vdir:Add(pdir:Dot(fw) * fw)
-          vdir:Add(pdir:Dot(rg) * rg)
-          vdir:Add(-pdir:Dot(up) * up)
-          pdir:Set(vdir)
+          local v, a = ent:ToCustomUCS(pdir)
+          v.x = -v.x; v.y = -v.y
+          pdir:Set(v); pdir:Rotate(a)
         end
       end)
     data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)

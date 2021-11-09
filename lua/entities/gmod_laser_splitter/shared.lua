@@ -35,14 +35,14 @@ end
 
 function ENT:UpdateVectors()
   local mdt = LaserLib.GetData("DOTM")
-  local dir = self:GetDirectLocal()
+  local fwd = self:GetDirectLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(dir:Dot(upw)) >= mdt) then
-    local piv = dir:Cross(upw)
-    upw:Set(piv:Cross(dir))
+  if(math.abs(fwd:Dot(upw)) >= mdt) then
+    local rgh = fwd:Cross(upw)
+    upw:Set(rgh:Cross(fwd))
     upw:Normalize()
     self:SetUpwardLocal(upw)
-  end
+  end; return self
 end
 
 function ENT:SetOn(bool)
