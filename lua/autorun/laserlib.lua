@@ -1196,7 +1196,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            data.TeFilter,
                            data.NvMask,
                            data.NvCGroup,
-                           data.NvIWorld, data.BmTracew); target = trace.Entity
+                           data.NvIWorld,
+                           data.BmTracew); target = trace.Entity
 
     if(isRfract and trace and trace.Hit and data.BmTracew and data.BmTracew > 0) then
       local mul = (-DATA.TRDG * data.BmTracew); trace.HitPos:Add(mul * trace.HitNormal)
