@@ -1,5 +1,5 @@
 ENT.Type           = "anim"
-ENT.Category       = "Laser"
+ENT.Category       = LaserLib.GetData("CATG")
 ENT.PrintName      = "Reflector"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then

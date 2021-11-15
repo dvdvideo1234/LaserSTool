@@ -1,5 +1,5 @@
 ENT.Type           = "anim"
-ENT.Category       = "Laser"
+ENT.Category       = LaserLib.GetData("CATG")
 ENT.PrintName      = "Divider"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 ENT.Base           = LaserLib.GetClass(1, 1)

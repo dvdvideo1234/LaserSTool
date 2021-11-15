@@ -35,6 +35,7 @@ DATA.GRAT = 1.61803398875   -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"  -- Tool name for internal use
 DATA.ICON = "icon16/%s.png" -- Format to convert icons
 DATA.NOAV = "N/A"           -- Not available as string
+DATA.CATG = "Laser"         -- Category name in the entities tab
 DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.RNDB = 3               -- Decimals beam round for visibility check
 DATA.KWID = 5               -- Width coefficient used to calculate power
@@ -676,9 +677,9 @@ local function GetMaterialID(trace, data)
   if(not trace) then return nil end
   if(not trace.Hit) then return nil end
   if(trace.HitWorld) then
-    local mat = trace.HitTexture
+    local mat = trace.HitTexture -- Use trace material type
     if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-      mat = DATA.MATYPE[trace.MatType]
+      mat = DATA.MATYPE[trace.MatType] -- Material lookup
     end -- **studio**, **displacement**, **empty**
     return mat
   else
@@ -689,15 +690,11 @@ local function GetMaterialID(trace, data)
       if(data.BmNoover) then -- No override is available use original
         mat = ent:GetMaterials()[1] -- Just grab the first material
       else -- Gmod can not simply decide which material is hit
-        if(SERVER) then -- Material type utilization is server side
-          local typ = ent:GetMaterialType() -- Read the index
-          mat = DATA.MATYPE[typ] -- Do lookup and network the index
-          ent:SetNWInt("laseremitter_getmaterialtype", typ)
-        else -- Physobj has a single surfacetype related to model
-          local typ = ent:GetNWInt("laseremitter_getmaterialtype")
-          mat = DATA.MATYPE[typ] -- Client recieves the networked value
-        end
-      end
+        mat = trace.HitTexture -- Use trace material type
+        if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
+          mat = DATA.MATYPE[trace.MatType] -- Material lookup
+        end -- **studio**, **displacement**, **empty**
+      end -- Physobj has a single surfacetype related to model
     end
     return mat
   end
