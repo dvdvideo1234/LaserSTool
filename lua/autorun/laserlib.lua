@@ -64,8 +64,8 @@ DATA.VDRGH = Vector(0,-1, 0) -- Positive direction is to the left
 DATA.VDRUP = Vector(0, 0, 1)
 DATA.TCUST = {
   "Forward", "Right", "Up",
-  H = {ID = 0, V = 0, M = 0},
-  L = {ID = 0, V = 0, M = 0}
+  H = {ID = 0, M = 0, V = 0},
+  L = {ID = 0, M = 0, V = 0}
 }
 
 -- The default key in a collection point to take when not found
@@ -320,6 +320,10 @@ function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, wi
     DATA.TRACE.output = nil
     return DATA.TRACE.funct(DATA.TRACE)
   end
+end
+
+function LaserLib.GetSign(arg)
+  return arg / math.abs(arg)
 end
 
 -- Validates entity or physics object
@@ -792,35 +796,38 @@ function LaserLib.SnapNormal(base, hitp, norm, angle)
   base:SetPos(org); base:SetAngles(ang)
 end
 
-function LaserLib.SnapCustom(base, hitp, norm, origin, direct)
-  local tab, tra = base:GetTable(), norm:Angle()
-  local dir, ang = Vector(direct), Angle(); LaserLib.VecNegate(dir)
-  local pos = LaserLib.GetBeamOrigin(base, dir)
-  if(not tab.anCustom) then
-    local az, mt = DATA.AZERO, DATA.TCUST
-    local th, tl = mt.H, mt.L
-    th.ID, tl.ID, th.V, tl.V = 0, 0, 0, 0 -- Wipe ID
-    for idx = 1, #mt do
-      local nam = mt[idx]
-      local val = direct:Dot(az[nam](az))
-      local mar = math.abs(val)
-      local sgn = val / mar
-      if(th.ID == 0 or mar >= th.M) then
-        th.ID = idx; th.M = mar
-        th.V = ((mar ~= 0) and val or 1)
-      end
-      if(tl.ID == 0 or mar <= tl.M) then
-        tl.ID = idx; tl.M = mar
-        tl.V = ((mar ~= 0) and val or 1)
-      end
+function LaserLib.GetCustomAngle(base, direct)
+  local tab = base:GetTable(); if(tab.anCustom) then
+    return tab.anCustom else tab.anCustom = Angle() end
+  local az, mt = DATA.AZERO, DATA.TCUST
+  local th, tl = mt.H, mt.L; th.ID, tl.ID = 0, 0 -- Wipe ID
+  for idx = 1, #mt do -- Pick up min/max projection lengths
+    local vec = az[mt[idx]](az) -- Read primal direction vector
+    local vmr = direct:Dot(vec)
+    local mar = math.abs(vmr) -- Calculate margin
+    if(th.ID == 0 or mar >= th.M) then
+      th.ID, th.M = idx, mar
+      th.V = ((mar ~= 0) and vmr or 1)
+      tl.V = LaserLib.GetSign(tl.V)
     end
-    local f = az[mt[th.ID]](az) * th.V; f:Normalize()
-    local u = az[mt[tl.ID]](az) * tl.V; u:Normalize()
-    local r, a = f:Cross(u), f:AngleEx(u)
-    a:RotateAroundAxis(r, -90)
-    tab.anCustom = a -- Cache angle
-  end
-  ang:Set(tab.anCustom)
+    if(tl.ID == 0 or mar <= tl.M) then
+      tl.ID, tl.M = idx, mar
+      tl.V = ((mar ~= 0) and vmr or 1)
+      tl.V = LaserLib.GetSign(tl.V)
+    end
+  end -- Forward is max projection up is min projection
+  local f = az[mt[th.ID]](az); f:Mul(th.V) -- Primary forward (orthogonal)
+  local u = az[mt[tl.ID]](az); u:Mul(tl.V) -- Primary up (orthogonal)
+  tab.anCustom:Set(f:AngleEx(u)) -- Transfer data and applt angle pitch
+  tab.anCustom:RotateAroundAxis(f:Cross(u), -90) -- Cache angle
+  return tab.anCustom
+end
+
+function LaserLib.SnapCustom(base, hitp, norm, origin, direct)
+  local dir = Vector(direct); LaserLib.VecNegate(dir)
+  local ang, tra = Angle(), norm:Angle()
+  local pos = LaserLib.GetBeamOrigin(base, dir)
+  ang:Set(LaserLib.GetCustomAngle(base, direct))
   tra:RotateAroundAxis(tra:Right(), -90)
   ang:Set(base:AlignAngles(base:LocalToWorldAngles(ang), tra))
   pos:Rotate(ang); LaserLib.VecNegate(pos); pos:Add(hitp)
@@ -1528,19 +1535,20 @@ function LaserLib.SetupModels()
   if(IsMounted("portal")) then -- Portal
     table.insert(data, {"models/props_bts/rocket.mdl"})
     table.insert(data, {"models/props/cake/cake.mdl",90})
-    table.insert(data, {"models/Weapons/w_portalgun.mdl",180})
-    table.insert(data, {"models/props/laser_emitter_center.mdl"})
-    table.insert(data, {"models/props/pc_case02/pc_case02.mdl",90})
     table.insert(data, {"models/props/water_bottle/water_bottle.mdl",90})
+    table.insert(data, {"models/props/turret_01.mdl",0,"12,0,36.75","1,0,0"})
     table.insert(data, {"models/props_bts/projector.mdl",0,"1,-10,5","0,-1,0"})
-    table.insert(data, {"models/props/laser_emitter.mdl",0,"16,0,-14","1,0,0"})
+    table.insert(data, {"models/props/laser_emitter.mdl",0,"29,0,-14","1,0,0"})
+    table.insert(data, {"models/props/laser_emitter_center.mdl",0,"29,0,0","1,0,0"})
+    table.insert(data, {"models/weapons/w_portalgun.mdl",0,"-20,-0.7,-0.3","-1,0,0"})
     table.insert(data, {"models/props_bts/glados_ball_reference.mdl",0,"0,15,0","0,1,0"})
+    table.insert(data, {"models/props/pc_case02/pc_case02.mdl",0,"-0.2,2.4,-9.2","1,0,0"})
   end
 
   if(IsMounted("portal2")) then -- Portal 2
     table.insert(data, {"models/br_debris/deb_s8_cube.mdl"})
-    table.insert(data, {"models/npcs/turret/turret.mdl",0,"13,0,37.35","1,0,0"})
-    table.insert(data, {"models/npcs/turret/turret_skeleton.mdl",0,"13,0,36.65","1,0,0"})
+    table.insert(data, {"models/npcs/turret/turret.mdl",0,"12,0,36.75","1,0,0"})
+    table.insert(data, {"models/npcs/turret/turret_skeleton.mdl",0,"12,0,36.75","1,0,0"})
   end
 
   if(IsMounted("hl2")) then -- HL2
