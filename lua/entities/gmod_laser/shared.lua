@@ -51,8 +51,10 @@ function ENT:SetBeamTransform(tranData)
   if(tranData[2] and tranData[3]) then
     local diru = LaserLib.GetData("VDRUP")
     local zero = LaserLib.GetData("VZERO")
-    self:SetOriginLocal(tranData[2] or zero)
-    self:SetDirectLocal(tranData[3] or diru)
+    local orgn = (tranData[2] or zero)
+    local dirc = (tranData[3] or diru):GetNormalized()
+    self:SetOriginLocal(orgn)
+    self:SetDirectLocal(dirc)
   else
     local amx = LaserLib.GetData("AMAX")
     local val = (tonumber(tranData[1]) or 0)

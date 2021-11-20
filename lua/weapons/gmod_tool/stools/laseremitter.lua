@@ -61,7 +61,7 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".reflectrate", "Reflect the amount of power according to the surface material type")
   language.Add("tool."..gsTool..".refractrate_con", "Refraction power ratio")
   language.Add("tool."..gsTool..".refractrate", "Refract the amount of power according to the medium material type")
-  language.Add("tool."..gsTool..".enonvermater_con", "Non-override material")
+  language.Add("tool."..gsTool..".enonvermater_con", "Use base entity material")
   language.Add("tool."..gsTool..".enonvermater", "Utilize the first material from the list. Otherwise use material type")
   language.Add("tool."..gsTool..".openmaterial", "Manager for: ")
   language.Add("tool."..gsTool..".openmaterial_cmat", "Copy material")
@@ -371,13 +371,13 @@ function TOOL:RightClick(trace)
           LaserLib.ConCommand(ply, "angle" , ang)
           LaserLib.ConCommand(ply, "origin", org)
           LaserLib.ConCommand(ply, "direct", dir)
-          LaserLib.Notify(ply, "Model(B): "..mod.." ["..ang.."]", "UNDO")
+          LaserLib.Notify(ply, "Model: "..mod, "UNDO")
         else
           LaserLib.ConCommand(ply, "origin")
           LaserLib.ConCommand(ply, "direct")
           LaserLib.ConCommand(ply, "model" , mod)
           LaserLib.ConCommand(ply, "angle" , ang)
-          LaserLib.Notify(ply, "Model(A): "..mod.." ["..ang.."]", "UNDO")
+          LaserLib.Notify(ply, "Model: "..mod.." ["..ang.."]", "UNDO")
         end
       end
     end

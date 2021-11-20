@@ -454,9 +454,9 @@ function LaserLib.VecNegate(vec)
 end
 
 function LaserLib.ToString(tav)
-  local a = tav[1] or tav.x or tav.p
-  local b = tav[2] or tav.y or tav.y
-  local c = tav[3] or tav.z or tav.r
+  local a = tonumber(tav[1] or tav.x or tav.p) or 0
+  local b = tonumber(tav[2] or tav.y or tav.y) or 0
+  local c = tonumber(tav[3] or tav.z or tav.r) or 0
   return DATA.FMVA:format(a, b, c)
 end
 
