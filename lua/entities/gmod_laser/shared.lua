@@ -466,13 +466,14 @@ function ENT:GetHitReports()
 end
 
 --[[
- * Checks whenever the entity beam report hits us (self)
+ * Checks whenever the entity (ent) beam report hits us (self)
  * self > Target entity to be checked
  * ent  > Reporter entity to be checked
- * idx  > Forced index to check. Not mandatory
+ * idx  > Forced index to check for hit report. Not mandatory
+ * bri  > Search from idx as start hit report index. Not mandatory
  * Data is stored in notation: self.hitReports[ID]
 ]]
-function ENT:GetHitSourceID(ent, idx)
+function ENT:GetHitSourceID(ent, idx, bri)
   if(not LaserLib.IsValid(ent)) then return nil end -- Skip
   if(ent == self) then return nil end -- Loop source
   if(not self.hitSources[ent]) then return nil end
@@ -480,10 +481,11 @@ function ENT:GetHitSourceID(ent, idx)
   if(not ent:GetOn()) then return nil end
   local rep = ent:GetHitReports()
   if(not rep) then return nil end
-  if(idx) then local trace, data = ent:GetHitReport(idx)
+  if(idx and not bri) then -- Retrieve the report requested
+    local trace, data = ent:GetHitReport(idx)
     if(trace and trace.Hit and self == trace.Entity) then return idx end
-  else
-    for cnt = 1, rep.Size do local trace, data = ent:GetHitReport(cnt)
+  else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
+    for cnt = anc, rep.Size do local trace, data = ent:GetHitReport(cnt)
       if(trace and trace.Hit and self == trace.Entity) then return cnt end
     end
   end; return nil
@@ -494,7 +496,7 @@ function ENT:SetHitReport(trace, data, index)
     self.hitReports = {Size = 0}
   end; local rep = self.hitReports
   if(not rep) then return self end
-  local idx = LaserLib.GetReportID(index)
+  local idx = (tonumber(index) or 1)
   if(idx >= self.hitReports.Size) then
     self.hitReports.Size = idx end
   local rep = self.hitReports[idx]
@@ -509,15 +511,15 @@ end
 
 function ENT:GetHitReport(index)
   if(not self.hitReports) then return end
-  local idx = LaserLib.GetReportID(index)
+  local idx = (tonumber(index) or 1)
   local rep = self.hitReports[idx]
   if(not rep) then return end
   return rep["TR"], rep["DT"]
 end
 
 --[[
- * Checks for infinite loops when the source `ent`
- * is powered by other generators powered by self
+ * Checks for infinite loops when the source (ent)
+ * is powered by other generators powered by (self)
  * self > The root of the tree propagated
  * ent  > The entity of the source checked
  * set  > Contains the already processed items
@@ -534,7 +536,7 @@ function ENT:IsInfinite(ent, set)
           if(src == self) then return true end
           if(LaserLib.IsUnit(src, 3) and src.hitSources) then -- Class propagades the tree
             if(self:IsInfinite(src, set)) then return true end end
-        end -- Cascadely propagate trough the crystal sources from `self`
+        end -- Cascadely propagate trough the crystal sources from (self)
       end; return false -- The entity does not persists in itself
     else return false end
   else return false end
@@ -542,7 +544,9 @@ end
 
 --[[
  * Processes the sources table for a given entity
- * using a custom local scope function routine
+ * using a custom local scope function routine.
+ * Runs a dedicated routine to define how the
+ * source (ent) affects our (self) behavior.
  * self > Entity base item that is being issued
  * ent  > Entity hit reports getting checked
  * proc > Scope function to process. Arguments:
@@ -552,22 +556,24 @@ end
 ]]
 function ENT:ProcessReports(ent, proc)
   if(not LaserLib.IsValid(ent)) then return false end
-  local idh = self:GetHitSourceID(ent)
-  if(idh) then local idx, siz = idh, ent:GetHitReports().Size
-    while(idx <= siz) do -- First index always hits when present
-      if(idh) then -- When the entity hit report hiys us
-        local trace, data = ent:GetHitReport(idh)
-        local suc, err = pcall(proc, idh, trace, data)
-        if(not suc) then self:Remove(); error(err); return false end
-      end; idx = idx + 1 -- Prepare to process next report
-      idh = self:GetHitSourceID(ent, idx)
+  local idx = self:GetHitSourceID(ent)
+  if(idx) then local siz = ent:GetHitReports().Size
+    while(idx and idx <= siz) do -- First index always hits when present
+      local trace, data = ent:GetHitReport(idx) -- When the report hits us
+      local suc, err = pcall(proc, ent, idx, trace, data) -- Call process
+      if(not suc) then self:Remove(); error(err); return false end
+      idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
     end -- Hit reports are processed for the current entity
-  end; return true
+  else local src = self.hitSources -- The entity hit reports do not hit us (self)
+    if(src) then src[ent] = nil end -- Remove from the list and return control
+  end; return true -- Routine is processed OK so continue
 end
 
 --[[
  * Processes the sources table for all entities
  * using a custom local scope function routine.
+ * Runs the dedicated routines to define how the
+ * sources (ent) affect our (self) behavior.
  * Automatically removes the non related reports
  * self > Entity base item that is being issued
  * proc > Scope function to process. Arguments:
@@ -578,21 +584,11 @@ end
 ]]
 function ENT:ProcessSources(proc)
   if(not self.hitSources) then return false end
-  for ent, hit in pairs(self.hitSources) do
-    if(hit and LaserLib.IsValid(ent)) then
-      local idh = self:GetHitSourceID(ent)
-      if(idh) then local idx, siz = idh, ent:GetHitReports().Size
-        while(idx <= siz) do -- First index always hits when present
-          if(idh) then -- When the entity hit report hiys us
-            local trace, data = ent:GetHitReport(idh)
-            local suc, err = pcall(proc, ent, idh, trace, data)
-            if(not suc) then self:Remove(); error(err); return false end
-          end; idx = idx + 1 -- Prepare to process next report
-          idh = self:GetHitSourceID(ent, idx)
-        end -- Hit reports are processed for the current entity
-      else self.hitSources[ent] = nil end
-    else self.hitSources[ent] = nil end
-  end; return true
+  for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
+    if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
+      self:ProcessReports(ent, proc) -- Process how (ent) hit reports affects us (self)
+    else self.hitSources[ent] = nil end -- Delete the entity when force skipped
+  end; return true -- There are hit reports and all are processed correctly
 end
 
 --[[

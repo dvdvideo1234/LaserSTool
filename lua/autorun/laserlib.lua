@@ -411,12 +411,6 @@ function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   end
 end
 
-function LaserLib.GetReportID(idx)
-  local out = (tonumber(idx) or 1)
-        out = math.floor(out)
-  return math.max(out, 1)
-end
-
 function LaserLib.GetIcon(icon)
   return DATA.ICON:format(tostring(icon or ""))
 end
