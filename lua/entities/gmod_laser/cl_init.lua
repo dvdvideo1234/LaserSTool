@@ -3,6 +3,7 @@ include("shared.lua")
 ENT.RenderGroup = RENDERGROUP_BOTH
 
 local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
+local DRWBMSPD = LaserLib.GetData("DRWBMSPD")
 
 --[[
  * This is actually faster than stuffing all the beams
@@ -70,6 +71,8 @@ function ENT:DrawTrace(data, source)
   -- Material must be cached and pdated with left click setup
   local mat = sent:GetBeamMaterial(true)
   if(mat) then render.SetMaterial(mat) end
+  local spd = DRWBMSPD:GetFloat()
+
   -- Draw the beam sequentially bing faster
   for idx = 2, data.TvPoints.Size do
     local org = data.TvPoints[idx - 1]
@@ -81,16 +84,9 @@ function ENT:DrawTrace(data, source)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
 
     if(org[5]) then
-      -- Draw the actual beam texture
-      local len = (ntx - otx):Length()
-      local dtm = -(15 * CurTime())
-      render.DrawBeam(otx,
-                      ntx,
-                      wdt,
-                      dtm,
-                      (dtm + len / 24),
-                      rgba)
-    end
+      local dtm, len = (spd * CurTime()), ntx:Distance(otx)
+      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, rgba)
+    end -- Draw the actual beam texture
   end
   -- Adjust the render bounds with world-space coordinates
   self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
