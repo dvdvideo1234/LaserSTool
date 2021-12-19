@@ -33,18 +33,13 @@ end
 
 function ENT:InitSources()
   self.hitSize = 0
-  if(CLIENT) then
-    if(not self.hitSources) then
-      self.hitArray   = {} -- Array to output for wiremod
-      self.hitSources = {} -- Sources in notation `[ent] = true`
-    end
+  if(SERVER) then
+    self.hitSources = {} -- Sources in notation `[ent] = true`
+    self:InitArrays("Array")
   else
-    if(self.hitSources) then
-      table.Empty(self.hitArray)
-      table.Empty(self.hitSources)
-    else
-      self.hitArray   = {} -- Array to output for wiremod
+    if(not self.hitSources) then
       self.hitSources = {} -- Sources in notation `[ent] = true`
+      self:InitArrays("Array")
     end
   end
   return self
@@ -83,11 +78,7 @@ function ENT:UpdateSources()
   self:ProcessSources(function(entity, index, trace, data)
     local bdot, mdot = self:GetHitPower(self:GetHitNormal(), trace, data)
     if(trace and trace.Hit and data and bdot) then
-      if(self.hitArray[self.hitSize] ~= entity) then
-        local hitSize = self.hitSize + 1
-        self.hitArray[hitSize] = entity -- Store source
-        self.hitSize = hitSize
-      end
+      self:SetArrays(entity)
       local dir = Vector(trace.HitNormal)
       local vdot = (self:GetBeamDimmer() and mdot or 1)
       local pos = trace.HitPos; LaserLib.VecNegate(dir)
@@ -99,7 +90,7 @@ function ENT:UpdateSources()
     end -- Sources are located in the table hash part
   end); self:RemHitReports(hdx)
 
-  return self:UpdateArrays("hitArray")
+  return self:UpdateArrays()
 end
 
 --[[
@@ -129,10 +120,5 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  if(LaserLib.IsUnit(ent, 2)) then
-    data.BmSource = ent -- Initial stage store laser
-  else -- Make sure we always know which laser is source
-    data.BmSource = sdat.BmSource -- Inherit previous laser
-  end -- Otherwise inherit the laser source from prev stage
-  return trace, data
+  return trace, self:UpdateBeam(data, sdat)
 end

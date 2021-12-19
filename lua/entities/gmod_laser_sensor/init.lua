@@ -9,20 +9,9 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:InitSources()
-  self.hitSize = 0       -- Amount of sources to have
-  if(self.hitSources) then
-    table.Empty(self.hitFront)
-    table.Empty(self.hitLevel)
-    table.Empty(self.hitArray)
-    table.Empty(self.hitIndex)
-    table.Empty(self.hitSources)
-  else
-    self.hitFront   = {} -- Array for surface hit normal
-    self.hitLevel   = {} -- Array for product coefficients
-    self.hitArray   = {} -- Array to output for wiremod
-    self.hitIndex   = {} -- Array of the first index hit
-    self.hitSources = {} -- Sources in notation `[ent] = true`
-  end
+  self.hitSize = 0     -- Amount of sources to have
+  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
 
@@ -117,14 +106,7 @@ function ENT:UpdateSources()
     local norm = self:GetUnitDirection()
     local bdot, mdot = self:GetHitPower(norm, trace, data)
     if(trace and trace.Hit and data) then
-      if(self.hitArray[self.hitSize] ~= entity) then
-        local hitSize = self.hitSize + 1 -- Point to next slot
-        self.hitIndex[hitSize] = index
-        self.hitArray[hitSize] = entity
-        self.hitFront[hitSize] = (bdot and 1 or 0)
-        self.hitLevel[hitSize] = mdot
-        self.hitSize = hitSize
-      end
+      self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
       if(bdot) then
         npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
         width  = width  + data.NvWidth
@@ -212,7 +194,7 @@ function ENT:UpdateSources()
     self:WireWrite("Dominant", domsrc)
   end
 
-  return self:UpdateArrays("hitArray", "hitFront", "hitLevel", "hitIndex")
+  return self:UpdateArrays()
 end
 
 function ENT:Think()
@@ -221,17 +203,17 @@ function ENT:Think()
   if(self:GetOn()) then
     self:WireWrite("On", 1)
     self:WireWrite("Count", self.hitSize)
-    self:WireWrite("Array", self.hitArray)
-    self:WireWrite("Front", self.hitFront)
-    self:WireWrite("Index", self.hitIndex)
-    self:WireWrite("Level", self.hitLevel)
+    for idx = 1, self.hitSetup.Size do
+      local set = self.hitSetup[idx]
+      self:WireWrite(set.Out, self[set.Key])
+    end
   else
     self:WireWrite("On", 0)
     self:WireWrite("Count", 0)
-    self:WireWrite("Array")
-    self:WireWrite("Front")
-    self:WireWrite("Index")
-    self:WireWrite("Level")
+    for idx = 1, self.hitSetup.Size do
+      local set = self.hitSetup[idx]
+      self:WireWrite(set.Out)
+    end
   end
 
   self:NextThink(CurTime())

@@ -584,20 +584,73 @@ function ENT:ProcessSources(proc)
 end
 
 --[[
+ * Initializes array definitions and createsa a list
+]]
+function ENT:InitArrays(...)
+  local arg = {...}
+  local num = #arg
+  if(num <= 0) then return self end
+  self.hitSetup = {Size = num}
+  for idx = 1, num do local nam = arg[idx]
+    local key = "hit"..nam; self[key] = {}
+    self.hitSetup[idx] = {Out = nam, Key = key}
+  end; return self
+end
+
+--[[
  * Clears the output arrays according to the hit size
  * Removes the residual elements from wire ouputs
 ]]
-function ENT:UpdateArrays(...)
+function ENT:UpdateArrays()
+  local set = self.hitSetup
+  if(not set) then return self end
   local cnt = (tonumber(self.hitSize) or 0)
-  local set = {...}; cnt = (cnt + 1)
-  for idx = 1, #set do
-    local nam = set[idx]
-    local arr = self[nam]
-    if(arr) then -- Wipe the rest until empty
-      while(arr[cnt]) do -- Table end check
-        arr[cnt] = nil -- Wipe cirrent item
-        cnt = (cnt + 1) -- Go to next one
+  for idx = 1, set.Size do
+    local key = set[idx].Key
+    if(key and self[key]) then
+      local arr, idv = self[key], (cnt + 1)
+      while(arr[idv]) do -- Table end check
+        arr[idv] = nil -- Wipe cirrent item
+        idv = (idv + 1) -- Go to next one
       end
     end
   end; return self
+end
+
+--[[
+ * Registers the argument values in the setup arrays
+]]
+function ENT:SetArrays(...)
+  local set = self.hitSetup
+  if(not set) then return self end
+  local cnt = (tonumber(self.hitSize) or 0)
+  local key = set[1].Key
+  if(key and self[key]) then
+    local arg = {...}
+    local ent, arr = arg[1], self[key]
+    if(cnt > 0 and arr[cnt] == ent) then return self end
+    cnt = (cnt + 1)
+    for idx = 1, set.Size do
+      local key = set[idx].Key
+      local val = arg[idx]
+      if(key and self[key]) then
+        self[key][cnt] = val
+      end
+    end
+    self.hitSize = cnt
+  end; return self
+end
+
+--[[
+ * Updates beam the data according to the source entity
+ * data > Data to be updated currently ( mandatory )
+ * sdat > Beam data from the previous stage
+]]
+function ENT:UpdateBeam(data, sdat)
+  if(LaserLib.IsUnit(self, 2)) then -- When actual source
+    data.BmSource = self -- Initial stage store source
+  else -- Make sure we always know which entity is source
+    data.BmSource = sdat.BmSource -- Inherit previous source
+  end -- Otherwise inherit the source from previos stage
+  return data -- The routine will always succeed
 end

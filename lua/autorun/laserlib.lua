@@ -71,12 +71,13 @@ DATA.TCUST = {
 
 -- The default key in a collection point to take when not found
 DATA.KEYD = "#"
+-- The all key in a collection point to return the all in set
 DATA.KEYA = "*"
 
 DATA.CLS = {
   -- Classes existing in the hash part have their own beam handling
   -- Class hashes and flags tha are checked by `IsUnit` function
-  -- Class hashes enabled for creating hit reports via `SetHitReport`
+  -- Class hashes are enabled for creating hit reports via `SetHitReport`
   -- [1] Can the entity be considered and actual beam source
   -- [2] Does the entity have the inherited editable laser properties
   -- [3] Should the entity be checked for infinite loop sources
@@ -1129,7 +1130,7 @@ DATA.ACTOR = {
 
 --[[
  * Traces a laser beam from the entity provided
- * entity > Entity origin to the beam ( laser or crystal )
+ * entity > Entity origin of the beam ( laser )
  * origin > Inititial ray world position vector
  * direct > Inititial ray world direction vector
  * length > Total beam length to be traced

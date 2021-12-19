@@ -9,14 +9,9 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:InitSources()
-  self.hitSize = 0       -- Amount of sources to have
-  if(self.hitSources) then
-    table.Empty(self.hitSources)
-    table.Empty(self.hitArray)
-  else
-    self.hitSources = {} -- Sources in notation `[ent] = true`
-    self.hitArray   = {} -- Array to output for wiremod
-  end
+  self.hitSize = 0     -- Amount of sources to have
+  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self:InitArrays("Array")
   return self
 end
 
@@ -98,10 +93,7 @@ function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
   self:ProcessSources(function(entity, index, trace, data)
     if(trace and trace.Hit and data) then
-      if(self.hitArray[self.hitSize] ~= entity) then
-        self.hitSize = self.hitSize + 1
-        self.hitArray[self.hitSize] = entity
-      end
+      self:SetArrays(entity)
       npower = LaserLib.GetPower(data.NvWidth,
                                  data.NvDamage)
       if(not self:IsInfinite(entity)) then
@@ -152,7 +144,7 @@ function ENT:UpdateSources()
     self:RemHitReports()
   end
 
-  return self:UpdateArrays("hitArray")
+  return self:UpdateArrays()
 end
 
 function ENT:Think()
