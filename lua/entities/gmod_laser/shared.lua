@@ -572,19 +572,23 @@ end
  *      > index  > Hit report active index
  *      > trace  > Hit report active trace
  *      > data   > Hit report active data
+ * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
 function ENT:ProcessSources(proc)
   if(not self.hitSources) then return false end
   for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
     if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
-      -- Process how `ent` hit reports affects us `self`. Remove when no hits
-      if(not self:ProcessReports(ent, proc)) then self.hitSources[ent] = nil end
+      if(not self:ProcessReports(ent, proc)) then -- Are there any procesed sources
+        self.hitSources[ent] = nil -- Remove the netity from the list
+      end -- Check when there is any hit report that is processed correctly
     else self.hitSources[ent] = nil end -- Delete the entity when force skipped
   end; return true -- There are hit reports and all are processed correctly
 end
 
 --[[
  * Initializes array definitions and createsa a list
+ * that is derived from the string arguments.
+ * This will create arays in notation `self.hit%NAME`
 ]]
 function ENT:InitArrays(...)
   local arg = {...}
@@ -600,6 +604,7 @@ end
 --[[
  * Clears the output arrays according to the hit size
  * Removes the residual elements from wire ouputs
+ * Desidned to be called at the end of sources process
 ]]
 function ENT:UpdateArrays()
   local set = self.hitSetup
@@ -619,6 +624,8 @@ end
 
 --[[
  * Registers the argument values in the setup arrays
+ * The argument order must be the same as initialization
+ * The first array must always hold valid source entities
 ]]
 function ENT:SetArrays(...)
   local set = self.hitSetup

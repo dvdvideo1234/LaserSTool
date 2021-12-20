@@ -199,5 +199,5 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, self:UpdateBeam(data, sdat)
+  return trace, ent:UpdateBeam(data, sdat)
 end
