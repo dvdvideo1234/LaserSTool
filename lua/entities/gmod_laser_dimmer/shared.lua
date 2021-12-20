@@ -32,27 +32,15 @@ end
 
 function ENT:InitSources()
   self.hitSize = 0
-  if(CLIENT) then
-    if(not self.hitSources) then
-      self.hitArray   = {} -- Array to output for wiremod
-      self.hitSources = {} -- Sources in notation `[ent] = true`
-    end
+  if(SERVER) then
+    self.hitSources = {}
+    self:InitArrays("Array")
   else
-    if(self.hitSources) then
-      table.Empty(self.hitFront)
-      table.Empty(self.hitLevel)
-      table.Empty(self.hitArray)
-      table.Empty(self.hitIndex)
-      table.Empty(self.hitSources)
-    else
-      self.hitFront   = {} -- Array for surface hit normal
-      self.hitLevel   = {} -- Array for product coefficients
-      self.hitArray   = {} -- Array to output for wiremod
-      self.hitIndex   = {} -- Array of the first index hit
-      self.hitSources = {} -- Sources in notation `[ent] = true`
+    if(not self.hitSources) then
+      self.hitSources = {}
+      self:InitArrays("Array", "Index", "Level", "Front")
     end
-  end
-  return self
+  end; return self
 end
 
 function ENT:GetHitNormal()
@@ -88,15 +76,10 @@ function ENT:UpdateSources()
   self:ProcessSources(function(entity, index, trace, data)
     local bdot, mdot = self:GetHitPower(self:GetHitNormal(), trace, data)
     if(trace and trace.Hit and data and bdot) then
-      if(self.hitArray[self.hitSize] ~= entity) then
-        local hitSize = self.hitSize + 1
-        self.hitArray[hitSize] = entity -- Store source
-        if(SERVER) then
-          self.hitIndex[hitSize] = index -- Store index
-          self.hitLevel[hitSize] = mdot -- Store source
-          self.hitFront[hitSize] = (bdot and 1 or 0)
-        end
-        self.hitSize = hitSize
+      if(SERVER) then
+        self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
+      else
+        self:SetArrays(entity)
       end
       local vdot = (self:GetBeamReplicate() and 1 or mdot)
       if(CLIENT) then
@@ -107,7 +90,7 @@ function ENT:UpdateSources()
     end -- Sources are located in the table hash part
   end); self:RemHitReports(hdx)
 
-  return self:UpdateArrays("hitArray", "hitLevel", "hitFront", "hitIndex")
+  return self:UpdateArrays()
 end
 
 --[[
@@ -137,10 +120,5 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  if(LaserLib.IsUnit(ent, 2)) then
-    data.BmSource = ent -- Initial stage store laser
-  else -- Make sure we always know which laser is source
-    data.BmSource = sdat.BmSource -- Inherit previous laser
-  end -- Otherwise inherit the laser source from prev stage
-  return trace, data
+  return trace, ent:UpdateBeam(data, sdat)
 end

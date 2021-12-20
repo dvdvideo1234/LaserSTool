@@ -102,17 +102,17 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:WireWrite("Count", self.hitSize)
-    self:WireWrite("Array", self.hitArray)
-    self:WireWrite("Front", self.hitFront)
-    self:WireWrite("Index", self.hitIndex)
-    self:WireWrite("Level", self.hitLevel)
+    for idx = 1, self.hitSetup.Size do
+      local set = self.hitSetup[idx]
+      self:WireWrite(set.Out, self[set.Key])
+    end
   else
     self:RemHitReports()
     self:WireWrite("Count", 0)
-    self:WireWrite("Array")
-    self:WireWrite("Front")
-    self:WireWrite("Index")
-    self:WireWrite("Level")
+    for idx = 1, self.hitSetup.Size do
+      local set = self.hitSetup[idx]
+      self:WireWrite(set.Out)
+    end
   end
 
   self:NextThink(CurTime())

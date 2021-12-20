@@ -9,11 +9,7 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:InitSources()
-  if(self.hitSources) then
-    table.Empty(self.hitSources)
-  else
-    self.hitSources = {} -- Sources in notation `[ent] = true`
-  end
+  self.hitSources = {} -- Sources in notation `[ent] = true`
   return self
 end
 
