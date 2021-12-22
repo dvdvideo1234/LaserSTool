@@ -16,7 +16,6 @@ set gmadCommits=https://github.com/dvdvideo1234/%gmadName%/commit/
 set gmadPathGIT=D:\Git\bin
 set gmadBinPath=F:\Games\Steam\steamapps\common\GarrysMod\bin
 set gmadADTools=%gmadRevPath%data\laseremitter\tools
-set "gmadTime=%date% %time%"
 set gmadID=2546685571
 set gmadDirs=(lua materials models)
 set gmadLogs=
@@ -54,9 +53,9 @@ call !gmadBinPath!\gmad.exe create -folder "!gmadRevPath!Workshop\!gmadName!" -o
 set /p gmadGitHEAD=<!gmadNameLOG!
 
 :: Obtain the log message from the latest revision
-echo !gmadTime!>!gmadNameLOG!
-echo.>>!gmadNameLOG!
-echo !gmadCommits!!gmadGitHEAD!>>!gmadNameLOG!
+echo %date% %time% > !gmadNameLOG!
+echo. >> !gmadNameLOG!
+echo !gmadCommits!!gmadGitHEAD! >> !gmadNameLOG!
 echo. >> !gmadNameLOG!
 
 !gmadPathGIT!\git.exe log -1 --pretty=%%B>>!gmadNameLOG!
@@ -91,13 +90,12 @@ IF DEFINED gmadID (
 :: Tell the user we are done and clean-up the directory
 
 echo.
-rd /S /Q !gmadRevPath!Workshop
-
 echo !gmadName! Published !
 echo.
 timeout 500
 
 :: Give a chance to copy the logs
 del !gmadRevPath!!gmadNameLOG!
+rd /S /Q !gmadRevPath!Workshop
 
 exit 0
