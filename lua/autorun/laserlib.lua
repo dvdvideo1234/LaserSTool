@@ -331,6 +331,7 @@ end
 function LaserLib.Clear(arr, idx)
   if(not arr) then return end
   local idx = math.floor(tonumber(idx) or 1)
+  if(idx <= 0) then return end
   while(arr[idx]) do idx, arr[idx] = (idx + 1) end
 end
 
