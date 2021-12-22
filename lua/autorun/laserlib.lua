@@ -76,7 +76,7 @@ DATA.KEYA = "*"
 
 DATA.CLS = {
   -- Classes existing in the hash part have their own beam handling
-  -- Class hashes and flags tha are checked by `IsUnit` function
+  -- Class hashes and flags that are checked by `IsUnit` function
   -- Class hashes are enabled for creating hit reports via `SetHitReport`
   -- [1] Can the entity be considered and actual beam source
   -- [2] Does the entity have the inherited editable laser properties
@@ -94,13 +94,13 @@ DATA.CLS = {
   -- [3] Extension for variable name indices
   {"gmod_laser"          , nil        , nil      }, -- Laser entity calss
   {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class
-  {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class
+  {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
   {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter
   {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider
   {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor
   {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide
   {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy
-  {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal
+  {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
   {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel
 }
 
@@ -326,6 +326,12 @@ end
 
 function LaserLib.GetSign(arg)
   return arg / math.abs(arg)
+end
+
+function LaserLib.Clear(arr, idx)
+  if(not arr) then return end
+  local idx = math.floor(tonumber(idx) or 1)
+  while(arr[idx]) do idx, arr[idx] = (idx + 1) end
 end
 
 -- Validates entity or physics object

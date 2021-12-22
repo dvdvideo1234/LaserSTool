@@ -103,17 +103,12 @@ function ENT:Think()
     self:SetOn(true)
   else
     self:SetOn(false)
+    self:RemHitReports()
   end
 
-  if(self:GetOn()) then
-    self:WireWrite("Array", self.hitArray)
-    self:WireWrite("Count", self.hitSize)
-  else
-    self:RemHitReports()
-    self:WireWrite("Array")
-    self:WireWrite("Count", 0)
-  end
+  self:WireArrays()
 
   self:NextThink(CurTime())
+
   return true
 end

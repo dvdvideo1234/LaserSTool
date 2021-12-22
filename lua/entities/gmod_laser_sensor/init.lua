@@ -156,11 +156,25 @@ function ENT:UpdateSources()
       if((mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
          (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
          (mlength == 0 or (mlength > 0 and length >= mlength)) and
-         (mdamage == 0 or (mdamage > 0 and damage >= mdamage)) and
-         (zorigin or (not zorigin and morigin:Distance(origin) >= mlength)) and
-         (zdirect or (not zdirect and normh > 0))) then
-        self:SetOn(true)
-      else
+         (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
+        if(self:GetIsBeamDominant()) then -- Compare dominant data
+          local mdistyp = self:GetDissolveType()
+          local mmatera = self:GetInBeamMaterial()
+          local ddistyp = domsrc:GetDissolveType()
+          local dmatera = domsrc:GetInBeamMaterial()
+          if((zorigin or (not zorigin and morigin:Distance(origin) >= mlength)) and
+             (zdirect or (not zdirect and normh > 0)) and
+             (mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
+             (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp))
+          ) then -- Dominant beam is like sensor beam
+            self:SetOn(true)
+          else -- Dominant beam is not like sensor beam
+            self:SetOn(false)
+          end
+        else -- Dominant comparison is not enabled
+          self:SetOn(true)
+        end
+      else -- Cannot match main beam components
         self:SetOn(false)
       end
     else
@@ -202,19 +216,11 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:WireWrite("On", 1)
-    self:WireWrite("Count", self.hitSize)
-    for idx = 1, self.hitSetup.Size do
-      local set = self.hitSetup[idx]
-      self:WireWrite(set.Out, self[set.Key])
-    end
   else
     self:WireWrite("On", 0)
-    self:WireWrite("Count", 0)
-    for idx = 1, self.hitSetup.Size do
-      local set = self.hitSetup[idx]
-      self:WireWrite(set.Out)
-    end
   end
+
+  self:WireArrays()
 
   self:NextThink(CurTime())
 

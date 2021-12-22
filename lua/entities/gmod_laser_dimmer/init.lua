@@ -98,23 +98,12 @@ function ENT:Think()
     self:SetOn(true)
   else
     self:SetOn(false)
+    self:RemHitReports()
   end
 
-  if(self:GetOn()) then
-    self:WireWrite("Count", self.hitSize)
-    for idx = 1, self.hitSetup.Size do
-      local set = self.hitSetup[idx]
-      self:WireWrite(set.Out, self[set.Key])
-    end
-  else
-    self:RemHitReports()
-    self:WireWrite("Count", 0)
-    for idx = 1, self.hitSetup.Size do
-      local set = self.hitSetup[idx]
-      self:WireWrite(set.Out)
-    end
-  end
+  self:WireArrays()
 
   self:NextThink(CurTime())
+
   return true
 end

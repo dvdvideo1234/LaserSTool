@@ -34,11 +34,11 @@ function ENT:InitSources()
   self.hitSize = 0
   if(SERVER) then
     self.hitSources = {}
-    self:InitArrays("Array")
+    self:InitArrays("Array", "Index", "Level", "Front")
   else
     if(not self.hitSources) then
       self.hitSources = {}
-      self:InitArrays("Array", "Index", "Level", "Front")
+      self:InitArrays("Array")
     end
   end; return self
 end

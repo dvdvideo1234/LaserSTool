@@ -188,8 +188,8 @@ function ENT:Think()
     self:WireWrite("Dominant")
   end
 
-  self:WireWrite("Array", self.hitArray)
-  self:WireWrite("Count", self.hitSize)
+  self:WireArrays()
+
   self:NextThink(CurTime())
 
   return true

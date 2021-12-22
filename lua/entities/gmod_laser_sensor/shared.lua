@@ -14,6 +14,7 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
   self:SetupSourceDataTables()
+  self:EditableSetBool("IsBeamDominant", "Internals")
   self:EditableRemoveOrderInfo()
 end
 

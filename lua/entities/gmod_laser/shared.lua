@@ -521,12 +521,12 @@ function ENT:IsInfinite(ent, set)
   if(LaserLib.IsValid(ent)) then
     if(set[ent]) then return false end
     if(ent == self) then return true else set[ent] = true end
-    if(LaserLib.IsUnit(ent, 3) and ent.hitSources) then
+    if(LaserLib.IsUnit(ent, 1) and ent.hitSources) then
       for src, stat in pairs(ent.hitSources) do
         -- Other hits and we are in its sources
         if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
           if(src == self) then return true end
-          if(LaserLib.IsUnit(src, 3) and src.hitSources) then -- Class propagades the tree
+          if(LaserLib.IsUnit(src, 1) and src.hitSources) then -- Class propagades the tree
             if(self:IsInfinite(src, set)) then return true end end
         end -- Cascadely propagate trough the crystal sources from `self`
       end; return false -- The entity does not persists in itself
@@ -589,6 +589,7 @@ end
  * Initializes array definitions and createsa a list
  * that is derived from the string arguments.
  * This will create arays in notation `self.hit%NAME`
+ * Pass `false` as name to skip the wire output
 ]]
 function ENT:InitArrays(...)
   local arg = {...}
@@ -596,8 +597,7 @@ function ENT:InitArrays(...)
   if(num <= 0) then return self end
   self.hitSetup = {Size = num}
   for idx = 1, num do local nam = arg[idx]
-    local key = "hit"..nam; self[key] = {}
-    self.hitSetup[idx] = {Out = nam, Key = key}
+    self.hitSetup[idx] = {Name = nam, Data = {}}
   end; return self
 end
 
@@ -609,15 +609,11 @@ end
 function ENT:UpdateArrays()
   local set = self.hitSetup
   if(not set) then return self end
-  local cnt = (tonumber(self.hitSize) or 0)
-  for idx = 1, set.Size do
-    local key = set[idx].Key
-    if(key and self[key]) then
-      local arr, idv = self[key], (cnt + 1)
-      while(arr[idv]) do -- Table end check
-        arr[idv] = nil -- Wipe cirrent item
-        idv = (idv + 1) -- Go to next one
-      end
+  local idx = (tonumber(self.hitSize) or 0) + 1
+  for cnt = 1, set.Size do
+    local arr = set[cnt]
+    if(arr and arr.Data) then
+      LaserLib.Clear(arr.Data, idx)
     end
   end; return self
 end
@@ -630,21 +626,31 @@ end
 function ENT:SetArrays(...)
   local set = self.hitSetup
   if(not set) then return self end
-  local cnt = (tonumber(self.hitSize) or 0)
-  local key = set[1].Key
-  if(key and self[key]) then
-    local arg = {...}
-    local ent, arr = arg[1], self[key]
-    if(cnt > 0 and arr[cnt] == ent) then return self end
-    cnt = (cnt + 1)
-    for idx = 1, set.Size do
-      local key = set[idx].Key
-      local val = arg[idx]
-      if(key and self[key]) then
-        self[key][cnt] = val
-      end
-    end
-    self.hitSize = cnt
+  local idx = (tonumber(self.hitSize) or 0)
+  local arr, arg = set[1].Data, {...}
+  if(not arr) then return self end
+  if(idx > 0 and arr[idx] == arg[1]) then return self end
+  idx = idx + 1 -- Entity is different so increment
+  for cnt = 1, set.Size do -- Copy values to arrays
+    arr = set[cnt].Data
+    arr[idx] = arg[cnt]
+  end; self.hitSize = idx
+  return self
+end
+
+--[[
+ * Triggers all the dedicated data arrays in one call
+]]
+function ENT:WireArrays()
+  if(not SERVER) then return self end
+  local set = self.hitSetup
+  if(not set) then return self end
+  local idx = (tonumber(self.hitSize) or 0)
+  self:WireWrite("Count", idx)
+  for cnt = 1, set.Size do -- Copy values to arrays
+    local nam = set[cnt].Name
+    local arr = (idx > 0 and set[cnt].Data or nil)
+    if(nam) then self:WireWrite(nam, arr) end
   end; return self
 end
 
