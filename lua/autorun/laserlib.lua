@@ -41,6 +41,7 @@ DATA.TOLD = SysTime()       -- Reduce debug function calls
 DATA.RNDB = 3               -- Decimals beam round for visibility check
 DATA.KWID = 5               -- Width coefficient used to calculate power
 DATA.CLMX = 255             -- Maximum value for valid coloring
+DATA.CTOL = 0.01            -- Color vectors and alpha comparison tolerance
 DATA.NUGE = 0.1             -- Nuge amount for vectors to continue tracing
 DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
@@ -80,15 +81,14 @@ DATA.CLS = {
   -- Class hashes are enabled for creating hit reports via `SetHitReport`
   -- [1] Can the entity be considered and actual beam source
   -- [2] Does the entity have the inherited editable laser properties
-  -- [3] Should the entity be checked for infinite loop sources
-  ["gmod_laser"          ] = {true , true , false},
-  ["gmod_laser_crystal"  ] = {true , true , true },
-  ["gmod_laser_splitter" ] = {true , true , true },
-  ["gmod_laser_divider"  ] = {true , false, false},
-  ["gmod_laser_sensor"   ] = {false, true , false},
-  ["gmod_laser_dimmer"   ] = {true , false, false},
-  ["gmod_laser_splitterm"] = {true , false, false},
-  ["gmod_laser_parallel" ] = {true , false, false},
+  ["gmod_laser"          ] = {true , true },
+  ["gmod_laser_crystal"  ] = {true , true },
+  ["gmod_laser_splitter" ] = {true , true },
+  ["gmod_laser_divider"  ] = {true , false},
+  ["gmod_laser_sensor"   ] = {false, false},
+  ["gmod_laser_dimmer"   ] = {true , false},
+  ["gmod_laser_splitterm"] = {true , false},
+  ["gmod_laser_parallel" ] = {true , false},
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
@@ -1478,6 +1478,15 @@ function LaserLib.ComboBoxString(panel, convar, nameset)
 end
 
 -- https://github.com/Facepunch/garrysmod/tree/master/garrysmod/resource/localization/en
+function LaserLib.SetupComboBools()
+  if(SERVER) then return end
+
+  table.Empty(list.GetForEdit("LaserEmitterComboBools"))
+  list.Set("LaserEmitterComboBools", "Empty", 0)
+  list.Set("LaserEmitterComboBools", "False", 1)
+  list.Set("LaserEmitterComboBools", "True" , 2)
+end
+
 function LaserLib.SetupMaterials()
   if(SERVER) then return end
 

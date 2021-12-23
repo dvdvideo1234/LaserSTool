@@ -34,7 +34,7 @@ function ENT:InitSources()
   self.hitSize = 0
   if(SERVER) then
     self.hitSources = {}
-    self:InitArrays("Array", "Index", "Level", "Front")
+    self:InitArrays("Array")
   else
     if(not self.hitSources) then
       self.hitSources = {}
@@ -76,11 +76,7 @@ function ENT:UpdateSources()
   self:ProcessSources(function(entity, index, trace, data)
     local bdot, mdot = self:GetHitPower(self:GetHitNormal(), trace, data)
     if(trace and trace.Hit and data and bdot) then
-      if(SERVER) then
-        self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
-      else
-        self:SetArrays(entity)
-      end
+      self:SetArrays(entity)
       local vdot = (self:GetBeamReplicate() and 1 or mdot)
       if(CLIENT) then
         hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx)

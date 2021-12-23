@@ -203,6 +203,7 @@ TOOL.ClientConVar =
 
 LaserLib.SetupModels()
 LaserLib.SetupMaterials()
+LaserLib.SetupComboBools()
 LaserLib.SetupSoundEffects()
 LaserLib.SetupDissolveTypes()
 

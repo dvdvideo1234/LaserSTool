@@ -59,6 +59,24 @@ function ENT:EditableSetFloat(name, catg, min, max)
     }}); return self
 end
 
+function ENT:EditableSetFloatCombo(name, catg, vals, key)
+  local set = vals -- Use provided values unless a table
+  local typ, ord, id = self:EditableGetOrderID("Float")
+  if(key) then set = {} -- Allocate
+    for k, v in pairs(vals) do
+      set[k] = v[key] -- Populate values
+    end -- Produce proper key-value pairs
+  end -- When list value is a table
+  self:NetworkVar(typ, id, name, {
+    KeyName = name:lower(),
+    Edit = {
+      category = catg,
+      order    = ord,
+      type     = "Combo",
+      values   = set
+    }}); return self
+end
+
 function ENT:EditableSetInt(name, catg, min, max)
   local typ, ord, id = self:EditableGetOrderID("Int")
   self:NetworkVar(typ, id, name, {
@@ -69,6 +87,24 @@ function ENT:EditableSetInt(name, catg, min, max)
       type     = typ,
       min      = (tonumber(min) or -100),
       max      = (tonumber(max) or  100)
+    }}); return self
+end
+
+function ENT:EditableSetIntCombo(name, catg, vals, key)
+  local set = vals -- Use provided values unless a table
+  local typ, ord, id = self:EditableGetOrderID("Int")
+  if(key) then set = {} -- Allocate
+    for k, v in pairs(vals) do
+      set[k] = v[key] -- Populate values
+    end -- Produce proper key-value pairs
+  end -- When list value is a table
+  self:NetworkVar(typ, id, name, {
+    KeyName = name:lower(),
+    Edit = {
+      category = catg,
+      order    = ord,
+      type     = "Combo",
+      values   = set
     }}); return self
 end
 
@@ -85,11 +121,11 @@ function ENT:EditableSetStringGeneric(name, catg, enter)
 end
 
 function ENT:EditableSetStringCombo(name, catg, vals, key)
-  local val = vals -- Use provided values unless a table
+  local set = vals -- Use provided values unless a table
   local typ, ord, id = self:EditableGetOrderID("String")
-  if(key) then val = {} -- Allocate
+  if(key) then set = {} -- Allocate
     for k, v in pairs(vals) do
-      val[k] = v[key] -- Populate values
+      set[k] = v[key] -- Populate values
     end -- Produce proper key-value pairs
   end -- When list value is a table
   self:NetworkVar(typ, id, name, {
@@ -98,6 +134,6 @@ function ENT:EditableSetStringCombo(name, catg, vals, key)
       category = catg,
       order    = ord,
       type     = "Combo",
-      values   = val
+      values   = set
     }}); return self
 end

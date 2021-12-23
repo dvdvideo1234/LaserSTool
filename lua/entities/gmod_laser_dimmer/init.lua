@@ -12,14 +12,11 @@ function ENT:Initialize()
   self:WireCreateInputs(
     {"Normal"  , "VECTOR", "Dimmer surface normal"}
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Dimmer working state"       },
-    {"Normal"  , "VECTOR", "Dimmer surface normal"      },
-    {"Entity"  , "ENTITY", "Dimmer entity itself"       },
-    {"Count"   , "NORMAL", "Dimmer beam count"          },
-    {"Array"   , "ARRAY" , "Dimmer sources array"       },
-    {"Level"   , "ARRAY" , "Dimmer power level array"   },
-    {"Index"   , "ARRAY" , "Dimmer first hit beam index"},
-    {"Front"   , "ARRAY" , "Dimmer frontal hit array"   }
+    {"On"      , "NORMAL", "Dimmer working state" },
+    {"Normal"  , "VECTOR", "Dimmer surface normal"},
+    {"Entity"  , "ENTITY", "Dimmer entity itself" },
+    {"Count"   , "NORMAL", "Dimmer beam count"    },
+    {"Array"   , "ARRAY" , "Dimmer sources array" }
   )
 
   self:InitSources()

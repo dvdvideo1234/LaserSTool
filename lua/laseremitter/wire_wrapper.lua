@@ -166,7 +166,7 @@ end
             self:WirePostEntityPaste(player, entity, created) end
  * ply > The player calling the routune
  * ent > The entity being post-pasted
- * cre > The created entitest list
+ * cre > The created entities list after paste
 ]]
 function ENT:WirePostEntityPaste(ply, ent, cre)
   if(not WireLib) then return self end

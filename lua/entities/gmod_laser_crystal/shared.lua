@@ -11,6 +11,11 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
+function ENT:SetupDataTables()
+  self:SetupSourceDataTables()
+  self:EditableRemoveOrderInfo()
+end
+
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local direct = Vector(0,0,1) -- Local Direction
