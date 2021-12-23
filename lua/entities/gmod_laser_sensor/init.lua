@@ -174,8 +174,8 @@ function ENT:UpdateSources()
           local mrefrac = self:GetRefractRatio()
           local mdistyp = self:GetDissolveType()
           local mendeff = self:GetEndingEffect()
-          local mmatera = self:GetInBeamMaterial()
-          local movrmat = self:GetInNonOverMater()
+          local mmatera = self:SetBeamMaterial()
+          local movrmat = self:GetNonOverMater()
           local mcomcor, mcoe = self:GetCompareBeamColor()
           -- Dominant configurations ( booleans have true/false )
           local dfcentr = domsrc:GetForceCenter() and 2 or 1
@@ -183,8 +183,8 @@ function ENT:UpdateSources()
           local drefrac = domsrc:GetRefractRatio() and 2 or 1
           local ddistyp = domsrc:GetDissolveType()
           local dendeff = domsrc:GetEndingEffect() and 2 or 1
-          local dmatera = domsrc:GetInBeamMaterial()
-          local dovrmat = domsrc:GetInNonOverMater() and 2 or 1
+          local dmatera = domsrc:SetBeamMaterial()
+          local dovrmat = domsrc:GetNonOverMater() and 2 or 1
           if(mcomcor) then -- Dominant beam color compare enabled
             local margin = LaserLib.GetData("CTOL")
             local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
