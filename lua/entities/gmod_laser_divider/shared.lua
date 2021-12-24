@@ -81,19 +81,26 @@ end
 
 function ENT:UpdateSources()
   local hdx = 0; self.hitSize = 0 -- Add sources in array
-  self:ProcessSources(function(entity, index, trace, data)
-    if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
-      self:SetArrays(entity)
-      local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
-      if(CLIENT) then
-        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
-        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
-      else
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
-      end
-    end -- Sources are located in the table hash part
-  end); self:RemHitReports(hdx)
+
+  if(not self.hitAction) then
+    self.hitAction = function(entity, index, trace, data)
+      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+        self:SetArrays(entity)
+        local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
+        if(CLIENT) then
+          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
+          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
+        else
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
+        end
+      end -- Sources are located in the table hash part
+    end
+  end
+
+  self:ProcessSources()
+  self:RemHitReports(hdx)
+
   return self:UpdateArrays()
 end
 

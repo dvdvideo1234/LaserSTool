@@ -85,16 +85,21 @@ end
 
 function ENT:UpdateSources()
   local opower, report, doment, domsrc
-  self:ProcessSources(function(entity, index, trace, data)
-    if(trace and trace.Hit and data) then
-      local npower = LaserLib.GetPower(data.NvWidth,
-                                       data.NvDamage)
-      if(not opower or npower >= opower) then
-        opower, report = npower, index
-        doment, domsrc = entity, data.BmSource
+
+  if(not self.hitAction) then
+    self.hitAction = function(entity, index, trace, data)
+      if(trace and trace.Hit and data) then
+        local npower = LaserLib.GetPower(data.NvWidth,
+                                         data.NvDamage)
+        if(not opower or npower >= opower) then
+          opower, report = npower, index
+          doment, domsrc = entity, data.BmSource
+        end
       end
     end
-  end)
+  end
+
+  self:ProcessSources()
 
   if(not LaserLib.IsValid(doment)) then return nil end
   if(not LaserLib.IsValid(domsrc)) then return nil end

@@ -575,6 +575,8 @@ end
  * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
 function ENT:ProcessSources(proc)
+  local proc = (proc or self.hitAction)
+  if(not proc) then return false end
   if(not self.hitSources) then return false end
   for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
     if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list

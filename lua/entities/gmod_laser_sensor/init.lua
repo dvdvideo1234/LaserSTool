@@ -99,38 +99,38 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:UpdateSources()
-  local normh , normm , domsrc = 0, 0
-  local bmrefl, bmrefr, novrmt = 0, 0, 0
+  local normh , domsrc
   local opower, npower, force  = 0, 0, 0
   local width , length, damage = 0, 0, 0
   local origin, direct = Vector(), Vector()
 
   self.hitSize = 0
-  self:ProcessSources(function(entity, index, trace, data)
-    local norm = self:GetUnitDirection()
-    local bdot, mdot = self:GetHitPower(norm, trace, data)
-    if(trace and trace.Hit and data) then
-      self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
-      if(bdot) then
-        npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-        width  = width  + data.NvWidth
-        damage = damage + data.NvDamage
-        force  = force  + data.NvForce
-        if(npower > opower) then
-          normm  = mdot
-          opower = npower
-          domsrc = data.BmSource
-          length = data.NvLength
-          origin:Set(data.VrOrigin)
-          direct:Set(data.VrDirect)
-          normh  = (bdot and 1 or 0)
-          bmrefl = (data.BrReflec and 1 or 0)
-          bmrefr = (data.BrRefrac and 1 or 0)
-          novrmt = (data.BmNoover and 1 or 0)
+
+  if(not self.hitAction) then
+    self.hitAction = function(entity, index, trace, data)
+      local norm = self:GetUnitDirection()
+      local bdot, mdot = self:GetHitPower(norm, trace, data)
+      if(trace and trace.Hit and data) then
+        self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
+        if(bdot) then
+          npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
+          width  = width  + data.NvWidth
+          damage = damage + data.NvDamage
+          force  = force  + data.NvForce
+          if(npower > opower) then
+            opower = npower
+            domsrc = data.BmSource
+            length = data.NvLength
+            origin:Set(data.VrOrigin)
+            direct:Set(data.VrDirect)
+            normh  = (bdot and 1 or 0)
+          end
         end
-      end
-    end -- Sources are located in the table hash part
-  end);
+      end -- Sources are located in the table hash part
+    end
+  end
+
+  self:ProcessSources()
 
   if(self.hitSize > 0) then
     if(LaserLib.IsValid(domsrc)) then
@@ -154,11 +154,6 @@ function ENT:UpdateSources()
       self:WireWrite("Force" , force)
       self:WireWrite("Origin", origin)
       self:WireWrite("Direct", direct)
-      self:WireWrite("RatioRL", bmrefl)
-      self:WireWrite("RatioRF", bmrefr)
-      self:WireWrite("NoVrmat", novrmt)
-      self:WireWrite("DotMatch", normh)
-      self:WireWrite("DotBound", normm)
       self:WireWrite("Dominant", domsrc)
       -- Check whenever sensor has to turn on
       if((zorigin or (not zorigin and como)) and
@@ -219,11 +214,6 @@ function ENT:UpdateSources()
       self:WireWrite("Force" , force)
       self:WireWrite("Origin", origin)
       self:WireWrite("Direct", direct)
-      self:WireWrite("RatioRL", bmrefl)
-      self:WireWrite("RatioRF", bmrefr)
-      self:WireWrite("NoVrmat", novrmt)
-      self:WireWrite("DotMatch", normh)
-      self:WireWrite("DotBound", normm)
       self:WireWrite("Dominant", domsrc)
     end
   else
@@ -234,11 +224,6 @@ function ENT:UpdateSources()
     self:WireWrite("Force" , force)
     self:WireWrite("Origin", origin)
     self:WireWrite("Direct", direct)
-    self:WireWrite("RatioRL", bmrefl)
-    self:WireWrite("RatioRF", bmrefr)
-    self:WireWrite("NoVrmat", novrmt)
-    self:WireWrite("DotMatch", normh)
-    self:WireWrite("DotBound", normm)
     self:WireWrite("Dominant", domsrc)
   end
 
