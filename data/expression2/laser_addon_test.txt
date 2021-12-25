@@ -1,0 +1,24 @@
+@name Laser Addon Test
+@inputs 
+@outputs Src:entity W D L F P DTI RR RL [SS SE SK DT]:string
+@persist Src:entity
+@trigger none
+
+if(first() || dupefinished())
+{
+    runOnTick(1)
+    Src = entity():isConstrainedTo(1)
+}
+
+W = Src:laserGetBeamWidth()
+D = Src:laserGetBeamDamage()
+F = Src:laserGetBeamForce()
+L = Src:laserGetBeamLength()
+P = Src:laserGetBeamPower()
+SS = Src:laserGetStartSound()
+SE = Src:laserGetStopSound()
+SK = Src:laserGetKillSound()
+DT = Src:laserGetDissolveType()
+DTI = Src:laserGetDissolveTypeID()
+RR = Src:laserGetRefractRatio()
+RL = Src:laserGetReflectRatio()

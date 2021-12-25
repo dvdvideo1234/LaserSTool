@@ -5,6 +5,7 @@ include("shared.lua")
 resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -83,44 +84,52 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
-function ENT:UpdateSources()
-  local doment , domsrc
-  local xlength, bpower = 0, false
-  local xforce , xwidth, xdamage = 0, 0, 0
-  local opower , npower, force   = 0, 0, 0
-  local width  , length, damage  = 0, 0, 0
+local doment , domsrc
+local xlength, bpower
+local xforce , xwidth, xdamage
+local opower , npower, force
+local width  , length, damage
 
-  self.hitSize = 0 -- Add sources in array
-  self:ProcessSources(function(entity, index, trace, data)
-    if(trace and trace.Hit and data) then
-      self:SetArrays(entity)
-      npower = LaserLib.GetPower(data.NvWidth,
-                                 data.NvDamage)
-      if(not self:IsInfinite(entity)) then
-        width  = width  + data.NvWidth
-        length = length + data.NvLength
-        damage = damage + data.NvDamage
-        force  = force  + data.NvForce
-        bpower = (bpower or true)
+function ENT:ActionSource(entity, index, trace, data)
+  if(trace and trace.Hit and data) then
+    self:SetArrays(entity)
+    npower = LaserLib.GetPower(data.NvWidth,
+                               data.NvDamage)
+    if(not self:IsInfinite(entity)) then
+      width  = width  + data.NvWidth
+      length = length + data.NvLength
+      damage = damage + data.NvDamage
+      force  = force  + data.NvForce
+      bpower = (bpower or true)
+    else
+      if(doment ~= entity) then
+        xforce  = data.NvForce
+        xwidth  = data.NvWidth
+        xdamage = data.NvDamage
+        xlength = data.BmLength
       else
-        if(doment ~= entity) then
-          xforce  = data.NvForce
-          xwidth  = data.NvWidth
-          xdamage = data.NvDamage
-          xlength = data.BmLength
-        else
-          xforce  = xforce  + data.NvForce
-          xwidth  = xwidth  + data.NvWidth
-          xdamage = xdamage + data.NvDamage
-        end
-      end
-      if(npower > opower) then
-        opower = npower
-        domsrc = data.BmSource
-        doment = entity
+        xforce  = xforce  + data.NvForce
+        xwidth  = xwidth  + data.NvWidth
+        xdamage = xdamage + data.NvDamage
       end
     end
-  end)
+    if(not opower or npower >= opower) then
+      opower = npower
+      domsrc = data.BmSource
+      doment = entity
+    end
+  end
+end
+
+function ENT:UpdateSources()
+  self.hitSize = 0 -- Add sources in array
+  doment , domsrc = nil, nil
+  xlength, bpower = 0, false
+  xforce , xwidth, xdamage = 0, 0, 0
+  width  , length, damage  = 0, 0, 0
+  npower , force , opower  = 0, 0, nil
+
+  self:ProcessSources()
 
   if(self.hitSize > 0) then
     self:SetDominant(domsrc)

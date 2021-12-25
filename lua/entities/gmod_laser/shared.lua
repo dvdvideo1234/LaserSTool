@@ -78,11 +78,12 @@ function ENT:GetBeamDirection(direct, nocnv)
   return dir
 end
 
-function ENT:GetHitPower(normal, trace, data)
+function ENT:GetHitPower(normal, trace, data, bmln)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
   local dotv = math.abs(norm:Dot(data.VrDirect))
+  if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
   local dott = math.abs(norm:Dot(trace.HitNormal))
   return (dott > (1 - dotm)), dotv
 end
@@ -553,7 +554,7 @@ function ENT:ProcessReports(ent, proc)
   if(idx) then local siz = ent.hitReports.Size
     while(idx and idx <= siz) do -- First index always hits when present
       local trace, data = ent:GetHitReport(idx) -- When the report hits us
-      local suc, err = pcall(proc, ent, idx, trace, data) -- Call process
+      local suc, err = pcall(proc, self, ent, idx, trace, data) -- Call process
       if(not suc) then self:Remove(); error(err); return false end
       idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
     end; return true -- At least one report is processed for the current entity
@@ -575,6 +576,8 @@ end
  * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
 function ENT:ProcessSources(proc)
+  local proc = (proc or self.ActionSource)
+  if(not proc) then return false end
   if(not self.hitSources) then return false end
   for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
     if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list

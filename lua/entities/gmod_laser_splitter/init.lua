@@ -5,6 +5,7 @@ include("shared.lua")
 resource.AddFile("materials/vgui/entities/gmod_laser_splitter.vmt")
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -83,18 +84,24 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
-function ENT:UpdateSources()
-  local opower, report, doment, domsrc
-  self:ProcessSources(function(entity, index, trace, data)
-    if(trace and trace.Hit and data) then
-      local npower = LaserLib.GetPower(data.NvWidth,
-                                       data.NvDamage)
-      if(not opower or npower >= opower) then
-        opower, report = npower, index
-        doment, domsrc = entity, data.BmSource
-      end
+local opower, report, doment, domsrc
+
+function ENT:ActionSource(entity, index, trace, data)
+  if(trace and trace.Hit and data) then
+    local npower = LaserLib.GetPower(data.NvWidth,
+                                     data.NvDamage)
+    if(not opower or npower >= opower) then
+      opower, report = npower, index
+      doment, domsrc = entity, data.BmSource
     end
-  end)
+  end
+end
+
+function ENT:UpdateSources()
+  opower, report = nil, nil
+  doment, domsrc = nil, nil
+
+  self:ProcessSources()
 
   if(not LaserLib.IsValid(doment)) then return nil end
   if(not LaserLib.IsValid(domsrc)) then return nil end

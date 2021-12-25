@@ -25,6 +25,7 @@ function ENT:SetupDataTables()
 end
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -127,45 +128,53 @@ function ENT:IsHitNormal(trace)
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
 end
 
+local hdx, count
+
+function ENT:ActionSource(entity, index, trace, data)
+  if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+    self:SetArrays(entity)
+    local upwrd = Vector(self:GetUpwardLocal())
+          upwrd:Rotate(self:GetAngles())
+    local bsdir = Vector(trace.HitNormal)
+    local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
+    local angle = bsdir:AngleEx(upwrd)
+    local mrdotm = math.abs(data.VrDirect:Dot(bsdir))
+    local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
+    if(count > 1) then
+      local marbx = self:GetBeamLeanX()
+      local marby = self:GetBeamLeanY()
+      local anmax = LaserLib.GetData("AMAX")
+      local mnang = anmax[2] / count
+      for idx = 1, count do
+        local newdr = marby * angle:Up()
+              newdr:Add(marbx * angle:Forward())
+        if(CLIENT) then
+          hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, data, mrdotv, hdx)
+        else
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, newdr, data, mrdotv, hdx))
+        end
+        angle:RotateAroundAxis(bsdir, mnang)
+      end
+    else
+      if(CLIENT) then
+        hdx = hdx + 1; self:DrawBeam(entity, bmorg, bsdir, data, mrdotv, hdx)
+      else
+        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, bsdir, data, mrdotv, hdx))
+      end
+    end
+  end -- Sources are located in the table hash part
+end
+
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
-  local hdx, count = 0, self:GetBeamCount()
+  hdx, count = 0, self:GetBeamCount()
+
   if(count > 0) then
-    self:ProcessSources(function(entity, index, trace, data)
-      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
-        self:SetArrays(entity)
-        local upwrd = Vector(self:GetUpwardLocal())
-              upwrd:Rotate(self:GetAngles())
-        local bsdir = Vector(trace.HitNormal)
-        local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
-        local angle = bsdir:AngleEx(upwrd)
-        local mrdotm = math.abs(data.VrDirect:Dot(bsdir))
-        local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
-        if(count > 1) then
-          local marbx = self:GetBeamLeanX()
-          local marby = self:GetBeamLeanY()
-          local fulla = LaserLib.GetData("AMAX")[2]
-          local mnang = fulla / count
-          for idx = 1, count do
-            local newdr = marby * angle:Up()
-                  newdr:Add(marbx * angle:Forward())
-            if(CLIENT) then
-              hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, data, mrdotv, hdx)
-            else
-              hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, newdr, data, mrdotv, hdx))
-            end
-            angle:RotateAroundAxis(bsdir, mnang)
-          end
-        else
-          if(CLIENT) then
-            hdx = hdx + 1; self:DrawBeam(entity, bmorg, bsdir, data, mrdotv, hdx)
-          else
-            hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, bsdir, data, mrdotv, hdx))
-          end
-        end
-      end -- Sources are located in the table hash part
-    end)
-  end; self:RemHitReports(hdx)
+    self:ProcessSources()
+  end
+
+  self:RemHitReports(hdx)
+
   return self:UpdateArrays()
 end
 

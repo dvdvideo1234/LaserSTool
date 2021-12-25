@@ -13,8 +13,27 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
-  self:SetupSourceDataTables()
-  self:EditableSetBool("IsBeamDominant", "Internals")
+  local material = list.Get("LaserEmitterMaterials")
+  local dissolve = list.Get("LaserDissolveTypes")
+  material["Empty"] = ""; dissolve["Empty"] = {name = "", icon = "delete"}
+  self:EditableSetBool("CheckDominant", "General")
+  self:EditableSetVector("OriginLocal" , "General")
+  self:EditableSetVector("DirectLocal" , "General")
+  self:EditableSetIntCombo("ForceCenter" , "General", list.GetForEdit("LaserEmitterComboBools"))
+  self:EditableSetIntCombo("ReflectRatio", "Material", list.GetForEdit("LaserEmitterComboBools"))
+  self:EditableSetIntCombo("RefractRatio", "Material", list.GetForEdit("LaserEmitterComboBools"))
+  self:EditableSetBool  ("InPowerOn"   , "Internals")
+  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  self:EditableSetStringCombo("InBeamMaterial", "Internals", material)
+  self:EditableSetIntCombo("InNonOverMater", "Internals", list.GetForEdit("LaserEmitterComboBools"))
+  self:EditableSetIntCombo("EndingEffect"  , "Visuals", list.GetForEdit("LaserEmitterComboBools"))
+  self:EditableSetBool("CheckBeamColor", "Visuals")
+  self:EditableSetVectorColor("BeamColor", "Visuals")
+  self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
+  self:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name")
   self:EditableRemoveOrderInfo()
 end
 
@@ -62,44 +81,4 @@ function ENT:GetOn()
   local state = self:GetInPowerOn()
   if(SERVER) then self:DoSound(state) end
   return state
-end
-
-function ENT:SetBeamLength(num)
-  local length = math.abs(num)
-  self:SetInBeamLength(length)
-  return self
-end
-
-function ENT:GetBeamLength()
-  return self:GetInBeamLength()
-end
-
-function ENT:SetBeamWidth(num)
-  local width = math.max(num, 0)
-  self:SetInBeamWidth(width)
-  return self
-end
-
-function ENT:GetBeamWidth()
-  return self:GetInBeamWidth()
-end
-
-function ENT:SetBeamDamage(num)
-  local damage = math.max(num, 0)
-  self:SetInBeamDamage(damage)
-  return self
-end
-
-function ENT:GetBeamDamage()
-  return self:GetInBeamDamage()
-end
-
-function ENT:SetBeamForce(num)
-  local force = math.max(num, 0)
-  self:SetInBeamForce(force)
-  return self
-end
-
-function ENT:GetBeamForce()
-  return self:GetInBeamForce()
 end

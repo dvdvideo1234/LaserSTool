@@ -15,11 +15,13 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
+  self:EditableSetBool  ("LinearMapping", "General")
   self:EditableSetBool  ("InPowerOn"    , "Internals")
   self:EditableRemoveOrderInfo()
 end
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -34,7 +36,7 @@ function ENT:InitSources()
   self.hitSize = 0
   if(SERVER) then
     self.hitSources = {}
-    self:InitArrays("Array", "Index", "Level", "Front")
+    self:InitArrays("Array")
   else
     if(not self.hitSources) then
       self.hitSources = {}
@@ -71,24 +73,26 @@ function ENT:GetOn()
   return state
 end
 
+local hdx = 0
+
+function ENT:ActionSource(entity, index, trace, data)
+  local norm, bmln = self:GetHitNormal(), self:GetLinearMapping()
+  local bdot, mdot = self:GetHitPower(norm, trace, data, bmln)
+  if(trace and trace.Hit and data and bdot) then
+    self:SetArrays(entity)
+    local vdot = (self:GetBeamReplicate() and 1 or mdot)
+    if(CLIENT) then
+      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx)
+    else
+      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx))
+    end
+  end -- Sources are located in the table hash part
+end
+
 function ENT:UpdateSources()
-  local hdx = 0; self.hitSize = 0 -- Add sources in array
-  self:ProcessSources(function(entity, index, trace, data)
-    local bdot, mdot = self:GetHitPower(self:GetHitNormal(), trace, data)
-    if(trace and trace.Hit and data and bdot) then
-      if(SERVER) then
-        self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
-      else
-        self:SetArrays(entity)
-      end
-      local vdot = (self:GetBeamReplicate() and 1 or mdot)
-      if(CLIENT) then
-        hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx)
-      else
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx))
-      end
-    end -- Sources are located in the table hash part
-  end); self:RemHitReports(hdx)
+  hdx = 0; self.hitSize = 0 -- Add sources in array
+  self:ProcessSources()
+  self:RemHitReports(hdx)
 
   return self:UpdateArrays()
 end

@@ -5,6 +5,7 @@ include("shared.lua")
 resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -21,21 +22,20 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Origin"  , "VECTOR", "Sensor source hit origin"},
-    {"Direct"  , "VECTOR", "Sensor surface normal"   }
+    {"Origin", "VECTOR", "Sensor beam hit origin"  },
+    {"Direct", "VECTOR", "Sensor extern hit normal"},
+    {"Length", "NORMAL", "Sensor beam length brink"},
+    {"Width" , "NORMAL", "Sensor beam width brink" },
+    {"Damage", "NORMAL", "Sensor beam damage brink"},
+    {"Force" , "NORMAL", "Sensor beam force brink" }
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Sensor enabled state"          },
     {"Width"   , "NORMAL", "Sensor beam width"             },
     {"Length"  , "NORMAL", "Sensor length width"           },
     {"Damage"  , "NORMAL", "Sensor damage width"           },
     {"Force"   , "NORMAL", "Sensor force amount"           },
-    {"DotMatch", "NORMAL", "Sensor beam direction match"   },
-    {"DotBound", "NORMAL", "Sensor beam direction bound"   },
     {"Origin"  , "VECTOR", "Sensor source beam origin"     },
     {"Direct"  , "VECTOR", "Sensor source beam direction"  },
-    {"RatioRL" , "NORMAL", "Sensor source reflection ratio"},
-    {"RatioRF" , "NORMAL", "Sensor source refraction ratio"},
-    {"NoVrmat" , "NORMAL", "Sensor source ovr matyerial"   },
     {"Entity"  , "ENTITY", "Sensor entity itself"          },
     {"Dominant", "ENTITY", "Sensor dominant entity"        },
     {"Count"   , "NORMAL", "Sensor sources count"          },
@@ -61,11 +61,11 @@ function ENT:Initialize()
   self:SetStartSound("")
   self:SetBeamMaterial("")
   self:SetDissolveType("")
-  self:SetEndingEffect(false)
-  self:SetReflectRatio(false)
-  self:SetRefractRatio(false)
-  self:SetForceCenter(false)
-  self:SetNonOverMater(false)
+  self:SetEndingEffect(0)
+  self:SetReflectRatio(0)
+  self:SetRefractRatio(0)
+  self:SetForceCenter(0)
+  self:SetInNonOverMater(0)
   self:SetBeamColorRGBA(255,255,255,255)
 
   self:WireWrite("Entity", self)
@@ -94,39 +94,43 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
+local normh , domsrc
+local opower, npower, force  = 0, 0, 0
+local width , length, damage = 0, 0, 0
+local origin, direct = Vector(), Vector()
+
+function ENT:ActionSource(entity, index, trace, data)
+  local norm = self:GetUnitDirection()
+  local bdot, mdot = self:GetHitPower(norm, trace, data)
+  if(trace and trace.Hit and data) then
+    self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
+    if(bdot) then
+      npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
+      width  = width  + data.NvWidth
+      damage = damage + data.NvDamage
+      force  = force  + data.NvForce
+      if(not opower or npower >= opower) then
+        normh  = true
+        opower = npower
+        domsrc = data.BmSource
+        length = data.NvLength
+        origin:Set(data.VrOrigin)
+        direct:Set(data.VrDirect)
+      end
+    end
+  end -- Sources are located in the table hash part
+end
+
 function ENT:UpdateSources()
-  local normh , normm , domsrc = 0, 0
-  local bmrefl, bmrefr, novrmt = 0, 0, 0
-  local opower, npower, force  = 0, 0, 0
-  local width , length, damage = 0, 0, 0
-  local origin, direct = Vector(), Vector()
+  origin:SetUnpacked(0,0,0)
+  direct:SetUnpacked(0,0,0)
+  normh , domsrc = false, nil
+  width , length, damage = 0, 0, 0
+  npower, force , opower = 0, 0, nil
 
   self.hitSize = 0
-  self:ProcessSources(function(entity, index, trace, data)
-    local norm = self:GetUnitDirection()
-    local bdot, mdot = self:GetHitPower(norm, trace, data)
-    if(trace and trace.Hit and data) then
-      self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
-      if(bdot) then
-        npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-        width  = width  + data.NvWidth
-        damage = damage + data.NvDamage
-        force  = force  + data.NvForce
-        if(npower > opower) then
-          normh  = (bdot and 1 or 0)
-          normm  = mdot
-          opower = npower
-          domsrc = data.BmSource
-          length = data.NvLength
-          origin:Set(data.VrOrigin)
-          direct:Set(data.VrDirect)
-          bmrefl = (data.BrReflec and 1 or 0)
-          bmrefr = (data.BrRefrac and 1 or 0)
-          novrmt = (data.BmNoover and 1 or 0)
-        end
-      end
-    end -- Sources are located in the table hash part
-  end);
+
+  self:ProcessSources()
 
   if(self.hitSize > 0) then
     if(LaserLib.IsValid(domsrc)) then
@@ -137,35 +141,60 @@ function ENT:UpdateSources()
       local mdirect = self:GetUnitDirection()
       local mlength = self:GetBeamLength()
       local mdamage = self:GetBeamDamage()
-      local zorigin = morigin:IsZero()
-      local zdirect = mdirect:IsZero()
-
+      local zorigin, como = morigin:IsZero(), false
+      local zdirect, comd = mdirect:IsZero(), false
+      if(not zorigin) then -- Check if origin is present
+        como = (morigin:Distance(origin) >= mlength)
+      end -- No need to calculate square root when zero
+      if(not zdirect) then comd = normh end
+      -- Thrigger the wire inputs
       self:WireWrite("Width" , width)
       self:WireWrite("Length", length)
       self:WireWrite("Damage", damage)
       self:WireWrite("Force" , force)
       self:WireWrite("Origin", origin)
       self:WireWrite("Direct", direct)
-      self:WireWrite("RatioRL", bmrefl)
-      self:WireWrite("RatioRF", bmrefr)
-      self:WireWrite("NoVrmat", novrmt)
-      self:WireWrite("DotMatch", normh)
-      self:WireWrite("DotBound", normm)
       self:WireWrite("Dominant", domsrc)
       -- Check whenever sensor has to turn on
-      if((mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
+      if((zorigin or (not zorigin and como)) and
+         (zdirect or (not zdirect and comd)) and
+         (mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
          (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
          (mlength == 0 or (mlength > 0 and length >= mlength)) and
          (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
-        if(self:GetIsBeamDominant()) then -- Compare dominant data
+        if(self:GetCheckDominant()) then -- Compare dominant data
+          -- Sensor configurations
+          local mfcentr = self:GetForceCenter()
+          local mreflec = self:GetReflectRatio()
+          local mrefrac = self:GetRefractRatio()
           local mdistyp = self:GetDissolveType()
-          local mmatera = self:GetInBeamMaterial()
+          local mendeff = self:GetEndingEffect()
+          local mmatera = self:SetBeamMaterial()
+          local movrmat = self:GetNonOverMater()
+          local mcomcor, mcoe = self:GetCheckBeamColor()
+          -- Dominant configurations ( booleans have true/false )
+          local dfcentr = domsrc:GetForceCenter() and 2 or 1
+          local dreflec = domsrc:GetReflectRatio() and 2 or 1
+          local drefrac = domsrc:GetRefractRatio() and 2 or 1
           local ddistyp = domsrc:GetDissolveType()
-          local dmatera = domsrc:GetInBeamMaterial()
-          if((zorigin or (not zorigin and morigin:Distance(origin) >= mlength)) and
-             (zdirect or (not zdirect and normh > 0)) and
+          local dendeff = domsrc:GetEndingEffect() and 2 or 1
+          local dmatera = domsrc:SetBeamMaterial()
+          local dovrmat = domsrc:GetNonOverMater() and 2 or 1
+          if(mcomcor) then -- Dominant beam color compare enabled
+            local margin = LaserLib.GetData("CTOL")
+            local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
+            local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
+            mcoe = (mv:IsEqualTol(dv, margin) and (math.abs(ma - da) < margin))
+          end
+          -- Compare the internal congiguration and trigger sensor
+          if((not mcomcor   or (mcomcor       and mcoe)) and
              (mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
-             (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp))
+             (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp)) and
+             (mfcentr == 0  or (mfcentr ~= 0  and mfcentr == dfcentr)) and
+             (mreflec == 0  or (mreflec ~= 0  and mreflec == dreflec)) and
+             (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
+             (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
+             (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
           ) then -- Dominant beam is like sensor beam
             self:SetOn(true)
           else -- Dominant beam is not like sensor beam
@@ -185,11 +214,6 @@ function ENT:UpdateSources()
       self:WireWrite("Force" , force)
       self:WireWrite("Origin", origin)
       self:WireWrite("Direct", direct)
-      self:WireWrite("RatioRL", bmrefl)
-      self:WireWrite("RatioRF", bmrefr)
-      self:WireWrite("NoVrmat", novrmt)
-      self:WireWrite("DotMatch", normh)
-      self:WireWrite("DotBound", normm)
       self:WireWrite("Dominant", domsrc)
     end
   else
@@ -200,11 +224,6 @@ function ENT:UpdateSources()
     self:WireWrite("Force" , force)
     self:WireWrite("Origin", origin)
     self:WireWrite("Direct", direct)
-    self:WireWrite("RatioRL", bmrefl)
-    self:WireWrite("RatioRF", bmrefr)
-    self:WireWrite("NoVrmat", novrmt)
-    self:WireWrite("DotMatch", normh)
-    self:WireWrite("DotBound", normm)
     self:WireWrite("Dominant", domsrc)
   end
 
