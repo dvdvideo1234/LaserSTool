@@ -92,16 +92,16 @@ DATA.CLS = {
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
-  {"gmod_laser"          , nil        , nil      }, -- Laser entity calss
-  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class
+  {"gmod_laser"          , nil        , nil      }, -- Laser entity calss `PriarySource`
+  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `ActionSource`
   {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter
-  {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider
-  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor
-  {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide
-  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy
+  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `ActionSource`
+  {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `ActionSource`
+  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `ActionSource`
+  {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `ActionSource`
+  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `ActionSource`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel
+  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel `ActionSource`
 }
 
 DATA.MOD = { -- Model used by the entities menu

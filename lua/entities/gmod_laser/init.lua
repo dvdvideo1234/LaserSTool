@@ -135,6 +135,7 @@ function ENT:Think()
     self:DoDamage(trace, data)
   else
     self:WireWrite("Hit", 0)
+    self:WireWrite("Range", 0)
     self:WireWrite("Target")
   end
 

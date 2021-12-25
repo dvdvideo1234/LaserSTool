@@ -5,6 +5,7 @@ include("shared.lua")
 resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -33,13 +34,8 @@ function ENT:Initialize()
     {"Length"  , "NORMAL", "Sensor length width"           },
     {"Damage"  , "NORMAL", "Sensor damage width"           },
     {"Force"   , "NORMAL", "Sensor force amount"           },
-    {"DotMatch", "NORMAL", "Sensor beam direction match"   },
-    {"DotBound", "NORMAL", "Sensor beam direction bound"   },
     {"Origin"  , "VECTOR", "Sensor source beam origin"     },
     {"Direct"  , "VECTOR", "Sensor source beam direction"  },
-    {"RatioRL" , "NORMAL", "Sensor source reflection ratio"},
-    {"RatioRF" , "NORMAL", "Sensor source refraction ratio"},
-    {"NoVrmat" , "NORMAL", "Sensor source ovr matyerial"   },
     {"Entity"  , "ENTITY", "Sensor entity itself"          },
     {"Dominant", "ENTITY", "Sensor dominant entity"        },
     {"Count"   , "NORMAL", "Sensor sources count"          },
@@ -98,37 +94,41 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
+local normh , domsrc
+local opower, npower, force  = 0, 0, 0
+local width , length, damage = 0, 0, 0
+local origin, direct = Vector(), Vector()
+
+function ENT:ActionSource(entity, index, trace, data)
+  local norm = self:GetUnitDirection()
+  local bdot, mdot = self:GetHitPower(norm, trace, data)
+  if(trace and trace.Hit and data) then
+    self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
+    if(bdot) then
+      npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
+      width  = width  + data.NvWidth
+      damage = damage + data.NvDamage
+      force  = force  + data.NvForce
+      if(not opower or npower >= opower) then
+        normh  = true
+        opower = npower
+        domsrc = data.BmSource
+        length = data.NvLength
+        origin:Set(data.VrOrigin)
+        direct:Set(data.VrDirect)
+      end
+    end
+  end -- Sources are located in the table hash part
+end
+
 function ENT:UpdateSources()
-  local normh , domsrc
-  local opower, npower, force  = 0, 0, 0
-  local width , length, damage = 0, 0, 0
-  local origin, direct = Vector(), Vector()
+  origin:SetUnpacked(0,0,0)
+  direct:SetUnpacked(0,0,0)
+  normh , domsrc = false, nil
+  width , length, damage = 0, 0, 0
+  npower, force , opower = 0, 0, nil
 
   self.hitSize = 0
-
-  if(not self.hitAction) then
-    self.hitAction = function(entity, index, trace, data)
-      local norm = self:GetUnitDirection()
-      local bdot, mdot = self:GetHitPower(norm, trace, data)
-      if(trace and trace.Hit and data) then
-        self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
-        if(bdot) then
-          npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-          width  = width  + data.NvWidth
-          damage = damage + data.NvDamage
-          force  = force  + data.NvForce
-          if(npower > opower) then
-            opower = npower
-            domsrc = data.BmSource
-            length = data.NvLength
-            origin:Set(data.VrOrigin)
-            direct:Set(data.VrDirect)
-            normh  = (bdot and 1 or 0)
-          end
-        end
-      end -- Sources are located in the table hash part
-    end
-  end
 
   self:ProcessSources()
 
@@ -141,12 +141,12 @@ function ENT:UpdateSources()
       local mdirect = self:GetUnitDirection()
       local mlength = self:GetBeamLength()
       local mdamage = self:GetBeamDamage()
-      local zorigin, como = morigin:IsZero()
-      local zdirect, comd = mdirect:IsZero()
+      local zorigin, como = morigin:IsZero(), false
+      local zdirect, comd = mdirect:IsZero(), false
       if(not zorigin) then -- Check if origin is present
-        como = morigin:Distance(origin) >= mlength
+        como = (morigin:Distance(origin) >= mlength)
       end -- No need to calculate square root when zero
-      if(not zdirect) then comd = normh > 0 end
+      if(not zdirect) then comd = normh end
       -- Thrigger the wire inputs
       self:WireWrite("Width" , width)
       self:WireWrite("Length", length)
@@ -162,7 +162,7 @@ function ENT:UpdateSources()
          (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
          (mlength == 0 or (mlength > 0 and length >= mlength)) and
          (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
-        if(self:GetCompareDominant()) then -- Compare dominant data
+        if(self:GetCheckDominant()) then -- Compare dominant data
           -- Sensor configurations
           local mfcentr = self:GetForceCenter()
           local mreflec = self:GetReflectRatio()
@@ -171,7 +171,7 @@ function ENT:UpdateSources()
           local mendeff = self:GetEndingEffect()
           local mmatera = self:SetBeamMaterial()
           local movrmat = self:GetNonOverMater()
-          local mcomcor, mcoe = self:GetCompareBeamColor()
+          local mcomcor, mcoe = self:GetCheckBeamColor()
           -- Dominant configurations ( booleans have true/false )
           local dfcentr = domsrc:GetForceCenter() and 2 or 1
           local dreflec = domsrc:GetReflectRatio() and 2 or 1

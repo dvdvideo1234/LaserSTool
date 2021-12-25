@@ -20,6 +20,7 @@ function ENT:SetupDataTables()
 end
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -79,24 +80,24 @@ function ENT:IsHitNormal(trace)
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
 end
 
-function ENT:UpdateSources()
-  local hdx = 0; self.hitSize = 0 -- Add sources in array
+local hdx = 0
 
-  if(not self.hitAction) then
-    self.hitAction = function(entity, index, trace, data)
-      if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
-        self:SetArrays(entity)
-        local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
-        if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
-        else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
-        end
-      end -- Sources are located in the table hash part
+function ENT:ActionSource(entity, index, trace, data)
+  if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+    self:SetArrays(entity)
+    local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
+    if(CLIENT) then
+      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
+      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
+    else
+      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
+      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
     end
-  end
+  end -- Sources are located in the table hash part
+end
+
+function ENT:UpdateSources()
+  hdx = 0; self.hitSize = 0 -- Add sources in array
 
   self:ProcessSources()
   self:RemHitReports(hdx)

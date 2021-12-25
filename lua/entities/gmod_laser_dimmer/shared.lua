@@ -15,11 +15,13 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
+  self:EditableSetBool  ("LinearMapping", "General")
   self:EditableSetBool  ("InPowerOn"    , "Internals")
   self:EditableRemoveOrderInfo()
 end
 
 function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
@@ -71,24 +73,24 @@ function ENT:GetOn()
   return state
 end
 
-function ENT:UpdateSources()
-  local hdx = 0; self.hitSize = 0 -- Add sources in array
+local hdx = 0
 
-  if(not self.hitAction) then
-    self.hitAction = function(entity, index, trace, data)
-      local bdot, mdot = self:GetHitPower(self:GetHitNormal(), trace, data)
-      if(trace and trace.Hit and data and bdot) then
-        self:SetArrays(entity)
-        local vdot = (self:GetBeamReplicate() and 1 or mdot)
-        if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx)
-        else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx))
-        end
-      end -- Sources are located in the table hash part
+function ENT:ActionSource(entity, index, trace, data)
+  local norm, bmln = self:GetHitNormal(), self:GetLinearMapping()
+  local bdot, mdot = self:GetHitPower(norm, trace, data, bmln)
+  if(trace and trace.Hit and data and bdot) then
+    self:SetArrays(entity)
+    local vdot = (self:GetBeamReplicate() and 1 or mdot)
+    if(CLIENT) then
+      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx)
+    else
+      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, vdot, hdx))
     end
-  end
+  end -- Sources are located in the table hash part
+end
 
+function ENT:UpdateSources()
+  hdx = 0; self.hitSize = 0 -- Add sources in array
   self:ProcessSources()
   self:RemHitReports(hdx)
 
