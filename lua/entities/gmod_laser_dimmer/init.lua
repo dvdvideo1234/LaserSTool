@@ -10,20 +10,14 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal"  , "VECTOR", "Dimmer surface normal"}
+    {"Normal", "VECTOR", "Dimmer surface normal"}
   ):WireCreateOutputs(
-    {"On"      , "NORMAL", "Dimmer working state" },
-    {"Normal"  , "VECTOR", "Dimmer surface normal"},
-    {"Entity"  , "ENTITY", "Dimmer entity itself" },
-    {"Count"   , "NORMAL", "Dimmer beam count"    },
-    {"Array"   , "ARRAY" , "Dimmer sources array" }
+    {"Normal", "VECTOR", "Dimmer surface normal"},
+    {"Entity", "ENTITY", "Dimmer entity itself" }
   )
 
-  self:InitSources()
   self:SetBeamReplicate(false)
   self:SetLinearMapping(false)
-  self:SetStopSound("")
-  self:SetStartSound("")
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then
@@ -54,54 +48,4 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetBeamTransform()
     return ent
   end; return nil
-end
-
-function ENT:DoDamage(trace, data)
-  -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
-  if(trace) then
-    local trent = trace.Entity
-    if(LaserLib.IsValid(trent)) then
-      -- Check whenever target is beam source
-      if(LaserLib.IsUnit(trent)) then
-        -- Register the source to the ones who has it
-        if(trent.RegisterSource) then
-          trent:RegisterSource(self)
-        end -- Define the method to register sources
-      else
-        local user = (self.ply or self.player)
-        local dtyp = data.BmSource:GetDissolveType()
-        LaserLib.DoDamage(trent,
-                          trace.HitPos,
-                          trace.Normal,
-                          data.VrDirect,
-                          data.NvDamage,
-                          data.NvForce,
-                          (user or data.BmSource:GetCreator()),
-                          LaserLib.GetDissolveID(dtyp),
-                          data.BmSource:GetKillSound(),
-                          data.BmSource:GetForceCenter(),
-                          self)
-      end
-    end
-  end
-
-  return self
-end
-
-function ENT:Think()
-  self:UpdateFlags()
-  self:UpdateSources()
-
-  if(self.hitSize > 0) then
-    self:SetOn(true)
-  else
-    self:SetOn(false)
-    self:RemHitReports()
-  end
-
-  self:WireArrays()
-
-  self:NextThink(CurTime())
-
-  return true
 end

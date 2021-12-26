@@ -2,15 +2,23 @@ ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
 ENT.PrintName      = "Parallel"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
-ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
+  ENT.Base          = "base_wire_entity"
   ENT.WireDebugName = ENT.Information
+else
+  ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
 ENT.Author         = "DVD"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+
+AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
+include(LaserLib.GetTool().."/wire_wrapper.lua")
+
+AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
+include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
   local amax = LaserLib.GetData("AMAX")
@@ -21,29 +29,10 @@ function ENT:SetupDataTables()
   self:EditableRemoveOrderInfo()
 end
 
-function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
-end
-
 -- Override the beam transormation
 function ENT:SetBeamTransform()
   local normal = Vector(0,0,1) -- Local surface direction
   self:SetNormalLocal(normal)
-  return self
-end
-
-function ENT:InitSources()
-  self.hitSize = 0
-  if(SERVER) then
-    self.hitSources = {} -- Sources in notation `[ent] = true`
-    self:InitArrays("Array")
-  else
-    if(not self.hitSources) then
-      self.hitSources = {} -- Sources in notation `[ent] = true`
-      self:InitArrays("Array")
-    end
-  end
   return self
 end
 
@@ -62,72 +51,13 @@ function ENT:GetHitNormal()
   end
 end
 
-function ENT:SetOn(bool)
-  local state = tobool(bool)
-  self:SetInPowerOn(state)
-  self:WireWrite("On", (state and 1 or 0))
-  return self
+function ENT:GetHitPower(normal, trace, data, bmln)
+  local norm = Vector(normal)
+        norm:Rotate(self:GetAngles())
+  local dotm = LaserLib.GetData("DOTM")
+  local dotv = math.abs(norm:Dot(data.VrDirect))
+  if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
+  local dott = math.abs(norm:Dot(trace.HitNormal))
+  return (dott > (1 - dotm)), dotv
 end
 
-function ENT:GetOn()
-  local state = self:GetInPowerOn()
-  if(SERVER) then self:DoSound(state) end
-  return state
-end
-
-local hdx = 0
-
-function ENT:ActionSource(entity, index, trace, data)
-  local norm, bmln = self:GetHitNormal(), self:GetLinearMapping()
-  local bdot, mdot = self:GetHitPower(norm, trace, data, bmln)
-  if(trace and trace.Hit and data and bdot) then
-    self:SetArrays(entity)
-    local dir = Vector(trace.HitNormal)
-    local vdot = (self:GetBeamDimmer() and mdot or 1)
-    local pos = trace.HitPos; LaserLib.VecNegate(dir)
-    if(CLIENT) then
-      hdx = hdx + 1; self:DrawBeam(entity, pos, dir, data, vdot, hdx)
-    else
-      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, pos, dir, data, vdot, hdx))
-    end
-  end -- Sources are located in the table hash part
-end
-
-function ENT:UpdateSources()
-  hdx = 0; self.hitSize = 0 -- Add sources in array
-
-  self:ProcessSources()
-  self:RemHitReports(hdx)
-
-  return self:UpdateArrays()
-end
-
---[[
- * Specific beam traced for divider
- * ent  > Entity source to be divided
- * org  > Beam origin location
- * dir  > Beam trace direction
- * sdat > Source beam trace data
- * idx  > Index to store the result
-]]
-function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
-  local length = sdat.NvLength
-  local usrfle = sdat.BrReflec
-  local usrfre = sdat.BrRefrac
-  local noverm = sdat.BmNoover
-  local damage = sdat.NvDamage * vdot
-  local force  = sdat.NvForce  * vdot
-  local width  = LaserLib.GetWidth(sdat.NvWidth * vdot)
-  local trace, data = LaserLib.DoBeam(self,
-                                      org,
-                                      dir,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
-  return trace, ent:UpdateBeam(data, sdat)
-end

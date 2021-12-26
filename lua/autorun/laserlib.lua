@@ -86,9 +86,7 @@ DATA.CLS = {
   ["gmod_laser_splitter" ] = {true , true },
   ["gmod_laser_divider"  ] = {true , false},
   ["gmod_laser_sensor"   ] = {false, false},
-  ["gmod_laser_dimmer"   ] = {true , false},
   ["gmod_laser_splitterm"] = {true , false},
-  ["gmod_laser_parallel" ] = {true , false},
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
@@ -1132,6 +1130,49 @@ DATA.ACTOR = {
     data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
     LaserLib.RegisterNode(data, nps)
     data.IsTrace = true -- Output portal is validated. Continue
+  end,
+  ["gmod_laser_dimmer"] = function(trace, data)
+    data.IsTrace = false -- Assume that beam stops traversing
+    data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+    local ent , node = trace.Entity, data.TvPoints[data.TvPoints.Size]
+    local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
+    local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
+    if(trace and trace.Hit and data and bdot) then
+      local vdot = (ent:GetBeamReplicate() and 1 or mdot)
+      data.NvForce  = data.NvForce  * vdot
+      data.NvDamage = data.NvDamage * vdot
+      data.NvWidth  = LaserLib.GetWidth(data.NvWidth * vdot)
+      data.VrOrigin:Set(trace.HitPos)
+      data.TeFilter = ent -- Makes sure we pass the dimmer
+      node[1]:Set(trace.HitPos) -- We are not portal update node
+      node[2] = data.NvWidth    -- We are not portal update width
+      node[3] = data.NvDamage   -- We are not portal update damage
+      node[4] = data.NvForce    -- We are not portal update force
+      node[5] = true            -- We are not portal enable drawing
+      data.IsTrace = true -- Beam hits correct surface. Continue
+    end
+  end,
+  ["gmod_laser_parallel"] = function(trace, data)
+    data.IsTrace = false -- Assume that beam stops traversing
+    data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+    local ent , node = trace.Entity, data.TvPoints[data.TvPoints.Size]
+    local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
+    local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
+    if(trace and trace.Hit and data and bdot) then
+      local vdot = (ent:GetBeamDimmer() and mdot or 1)
+      data.NvForce  = data.NvForce  * vdot
+      data.NvDamage = data.NvDamage * vdot
+      data.NvWidth  = LaserLib.GetWidth(data.NvWidth * vdot)
+      data.VrOrigin:Set(trace.HitPos)
+      data.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
+      data.TeFilter = ent -- Makes sure we pass the dimmer
+      node[1]:Set(trace.HitPos) -- We are not portal update node
+      node[2] = data.NvWidth    -- We are not portal update width
+      node[3] = data.NvDamage   -- We are not portal update damage
+      node[4] = data.NvForce    -- We are not portal update force
+      node[5] = true            -- We are not portal enable drawing
+      data.IsTrace = true -- Beam hits correct surface. Continue
+    end
   end
 }
 
@@ -1219,18 +1260,28 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         if(class and DATA.ACTOR[class]) then
           local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
           LaserLib.RegisterNode(data, pos, isRfract, false)
-        else
+        else -- The trace entity target is not special portal case
           LaserLib.RegisterNode(data, trace.HitPos, isRfract)
         end
-      else
+      else -- The trace has hit invalid entity
         LaserLib.RegisterNode(data, trace.HitPos, isRfract)
       end
-    else
+    else -- Trace distance lenght is zero so enable refraction
       if(data.NvBounce == data.MxBounce) then data.StRfract = true end
     end -- Do not put a node when beam starts in a solid
     -- Initial start so the beam separate from the entity
     if(data.NvBounce == data.MxBounce) then data.TeFilter = nil end
-
+    -- If filter was a special portal and the current entity is different
+    -- Make sure to reset the filter if needed to enter portal again
+    if(valid and data.TeFilter) then
+      if(LaserLib.IsValid(data.TeFilter)) then
+        local act = data.TeFilter:GetClass() -- Index via filter class
+        if(data.TeFilter ~= target and DATA.ACTOR[act]) then
+          data.TeFilter = nil -- Makes sure we can enter the portal again
+        end -- Target is different from the filter so we reset the filter
+      end -- The beam comes out from valid portal and is able to hit it again
+    end
+    -- When we hit something that is not specific unit
     if(trace.Hit and not LaserLib.IsUnit(target)) then
       -- Refresh medium pass trough information
       data.NvBounce = data.NvBounce - 1
