@@ -16,6 +16,7 @@ set gmadCommits=https://github.com/dvdvideo1234/%gmadName%/commit/
 set gmadPathGIT=D:\Git\bin
 set gmadBinPath=F:\Games\Steam\steamapps\common\GarrysMod\bin
 set gmadADTools=%gmadRevPath%data\laseremitter\tools
+set "gmadTime=%date% %time%"
 set gmadID=2546685571
 set gmadDirs=(lua materials models)
 set gmadLogs=
@@ -49,13 +50,13 @@ copy !gmadADTools!\workshop\addon.json !gmadRevPath!Workshop\!gmadName!\addon.js
 call !gmadBinPath!\gmad.exe create -folder "!gmadRevPath!Workshop\!gmadName!" -out "!gmadRevPath!Workshop\!gmadName!.gma"
 
 :: Obtain the latest commit hash from the repository
-!gmadPathGIT!\git.exe rev-parse HEAD>!gmadNameLOG!
+call !gmadPathGIT!\git.exe rev-parse HEAD>!gmadNameLOG!
 set /p gmadGitHEAD=<!gmadNameLOG!
 
 :: Obtain the log message from the latest revision
-echo %date% %time% > !gmadNameLOG!
-echo. >> !gmadNameLOG!
-echo !gmadCommits!!gmadGitHEAD! >> !gmadNameLOG!
+echo !gmadTime!>!gmadNameLOG!
+echo.>>!gmadNameLOG!
+echo !gmadCommits!!gmadGitHEAD!>>!gmadNameLOG!
 echo. >> !gmadNameLOG!
 
 !gmadPathGIT!\git.exe log -1 --pretty=%%B>>!gmadNameLOG!

@@ -1175,7 +1175,7 @@ DATA.ACTOR = {
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
       local node = LaserLib.SetPowerRatio(data, vdot) -- May absorb
       data.VrOrigin:Set(trace.HitPos)
-      data.TeFilter = ent -- Makes sure we pass the dimmer
+      data.TeFilter, data.TrFActor = ent, true -- Makes beam pass the dimmer
       node[1]:Set(trace.HitPos) -- We are not portal update position
       node[5] = true            -- We are not portal enable drawing
     end
@@ -1192,7 +1192,7 @@ DATA.ACTOR = {
       local node = LaserLib.SetPowerRatio(data, vdot) -- May absorb
       data.VrOrigin:Set(trace.HitPos)
       data.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
-      data.TeFilter = ent -- Makes sure we pass the dimmer
+      data.TeFilter, data.TrFActor = ent, true -- Makes beam pass the parallel
       node[1]:Set(trace.HitPos) -- We are not portal update node
       node[5] = true            -- We are not portal enable drawing
     end
@@ -1221,6 +1221,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvIWorld = false -- Ignore world flag to make it hit the other side
   data.IsRfract = {false, false} -- Refracting flag for entity [1] and world [2]
   data.StRfract = false -- Start tracing the beam inside a boundary
+  data.TrFActor = false -- Trace filter was updated by actor and must be cleared
   data.TeFilter = entity -- Make sure the initial laser source is skipped
   data.TvPoints = {Size = 0} -- Create empty vertices array
   data.VrOrigin = Vector(origin) -- Copy origin not to modify it
@@ -1287,6 +1288,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       end
     end
 
+    -- If filter was a special actor and the clear flag is enabled
+    -- Make sure to reset the filter if needed to enter actor again
+    if(data.TrFActor) then -- Custom filter clear has been requested
+      data.TeFilter = nil -- Reset the filter to hit something else
+      data.TrFActor = false -- Lower the flag so it does not enter
+    end -- Filter is present and we have request to clear the value
+
     -- LaserLib.DrawVector(trace.HitPos, trace.HitNormal, 10, nil, data.NvBounce)
 
     local valid, class = LaserLib.IsValid(target) -- Validate target
@@ -1305,16 +1313,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     else -- Trace distance lenght is zero so enable refraction
       if(data.NvBounce == data.MxBounce) then data.StRfract = true end
     end -- Do not put a node when beam starts in a solid
-    -- If filter was a special actor and the current entity is different
-    -- Make sure to reset the filter if needed to enter actor again
-    if(valid and data.TeFilter) then
-      if(IsEntity(data.TeFilter) and LaserLib.IsValid(data.TeFilter)) then
-        local key = data.TeFilter:GetClass() -- Index via filter class
-        if(data.TeFilter ~= target and DATA.ACTOR[key]) then
-          data.TeFilter = nil -- Makes sure we can enter the actor again
-        end -- Target is different from the filter so we reset the filter
-      end -- The beam comes out from valid actor and is able to hit it again
-    end
     -- When we hit something that is not specific unit
     if(trace.Hit and not LaserLib.IsUnit(target)) then
       -- Refresh medium pass trough information
