@@ -51,9 +51,9 @@ DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
 DATA.PRMG = 0.25            -- Portal teleportataon entrance displacement
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.NTIF = {}              -- User notification configuration type
-DATA.FMVA = "%f,%f,%f"
-DATA.TEST = false           -- Used for testing perposes
+DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
+DATA.TIME = {Size = 1, Done = false, Sum = 0} -- Used for testing perposes
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
@@ -190,7 +190,7 @@ DATA.REFLECT = { -- Reflection data descriptor
 DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [1] = "air"  , -- Air enumerator index
   [2] = "glass", -- Glass enumerator index
-  [3] = "water", -- Glass enumerator index
+  [3] = "water", -- Water enumerator index
   -- Used for prop updates and chec
   [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
   -- User for general class control
@@ -324,6 +324,38 @@ end
 
 function LaserLib.GetSign(arg)
   return arg / math.abs(arg)
+end
+
+--[[
+ * This is used to time a given code sippet
+ * Call it without arguments to reset the state
+ * Dinamically sums N-calls and reurns the average
+ * num > Number of samples to be registered
+ * tim > Time difference to be registered
+]]
+function LaserLib.Time(num, tim)
+  local arr = DATA.TIME
+  if(num and tim) then
+    local siz = arr.Size
+    if(siz <= num) then
+      arr.Suma = arr.Suma - (arr[siz] or 0)
+      arr[siz] = tim
+      arr.Suma = arr.Suma + tim
+      arr.Size = siz + 1
+    else
+      arr.Suma = arr.Suma - arr[1]
+      arr[1] = tim
+      arr.Suma = arr.Suma + tim
+      arr.Size = 1
+      arr.Done = true
+    end
+    local top = arr.Done and num or siz
+    return (arr.Suma / top), top
+  else
+    arr.Size = 1
+    arr.Suma = 0
+    arr.Done = false
+  end
 end
 
 function LaserLib.Clear(arr, idx)
@@ -985,11 +1017,12 @@ function LaserLib.SetPowerRatio(data, rate)
   data.NvForce  = rate * data.NvForce
   data.NvWidth  = LaserLib.GetWidth(rate * data.NvWidth)
   -- Update the parameters used for drawing the beam trace
-  local info = data.TvPoints[data.TvPoints.Size]
-  info[2], info[3], info[4] = data.NvWidth, data.NvDamage, data.NvForce
+  local node = data.TvPoints[data.TvPoints.Size]
+  node[2], node[3], node[4] = data.NvWidth, data.NvDamage, data.NvForce
   -- Check out power rankings so the trace absorbed everything
   local power = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-  if(power < DATA.POWL) then data.IsTrace = false end -- Entity absorbed the remaining light
+  if(power < DATA.POWL) then data.IsTrace = false end -- Absorbs remaining light
+  return node, power -- It is indexed anyway then return it to the caller
 end
 
 --[[
@@ -1138,18 +1171,13 @@ DATA.ACTOR = {
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
     if(trace and trace.Hit and data and bdot) then
+      data.IsTrace = true -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
-      data.NvForce  = data.NvForce  * vdot
-      data.NvDamage = data.NvDamage * vdot
-      data.NvWidth  = LaserLib.GetWidth(data.NvWidth * vdot)
+      local node = LaserLib.SetPowerRatio(data, vdot) -- May absorb
       data.VrOrigin:Set(trace.HitPos)
       data.TeFilter = ent -- Makes sure we pass the dimmer
-      node[1]:Set(trace.HitPos) -- We are not portal update node
-      node[2] = data.NvWidth    -- We are not portal update width
-      node[3] = data.NvDamage   -- We are not portal update damage
-      node[4] = data.NvForce    -- We are not portal update force
+      node[1]:Set(trace.HitPos) -- We are not portal update position
       node[5] = true            -- We are not portal enable drawing
-      data.IsTrace = true -- Beam hits correct surface. Continue
     end
   end,
   ["gmod_laser_parallel"] = function(trace, data)
@@ -1159,19 +1187,14 @@ DATA.ACTOR = {
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
     if(trace and trace.Hit and data and bdot) then
+      data.IsTrace = true -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamDimmer() and mdot or 1)
-      data.NvForce  = data.NvForce  * vdot
-      data.NvDamage = data.NvDamage * vdot
-      data.NvWidth  = LaserLib.GetWidth(data.NvWidth * vdot)
+      local node = LaserLib.SetPowerRatio(data, vdot) -- May absorb
       data.VrOrigin:Set(trace.HitPos)
       data.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
       data.TeFilter = ent -- Makes sure we pass the dimmer
       node[1]:Set(trace.HitPos) -- We are not portal update node
-      node[2] = data.NvWidth    -- We are not portal update width
-      node[3] = data.NvDamage   -- We are not portal update damage
-      node[4] = data.NvForce    -- We are not portal update force
       node[5] = true            -- We are not portal enable drawing
-      data.IsTrace = true -- Beam hits correct surface. Continue
     end
   end
 }
@@ -1251,16 +1274,29 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       local mul = (-DATA.TRDG * data.BmTracew); trace.HitPos:Add(mul * trace.HitNormal)
     end -- Make sure we account for the trace width cube half diagonal
 
-    --LaserLib.DrawVector(trace.HitPos, trace.HitNormal, 10, nil, data.NvBounce)
+    -- Initial start so the beam separate from the entity
+    if(data.NvBounce == data.MxBounce) then
+      data.TeFilter = nil
+      -- Beam starts inside map water
+      if(trace.StartSolid) then
+        trace.HitPos:Set(data.VrOrigin)
+        trace.Fraction = 0
+        trace.FractionLeftSolid = 0
+        trace.HitTexture = "water"
+        data.TrMedium = {S = {DATA.REFRACT["water"], "water"}}
+      end
+    end
+
+    -- LaserLib.DrawVector(trace.HitPos, trace.HitNormal, 10, nil, data.NvBounce)
 
     local valid, class = LaserLib.IsValid(target) -- Validate target
     if(valid) then class = target:GetClass() end
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      if(valid) then -- Target is valis and it is a portal
+      if(valid) then -- Target is valis and it is a actor
         if(class and DATA.ACTOR[class]) then
           local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
           LaserLib.RegisterNode(data, pos, isRfract, false)
-        else -- The trace entity target is not special portal case
+        else -- The trace entity target is not special actor case
           LaserLib.RegisterNode(data, trace.HitPos, isRfract)
         end
       else -- The trace has hit invalid entity
@@ -1269,17 +1305,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     else -- Trace distance lenght is zero so enable refraction
       if(data.NvBounce == data.MxBounce) then data.StRfract = true end
     end -- Do not put a node when beam starts in a solid
-    -- Initial start so the beam separate from the entity
-    if(data.NvBounce == data.MxBounce) then data.TeFilter = nil end
-    -- If filter was a special portal and the current entity is different
-    -- Make sure to reset the filter if needed to enter portal again
+    -- If filter was a special actor and the current entity is different
+    -- Make sure to reset the filter if needed to enter actor again
     if(valid and data.TeFilter) then
-      if(LaserLib.IsValid(data.TeFilter)) then
-        local act = data.TeFilter:GetClass() -- Index via filter class
-        if(data.TeFilter ~= target and DATA.ACTOR[act]) then
-          data.TeFilter = nil -- Makes sure we can enter the portal again
+      if(IsEntity(data.TeFilter) and LaserLib.IsValid(data.TeFilter)) then
+        local key = data.TeFilter:GetClass() -- Index via filter class
+        if(data.TeFilter ~= target and DATA.ACTOR[key]) then
+          data.TeFilter = nil -- Makes sure we can enter the actor again
         end -- Target is different from the filter so we reset the filter
-      end -- The beam comes out from valid portal and is able to hit it again
+      end -- The beam comes out from valid actor and is able to hit it again
     end
     -- When we hit something that is not specific unit
     if(trace.Hit and not LaserLib.IsUnit(target)) then
@@ -1443,12 +1477,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     if(vdir) then -- Get the trace tready to check the other side and point and register the location
                       data.VrDirect:Set(vdir)
                       data.VrOrigin:Set(trace.HitPos)
-                      data.TeFilter = nil
-                      data.NvMask   = MASK_SOLID
+                      data.TeFilter = nil -- Delete the filter so we can hit models in the water
+                      data.NvMask   = MASK_SOLID -- Swap air and water for internal reflaection
                       data.TrMedium.S, data.TrMedium.D = data.TrMedium.D, data.TrMedium.S
                     end
                     if(usrfre) then
-                      LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+                      LaserLib.SetPowerRatio(data, data.TrMedium.S[1][2])
                     end
                   end
                 end
