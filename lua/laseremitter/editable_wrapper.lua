@@ -15,7 +15,7 @@ end
 
 function ENT:EditableSetVector(name, catg)
   local typ, ord, id = self:EditableGetOrderID("Vector")
-  self:NetworkVar(typ, id, name, {
+  local a = self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
       category = catg,

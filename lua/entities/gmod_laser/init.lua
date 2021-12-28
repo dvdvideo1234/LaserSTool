@@ -5,6 +5,7 @@ include("shared.lua")
 
 resource.AddFile("models/props_junk/flare.mdl")
 resource.AddFile("materials/effects/redlaser1.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser.vmt")
 resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vmt")
 
 resource.AddSingleFile("materials/effects/redlaser1_smoke.vtf")
@@ -52,9 +53,73 @@ function ENT:Initialize()
   self:WireWrite("Entity", self)
 end
 
+--[[
+ * Spawns the laser via the etities tab under laser category
+ * Returning with no entity is intentional becaues undo is duplicated
+ * https://github.com/Facepunch/garrysmod/blob/master/garrysmod/gamemodes/sandbox/gamemode/commands.lua#L803
+]]
+function ENT:SpawnFunction(user, trace)
+  if(not trace.Hit) then return end
+  if(not user and user:IsValid()) then return end
+  local tool         = LaserLib.GetTool()
+  local angspawn     = LaserLib.GetAngleSF(user)
+  local prefix, amax = tool.."_", LaserLib.GetData("AMAX")
+  local colorr       = math.Clamp(user:GetInfoNum(prefix.."colorr", 0), 0 , 255)
+  local colorg       = math.Clamp(user:GetInfoNum(prefix.."colorg", 0), 0 , 255)
+  local colorb       = math.Clamp(user:GetInfoNum(prefix.."colorb", 0), 0 , 255)
+  local colora       = math.Clamp(user:GetInfoNum(prefix.."colora", 0), 0 , 255)
+  local width        = math.Clamp(user:GetInfoNum(prefix.."width", 0), 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  local length       = math.Clamp(user:GetInfoNum(prefix.."length", 0), 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  local damage       = math.Clamp(user:GetInfoNum(prefix.."damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  local pushforce    = math.Clamp(user:GetInfoNum(prefix.."pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  local angle        = math.Clamp(user:GetInfoNum(prefix.."angle", 0), amax[1], amax[2])
+  local org, dir     = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
+  local trandata     = LaserLib.SetupTransform({angle, org, dir})
+  local raycolor     = Color(colorr, colorg, colorb, colora)
+  local key          = user:GetInfoNum(prefix.."key", 0)
+  local model        = user:GetInfo(prefix.."model")
+  local material     = user:GetInfo(prefix.."material")
+  local stopsound    = user:GetInfo(prefix.."stopsound")
+  local killsound    = user:GetInfo(prefix.."killsound")
+  local startsound   = user:GetInfo(prefix.."startsound")
+  local dissolvetype = user:GetInfo(prefix.."dissolvetype")
+  local toggle       = (user:GetInfoNum(prefix.."toggle", 0) ~= 0)
+  local frozen       = (user:GetInfoNum(prefix.."frozen", 0) ~= 0)
+  local starton      = (user:GetInfoNum(prefix.."starton", 0) ~= 0)
+  local surfweld     = (user:GetInfoNum(prefix.."surfweld", 0) ~= 0)
+  local reflectrate  = (user:GetInfoNum(prefix.."reflectrate", 0) ~= 0)
+  local refractrate  = (user:GetInfoNum(prefix.."refractrate", 0) ~= 0)
+  local forcecenter  = (user:GetInfoNum(prefix.."forcecenter", 0) ~= 0)
+  local endingeffect = (user:GetInfoNum(prefix.."endingeffect", 0) ~= 0)
+  local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
+  local laser        = LaserLib.New(user       , trace.HitPos, angspawn    , model       ,
+                                    trandata   , key         , width       , length      ,
+                                    damage     , material    , dissolvetype, startsound  ,
+                                    stopsound  , killsound   , toggle      , starton     ,
+                                    pushforce  , endingeffect, reflectrate , refractrate ,
+                                    forcecenter, frozen      , enovermater , raycolor)
+  if(LaserLib.IsValid(laser)) then
+    LaserLib.SetProperties(laser, "metal")
+    LaserLib.ApplySpawn(laser, trace, trandata)
+
+    local weld = LaserLib.Weld(surfweld, laser, trace)
+
+    undo.Create("Laser emitter ["..laser:EntIndex().."]")
+      undo.AddEntity(laser)
+      if(weld) then undo.AddEntity(weld) end
+      undo.SetPlayer(user)
+    undo.Finish()
+
+    gamemode.Call("PlayerSpawnedSENT", user, laser)
+
+    user:AddCleanup(tool.."s", laser)
+    user:AddCount(tool.."s", laser)
+    user:AddCount("sents"  , laser)
+  end
+end
+
 function ENT:DoDamage(trace, data)
-  -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
-  if(trace) then
+  if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
       -- Check whenever target is beam source
@@ -65,17 +130,17 @@ function ENT:DoDamage(trace, data)
         end -- Define the method to register sources
       else
         local user = (self.ply or self.player)
-        local dtyp = self:GetDissolveType()
+        local dtyp = data.BmSource:GetDissolveType()
         LaserLib.DoDamage(trent,
                           trace.HitPos,
                           trace.Normal,
                           data.VrDirect,
                           data.NvDamage,
                           data.NvForce,
-                          (user or self:GetCreator()),
+                          (user or data.BmSource:GetCreator()),
                           LaserLib.GetDissolveID(dtyp),
-                          self:GetKillSound(),
-                          self:GetForceCenter(),
+                          data.BmSource:GetKillSound(),
+                          data.BmSource:GetForceCenter(),
                           self)
       end
     end

@@ -9,9 +9,10 @@ else
   ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
-ENT.Author         = "MadJawa"
-ENT.Spawnable      = false
-ENT.AdminSpawnable = false
+ENT.Author         = "DVD"
+ENT.Contact        = "dvdvideo123@gmail.com"
+ENT.Spawnable      = true
+ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_OPAQUE
 
 local EFFECTDT = LaserLib.GetData("EFFECTDT")
@@ -403,7 +404,14 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self:SetReflectRatio(reflectRate)
   self:SetRefractRatio(refractRate)
   self:SetNonOverMater(enOverMater)
-  self:SetBeamTransform(tranData)
+
+  if(not update) then
+    self:SetBeamTransform(tranData)
+  end -- Update does not change transform
+
+  if((not update) or
+    (not runToggle and update))
+  then self:SetOn(startOn) end
 
   table.Merge(self:GetTable(), {
     width        = width,
@@ -426,10 +434,6 @@ function ENT:Setup(width       , length     , damage     , material    ,
     tranData     = tranData,
     rayColor     = {r, g, b, a}
   })
-
-  if((not update) or
-    (not runToggle and update))
-  then self:SetOn(startOn) end
 
   return self
 end

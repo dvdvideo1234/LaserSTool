@@ -55,38 +55,6 @@ function ENT:SpawnFunction(ply, tr)
   end; return nil
 end
 
-function ENT:DoDamage(trace, data)
-  -- TODO : Make the owner of the mirror get the kill instead of the owner of the laser
-  if(trace) then
-    local trent = trace.Entity
-    if(LaserLib.IsValid(trent)) then
-      -- Check whenever target is beam source
-      if(LaserLib.IsUnit(trent)) then
-        -- Register the source to the ones who has it
-        if(trent.RegisterSource) then
-          trent:RegisterSource(self)
-        end -- Define the method to register sources
-      else
-        local user = (self.ply or self.player)
-        local dtyp = data.BmSource:GetDissolveType()
-        LaserLib.DoDamage(trent,
-                          trace.HitPos,
-                          trace.Normal,
-                          data.VrDirect,
-                          data.NvDamage,
-                          data.NvForce,
-                          (user or data.BmSource:GetCreator()),
-                          LaserLib.GetDissolveID(dtyp),
-                          data.BmSource:GetKillSound(),
-                          data.BmSource:GetForceCenter(),
-                          self)
-      end
-    end
-  end
-
-  return self
-end
-
 function ENT:Think()
   self:UpdateFlags()
   self:UpdateSources()

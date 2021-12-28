@@ -8,7 +8,8 @@ if(WireLib) then
 else
   ENT.Base          = "base_entity"
 end
-ENT.Author         = "MadJawa"
+ENT.Author         = "DVD"
+ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH

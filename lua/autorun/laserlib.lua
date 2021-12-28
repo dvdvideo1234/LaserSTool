@@ -48,7 +48,6 @@ DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.ERAD = 1.12            -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
-DATA.PRMG = 0.25            -- Portal teleportataon entrance displacement
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
@@ -372,11 +371,17 @@ function LaserLib.IsValid(arg)
   return arg:IsValid()
 end
 
--- Used for kill crediting
+--[[
+ * This setups the beam kill krediting
+ * Updates the kill kredit player for specific entity
+ * To obtain the creator player use `ent:GetCreator()`
+ * https://github.com/Facepunch/garrysmod/blob/master/garrysmod/lua/includes/extensions/entity.lua#L69
+]]
 function LaserLib.SetPlayer(ent, user)
   if(not LaserLib.IsValid(ent)) then return end
   if(not LaserLib.IsValid(user)) then return end
-  ent.ply, ent.player = user, user
+  ent.ply, ent.player = user, user -- Used for PPs and wire
+  ent:SetVar("Player", user) -- Used in sandbox on spawn
 end
 
 -- https://wiki.facepunch.com/gmod/Enums/NOTIFY
@@ -528,18 +533,6 @@ function LaserLib.ApplySpawn(base, trace, tran)
 end
 
 --[[
- * This is genrally used to offet the origin of a
- * given ray back so the portalling functionality
- * entities traces will not get stuck inside the prop
- * pos > Ray position origin to offset back
- * dir > Ray direction to go back among
-]]
-function LaserLib.GetReverse(pos, dir)
-  local out = Vector(dir); out:Mul(-DATA.PRMG)
-  out:Add(pos); return out -- Adjusted position
-end
-
---[[
  * Reads class name from the list
  * idx (int) > When provided checks settings
 ]]
@@ -571,6 +564,29 @@ end
 function LaserLib.GetMaterial(iK)
   local sT = DATA.MAT[tonumber(iK)]
   return (sT and sT or nil)
+end
+
+--[[
+ * Creates welds between laser and base
+ * Applies and controls surface weld flag
+ * weld  > Surface weld flag
+ * laser > Laser entity to be welded
+ * trace > Trace enity to be welded or world
+]]
+function LaserLib.Weld(weld, laser, trace)
+  if(not weld) then return nil end
+  if(not LaserLib.IsValid(laser)) then return nil end
+  local tren = trace.Entity
+  local bone = trace.PhysicsBone
+  local eval = LaserLib.IsValid(tren)
+  local anch = eval and tren or game.GetWorld()
+  local encw = constraint.Weld(laser, anch, bone, 0, 0)
+  if(LaserLib.IsValid(encw)) then
+    laser:DeleteOnRemove(encw) -- Remove the weld with the laser
+    if(eval) then -- Remove weld with the anchor entity
+      anch:DeleteOnRemove(encw) -- Apply on valid entity
+    end -- Do not call this for the world
+  end
 end
 
 --[[
@@ -980,7 +996,7 @@ if(SERVER) then
     laser:SetAngles(ang)
     laser:SetModel(Model(model))
     laser:Spawn()
-    laser:SetCreator(user)
+    laser:SetCreator(user); laser:SetVar("Player", user)
     laser:Setup(width       , length     , damage     , material    ,
                 dissolveType, startSound , stopSound  , killSound   ,
                 runToggle   , startOn    , pushForce  , endingEffect, trandata,
@@ -1084,20 +1100,20 @@ DATA.ACTOR = {
     data.IsTrace = false -- Assue that beam stops traversing
     data.NvLength = data.NvLength - data.NvLength * trace.Fraction
     local ent, src = trace.Entity, data.BmSource
-    local pos, dir = trace.HitPos, data.VrDirect
-    local eff, tar = src.isEffect, ent.Target
-    if(tar == ent) then return end -- We need to go somewhere
-    if(not LaserLib.IsValid(tar)) then return end
+    local pob, dir = trace.HitPos, data.VrDirect
+    local eff, out = src.isEffect, ent.Target
+    if(out == ent) then return end -- We need to go somewhere
+    if(not LaserLib.IsValid(out)) then return end
     -- Leave networking to CAP. Invalid target. Stop
-    local pob = LaserLib.GetReverse(pos, dir)
     local pot, dit = ent:GetTeleportedVector(pob, dir)
     if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
       ent:EnterEffect(pob, data.NvWidth) -- Enter effect
-      tar:EnterEffect(pot, data.NvWidth) -- Exit effect
+      out:EnterEffect(pot, data.NvWidth) -- Exit effect
     end -- Stargate ( CAP ) requires little nudge in the origin vector
     data.VrOrigin:Set(pot); data.VrDirect:Set(dit)
     -- Otherwise the trace will get stick and will hit again
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    data.TeFilter, data.TrFActor = out, true
     data.IsTrace = true -- CAP networking is correct. Continue
   end,
   ["gmod_laser_portal"] = function(trace, data)
@@ -1111,8 +1127,8 @@ DATA.ACTOR = {
     if(not out) then return end -- No output ID. Missing ent
     local nrm = ent:GetNormalLocal() -- Read current normal
     local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
-    local mir, dir = ent:GetMirrorExitPos(), data.VrDirect
-    local pos = LaserLib.GetReverse(trace.HitPos, dir)
+    local mir = ent:GetMirrorExitPos()
+    local pos, dir = trace.HitPos, data.VrDirect
     nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(ppos)
         if(mir and bnr) then
@@ -1137,6 +1153,7 @@ DATA.ACTOR = {
       end)
     data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
     LaserLib.RegisterNode(data, data.VrOrigin, nil, true)
+    data.TeFilter, data.TrFActor = out, true
     data.IsTrace = true -- Output model is validated. Continue
   end,
   ["prop_portal"] = function(trace, data)
@@ -1145,13 +1162,12 @@ DATA.ACTOR = {
     local ent, src, out = trace.Entity, data.BmSource
     if(not ent:IsLinked()) then return end -- No linked pair
     if(SERVER) then out = ent:FindOpenPair() -- Retrieve open pair
-    else out = Entity(ent:GetNWInt("laser_prop_portal", 0)) end
+    else out = Entity(ent:GetNWInt("laseremitter_portal", 0)) end
     -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
-    ent:SetNWInt("laser_prop_portal", out:EntIndex())
+    ent:SetNWInt("laseremitter_portal", out:EntIndex())
     local inf = data.TvPoints; inf[inf.Size][5] = true
-    local dir, nrm = data.VrDirect, trace.HitNormal
-    local pos = LaserLib.GetReverse(trace.HitPos, dir)
+    local dir, nrm, pos = data.VrDirect, trace.HitNormal, trace.HitPos
     local eps, ean, mav = ent:GetPos(), ent:GetAngles(), Vector(dir)
     local fwd, wvc = ent:GetForward(), Vector(pos); wvc:Sub(eps)
     local mar = math.abs(wvc:Dot(fwd)) -- Project entrance vector
@@ -1162,6 +1178,7 @@ DATA.ACTOR = {
     LaserLib.RegisterNode(data, nps); nps:Add(vsm * ndr)
     data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
     LaserLib.RegisterNode(data, nps)
+    data.TeFilter, data.TrFActor = out, true
     data.IsTrace = true -- Output portal is validated. Continue
   end,
   ["gmod_laser_dimmer"] = function(trace, data)
@@ -1302,8 +1319,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(valid) then -- Target is valis and it is a actor
         if(class and DATA.ACTOR[class]) then
-          local pos = LaserLib.GetReverse(trace.HitPos, data.VrDirect)
-          LaserLib.RegisterNode(data, pos, isRfract, false)
+          LaserLib.RegisterNode(data, trace.HitPos, isRfract, false)
         else -- The trace entity target is not special actor case
           LaserLib.RegisterNode(data, trace.HitPos, isRfract)
         end

@@ -6,7 +6,8 @@ ENT.Base           = LaserLib.GetClass(1, 1)
 if(WireLib) then
   ENT.WireDebugName = ENT.Information
 end
-ENT.Author         = "MadJawa"
+ENT.Author         = "DVD"
+ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH

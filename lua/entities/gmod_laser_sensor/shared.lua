@@ -8,6 +8,7 @@ if(WireLib) then
 end
 ENT.Editable       = true
 ENT.Author         = "DVD"
+ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
