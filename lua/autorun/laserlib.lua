@@ -576,17 +576,16 @@ end
 function LaserLib.Weld(weld, laser, trace)
   if(not weld) then return nil end
   if(not LaserLib.IsValid(laser)) then return nil end
-  local tren = trace.Entity
-  local bone = trace.PhysicsBone
-  local eval = LaserLib.IsValid(tren)
+  local tren, bone = trace.Entity, trace.PhysicsBone
+  local eval = (LaserLib.IsValid(tren) and not tren:IsWorld())
   local anch = eval and tren or game.GetWorld()
   local encw = constraint.Weld(laser, anch, bone, 0, 0)
   if(LaserLib.IsValid(encw)) then
     laser:DeleteOnRemove(encw) -- Remove the weld with the laser
     if(eval) then -- Remove weld with the anchor entity
       anch:DeleteOnRemove(encw) -- Apply on valid entity
-    end -- Do not call this for the world
-  end
+    end; return encw -- Return the weld for undo list
+  end; return nil -- Do not call this for the world
 end
 
 --[[
