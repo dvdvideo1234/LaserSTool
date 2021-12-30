@@ -26,6 +26,7 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
+  local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(LaserLib.GetClass(3, 1))
   if(LaserLib.IsValid(ent)) then
@@ -42,6 +43,9 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetCreator(ply)
     ent:Activate()
     ent:PhysWake()
+    LaserLib.SetPlayer(ent, ply)
+    ply:AddCount(gen.."s", ent)
+    ply:AddCleanup(gen.."s", ent)
     return ent
-  end; return nil
+  end
 end

@@ -102,19 +102,10 @@ function ENT:SpawnFunction(user, trace)
     LaserLib.SetProperties(laser, "metal")
     LaserLib.ApplySpawn(laser, trace, trandata)
 
-    local weld = LaserLib.Weld(surfweld, laser, trace)
-
-    undo.Create("Laser emitter ["..laser:EntIndex().."]")
-      undo.AddEntity(laser)
-      if(weld) then undo.AddEntity(weld) end
-      undo.SetPlayer(user)
-    undo.Finish()
-
-    gamemode.Call("PlayerSpawnedSENT", user, laser)
-
-    user:AddCleanup(tool.."s", laser)
     user:AddCount(tool.."s", laser)
-    user:AddCount("sents"  , laser)
+    user:AddCleanup(tool.."s", laser)
+
+    return laser
   end
 end
 
@@ -129,18 +120,19 @@ function ENT:DoDamage(trace, data)
           trent:RegisterSource(self)
         end -- Define the method to register sources
       else
+        local sors = data.BmSource
         local user = (self.ply or self.player)
-        local dtyp = data.BmSource:GetDissolveType()
+        local dtyp = sors:GetDissolveType()
         LaserLib.DoDamage(trent,
                           trace.HitPos,
                           trace.Normal,
                           data.VrDirect,
                           data.NvDamage,
                           data.NvForce,
-                          (user or data.BmSource:GetCreator()),
+                          (user or sors:GetCreator()),
                           LaserLib.GetDissolveID(dtyp),
-                          data.BmSource:GetKillSound(),
-                          data.BmSource:GetForceCenter(),
+                          sors:GetKillSound(),
+                          sors:GetForceCenter(),
                           self)
       end
     end

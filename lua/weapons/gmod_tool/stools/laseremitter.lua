@@ -57,6 +57,10 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".endingeffect", "Allow showing ending effects on beam hit")
   language.Add("tool."..gsTool..".surfweld_con", "Weld to surface")
   language.Add("tool."..gsTool..".surfweld", "Welds the laser to the trace surface")
+  language.Add("tool."..gsTool..".nocollide_con", "No-collide to surface")
+  language.Add("tool."..gsTool..".nocollide", "No-collides the laser to the trace surface")
+  language.Add("tool."..gsTool..".forcelimit_con", "Force limit:")
+  language.Add("tool."..gsTool..".forcelimit", "Conrold the force limit on the weld created")
   language.Add("tool."..gsTool..".reflectrate_con", "Reflection power ratio")
   language.Add("tool."..gsTool..".reflectrate", "Reflect the amount of power according to the surface material type")
   language.Add("tool."..gsTool..".refractrate_con", "Refraction power ratio")
@@ -67,10 +71,10 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".openmaterial_cmat", "Copy material")
   language.Add("tool."..gsTool..".openmaterial_cset", "Copy settings")
   language.Add("tool."..gsTool..".openmaterial_call", "Copy all info")
-  language.Add("Cleanup_"..gsTool.."s", "Laser emitters")
-  language.Add("Cleaned_"..gsTool.."s", "Cleaned up all Laser emitters")
+  language.Add("Cleanup_"..gsTool.."s", "Laser elements")
+  language.Add("Cleaned_"..gsTool.."s", "Cleaned up all Laser elements")
   language.Add("Undone_"..gsTool, "Undone Laser emitter")
-  language.Add("SBoxLimit_"..gsTool.."s", "You've hit the Laser emiters limit!")
+  language.Add("SBoxLimit_"..gsTool.."s", "You've hit the Laser elements limit!")
 
   concommand.Add(gsTool.."_openmaterial",
     function(ply, cmd, args)
@@ -191,6 +195,8 @@ TOOL.ClientConVar =
   [ "pushforce"    ] = 100,
   [ "endingeffect" ] = 1,
   [ "surfweld"     ] = 0,
+  [ "forcelimit"   ] = 0,
+  [ "nocollide"    ] = 1,
   [ "reflectrate"  ] = 1,
   [ "refractrate"  ] = 1,
   [ "reflectused"  ] = LaserLib.DataReflect(),
@@ -243,13 +249,13 @@ function TOOL:LeftClick(trace)
   local ply, ent = self:GetOwner(), trace.Entity
   if(ent:IsPlayer()) then return false end
   local swep = self:GetSWEP()
-  if(not swep:CheckLimit("sents")) then return false end
   if(not swep:CheckLimit(gsTool.."s")) then return false end
   local pos, ang     = trace.HitPos, trace.HitNormal:Angle()
   local width        = math.Clamp(self:GetClientNumber("width", 0), 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
   local length       = math.Clamp(self:GetClientNumber("length", 0), 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   local damage       = math.Clamp(self:GetClientNumber("damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   local pushforce    = math.Clamp(self:GetClientNumber("pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  local forcelimit   = math.Clamp(self:GetClientNumber("forcelimit", 0), 0, LaserLib.GetData("MFORCELM"):GetFloat())
   local trandata     = self:GetTransform()
   local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
@@ -263,22 +269,21 @@ function TOOL:LeftClick(trace)
   local frozen       = (self:GetClientNumber("frozen", 0) ~= 0)
   local starton      = (self:GetClientNumber("starton", 0) ~= 0)
   local surfweld     = (self:GetClientNumber("surfweld", 0) ~= 0)
+  local nocollide    = (self:GetClientNumber("nocollide", 0) ~= 0)
   local reflectrate  = (self:GetClientNumber("reflectrate", 0) ~= 0)
   local refractrate  = (self:GetClientNumber("refractrate", 0) ~= 0)
   local endingeffect = (self:GetClientNumber("endingeffect", 0) ~= 0)
   local forcecenter  = (self:GetClientNumber("forcecenter", 0) ~= 0)
   local enonvermater = (self:GetClientNumber("enonvermater", 0) ~= 0)
-  local vaentity     = LaserLib.IsValid(ent)
 
-
-  if(vaentity and ent:GetClass() == gsLaseremCls) then
+  if(LaserLib.IsValid(ent) and ent:GetClass() == gsLaseremCls) then
     LaserLib.Notify(ply, "Paste settings !", "UNDO")
     ent:Setup(width       , length     , damage     , material    ,
               dissolvetype, startsound , stopsound  , killsound   ,
               toggle      , starton    , pushforce  , endingeffect, trandata,
               reflectrate , refractrate, forcecenter, enonvermater, raycolor, true)
     return true
-  elseif(vaentity and ent:GetClass() == gsLaserptCls) then
+  elseif(LaserLib.IsValid(ent) and ent:GetClass() == gsLaserptCls) then
     local idx = self:GetClientInfo("portalexit"); ent:SetEntityExitID(idx)
     LaserLib.Notify(ply, "Paste ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
     return true
@@ -296,19 +301,19 @@ function TOOL:LeftClick(trace)
   LaserLib.SetProperties(laser, "metal")
   LaserLib.ApplySpawn(laser, trace, self:GetTransform())
 
-  local weld = LaserLib.Weld(surfweld, laser, trace)
+  local we, nc = LaserLib.Weld(laser, trace, surfweld, nocollide, forcelimit)
 
   undo.Create("Laser emitter ["..laser:EntIndex().."]")
     undo.AddEntity(laser)
-    if(weld) then undo.AddEntity(weld) end
+    if(we) then undo.AddEntity(we) end
+    if(nc) then undo.AddEntity(nc) end
     undo.SetPlayer(ply)
   undo.Finish()
 
-  LaserLib.Notify(ply, "Laser created !", "GENERIC")
-
-  ply:AddCleanup(gsTool.."s", laser)
   ply:AddCount(gsTool.."s", laser)
-  ply:AddCount("sents", laser)
+  ply:AddCleanup(gsTool.."s", laser)
+
+  LaserLib.Notify(ply, "Laser created !", "GENERIC")
 
   return true
 end
@@ -524,8 +529,12 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   LaserLib.ComboBoxString(panel, "stopsound"   , "LaserStopSounds"   )
   LaserLib.ComboBoxString(panel, "killsound"   , "LaserKillSounds"   )
 
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".forcelimit_con"), gsTool.."_forcelimit", 0, LaserLib.GetData("MFORCELM"):GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".forcelimit")); pItem:SetDefaultValue(gtConvarList[gsTool.."_forcelimit"])
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".surfweld_con"), gsTool.."_surfweld")
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".surfweld"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".nocollide_con"), gsTool.."_nocollide")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".nocollide"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".frozen_con"), gsTool.."_frozen")
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".frozen"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".toggle_con"), gsTool.."_toggle")
