@@ -38,7 +38,11 @@ function ENT:Draw()
   self:DrawModel()
 
   if(self:GetDrawTransfer()) then
-    local ang = LocalPlayer():EyeAngles()
+    local ply = LocalPlayer()
+    local ang = ply:EyeAngles()
+    if(ply:InVehicle()) then
+      ang = ply:GetVehicle():LocalToWorldAngles(ang)
+    end
     ang:RotateAroundAxis(ang:Up(), 90)
     ang:RotateAroundAxis(ang:Forward(), 90)
     ang:RotateAroundAxis(ang:Right(), 180)
