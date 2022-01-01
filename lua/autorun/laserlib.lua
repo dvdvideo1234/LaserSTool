@@ -48,7 +48,7 @@ DATA.MINW = 0.05            -- Mininum width to be considered visible
 DATA.DOTM = 0.01            -- Colinearity and dot prodic margin check
 DATA.POWL = 0.001           -- Lowest bounds of laser power
 DATA.ERAD = 1.12            -- Entity refract coefficient for back trace origins
-DATA.TRWD = 0.33            -- Beam backtrace trace width when refracting
+DATA.TRWD = 0.27            -- Beam backtrace trace width when refracting
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
@@ -1334,7 +1334,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         trace.Fraction = 0
         trace.FractionLeftSolid = 0
         trace.HitTexture = "water"
-        data.TrMedium = {S = {DATA.REFRACT["water"], "water"}}
+        data.TrMedium.S = {DATA.REFRACT["water"], "water"}
       end
     end
 
@@ -1373,10 +1373,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Make sure that outer trace will always hit
           LaserLib.VecNegate(data.VrDirect)
           LaserLib.VecNegate(trace.HitNormal)
+          local refsors, refract = data.TrMedium.S[1], data.TrMedium.D[1]
           local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                                   trace.HitNormal,
-                                                   data.TrMedium.D[1][1],
-                                                   data.TrMedium.S[1][1])
+                               trace.HitNormal, refract[1], refsors[1])
           if(bout) then -- When the beam gets out of the medium
             -- Lower the refraction flag ( Not full internal reflection )
             data.IsRfract[1] = false
@@ -1395,7 +1394,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             LaserLib.VecNegate(data.VrDirect)
           end
           if(usrfre) then -- Apply power ratio when requested
-            LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+            LaserLib.SetPowerRatio(data, refract[2])
           end
         else -- Put special cases here
           if(class and DATA.ACTOR[class]) then
@@ -1413,10 +1412,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 LaserLib.SetPowerRatio(data, reflect[1])
               end
             else
+              local refsors = data.TrMedium.S -- Index source key refract compare
               local refract, key = IndexMaterial(data.TrMaters, DATA.REFRACT)
-              if(data.StRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
+              if(data.StRfract or (refract and key ~= refsors[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
-                if(refract) then
+                if(refract) then refsors = refsors[1] -- Jump to read source data set
                   -- Register desination medium and raise calculate refraction flag
                   data.TrMedium.D[1] = refract -- First element is always structure
                   data.TrMedium.D[2] = key -- Second element is always the indexed with
@@ -1429,9 +1429,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     vdir = Vector(direct); data.StRfract = false
                   else
                     vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                                       trace.HitNormal,
-                                                       data.TrMedium.S[1][1],
-                                                       data.TrMedium.D[1][1])
+                                   trace.HitNormal, refsors[1], refract[1])
                   end
                   -- Get the trace tready to check the other side and point and register the location
                   data.DmRfract = (2 * target:BoundingRadius())
@@ -1465,16 +1463,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Make sure that outer trace will always hit
           LaserLib.VecNegate(data.VrDirect)
           LaserLib.VecNegate(trace.HitNormal)
+          local refsors, refract = data.TrMedium.S[1], data.TrMedium.D[1]
           local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                             trace.HitNormal,
-                                             data.TrMedium.D[1][1],
-                                             data.TrMedium.S[1][1])
+                               trace.HitNormal, refract[1], refsors[1])
           data.VrDirect:Set(vdir)
           data.VrOrigin:Set(vdir)
           data.VrOrigin:Add(trace.HitPos)
           LaserLib.VecNegate(data.VrDirect)
           if(usrfre) then -- Apply power ratio when requested
-            LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+            LaserLib.SetPowerRatio(data, refract[2])
           end
         else
           if(class and DATA.ACTOR[class]) then
@@ -1492,10 +1489,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 LaserLib.SetPowerRatio(data, reflect[1])
               end
             else
+              local refsors = data.TrMedium.S -- Index source key refract compare
               local refract, key = IndexMaterial(data.TrMaters, DATA.REFRACT)
-              if(data.StRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
+              if(data.StRfract or (refract and key ~= refsors[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
-                if(refract) then
+                if(refract) then refsors = refsors[1] -- Jump to read source data set
                   -- Register desination medium and raise calculate refraction flag
                   data.TrMedium.D[1] = refract -- First element is always structure
                   data.TrMedium.D[2] = key -- Second element is always the indexed with
@@ -1512,15 +1510,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   else
                     -- Get the trace tready to check the other side and point and register the location
                     local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                                             trace.HitNormal,
-                                                             data.TrMedium.S[1][1],
-                                                             data.TrMedium.D[1][1])
+                                         trace.HitNormal, refsors[1], refract[1])
                     data.VrDirect:Set(vdir)
                     data.VrOrigin:Set(trace.HitPos)
                     data.TeFilter = entity -- Personal filter so we can hit models in the water
-                    data.NvMask   = MASK_SOLID -- Swap air and water for internal reflaection
+                    data.NvMask = MASK_SOLID -- Swap air and water for internal reflaection
                     if(usrfre) then -- Apply power ratio when requested
-                      LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+                      LaserLib.SetPowerRatio(data, refract[2])
                     end
                   end -- We cannot be able to refract as the requested data is missing
                 else LaserLib.BeamFinish(trace, data) end
