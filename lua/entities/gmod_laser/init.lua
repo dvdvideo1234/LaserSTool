@@ -60,7 +60,7 @@ end
 ]]
 function ENT:SpawnFunction(user, trace)
   if(not trace.Hit) then return end
-  if(not user and user:IsValid()) then return end
+  if(not LaserLib.IsValid(user)) then return end
   local tool         = LaserLib.GetTool()
   local angspawn     = LaserLib.GetAngleSF(user)
   local prefix, amax = tool.."_", LaserLib.GetData("AMAX")

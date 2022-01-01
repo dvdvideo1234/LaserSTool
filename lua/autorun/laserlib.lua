@@ -337,6 +337,7 @@ end
 function LaserLib.IsValid(arg)
   if(arg == nil) then return false end
   if(arg == NULL) then return false end
+  if(not arg.IsValid) then return false end
   return arg:IsValid()
 end
 
