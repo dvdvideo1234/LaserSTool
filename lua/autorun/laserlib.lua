@@ -1048,7 +1048,10 @@ if(SERVER) then
 end
 
 --[[
- * Setups the beam power ratio when requested
+ * Setups the beam power ratio when requested for the last
+ * node on the stack. Applies power ratio and calculates
+ * whenever the total beam is absorbed to be stopped
+ * Returns node reference indexed internally and current power
  * data   > Internal beam manipulation data
  * rate   > The ratio to apply on the last node
 ]]
@@ -1272,11 +1275,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.TvPoints = {Size = 0} -- Create empty vertices array
   data.VrOrigin = Vector(origin) -- Copy origin not to modify it
   data.VrDirect = direct:GetNormalized() -- Copy deirection not to modify it
-  data.BmLength = math.max(tonumber(length) or 0, 0)
-  data.NvDamage = math.max(tonumber(damage) or 0, 0)
-  data.NvWidth  = math.max(tonumber(width ) or 0, 0)
-  data.NvForce  = math.max(tonumber(force ) or 0, 0)
-  data.TrMedium = {S = {DATA.REFRACT["air"], "air"}}
+  data.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
+  data.NvDamage = math.max(tonumber(damage) or 0, 0) -- Initial current beam damage
+  data.NvWidth  = math.max(tonumber(width ) or 0, 0) -- Initial current beam width
+  data.NvForce  = math.max(tonumber(force ) or 0, 0) -- Initial current beam force
+  data.TrMedium = {S = {DATA.REFRACT["air"], "air"}, D = {DATA.REFRACT["air"], "air"}}
   data.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
   data.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce = data.MxBounce -- Amount of bounces to control the infinite loop
@@ -1370,29 +1373,29 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Make sure that outer trace will always hit
           LaserLib.VecNegate(data.VrDirect)
           LaserLib.VecNegate(trace.HitNormal)
-          if(data.TrMedium.D[1]) then
-            local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                                     trace.HitNormal,
-                                                     data.TrMedium.D[1][1],
-                                                     data.TrMedium.S[1][1])
-            if(bout) then -- When the beam gets out of the medium
-              -- Lower refraction flag ( Not full internal reflection )
-              data.IsRfract[1] = false
-              -- Restore the filter and hit world for tracing something else
-              data.TeFilter = target -- We prepare to hit something else anyway
-              data.BmTracew = 0 -- Use zero width beam traces
-              data.NvIWorld = false -- Revert ignoring world
-              -- Appy origin and direction when beam exits the medium
-              data.VrDirect:Set(vdir)
-              data.VrOrigin:Set(trace.HitPos)
-            else -- Get the trace ready to check the other side and register the location
-              data.VrDirect:Set(vdir)
-              data.VrOrigin:Set(vdir)
-              data.VrOrigin:Mul(data.DmRfract)
-              data.VrOrigin:Add(trace.HitPos)
-              LaserLib.VecNegate(data.VrDirect)
-            end
-            if(usrfre) then LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2]) end
+          local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
+                                                   trace.HitNormal,
+                                                   data.TrMedium.D[1][1],
+                                                   data.TrMedium.S[1][1])
+          if(bout) then -- When the beam gets out of the medium
+            -- Lower the refraction flag ( Not full internal reflection )
+            data.IsRfract[1] = false
+            -- Restore the filter and hit world for tracing something else
+            data.TeFilter = target -- We prepare to hit something else anyway
+            data.BmTracew = 0 -- Use zero width beam traces
+            data.NvIWorld = false -- Revert ignoring world
+            -- Appy origin and direction when beam exits the medium
+            data.VrDirect:Set(vdir)
+            data.VrOrigin:Set(trace.HitPos)
+          else -- Get the trace ready to check the other side and register the location
+            data.VrDirect:Set(vdir)
+            data.VrOrigin:Set(vdir)
+            data.VrOrigin:Mul(data.DmRfract)
+            data.VrOrigin:Add(trace.HitPos)
+            LaserLib.VecNegate(data.VrDirect)
+          end
+          if(usrfre) then -- Apply power ratio when requested
+            LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
           end
         else -- Put special cases here
           if(class and DATA.ACTOR[class]) then
@@ -1415,7 +1418,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then
                   -- Register desination medium and raise calculate refraction flag
-                  data.TrMedium.D = {refract, key}
+                  data.TrMedium.D[1] = refract -- First element is always structure
+                  data.TrMedium.D[2] = key -- Second element is always the indexed with
                   -- Substact traced lenght from total length
                   data.NvLength = data.NvLength - data.NvLength * trace.Fraction
                   -- Calculated refraction ray. Reflect when not possible
@@ -1442,8 +1446,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   data.IsRfract[1] = true -- Raise the bounce off refract flag
                   data.BmTracew = DATA.TRWD -- Increase the beam width for back track
                   data.TrRfract = (DATA.ERAD * data.DmRfract) -- Scale and again to make it hit
-                  if(usrfre) then
-                    LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+                  if(usrfre) then -- Apply power ratio when requested
+                    LaserLib.SetPowerRatio(data, refract[2])
                   end -- We cannot be able to refract as the requested data is missing
                 else LaserLib.BeamFinish(trace, data) end
               else -- We are neither reflecting nor refracting and have hit a wall
@@ -1454,23 +1458,23 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         end
       elseif(trace.HitWorld or data.IsRfract[2]) then
         if(data.IsRfract[2]) then
+          -- The beam has traversed from air to water
           data.IsRfract[2] = false
-          local vdir, bout
           -- Well the beam is still tracing
           data.IsTrace = true -- Produce next ray
           -- Make sure that outer trace will always hit
           LaserLib.VecNegate(data.VrDirect)
           LaserLib.VecNegate(trace.HitNormal)
-          if(data.TrMedium.D[1]) then
-            vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                               trace.HitNormal,
-                                               data.TrMedium.D[1][1],
-                                               data.TrMedium.S[1][1])
-            data.VrDirect:Set(vdir)
-            data.VrOrigin:Set(vdir)
-            data.VrOrigin:Add(trace.HitPos)
-            LaserLib.VecNegate(data.VrDirect)
-            if(usrfre) then LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2]) end
+          local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
+                                             trace.HitNormal,
+                                             data.TrMedium.D[1][1],
+                                             data.TrMedium.S[1][1])
+          data.VrDirect:Set(vdir)
+          data.VrOrigin:Set(vdir)
+          data.VrOrigin:Add(trace.HitPos)
+          LaserLib.VecNegate(data.VrDirect)
+          if(usrfre) then -- Apply power ratio when requested
+            LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
           end
         else
           if(class and DATA.ACTOR[class]) then
@@ -1493,7 +1497,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then
                   -- Register desination medium and raise calculate refraction flag
-                  data.TrMedium.D = {refract, key}
+                  data.TrMedium.D[1] = refract -- First element is always structure
+                  data.TrMedium.D[2] = key -- Second element is always the indexed with
                   -- Substact traced lenght from total length
                   data.NvLength = data.NvLength - data.NvLength * trace.Fraction
                   data.TrRfract = data.NvLength
@@ -1514,7 +1519,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     data.VrOrigin:Set(trace.HitPos)
                     data.TeFilter = entity -- Personal filter so we can hit models in the water
                     data.NvMask   = MASK_SOLID -- Swap air and water for internal reflaection
-                    if(usrfre) then LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2]) end
+                    if(usrfre) then -- Apply power ratio when requested
+                      LaserLib.SetPowerRatio(data, data.TrMedium.D[1][2])
+                    end
                   end -- We cannot be able to refract as the requested data is missing
                 else LaserLib.BeamFinish(trace, data) end
               else -- We are neither reflecting nor refracting and have hit a wall
