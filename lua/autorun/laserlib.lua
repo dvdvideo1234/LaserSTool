@@ -1048,6 +1048,18 @@ if(SERVER) then
 end
 
 --[[
+ * Intersects ray (trace) witha plane (position, normal)
+ * rorg > Ray start origin
+ * rdir > Ray direction vector
+ * rlen > Ray length (not mandatory)
+ * ppos > Plane position
+ * pnor > Plane normal
+]]
+function LaserLib.RayPlaneIntersect(rorg, rdir, rlen, ppos, pnor)
+
+end
+
+--[[
  * Setups the beam power ratio when requested for the last
  * node on the stack. Applies power ratio and calculates
  * whenever the total beam is absorbed to be stopped
