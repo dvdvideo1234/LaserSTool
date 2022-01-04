@@ -1048,14 +1048,16 @@ if(SERVER) then
 end
 
 --[[
- * Intersects ray (trace) witha plane (position, normal)
- * rorg > Ray start origin
- * rdir > Ray direction vector
- * rlen > Ray length (not mandatory)
- * ppos > Plane position
- * pnor > Plane normal
+ * Intersects line (start, end) with a plane (position, normal)
+ * This can be called then beam goes out of the water
+ * To straight caluculate the intersection pont
+ * this will ensure no overhead traces will be needed.
+ * sorg > Line start origin position trace(k-1)
+ * rdir > Line eorg origin position trace(k)
+ * ppos > Plane position as vector in 3D space
+ * pnor > Plane normal as world direction vector
 ]]
-function LaserLib.RayPlaneIntersect(rorg, rdir, rlen, ppos, pnor)
+function LaserLib.RayPlaneIntersect(sorg, eorg, ppos, pnor)
 
 end
 
@@ -1068,13 +1070,16 @@ end
  * rate   > The ratio to apply on the last node
 ]]
 function LaserLib.SetPowerRatio(data, rate)
-  data.NvDamage = rate * data.NvDamage
-  data.NvForce  = rate * data.NvForce
-  data.NvWidth  = LaserLib.GetWidth(rate * data.NvWidth)
-  -- Update the parameters used for drawing the beam trace
   local node = data.TvPoints[data.TvPoints.Size]
-  node[2], node[3], node[4] = data.NvWidth, data.NvDamage, data.NvForce
-  -- Check out power rankings so the trace absorbed everything
+  if(rate) then -- There is sanity with adjusting the stuff
+    data.NvDamage = rate * data.NvDamage
+    data.NvForce  = rate * data.NvForce
+    data.NvWidth  = LaserLib.GetWidth(rate * data.NvWidth)
+    -- Update the parameters used for drawing the beam trace
+    node[2] = data.NvWidth -- Adjusts visuals for width
+    node[3] = data.NvDamage -- Adjusts visuals for damage
+    node[4] = data.NvForce -- Adjusts visuals for force
+  end -- Check out power rankings so the trace absorbed everything
   local power = LaserLib.GetPower(data.NvWidth, data.NvDamage)
   if(power < DATA.POWL) then data.IsTrace = false end -- Absorbs remaining light
   return node, power -- It is indexed anyway then return it to the caller
