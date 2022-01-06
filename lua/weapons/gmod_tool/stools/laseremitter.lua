@@ -98,7 +98,7 @@ if(CLIENT) then
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(false)
       pnFrame:SetPos(0, 0)
-      pnFrame:SetSize(scrW / (1.4 * rate), scrH / (1.4 * rate))
+      pnFrame:SetSize(scrW / rate, scrH / rate)
       local pnMat = vgui.Create("MatSelect"); if(not IsValid(pnMat)) then return nil end
             pnMat:SetParent(pnFrame)
             pnMat:DockPadding(3, 3, 3, 3)
