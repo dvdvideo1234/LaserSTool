@@ -1518,7 +1518,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             bIsRfract = false -- Has to stop refracting
             bStRfract = false -- We are changing mediums and regraction is complete
             -- Restore the filter and hit world for tracing something else
-            data.TeFilter = target -- We prepare to hit something else anyway
+            data.TeFilter = nil -- We prepare to hit something else anyway
             -- Appy origin and direction when beam exits the medium
             data.VrDirect:Set(vdir)
             data.VrOrigin:Set(trace.HitPos)
@@ -1692,23 +1692,22 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                       gtTxWater.P:Set(DATA.VDRUP)
                       gtTxWater.P:Mul(DATA.TRWU * tr.FractionLeftSolid)
                       gtTxWater.P:Add(data.VrOrigin)
-                    else
-                      gtTxWater.N:Zero()
-                    end
+                    else -- Refract type is not water so reset the configuration
+                      gtTxWater.N:Zero() -- Clear the water normal vector
+                    end -- Water refraction configuration is done
                     data.VrDirect:Set(direct) -- Keep the same direction
                     data.VrOrigin:Set(trace.HitPos) -- Keep initial origin
-                    data.TeFilter = entity -- When beam starts inside the laser prop
                     bStRfract = false -- Lower the flag so no preformance hit is present
                   else -- Beam comes from the air and hits the water. Store water plane and refract
                     -- Get the trace tready to check the other side and point and register the location
                     local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                          trace.HitNormal, data.TrMedium.S[1][1], refract[1])
-                    if(gtTxWater.K[reftype]) then
-                      gtTxWater.P:Set(trace.HitPos)
-                      gtTxWater.N:Set(trace.HitNormal)
-                    else
-                      gtTxWater.N:Zero()
-                    end
+                    if(gtTxWater.K[reftype]) then -- Refract type not water then setup
+                      gtTxWater.P:Set(trace.HitPos) -- Memorize the plane position
+                      gtTxWater.N:Set(trace.HitNormal) -- Memorize the plane normal
+                    else -- Refract type is not water so reset the configuration
+                      gtTxWater.N:Zero() -- Clear the water normal vector
+                    end -- Water refraction configuration is done
                     data.VrDirect:Set(vdir)
                     data.VrOrigin:Set(trace.HitPos)
                   end -- Need to make the traversed destination the new source
@@ -1718,14 +1717,16 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     bNvIWorld = false -- World transparen objects do not need world ignore
                     nNvMask = MASK_ALL -- Beam did not traverse into water
                     nBmTracew = DATA.TRWD -- Increase the beam width for back track
-                    -- Apply world-only filter for refraction exit location
+                    -- Apply world-only filter for refraction exit the location
                     data.TeFilter = function(ent) return (ent == DATA.WORLD) end
                   else -- Filter solids so they can be hit inside water medium
                     bIsRfract = false -- Beam is inside water. Do not force refract
                     bNvIWorld = false -- Water refraction does not need world ignore
-                    nNvMask = MASK_SOLID -- Aim to hit solid props withing the water
-                    -- Personal filter so we can hit models in the water
+                    nNvMask = MASK_SOLID -- Aim to hit solid props within the water
+                    -- Clear the personal filter so we can hit models in the water
                     -- We also must pass the primary iteration where for custom beam offsets
+                    -- When beam starts inside the a laser prop with custom offsets must skip it
+                    data.TeFilter = (data.NvBounce == data.MxBounce) and entity or nil
                     if(data.NvBounce < data.MxBounce) then data.TeFilter = nil end
                     data.TrMedium.S[1], data.TrMedium.D[1] = data.TrMedium.D[1], data.TrMedium.S[1]
                     data.TrMedium.S[2], data.TrMedium.D[2] = data.TrMedium.D[2], data.TrMedium.S[2]
