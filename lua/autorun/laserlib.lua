@@ -96,12 +96,12 @@ DATA.CLS = {
   {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `ActionSource`
   {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
   {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `ActionSource`
-  {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `ActionSource`
+  {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `DoBeam`
   {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `ActionSource`
-  {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `ActionSource`
+  {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `DoBeam`
   {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `ActionSource`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel `ActionSource`
+  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel `DoBeam`
 }
 
 DATA.MOD = { -- Model used by the entities menu
