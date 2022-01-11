@@ -271,7 +271,33 @@ for idx = 2, #DATA.CLS do
   varn)
 end
 
-function LaserLib.TraceCAP(origin, direct, length, filter)
+--[[
+ * Account for the trace width cube half diagonal
+ * trace > The trace result to be modified
+ * data  > Laser beam data structure
+]]
+local function SetTraceWidth(trace, data)
+  if(trace and  -- Check if the trace is available
+     trace.Hit and -- Trace must hit something
+     data.IsRfract and -- Library must be refracting
+     data.BmTracew and -- Beam width is available
+     data.BmTracew > 0) then -- Beam width is present
+    DATA.VTEMP:Set(trace.HitNormal)
+    DATA.VTEMP:Mul(-DATA.TRDG * data.BmTracew)
+    trace.HitPos:Add(DATA.VTEMP)
+  end; return trace
+end
+
+--[[
+ * Performs CAP dedicated traces. Will return result
+ * only when CAP hits its dedicated entities
+ * origin > Trace origin as world position vector
+ * direct > Trace direction as world aim vector
+ * length > Trace length in source units
+ * filter > Trace filter as standard config
+ * https://github.com/RafaelDeJongh/cap/blob/master/lua/stargate/shared/tracelines.lua
+]]
+local function TraceCAP(origin, direct, length, filter)
   if(StarGate ~= nil) then
     DATA.TRACE.start:Set(origin)
     DATA.TRACE.endpos:Set(direct)
@@ -282,10 +308,19 @@ function LaserLib.TraceCAP(origin, direct, length, filter)
   end; return nil -- Otherwise use the reglar trace for refraction control
 end
 
--- CAP: https://github.com/RafaelDeJongh/cap/blob/master/lua/stargate/shared/tracelines.lua
-function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, width, result)
-  local tr = LaserLib.TraceCAP(origin, direct, length, filter)
-  if(tr) then return tr end -- Return when CAP stuff is currently being hit
+--[[
+ * Performs general traces according to the parameters passed
+ * origin > Trace origin as world position vector
+ * direct > Trace direction as world aim vector
+ * length > Trace length in source units
+ * filter > Trace filter as standard config
+ * mask   > Trace mask as standard config
+ * colgrp > Trace collision group as standard config
+ * iworld > Trace ignore world as standard config
+ * width  > When larger than zero will run a hull trace instead
+ * result > Trace output destination table as standard config
+]]
+local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, result)
   DATA.TRACE.start:Set(origin)
   DATA.TRACE.endpos:Set(direct)
   DATA.TRACE.endpos:Normalize()
@@ -324,6 +359,25 @@ function LaserLib.Trace(origin, direct, length, filter, mask, colgrp, iworld, wi
     DATA.TRACE.output = nil
     return DATA.TRACE.funct(DATA.TRACE)
   end
+end
+
+--[[
+ * Performs library dedicated beam trace. Runs a
+ * CAP trace. when fails runs a general trace
+ * data   > Reference to beam data structure
+ * iscap  > Enable to force run CAP before general
+ * result > Trace output destination table as standard config
+]]
+function LaserLib.Trace(data, iscap, result)
+  local length = (data.IsRfract and data.TrRfract or data.NvLength)
+  local iscap  = ((iscap or iscap == nil) and true or false)
+  if(iscap and not data.IsRfract) then
+    local tr = TraceCAP(data.VrOrigin, data.VrDirect, length, data.TeFilter)
+    if(tr) then return SetTraceWidth(tr, data) end -- Return when CAP stuff is currently being hit
+  end -- When the trace is not specific CAP entity continue
+  return SetTraceWidth(TraceBeam(
+    data.VrOrigin, data.VrDirect, length       , data.TeFilter,
+    data.NvMask  , data.NvCGroup, data.NvIWorld, data.BmTracew, result), data)
 end
 
 function LaserLib.GetSign(arg)
@@ -1354,16 +1408,10 @@ local gtSvMedium = {A = {DATA.REFRACT["air"], "air"}, W = {DATA.REFRACT["water"]
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local bIsValid  = false -- Stores whenever the trace is valid entity or not
-  local bIsRfract = false -- The beam is refracting inside and entity or world solid
   local nDmRfract = 0 -- Diameter trace-back dimensions of the entity
   local sTrMaters = "" -- This stores the current extracted material as string
   local sTrclass  = nil -- This stores the calss of the current trace entity
-  local nNvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
-  local nNvCGroup = COLLISION_GROUP_NONE -- Collision group. Missing then COLLISION_GROUP_NONE
-  local bNvIWorld = false -- Ignore world flag to make it hit the other side
   local bStRfract = false -- Start tracing the beam inside a boundary
-  local nBmTracew = 0 -- Make sure beam is zero width during the initial trace hit
-  local nTrRfract = 0 -- Full length for traces not being bound by hit events
   local data, trace, target = {} -- Configure data structure and target reference
   -- Reports dedicated values that are being used by other entities and processses
   data.IsTrace  = true -- Library is still tracing the beam
@@ -1377,6 +1425,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   data.NvWidth  = math.max(tonumber(width ) or 0, 0) -- Initial current beam width
   data.NvForce  = math.max(tonumber(force ) or 0, 0) -- Initial current beam force
   data.TrMedium = {} -- Contains information for the mediums being traversed
+  data.TrRfract = 0 -- Full length for traces not being bound by hit events
+  data.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
+  data.NvIWorld = false -- Ignore world flag to make it hit the other side
+  data.IsRfract = false -- The beam is refracting inside and entity or world solid
+  data.NvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
+  data.NvCGroup = COLLISION_GROUP_NONE -- Collision group. Missing then COLLISION_GROUP_NONE
   data.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
   data.NvBounce = data.MxBounce -- Amount of bounces to control the infinite loop
   data.RaLength = data.BmLength -- Range of the length. Just like wire ranger
@@ -1398,24 +1452,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
   repeat
     -- Run the trace using the defined conditianl parameters
-    trace = LaserLib.Trace(data.VrOrigin,
-                           data.VrDirect,
-                           (bIsRfract and nTrRfract or data.NvLength),
-                           data.TeFilter,
-                           nNvMask,
-                           nNvCGroup,
-                           bNvIWorld,
-                           nBmTracew); target = trace.Entity
-
-    if(bIsRfract and trace and trace.Hit and nBmTracew and nBmTracew > 0) then
-      local mul = (-DATA.TRDG * nBmTracew); trace.HitPos:Add(mul * trace.HitNormal)
-    end -- Make sure we account for the trace width cube half diagonal
+    trace = LaserLib.Trace(data); target = trace.Entity
 
     -- Initial start so the beam separate from the laser
     if(data.NvBounce == data.MxBounce) then
       data.TeFilter = nil
 
-      if(trace.HitWorld and trace.StartSolid and nNvMask == MASK_ALL) then
+      if(trace.HitWorld and trace.StartSolid and data.NvMask == MASK_ALL) then
         -- Beam starts inside map solid and source must be changed
         if(bit.band(trace.Contents, CONTENTS_WATER) > 0) then
           SetRefractContent(3, trace, data)
@@ -1424,7 +1467,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         end
       end
     else
-      if(not gtTxWater.N:IsZero() and not bIsRfract) then
+      if(not gtTxWater.N:IsZero() and not data.IsRfract) then
         if(not IsWater(trace.HitPos)) then
           -- When beam started inside the water and hit ouside the water
           LaserLib.VecNegate(data.VrDirect) -- For intersection trace back
@@ -1434,10 +1477,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           local vdir, bout = LaserLib.GetRefracted(data.VrDirect, -gtTxWater.N,
                                gtSvMedium.W[1][1], gtSvMedium.A[1][1])
           if(bout) then
-            gtTxWater.N:Zero()  -- Set water normal to zero. Check flag
-            nBmTracew = 0       -- Assume the trace width is zero
-            bNvIWorld = false   -- Make sure it hits world
-            nNvMask = MASK_ALL  -- Revert the mask for everything
+            gtTxWater.N:Zero()     -- Set water normal to zero. Check flag
+            data.BmTracew = 0      -- Assume the trace width is zero
+            data.NvIWorld = false  -- Make sure it hits world
+            data.NvMask = MASK_ALL -- Revert the mask for everything
             data.TeFilter = nil -- Wipe out the filter to start again
             data.TrMedium.S[1] = gtSvMedium.A[1] -- Apply air medium
             data.TrMedium.S[2] = gtSvMedium.A[2] -- Apply air medium
@@ -1446,14 +1489,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           if(usrfre) then SetPowerRatio(data, gtSvMedium.W[1][2]) end
           data.VrOrigin:Set(vwa)
           data.VrDirect:Set(vdir)
-          trace = LaserLib.Trace(data.VrOrigin,
-                                 data.VrDirect,
-                                 data.NvLength,
-                                 data.TeFilter,
-                                 nNvMask,
-                                 nNvCGroup,
-                                 bNvIWorld,
-                                 nBmTracew); target = trace.Entity
+          trace = LaserLib.Trace(data); target = trace.Entity
         end
       end
     end
@@ -1470,19 +1506,19 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(bIsValid) then -- Target is valis and it is a actor
         if(sTrclass and gtActors[sTrclass]) then
-          RegisterBeamNode(data, trace.HitPos, bIsRfract, false)
+          RegisterBeamNode(data, trace.HitPos, data.IsRfract, false)
         else -- The trace entity target is not special actor case
-          RegisterBeamNode(data, trace.HitPos, bIsRfract)
+          RegisterBeamNode(data, trace.HitPos, data.IsRfract)
         end
       else -- The trace has hit invalid entity or world
         bStRfract = trace.StartSolid
         if(trace.FractionLeftSolid > 0) then
-          local mar = (bIsRfract and nTrRfract or data.NvLength)
+          local mar = (data.IsRfract and data.TrRfract or data.NvLength)
                 mar = mar * trace.FractionLeftSolid
           -- Register the node at the location the laser lefts the glass
-          RegisterBeamNode(data, data.VrOrigin + data.VrDirect * mar, bIsRfract)
+          RegisterBeamNode(data, data.VrOrigin + data.VrDirect * mar, data.IsRfract)
         else
-          RegisterBeamNode(data, trace.HitPos, bIsRfract)
+          RegisterBeamNode(data, trace.HitPos, data.IsRfract)
         end
       end
     else -- Trace distance lenght is zero so enable refraction
@@ -1492,7 +1528,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(data.IsTrace and trace.Hit and not LaserLib.IsUnit(target)) then
       -- Register a hit so reduce bounces count
       if(bIsValid) then
-        if(bIsRfract) then
+        if(data.IsRfract) then
           -- Well the beam is still tracing
           data.IsTrace = true -- Produce next ray
           -- Make sure that outer trace will always hit
@@ -1513,9 +1549,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                                trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
           if(bout) then -- When the beam gets out of the medium
             -- Lower the refraction flag ( Not full internal reflection )
-            nBmTracew = 0 -- Use zero width beam traces
-            bNvIWorld = false -- Revert ignoring world
-            bIsRfract = false -- Has to stop refracting
+            data.BmTracew = 0 -- Use zero width beam traces
+            data.NvIWorld = false -- Revert ignoring world
+            data.IsRfract = false -- Has to stop refracting
             bStRfract = false -- We are changing mediums and regraction is complete
             -- Restore the filter and hit world for tracing something else
             data.TeFilter = nil -- We prepare to hit something else anyway
@@ -1590,10 +1626,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   LaserLib.VecNegate(data.VrDirect)
                   -- Must trace only this entity otherwise invalid
                   data.TeFilter = function(ent) return (ent == fent) end
-                  bNvIWorld = true -- We are interested only in the refraction entity
-                  bIsRfract = true -- Raise the bounce off refract flag
-                  nBmTracew = DATA.TRWD -- Increase the beam width for back track
-                  nTrRfract = (DATA.ERAD * nDmRfract) -- Scale and again to make it hit
+                  data.NvIWorld = true -- We are interested only in the refraction entity
+                  data.IsRfract = true -- Raise the bounce off refract flag
+                  data.BmTracew = DATA.TRWD -- Increase the beam width for back track
+                  data.TrRfract = (DATA.ERAD * nDmRfract) -- Scale and again to make it hit
                   -- Apply power ratio when requested
                   if(usrfre) then SetPowerRatio(data, refract[2]) end
                   -- We cannot be able to refract as the requested data is missing
@@ -1605,10 +1641,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end
         end -- Comes from air then hits and refracts in water or starts in water
       elseif(trace.HitWorld) then
-        if(bIsRfract) then
+        if(data.IsRfract) then
           if(not trace.AllSolid) then
             -- Margin multiplier for trace back to find torrect surface normal
-            local mar = (bIsRfract and nTrRfract or data.NvLength)
+            local mar = (data.IsRfract and data.TrRfract or data.NvLength)
             local foo = function(ent) return (ent == DATA.WORLD) end
             -- Important thing is to consider what is the shape of the world entity
             -- We can eather memorize the normal vector which will fail for different shapes
@@ -1622,7 +1658,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             DATA.VTEMP:Add(data.VrOrigin)
             LaserLib.VecNegate(data.VrDirect)
             -- This is the only way to get the proper surface normal vector
-            local tr = LaserLib.Trace(DATA.VTEMP, data.VrDirect,
+            local tr = TraceBeam(DATA.VTEMP, data.VrDirect,
               2 * DATA.NUGE, foo, MASK_ALL, COLLISION_GROUP_NONE, false)
             -- Reverse direction of the normal to point inside transperent
             LaserLib.VecNegate(tr.HitNormal)
@@ -1632,9 +1668,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                                  tr.HitNormal, data.TrMedium.D[1][1], gtSvMedium.A[1][1])
             if(bout) then -- When the beam gets out of the medium
               -- Lower the refraction flag ( Not full internal reflection )
-              nBmTracew = 0 -- Use zero width beam traces
-              bIsRfract = false -- Has to stop refracting
-              bNvIWorld = false -- Clear ignoring world
+              data.BmTracew = 0 -- Use zero width beam traces
+              data.IsRfract = false -- Has to stop refracting
+              data.NvIWorld = false -- Clear ignoring world
               -- Restore the filter and hit world for tracing something else
               data.TeFilter = nil -- We prepare to hit something else anyway
               bStRfract = false -- We are changing mediums and regraction is complete
@@ -1682,11 +1718,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   data.TrMedium.D[2] = key -- Second element is always the index found
                   -- Substact traced lenght from total length
                   data.NvLength = data.NvLength - data.NvLength * trace.Fraction
-                  nTrRfract = data.NvLength
+                  data.TrRfract = data.NvLength
                   -- Calculated refraction ray. Reflect when not possible
                   if(bStRfract) then -- Laser is within the map water submerged
                     if(gtTxWater.K[reftype] and gtTxWater.N:IsZero()) then
-                      local tr = LaserLib.Trace(data.VrOrigin, DATA.VDRUP,
+                      local tr = TraceBeam(data.VrOrigin, DATA.VDRUP,
                                    DATA.TRWU, entity, MASK_ALL, COLLISION_GROUP_NONE, false)
                       gtTxWater.N:Set(DATA.VDRUP)
                       gtTxWater.P:Set(DATA.VDRUP)
@@ -1713,16 +1749,16 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   end -- Need to make the traversed destination the new source
                   -- Separate control for water and non-water
                   if(gtTxWater.N:IsZero()) then -- There is no water plane registered
-                    bIsRfract = true -- Beam is inside another non water solid
-                    bNvIWorld = false -- World transparen objects do not need world ignore
-                    nNvMask = MASK_ALL -- Beam did not traverse into water
-                    nBmTracew = DATA.TRWD -- Increase the beam width for back track
+                    data.IsRfract = true -- Beam is inside another non water solid
+                    data.NvIWorld = false -- World transparen objects do not need world ignore
+                    data.NvMask = MASK_ALL -- Beam did not traverse into water
+                    data.BmTracew = DATA.TRWD -- Increase the beam width for back track
                     -- Apply world-only filter for refraction exit the location
                     data.TeFilter = function(ent) return (ent == DATA.WORLD) end
                   else -- Filter solids so they can be hit inside water medium
-                    bIsRfract = false -- Beam is inside water. Do not force refract
-                    bNvIWorld = false -- Water refraction does not need world ignore
-                    nNvMask = MASK_SOLID -- Aim to hit solid props within the water
+                    data.IsRfract = false -- Beam is inside water. Do not force refract
+                    data.NvIWorld = false -- Water refraction does not need world ignore
+                    data.NvMask = MASK_SOLID -- Aim to hit solid props within the water
                     -- Clear the personal filter so we can hit models in the water
                     -- We also must pass the primary iteration where for custom beam offsets
                     -- When beam starts inside the a laser prop with custom offsets must skip it
