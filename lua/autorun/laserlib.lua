@@ -1132,7 +1132,8 @@ end
  * rate   > The ratio to apply on the last node
 ]]
 local function SetPowerRatio(data, rate)
-  local node = data.TvPoints[data.TvPoints.Size]
+  local size = data.TvPoints.Size
+  local node = data.TvPoints[size]
   if(rate) then -- There is sanity with adjusting the stuff
     data.NvDamage = rate * data.NvDamage
     data.NvForce  = rate * data.NvForce
@@ -1151,16 +1152,21 @@ end
  * Beam traverses from medium [1] to medium [2]
  * data   > The structure to update the nodes for
  * origin > The node position to be registered
- * bulen  > Update the length according to the new node
+ * nbulen > Update the length according to the new node
+ *          Positove number when provided else internal length
 ]]
-local function RegisterBeamNode(data, origin, bulen, bdraw)
+local function RegisterBeamNode(data, origin, nbulen, bdraw)
   local info = data.TvPoints -- Local reference to stack
   local node, width = Vector(origin), data.NvWidth
   local damage, force = data.NvDamage , data.NvForce
   local bdraw = (bdraw or bdraw == nil) and true or false
-  if(bulen) then -- Substract the path trough the medium
-    local prev = info[info.Size][1]
-    data.NvLength = data.NvLength - (node - prev):Length()
+  local cnlen = math.max((tonumber(nbulen) or 0), 0)
+  if(cnlen > 0) then -- Substract the path trough the medium
+    data.NvLength = data.NvLength - cnlen -- Direct length
+  else -- Specific length is not provided so use the nodes
+    local prev = info[info.Size][1] -- Relative to previous
+    DATA.VTEMP:Set(node); DATA.VTEMP:Sub(prev)
+    data.NvLength = data.NvLength - DATA.VTEMP:Length()
   end -- Register the new node to the stack
   info.Size = table.insert(info, {node, width, damage, force, bdraw})
 end
@@ -1263,8 +1269,11 @@ local function IsBeamNode(data)
   local top = data.TvPoints.Size
   local prv = data.TvPoints[top - 1][1]
   local nxt = data.TvPoints[top - 0][1]
-  local dir = (nxt - prv); dir:Normalize()
-  dir:Mul(data.NvLength); nxt:Add(dir)
+  DATA.VTEMP:Set(nxt)
+  DATA.VTEMP:Sub(prv)
+  DATA.VTEMP:Normalize()
+  DATA.VTEMP:Mul(data.NvLength)
+  nxt:Add(DATA.VTEMP)
   data.NvLength = 0; return false
 end
 
@@ -1360,7 +1369,7 @@ local gtActors = {
   end,
   ["gmod_laser_dimmer"] = function(trace, data)
     FinishBeam(trace, data) -- Assume that beam stops traversing
-    local ent , node = trace.Entity, data.TvPoints[data.TvPoints.Size]
+    local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
     if(trace and trace.Hit and data and bdot) then
@@ -1375,7 +1384,7 @@ local gtActors = {
   end,
   ["gmod_laser_parallel"] = function(trace, data)
     FinishBeam(trace, data) -- Assume that beam stops traversing
-    local ent , node = trace.Entity, data.TvPoints[data.TvPoints.Size]
+    local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
     if(trace and trace.Hit and data and bdot) then
