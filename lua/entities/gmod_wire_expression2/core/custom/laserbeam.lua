@@ -429,3 +429,10 @@ e2function string entity:laserGetTraceSurfacePropsName(number idx)
   if(not ext) then return 0 end
   return util.GetSurfacePropName(ext)
 end
+
+__e2setcost(1)
+e2function number entity:laserGetTraceMatType(number idx)
+  local ext = getReport(this, idx, "TR", "MatType")
+  if(not ext) then return 0 end
+  return ext
+end
