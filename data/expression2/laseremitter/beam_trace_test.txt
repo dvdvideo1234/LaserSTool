@@ -1,0 +1,34 @@
+@name Beam trace tester
+@inputs Source:entity
+@outputs [A B C]:array
+@persist
+@trigger
+
+A[1, number] = Source:laserGetTraceAllSolid(1)
+A[2, number] = Source:laserGetTraceContents(1)
+A[3, number] = Source:laserGetTraceDispFlags(1)
+A[4, entity] = Source:laserGetTraceEntity(1)
+A[5, number] = Source:laserGetTraceFraction(1)
+A[6, number] = Source:laserGetTraceFractionLS(1)
+B[1, number] = Source:laserGetTraceHit(1)
+B[2, number] = Source:laserGetTraceHitBox(1)
+B[3, number] = Source:laserGetTraceHitGroup(1)
+B[4, number] = Source:laserGetTraceHitNoDraw(1)
+B[5, number] = Source:laserGetTraceHitNonWorld(1)
+B[6, vector] = Source:laserGetTraceHitNormal(1)
+B[7, vector] = Source:laserGetTraceHitPos(1)
+C[1, number] = Source:laserGetTraceHitSky(1)
+C[2, string] = Source:laserGetTraceHitTexture(1)
+C[3, number] = Source:laserGetTraceHitWorld(1)
+C[4, vector] = Source:laserGetTraceNormal(1)
+C[5, number] = Source:laserGetTraceHitPhysicsBone(1)
+C[6, vector] = Source:laserGetTraceStartPos(1)
+C[7, number] = Source:laserGetTraceStartSolid(1)
+C[8, number] = Source:laserGetTraceSurfaceFlags(1)
+C[9, number] = Source:laserGetTraceSurfacePropsID(1)
+C[10, string] = Source:laserGetTraceSurfacePropsName(1)
+
+
+
+
+
