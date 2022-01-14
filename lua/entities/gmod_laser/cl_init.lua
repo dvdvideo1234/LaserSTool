@@ -68,12 +68,14 @@ function ENT:DrawTrace(data, source)
   -- Extend render bounds with the first node
   LaserLib.UpdateRB(bbmin, first, math.min)
   LaserLib.UpdateRB(bbmax, first, math.max)
+  -- Adjust the render bounds with world-space coordinates
+  self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
   -- Material must be cached and pdated with left click setup
   local mat = sent:GetBeamMaterial(true)
   if(mat) then render.SetMaterial(mat) end
   local spd = DRWBMSPD:GetFloat()
 
-  -- Draw the beam sequentially bing faster
+  -- Draw the beam sequentially being faster
   for idx = 2, data.TvPoints.Size do
     local org = data.TvPoints[idx - 1]
     local new = data.TvPoints[idx - 0]
@@ -83,7 +85,7 @@ function ENT:DrawTrace(data, source)
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
 
-    if(org[5]) then
+    if(org[5]) then -- Current node has its draw enabled
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
       render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, rgba)
     end -- Draw the actual beam texture
