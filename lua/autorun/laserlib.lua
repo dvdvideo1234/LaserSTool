@@ -161,6 +161,8 @@ DATA.REFLECT = { -- Reflection data descriptor
   -- Used for prop updates and checks
   [DATA.KEYD]                            = "debug/env_cubemap_model",
   -- User for general class control
+  -- [1] : Surface reflection index for the material specified
+  -- [2] : Which index is the materil found at when it is searched in array part
   [""]                                   = false, -- Disable empty materials
   ["shiny"]                              = {0.854, "shiny"  },
   ["metal"]                              = {0.045, "metal"  },
@@ -193,11 +195,12 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [1] = "air"  , -- Air enumerator index
   [2] = "glass", -- Glass enumerator index
   [3] = "water", -- Water enumerator index
-  -- Used for prop updates and chec
+  -- Used for prop updates and checks
   [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
   -- User for general class control
   -- [1] : Medium refraction index for the material specified
   -- [2] : Medium refraction rating when the beam goes trough reduces its power
+  -- [3] : Which index is the materil found at when it is searched in array part
   [""]                                          = false, -- Disable empty materials
   ["air"]                                       = {1.000, 1.000, "air"  }, -- Air refraction index
   ["glass"]                                     = {1.521, 0.999, "glass"}, -- Ordinary glass
@@ -463,10 +466,6 @@ function LaserLib.GetZeroAngle()
   return DATA.AZERO
 end
 
-function LaserLib.GetRatio()
-  return DATA.GRAT
-end
-
 function LaserLib.GetZeroTransform()
   return DATA.VZERO, DATA.AZERO
 end
@@ -722,8 +721,9 @@ end
   [2] > Will the beam go out of the medium
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
-  local nrm = Vector(normal) -- Always normalized. Call copy-constructor
   local inc = direct:GetNormalized() -- Read normalized copy os incident
+  if(source == destin) then return inc, true end -- Continue medium
+  local nrm = Vector(normal) -- Always normalized. Call copy-constructor
   local vcr = inc:Cross(LaserLib.VecNegate(nrm)) -- Sine: |i||n|sin(i^n)
   local ang, sii = nrm:AngleEx(vcr), vcr:Length()
   local mar = (sii * source) / destin -- Apply Snell's law
@@ -854,9 +854,10 @@ end
 
 --[[
  * Checks when the entity has interactive material
+ * Cashes the request issued for index material
  * mat > Direct material to check for. Missing uses `ent`
  * set > The dedicated parameeters setting to check
- * Returns: data, key
+ * Returns: entry
 ]]
 local function IndexMaterial(mat, set)
   if(not mat) then return nil end

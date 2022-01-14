@@ -78,14 +78,16 @@ if(CLIENT) then
 
   concommand.Add(gsTool.."_openmaterial",
     function(ply, cmd, args)
-      local rate, data, sors = LaserLib.GetRatio()
+      local data, sors
+      local reca = LaserLib.GetData("KEYA")
+      local rate = LaserLib.GetData("GRAT")
       local argm = tostring(args[1] or ""):upper()
       if(argm == "MIRROR") then
         sors = "REFLECT"
-        data = LaserLib.DataReflect("*")
+        data = LaserLib.DataReflect(reca)
       elseif(argm == "TRANSPARENT") then
         sors = "REFRACT"
-        data = LaserLib.DataRefract("*")
+        data = LaserLib.DataRefract(reca)
       else
         return nil
       end

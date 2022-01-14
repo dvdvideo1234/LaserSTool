@@ -3,6 +3,10 @@ E2Lib.RegisterExtension("laserbeam", true,
   "Provides a dedicated API that can extract data from laser source entities."
 )
 
+local REFLECT = LaserLib.GetData("REFLECT")
+local REFRACT = LaserLib.GetData("REFRACT")
+local gbRout  = false -- Wire cannot return multiple
+
 local gtBoolToNum = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
 local function getReport(ent, idx, typ, key)
@@ -274,22 +278,19 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceAllSolid(number idx)
   local ext = getReport(this, idx, "TR", "AllSolid")
-  if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceContents(number idx)
   local ext = getReport(this, idx, "TR", "Contents")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceDispFlags(number idx)
   local ext = getReport(this, idx, "TR", "DispFlags")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
@@ -301,36 +302,31 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceFraction(number idx)
   local ext = getReport(this, idx, "TR", "Fraction")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceFractionLS(number idx)
   local ext = getReport(this, idx, "TR", "FractionLeftSolid")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHit(number idx)
   local ext = getReport(this, idx, "TR", "Hit")
-  if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitBox(number idx)
   local ext = getReport(this, idx, "TR", "HitBox")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitGroup(number idx)
   local ext = getReport(this, idx, "TR", "HitGroup")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
@@ -343,8 +339,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNonWorld(number idx)
   local ext = getReport(this, idx, "TR", "HitNonWorld")
-  if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
@@ -364,8 +359,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitSky(number idx)
   local ext = getReport(this, idx, "TR", "HitSky")
-  if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
@@ -377,8 +371,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitWorld(number idx)
   local ext = getReport(this, idx, "TR", "HitWorld")
-  if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
@@ -391,8 +384,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitPhysicsBone(number idx)
   local ext = getReport(this, idx, "TR", "PhysicsBone")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
@@ -405,34 +397,82 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceStartSolid(number idx)
   local ext = getReport(this, idx, "TR", "StartSolid")
-  if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceSurfaceFlags(number idx)
   local ext = getReport(this, idx, "TR", "SurfaceFlags")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceSurfacePropsID(number idx)
   local ext = getReport(this, idx, "TR", "SurfaceProps")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function string entity:laserGetTraceSurfacePropsName(number idx)
   local ext = getReport(this, idx, "TR", "SurfaceProps")
   if(not ext) then return 0 end
-  return util.GetSurfacePropName(ext)
+  return util.GetSurfacePropName(ext) or ""
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceMatType(number idx)
   local ext = getReport(this, idx, "TR", "MatType")
-  if(not ext) then return 0 end
-  return ext
+  if(not ext) then return 0 end; return ext
+end
+
+__e2setcost(1)
+e2function number laserGetReflectDataRatio(string idx)
+  local ext = REFLECT[idx]; return (ext and ext[1] or 0)
+end
+
+__e2setcost(1)
+e2function string laserGetReflectDataKey(string idx)
+  local ext = REFLECT[idx]; return (ext and ext[2] or "")
+end
+
+__e2setcost(1)
+e2function number laserGetRefractDataIndex(string idx)
+  local ext = REFRACT[idx]; return (ext and ext[1] or 0)
+end
+
+__e2setcost(1)
+e2function number laserGetRefractDataRatio(string idx)
+  local ext = REFRACT[idx]; return (ext and ext[2] or 0)
+end
+
+__e2setcost(1)
+e2function string laserGetRefractDataKey(string idx)
+  local ext = REFRACT[idx]; return (ext and ext[3] or "")
+end
+
+__e2setcost(1)
+e2function vector laserGetReflectBeam(vector fall, vector norm)
+  local res = LaserLib.GetReflected(fall, norm)
+  return {res[1], res[2], res[3]}
+end
+
+__e2setcost(1)
+e2function vector laserGetRefractBeam(vector fall, vector norm, number sors, number dest)
+  local res, out = LaserLib.GetRefracted(fall, norm); gbRout = out
+  return {res[1], res[2], res[3]}
+end
+
+__e2setcost(1)
+e2function number laserGetRefractIsOut()
+  return (gbRout and 1 or 0)
+end
+
+__e2setcost(1)
+e2function number laserGetBeamPower(width, damage)
+  return LaserLib.GetPower(width, damage)
+end
+
+__e2setcost(1)
+e2function number laserGetBeamIsPower(width, damage)
+  return (LaserLib.IsPower(width, damage) and 1 or 0)
 end
