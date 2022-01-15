@@ -857,9 +857,9 @@ end
  * Cashes the request issued for index material
  * mat > Direct material to check for. Missing uses `ent`
  * set > The dedicated parameeters setting to check
- * Returns: entry
+ * Returns: Material entry from the given set
 ]]
-local function IndexMaterial(mat, set)
+local function GetMaterialEntry(mat, set)
   if(not mat) then return nil end
   if(not set) then return nil end
   local mat = tostring(mat)-- Pointer to the local surface material
@@ -1298,6 +1298,51 @@ local function IsBeamNode(data)
 end
 
 --[[
+ * Samples the medium ahead in given direction
+ * This aims to hit a solids of the map or entities
+ * On success will return the refraction surface entry
+ * origin > Refraction medium boundary origin
+ * direct > Refraction medium boundary surface direct
+ * trace  > Trace structure to store the result
+ * data   > Laser beam data structure
+]]
+local function GetEntityMedium(origin, direct, filter, trace, data)
+  local tr = TraceBeam(origin, direct, DATA.NUGE,
+    filter, MASK_SOLID, COLLISION_GROUP_NONE, false, 0, trace)
+  if(not (tr or tr.Hit)) then return nil end -- Nothing traces
+  if(tr.Fraction > 0) then return nil end -- Has prop air gap
+  return GetMaterialEntry(GetMaterialID(tr, data), DATA.REFRACT)
+end
+
+--[[
+ * Prepares the laser beam data structure for entity refraction
+ * origin  > New beam origin location vector
+ * direct  > New beam ray direction vector
+ * target  > New entity target being switched
+ * refract > Refraction data entry
+ * key     > Refraction data key
+ * data    > Reference to beam data
+]]
+local function SetRefractMedium(origin, direct, target, refract, key, data)
+  -- Register desination medium and raise calculate refraction flag
+  data.TrMedium.D[1] = refract -- First element is always structure
+  data.TrMedium.D[2] = key -- Second element is always the index found
+  -- Get the trace tready to check the other side and point and register the location
+  data.DmRfract = (2 * target:BoundingRadius())
+  data.VrDirect:Set(direct)
+  data.VrOrigin:Set(direct)
+  data.VrOrigin:Mul(data.DmRfract)
+  data.VrOrigin:Add(origin)
+  LaserLib.VecNegate(data.VrDirect)
+  -- Must trace only this entity otherwise invalid
+  data.TeFilter = function(ent) return (ent == target) end
+  data.NvIWorld = true -- We are interested only in the refraction entity
+  data.IsRfract = true -- Raise the bounce off refract flag
+  data.BmTracew = DATA.TRWD -- Increase the beam width for back track
+  data.TrRfract = (DATA.ERAD * data.DmRfract) -- Scale and again to make it hit
+end
+
+--[[
  * Function handler for calculating SISO actor routines
  * These are specific handlers for specific classes
  * having single input beam and single output beam
@@ -1560,12 +1605,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(data.IsTrace and trace.Hit and not LaserLib.IsUnit(target)) then
       -- Register a hit so reduce bounces count
       if(bIsValid) then
-        if(data.IsRfract) then
+         if(data.IsRfract) then
+          -- Allocate result references for refraction
+          local fent, vdir, bout = target -- Refraction entity
           -- Well the beam is still tracing
           data.IsTrace = true -- Produce next ray
           -- Make sure that outer trace will always hit
           LaserLib.VecNegate(data.VrDirect)
-          LaserLib.VecNegate(trace.HitNormal)
           -- Decide whenever to go out of the entity according to the hit location
           if(not gtTxWater.N:IsZero()) then --
             if(IsWater(trace.HitPos)) then
@@ -1576,34 +1622,53 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               data.TrMedium.S[2] = gtSvMedium.A[2]
             end
           end -- Make sure to pick the correct refract exit medium
+          -- Nagate the normal so it must point inwards before refraction
+          LaserLib.VecNegate(trace.HitNormal)
           -- Refract the hell out of this requested beam with enity destination
-          local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                               trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
+          vdir, bout = LaserLib.GetRefracted(data.VrDirect,
+                         trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
           if(bout) then -- When the beam gets out of the medium
-            -- Lower the refraction flag ( Not full internal reflection )
-            data.BmTracew = 0 -- Use zero width beam traces
-            data.NvIWorld = false -- Revert ignoring world
-            data.IsRfract = false -- Has to stop refracting
-            bStRfract = false -- We are changing mediums and regraction is complete
-            -- Restore the filter and hit world for tracing something else
-            data.TeFilter = nil -- We prepare to hit something else anyway
-            -- Appy origin and direction when beam exits the medium
-            data.VrDirect:Set(vdir)
-            data.VrOrigin:Set(trace.HitPos)
-            if(not gtTxWater.F) then -- Check for zero when water only
-              if(not gtTxWater.N:Zero()) then gtTxWater.N:Zero() end
-            end -- Reset the normal. We are out of the water now
-            data.TrMedium.M[1] = data.TrMedium.D[1]
-            data.TrMedium.M[2] = data.TrMedium.D[2]
-            data.TrMedium.M[3]:Set(trace.HitNormal)
+            local refract, key = GetEntityMedium(trace.HitPos, data.VrDirect, target, tr, data)
+            if(refract) then
+              vdir, bout = LaserLib.GetRefracted(data.VrDirect,
+                             trace.HitNormal, data.TrMedium.D[1][1], refract[1])
+              if(bout) then
+                LaserLib.DrawVector(trace.HitPos, data.VrDirect, 5, "RED")
+                -- Switch the destination entity to the refraction node
+                SetRefractMedium(trace.HitPos, vdir, tr.Entity, refract, key, data)
+              else -- Get the trace ready to check the other side and register the location
+                data.VrDirect:Set(vdir)
+                data.VrOrigin:Set(vdir)
+                data.VrOrigin:Mul(data.DmRfract)
+                data.VrOrigin:Add(trace.HitPos)
+                LaserLib.VecNegate(data.VrDirect)
+              end -- Apply power ratio when requested
+              if(usrfre) then SetPowerRatio(data, refract[2]) end
+            else
+              -- Lower the refraction flag ( Not full internal reflection )
+              data.BmTracew = 0 -- Use zero width beam traces
+              data.NvIWorld = false -- Revert ignoring world
+              data.IsRfract = false -- Has to stop refracting
+              bStRfract = false -- We are changing mediums and regraction is complete
+              -- Restore the filter and hit world for tracing something else
+              data.TeFilter = nil -- We prepare to hit something else anyway
+              -- Appy origin and direction when beam exits the medium
+              data.VrDirect:Set(vdir)
+              data.VrOrigin:Set(trace.HitPos)
+              if(not gtTxWater.F) then -- Check for zero when water only
+                if(not gtTxWater.N:Zero()) then gtTxWater.N:Zero() end
+              end -- Reset the normal. We are out of the water now
+              data.TrMedium.M[1] = data.TrMedium.D[1]
+              data.TrMedium.M[2] = data.TrMedium.D[2]
+              data.TrMedium.M[3]:Set(trace.HitNormal)
+            end
           else -- Get the trace ready to check the other side and register the location
             data.VrDirect:Set(vdir)
             data.VrOrigin:Set(vdir)
             data.VrOrigin:Mul(data.DmRfract)
             data.VrOrigin:Add(trace.HitPos)
             LaserLib.VecNegate(data.VrDirect)
-          end
-          -- Apply power ratio when requested
+          end -- Apply power ratio when requested
           if(usrfre) then SetPowerRatio(data, data.TrMedium.D[1][2]) end
         else -- Put special cases here
           if(sTrclass and gtActors[sTrclass]) then
@@ -1612,24 +1677,21 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           else
             sTrMaters = GetMaterialID(trace, data)
             data.IsTrace  = true -- Still tracing the beam
-            local reflect = IndexMaterial(sTrMaters, DATA.REFLECT)
+            local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
             if(reflect and not bStRfract) then -- Just call reflection and get done with it..
               data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
               data.VrOrigin:Set(trace.HitPos)
               data.NvLength = data.NvLength - data.NvLength * trace.Fraction
               if(usrfle) then SetPowerRatio(data, reflect[1]) end
             else
-              local refract, key = IndexMaterial(sTrMaters, DATA.REFRACT)
+              local refract, key = GetMaterialEntry(sTrMaters, DATA.REFRACT)
               if(bStRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
-                  -- Register desination medium and raise calculate refraction flag
-                  data.TrMedium.D[1] = refract -- First element is always structure
-                  data.TrMedium.D[2] = key -- Second element is always the index found
                   -- Substact traced lenght from total length
                   data.NvLength = data.NvLength - data.NvLength * trace.Fraction
                   -- Calculated refraction ray. Reflect when not possible
-                  local fent, vdir, bout = target -- Refraction entity
+                  local vdir, bout -- Refraction entity direction and reflection
                   -- Call refraction cases and prepare to trace-back
                   if(bStRfract) then -- Bounces were decremented so move it up
                     if(data.NvBounce == data.MxBounce) then
@@ -1649,19 +1711,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                    trace.HitNormal, data.TrMedium.S[1][1], refract[1])
                   end
-                  -- Get the trace tready to check the other side and point and register the location
-                  data.DmRfract = (2 * fent:BoundingRadius())
-                  data.VrDirect:Set(vdir)
-                  data.VrOrigin:Set(vdir)
-                  data.VrOrigin:Mul(data.DmRfract)
-                  data.VrOrigin:Add(trace.HitPos)
-                  LaserLib.VecNegate(data.VrDirect)
-                  -- Must trace only this entity otherwise invalid
-                  data.TeFilter = function(ent) return (ent == fent) end
-                  data.NvIWorld = true -- We are interested only in the refraction entity
-                  data.IsRfract = true -- Raise the bounce off refract flag
-                  data.BmTracew = DATA.TRWD -- Increase the beam width for back track
-                  data.TrRfract = (DATA.ERAD * data.DmRfract) -- Scale and again to make it hit
+                  SetRefractMedium(trace.HitPos, vdir, target, refract, key, data)
                   -- Apply power ratio when requested
                   if(usrfre) then SetPowerRatio(data, refract[2]) end
                   -- We cannot be able to refract as the requested data is missing
@@ -1733,14 +1783,14 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           else
             sTrMaters = GetMaterialID(trace, data)
             data.IsTrace  = true -- Still tracing the beam
-            local reflect = IndexMaterial(sTrMaters, DATA.REFLECT)
+            local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
             if(reflect and not bStRfract) then -- Just call reflection and get done with it..
               data.VrDirect:Set(LaserLib.GetReflected(data.VrDirect, trace.HitNormal))
               data.VrOrigin:Set(trace.HitPos)
               data.NvLength = data.NvLength - data.NvLength * trace.Fraction
               if(usrfle) then SetPowerRatio(data, reflect[1]) end
             else
-              local refract, key = IndexMaterial(sTrMaters, DATA.REFRACT)
+              local refract, key = GetMaterialEntry(sTrMaters, DATA.REFRACT)
               if(bStRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
