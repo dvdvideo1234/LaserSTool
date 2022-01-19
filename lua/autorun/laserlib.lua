@@ -132,6 +132,7 @@ DATA.MAT = {
 
 DATA.COLOR = {
   [DATA.KEYD] = "BLACK",
+  ["BACKGND"] = Color(150, 150, 255, 180),
   ["BLACK"]   = Color( 0 ,  0 ,  0 , 255),
   ["RED"]     = Color(255,  0 ,  0 , 255),
   ["GREEN"]   = Color( 0 , 255,  0 , 255),
@@ -164,6 +165,8 @@ DATA.REFLECT = { -- Reflection data descriptor
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the materil found at when it is searched in array part
   [""]                                   = false, -- Disable empty materials
+  ["**empty**"]                          = false, -- Disable empty world materials
+  ["**studio**"]                         = false, -- Disable empty prop materials
   ["shiny"]                              = {0.854, "shiny"  },
   ["metal"]                              = {0.045, "metal"  },
   ["white"]                              = {0.342, "white"  },
@@ -202,6 +205,8 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   -- [2] : Medium refraction rating when the beam goes trough reduces its power
   -- [3] : Which index is the materil found at when it is searched in array part
   [""]                                          = false, -- Disable empty materials
+  ["**empty**"]                                 = false, -- Disable empty world materials
+  ["**studio**"]                                = false, -- Disable empty prop materials
   ["air"]                                       = {1.000, 1.000, "air"  }, -- Air refraction index
   ["glass"]                                     = {1.521, 0.999, "glass"}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955, "water"}, -- Water refraction index
@@ -758,8 +763,9 @@ end
 function LaserLib.SetMaterial(ent, mat)
   if(not LaserLib.IsValid(ent)) then return end
   local data = {MaterialOverride = tostring(mat or "")}
+  local key  = "laseremitter_material"
   ent:SetMaterial(data.MaterialOverride)
-  duplicator.StoreEntityModifier(ent, "laseremitter_material", data)
+  duplicator.StoreEntityModifier(ent, key, data)
 end
 
 function LaserLib.SetProperties(ent, mat)
@@ -767,8 +773,9 @@ function LaserLib.SetProperties(ent, mat)
   local phy = ent:GetPhysicsObject()
   if(not LaserLib.IsValid(phy)) then return end
   local data = {Material = tostring(mat or "")}
+  local key  = "laseremitter_properties"
   construct.SetPhysProp(nil, ent, 0, phy, data)
-  duplicator.StoreEntityModifier(ent, "laseremitter_properties", data)
+  duplicator.StoreEntityModifier(ent, key, data)
 end
 
 --[[
@@ -837,9 +844,15 @@ local function GetMaterialEntry(mat, set)
   return nil -- Return nothing when not found
 end
 
+--[[
+ * Searches for a material in the definition set
+ * When material is not passed returns the default
+ * When material is passed indexes and returns it
+]]
 local function GetInteractIndex(iK, set)
   if(iK == DATA.KEYA) then return set end
-  return (set[iK] or set[DATA.KEYD])
+  if(not iK) then return set[DATA.KEYD] end
+  return set[iK] -- Index the row
 end
 
 function LaserLib.DataReflect(iK)
@@ -1075,6 +1088,11 @@ if(SERVER) then
 
     return laser
   end
+elseif(CLIENT) then
+  surface.CreateFont("LaserMedium",{
+    font = "Arial", size = 28,
+    weight = 600
+  })
 end
 
 --[[
@@ -1184,8 +1202,8 @@ end
 ]]
 function mtBeam:GetNudge(margn)
   local vtm = self.__vtemp
-  vtm:Set(data.VrDirect); vtm:Mul(margn)
-  vtm:Add(data.VrOrigin); return vtm
+  vtm:Set(self.VrDirect); vtm:Mul(margn)
+  vtm:Add(self.VrOrigin); return vtm
 end
 
 --[[
@@ -1256,8 +1274,8 @@ end
 ]]
 function mtBeam:Redirect(origin, direct, reset)
   -- Appy origin and direction when beam exits the medium
-  self.VrDirect:Set(direct)
-  self.VrOrigin:Set(origin)
+  if(origin) then self.VrOrigin:Set(origin) end
+  if(direct) then self.VrDirect:Set(direct) end
   -- Lower the refraction flag ( Not full internal reflection )
   if(reset) then
     self.BmTracew = 0 -- Use zero width beam traces
@@ -1403,7 +1421,6 @@ function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
   return self -- Coding effective API
 end
 
-
 --[[
  * Samples the medium ahead in given direction
  * This aims to hit a solids of the map or entities
@@ -1511,7 +1528,7 @@ function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit ouside the water
   local wat = self.__water -- Local reference indexing water
   local vtm = self.__vtemp; LaserLib.VecNegate(self.VrDirect)
-  local vwa = data:IntersectRayPlane(wat.P, wat.N)
+  local vwa = self:IntersectRayPlane(wat.P, wat.N)
   -- Registering the node cannot be done with direct substraction
   LaserLib.VecNegate(self.VrDirect); self:RegisterNode(vwa, true)
   vtm:Set(wat.N); LaserLib.VecNegate(vtm)
@@ -1571,7 +1588,7 @@ function mtBeam:ApplyWater(reftype, trace)
       wat.N:Zero() -- Clear the water normal vector
     end -- Water refraction configuration is done
   else -- Refract type not water then setup
-    if(reftype and wat.K[reftype] and data:IsAir()) then
+    if(reftype and wat.K[reftype] and self:IsAir()) then
       wat.P:Set(trace.HitPos) -- Memorize the plane position
       wat.N:Set(trace.HitNormal) -- Memorize the plane normal
     else -- Refract type is not water so reset the configuration
@@ -1583,7 +1600,7 @@ end
 --[[
  * Setups the clags for world and water refraction
 ]]
-function mtBeam:SetRefractWorld(refract, key)
+function mtBeam:SetRefractWorld(trace, refract, key)
   if(refract and key) then
     self.TrMedium.D[1] = refract -- First element is always structure
     self.TrMedium.D[2] = tostring(key or "") -- Second element is always the index found
@@ -1838,7 +1855,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               data:SetMediumSours(mtBeam.A)
             end -- Update the source accordingly
           end -- Make sure to pick the correct refract exit medium for current node
-          local refract, key = data:GetSolidMedium(trace.HitPos, data.VrDirect, target, tr)
+          local refract = data:GetSolidMedium(trace.HitPos, data.VrDirect, target, tr)
           if(refract) then
             -- Nagate the normal so it must point inwards before refraction
             LaserLib.VecNegate(trace.HitNormal)
@@ -1846,9 +1863,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                            trace.HitNormal, data.TrMedium.D[1][1], refract[1])
             if(bout) then
-              LaserLib.DrawVector(trace.HitPos, data.VrDirect, 5, "RED", data.NvBounce)
-              -- Switch the destination entity to the refraction node
-              data:SetRefractEntity(trace.HitPos, vdir, tr.Entity, refract, key)
+              data.IsRfract, data.StRfract = false, true
+              data:Redirect(trace.HitPos, nil, true) -- The beam did not traverse mediums
+              data:SetMediumMemory(data.TrMedium.D, trace.HitNormal)
               if(usrfre) then data:SetPowerRatio(refract[2]) end
             else -- Get the trace ready to check the other side and register the location
               data:SetTraceNext(trace.HitPos, vdir) -- The beam did not traverse mediums
@@ -1982,7 +1999,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     data:ApplyWater(refract[3] or key, trace)
                     data:Redirect(trace.HitPos, vdir)
                   end -- Need to make the traversed destination the new source
-                  data:SetRefractWorld(refract, key)
+                  data:SetRefractWorld(trace, refract, key)
                   -- Apply power ratio when requested
                   if(usrfre) then data:SetPowerRatio(refract[2]) end
                   -- We cannot be able to refract as the requested data is missing

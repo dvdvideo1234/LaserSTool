@@ -98,7 +98,7 @@ if(CLIENT) then
       pnFrame:SetTitle(topName)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
-      pnFrame:SetDeleteOnClose(false)
+      pnFrame:SetDeleteOnClose(true)
       pnFrame:SetPos(0, 0)
       pnFrame:SetSize(scrW / rate, scrH / rate)
       local pnMat = vgui.Create("MatSelect"); if(not IsValid(pnMat)) then return nil end
@@ -126,11 +126,24 @@ if(CLIENT) then
             local matm = DermaMenu(false, pnFrame)
             if(not IsValid(matm)) then return end
             matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cmat"),
-              function() SetClipboardText(key) end):SetIcon("icon16/page_copy.png")
+              function() SetClipboardText(key) end):SetImage("icon16/page_copy.png")
             matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cset"),
-              function() SetClipboardText(set) end):SetIcon("icon16/page_copy.png")
+              function() SetClipboardText(set) end):SetImage("icon16/page_copy.png")
             matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_call"),
-              function() SetClipboardText(inf) end):SetIcon("icon16/page_copy.png")
+              function() SetClipboardText(inf) end):SetImage("icon16/page_copy.png")
+
+            local sort, opts = matm:AddSubMenu("Sort")
+            if(not IsValid(sort)) then return end
+            if(not IsValid(opts)) then return end
+            opts:SetImage("icon16/table_sort.png")
+            sort:AddOption("Refraction, ASC",
+              function() print(1) end):SetImage("icon16/ruby_get.png")
+            sort:AddOption("Refraction, DESC",
+              function() print(2) end):SetImage("icon16/ruby_put.png")
+            sort:AddOption("Absorbtion, ASC",
+              function() print(1) end):SetImage("icon16/basket_remove.png")
+            sort:AddOption("Absorbtion, DESC",
+              function() print(2) end):SetImage("icon16/basket_put.png")
             matm:Open()
           end
           pnMat.List:AddItem(matb)
@@ -461,6 +474,36 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
   end
 
   ent:SetNoDraw(false)
+end
+
+function TOOL:GetSurface(ent)
+  if(not LaserLib.IsValid(ent)) then return end
+  local mat = ent:GetMaterial()
+  local row = LaserLib.DataReflect(mat)
+  if(row) then return "{"..table.concat(row, "|").."} "..mat
+  else row = LaserLib.DataRefract(mat)
+    if(row) then return "{"..table.concat(row, "|").."} "..mat end
+  end
+end
+
+function TOOL:DrawHUD(a,b,c)
+  local tr = LocalPlayer():GetEyeTrace()
+  if(not (tr or tr.Hit)) then return end
+  local rat = LaserLib.GetData("GRAT")
+  local txt = self:GetSurface(tr.Entity)
+  if(not txt) then return end
+  local alg = TEXT_ALIGN_CENTER
+  local blk = LaserLib.GetColor("BLACK")
+  local bkg = LaserLib.GetColor("BACKGND")
+  local w = surface.ScreenWidth()
+  local h = surface.ScreenHeight()
+  local sx, sy = (w / (1.2 * rat)), (h / (12 * rat))
+  local px = (w / 2) - (sx / 2)
+  local py = h - sy - (rat - 1) * sy
+  local tx = px + (sx / 2)
+  local ty = py + (sy / 2)
+  draw.RoundedBox(16, px, py, sx, sy, bkg)
+  draw.SimpleText(txt, "LaserMedium", tx, ty, blk, alg, alg)
 end
 
 function TOOL:Think()
