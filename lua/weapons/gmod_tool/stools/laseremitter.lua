@@ -108,6 +108,7 @@ if(CLIENT) then
             pnMat:SetItemWidth(0.16)
             pnMat:SetItemHeight(0.22)
             pnMat:InvalidateLayout(true)
+
       for key, val in pairs(data) do
         if(type(val) == "table" and tostring(key):find("/")) then
           local set = "{"..table.concat(val, "|").."}"
@@ -152,6 +153,8 @@ if(CLIENT) then
           pnMat.List:InvalidateLayout(true)
         end
       end
+
+
       pnMat:InvalidateChildren(true)
       pnFrame:Center()
       pnFrame:SetVisible(true)

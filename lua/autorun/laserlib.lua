@@ -595,6 +595,10 @@ function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   end
 end
 
+function LaserLib.UpdateMaterials()
+
+end
+
 function LaserLib.Call(time, func, ...)
   local tnew = SysTime()
   if((tnew - DATA.TOLD) > time)
@@ -1125,18 +1129,6 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   return pos, dir
 end
 
---[[
- * Checks whenever the given position is inside an entity
- * pos > World-space position to be checked
- * ent > Entity used for AABB space
-]]
-local function IsInside(pos, ent)
-  local vmin = ent:OBBMins()
-  local vmax = ent:OBBMaxs()
-  local vpos = ent:WorldToLocal(pos)
-  return vpos:WithinAABox(vmax, vmin)
-end
-
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__index = mtBeam -- If not found in self search here
@@ -1182,16 +1174,57 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
- * Checks whenever the given position is located
- * above or below the water plane defined in `__water`
- * pos > World-space position to be checked
+ * Checks when water base medium is not activated
 ]]
-function mtBeam:IsWater(pos)
+function mtBeam:IsAir()
   local wat = self.__water
-  wat.D:Set(pos); wat.D:Sub(wat.P)
-  wat.M = wat.D:Dot(wat.N)
-  wat.F = (wat.M < 0)
-  return wat.F
+  return wat.N:IsZero()
+end
+
+--[[
+ * Clears the water surface normal
+]]
+function mtBeam:ClearWater()
+  self.__water.N:Zero()
+  return self -- Coding effective API
+end
+
+--[[
+ * Issues a finish command to the traced laser beam
+ * trace > Trace structure of the current iteration
+]]
+function mtBeam:Bounce()
+  -- We are neither hitting something nor still tracing or hit dedicated entity
+  self.NvBounce = self.NvBounce - 1 -- Refresh medium pass trough information
+  return self -- Coding effective API
+end
+
+--[[
+ * Cecks the condition for the beam loop to terminate
+ * Returns boolean when the beam must continue
+]]
+function mtBeam:IsFinish()
+  return (not self.IsTrace or
+              self.NvBounce <= 0 or
+              self.NvLength <= 0)
+end
+
+--[[
+ * Cecks whenever the beam runs the first iteration
+ * Returns boolean when the beam runs the first iteration
+]]
+function mtBeam:IsFirst()
+  return (self.NvBounce == self.MxBounce)
+end
+
+--[[
+ * Issues a finish command to the traced laser beam
+ * trace > Trace structure of the current iteration
+]]
+function mtBeam:Finish(trace)
+  self.IsTrace = false -- Make sure to exit not to do performance hit
+  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
+  return self -- Coding effective API
 end
 
 --[[
@@ -1207,25 +1240,33 @@ function mtBeam:GetNudge(margn)
 end
 
 --[[
- * Account for the trace width cube half diagonal
- * trace  > Trace result to be modified
- * length > Actual iteration beam length
+ * Checks whenever the given position is located
+ * above or below the water plane defined in `__water`
+ * pos > World-space position to be checked
 ]]
-function mtBeam:SetTraceWidth(trace, length)
-  if(trace and  -- Check if the trace is available
-     trace.Hit and -- Trace must hit something
-     self.IsRfract and -- Library must be refracting
-     self.BmTracew and -- Beam width is available
-     self.BmTracew > 0) then -- Beam width is present
-    local vtm = self.__vtemp; vtm:Set(trace.HitNormal)
-    vtm:Mul(-DATA.TRDG * self.BmTracew); trace.HitPos:Add(vtm)
-  end -- At this point we know exacly how long will the trace be
-  -- In this case the value of node regster length is calculated
-  trace.LengthBS = length -- Acctual beam requested length
-  trace.LengthFR = length * trace.Fraction -- Length fraction
-  trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
-  trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
-  return trace
+function mtBeam:IsWater(pos)
+  local wat = self.__water
+  if(not pos) then return wat.F end
+  wat.D:Set(pos); wat.D:Sub(wat.P)
+  wat.M = wat.D:Dot(wat.N)
+  wat.F = (wat.M < 0)
+  return wat.F
+end
+
+
+--[[
+ * Checks for memory refraction start-refract
+ * from the last medum stored in memory and
+ * ignores the beam start entity. Checks when
+ * the given position is inside the beam source
+]]
+function mtBeam:IsMemory(index, pos)
+  local sent = self.BmSource
+  local vmin = sent:OBBMins()
+  local vmax = sent:OBBMaxs()
+  local vpos = sent:WorldToLocal(pos)
+  local bent = vpos:WithinAABox(vmax, vmin)
+  return ((index ~= self.TrMedium.M[1][1]) and not bent)
 end
 
 --[[
@@ -1234,9 +1275,14 @@ end
  * origin > Beam exit position
  * direct > Beam exit direction
 ]]
-function mtBeam:SetMediumSours(medium)
-  self.TrMedium.S[1] = medium[1] -- Apply medium info
-  self.TrMedium.S[2] = medium[2] -- Apply medium key
+function mtBeam:SetMediumSours(medium, key)
+  if(key) then
+    self.TrMedium.S[1] = medium -- Apply medium info
+    self.TrMedium.S[2] = key    -- Apply medium key
+  else
+    self.TrMedium.S[1] = medium[1] -- Apply medium info
+    self.TrMedium.S[2] = medium[2] -- Apply medium key
+  end
   return self -- Coding effective API
 end
 
@@ -1247,8 +1293,13 @@ end
  * direct > Beam exit direction
 ]]
 function mtBeam:SetMediumDestn(medium)
-  self.TrMedium.D[1] = medium[1] -- Apply medium info
-  self.TrMedium.D[2] = medium[2] -- Apply medium key
+  if(key) then
+    self.TrMedium.D[1] = medium -- Apply medium info
+    self.TrMedium.D[2] = key    -- Apply medium key
+  else
+    self.TrMedium.D[1] = medium[1] -- Apply medium info
+    self.TrMedium.D[2] = medium[2] -- Apply medium key
+  end
   return self -- Coding effective API
 end
 
@@ -1258,13 +1309,38 @@ end
  * origin > Beam exit position
  * direct > Beam exit direction
 ]]
-function mtBeam:SetMediumMemory(medium, normal)
-  self.TrMedium.M[1] = medium[1] -- Apply medium info
-  self.TrMedium.M[2] = medium[2] -- Apply medium key
+function mtBeam:SetMediumMemory(medium, key, normal)
+  if(key) then
+    self.TrMedium.M[1] = medium -- Apply medium info
+    self.TrMedium.M[2] = key    -- Apply medium key
+  else
+    self.TrMedium.M[1] = medium[1] -- Apply medium info
+    self.TrMedium.M[2] = medium[2] -- Apply medium key
+  end
   if(normal) then
     self.TrMedium.M[3]:Set(normal)
   end
   return self -- Coding effective API
+end
+
+--[[
+ * Intersects line (start, end) with a plane (position, normal)
+ * This can be called then beam goes out of the water
+ * To straight caluculate the intersection pont
+ * this will ensure no overhead traces will be needed.
+ * pos > Plane position as vector in 3D space
+ * nor > Plane normal as world direction vector
+ * org > Ray start origin position (trace.HitPos)
+ * dir > Ray direction world vector (trace.Normal)
+]]
+function mtBeam:IntersectRayPlane(pos, nor, org, dir)
+  local org = (org or self.VrOrigin)
+  local dir = (dir or self.VrDirect)
+  if(dir:Dot(nor) == 0) then return nil end
+  local vop = Vector(pos); vop:Sub(org)
+  local dst = vop:Dot(nor) / dir:Dot(nor)
+  vop:Set(dir); vop:Mul(dst); vop:Add(org)
+  return vop -- Water-air intersextion point
 end
 
 --[[
@@ -1288,23 +1364,41 @@ function mtBeam:Redirect(origin, direct, reset)
 end
 
 --[[
- * Issues a finish command to the traced laser beam
+ * Updates the hit texture if the trace contents
+ * index > Texture index relative to DATA.REFRACT[ID]
  * trace > Trace structure of the current iteration
 ]]
-function mtBeam:Bounce()
-  -- We are neither hitting something nor still tracing or hit dedicated entity
-  self.NvBounce = self.NvBounce - 1 -- Refresh medium pass trough information
+function mtBeam:SetRefractContent(index, trace)
+  local name = DATA.REFRACT[index]
+  if(not name) then return self end
+  trace.Fraction = 0
+  trace.HitTexture = name
+  self.TrMedium.S[2] = name
+  self.TrMedium.S[1] = DATA.REFRACT[name]
+  trace.HitPos:Set(self.VrOrigin)
   return self -- Coding effective API
 end
 
 --[[
- * Issues a finish command to the traced laser beam
- * trace > Trace structure of the current iteration
+ * Account for the trace width cube half diagonal
+ * trace  > Trace result to be modified
+ * length > Actual iteration beam length
 ]]
-function mtBeam:Finish(trace)
-  self.IsTrace = false -- Make sure to exit not to do performance hit
-  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
-  return self -- Coding effective API
+function mtBeam:SetTraceWidth(trace, length)
+  if(trace and  -- Check if the trace is available
+     trace.Hit and -- Trace must hit something
+     self.IsRfract and -- Library must be refracting
+     self.BmTracew and -- Beam width is available
+     self.BmTracew > 0) then -- Beam width is present
+    local vtm = self.__vtemp; vtm:Set(trace.HitNormal)
+    vtm:Mul(-DATA.TRDG * self.BmTracew); trace.HitPos:Add(vtm)
+  end -- At this point we know exacly how long will the trace be
+  -- In this case the value of node regster length is calculated
+  trace.LengthBS = length -- Acctual beam requested length
+  trace.LengthFR = length * trace.Fraction -- Length fraction
+  trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
+  trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
+  return trace
 end
 
 --[[
@@ -1357,22 +1451,6 @@ function mtBeam:SetPowerRatio(rate)
   local power = LaserLib.GetPower(self.NvWidth, self.NvDamage)
   if(power < DATA.POWL) then self.IsTrace = false end -- Absorbs remaining light
   return node, power -- It is indexed anyway then return it to the caller
-end
-
---[[
- * Updates the hit texture if the trace contents
- * index > Texture index relative to DATA.REFRACT[ID]
- * trace > Trace structure of the current iteration
-]]
-function mtBeam:SetRefractContent(index, trace)
-  local name = DATA.REFRACT[index]
-  if(not name) then return self end
-  trace.Fraction = 0
-  trace.HitTexture = name
-  self.TrMedium.S[2] = name
-  self.TrMedium.S[1] = DATA.REFRACT[name]
-  trace.HitPos:Set(self.VrOrigin)
-  return self -- Coding effective API
 end
 
 --[[
@@ -1499,26 +1577,6 @@ function mtBeam:Trace(result)
 end
 
 --[[
- * Intersects line (start, end) with a plane (position, normal)
- * This can be called then beam goes out of the water
- * To straight caluculate the intersection pont
- * this will ensure no overhead traces will be needed.
- * pos > Plane position as vector in 3D space
- * nor > Plane normal as world direction vector
- * org > Ray start origin position (trace.HitPos)
- * dir > Ray direction world vector (trace.Normal)
-]]
-function mtBeam:IntersectRayPlane(pos, nor, org, dir)
-  local org = (org or self.VrOrigin)
-  local dir = (dir or self.VrDirect)
-  if(dir:Dot(nor) == 0) then return nil end
-  local vop = Vector(pos); vop:Sub(org)
-  local dst = vop:Dot(nor) / dir:Dot(nor)
-  vop:Set(dir); vop:Mul(dst); vop:Add(org)
-  return vop -- Water-air intersextion point
-end
-
---[[
  * Handles refraction of water to air
  * Redirects the beam from water to air at the boundary
  * point when water flag is triggered and hit position is
@@ -1546,36 +1604,12 @@ function mtBeam:RefractWaterAir()
 end
 
 --[[
- * Checks when water base medium is not activated
-]]
-function mtBeam:IsAir()
-  local wat = self.__water
-  return wat.N:IsZero()
-end
-
---[[
- * Returns flag for the last checked point
- * cashed flag to be under in the water
-]]
-function mtBeam:BeWater()
-  return self.__water.F
-end
-
---[[
- * Clears the water surface normal
-]]
-function mtBeam:ClearWater()
-  self.__water.N:Zero()
-  return self -- Coding effective API
-end
-
---[[
  * Configures and activates the water refraction surface
  * The beam may sart in the water or hit it and switch
  * reftype > Indication that this is found in the water
  * trace   > Trace result structure output being used
 ]]
-function mtBeam:ApplyWater(reftype, trace)
+function mtBeam:SetWater(reftype, trace)
   local wat = self.__water
   if(self.StRfract) then
     if(reftype and wat.K[reftype] and self:IsAir()) then
@@ -1623,8 +1657,7 @@ function mtBeam:SetRefractWorld(trace, refract, key)
     -- Clear the personal filter so we can hit models in the water
     -- We also must pass the primary iteration entity for custom beam offsets
     -- When beam starts inside the a laser prop with custom offsets must skip it
-    self.TeFilter = (self.NvBounce == self.MxBounce) and self.BmSource or nil
-    if(self.NvBounce < self.MxBounce) then self.TeFilter = nil end
+    self.TeFilter = (self:IsFirst() and self.BmSource or nil)
     self.TrMedium.S[1], self.TrMedium.D[1] = self.TrMedium.D[1], self.TrMedium.S[1]
     self.TrMedium.S[2], self.TrMedium.D[2] = self.TrMedium.D[2], self.TrMedium.S[2]
   end
@@ -1865,7 +1898,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(bout) then
               data.IsRfract, data.StRfract = false, true
               data:Redirect(trace.HitPos, nil, true) -- The beam did not traverse mediums
-              data:SetMediumMemory(data.TrMedium.D, trace.HitNormal)
+              data:SetMediumMemory(data.TrMedium.D, nil, trace.HitNormal)
               if(usrfre) then data:SetPowerRatio(refract[2]) end
             else -- Get the trace ready to check the other side and register the location
               data:SetTraceNext(trace.HitPos, vdir) -- The beam did not traverse mediums
@@ -1879,10 +1912,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
             if(bout) then -- When the beam gets out of the medium
               data:Redirect(trace.HitPos, vdir, true)
-              if(not data:BeWater()) then -- Check for zero when water only
+              if(not data:IsWater()) then -- Check for zero when water only
                 if(not data:IsAir()) then data:ClearWater() end
               end -- Reset the normal. We are out of the water now
-              data:SetMediumMemory(data.TrMedium.D, trace.HitNormal)
+              data:SetMediumMemory(data.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               data:SetTraceNext(trace.HitPos, vdir)
             end -- Apply power ratio when requested
@@ -1913,7 +1946,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                       vdir = Vector(direct) -- Primary node starts inside solid
                     else -- When two props are stuck save the middle boundary and traverse
                       -- When the traverse mediums is differerent and node is not inside a laser
-                      if(data.TrMedium.M[1][1] ~= refract[1] and not IsInside(trace.HitPos, entity)) then
+                      if(data:IsMemory(refract[1], trace.HitPos)) then
                         vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                        data.TrMedium.M[3], data.TrMedium.M[1][1], refract[1])
                         -- Do not waste game ticks to refract the same refraction ratio
@@ -1962,7 +1995,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               data:Redirect(tr.HitPos, vdir, true)
               data:SetMediumSours(mtBeam.A)
               -- Memorizing will help when beam traverses from world to no-collided entity
-              data:SetMediumMemory(data.TrMedium.D, tr.HitNormal)
+              data:SetMediumMemory(data.TrMedium.D, nil, tr.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               data:Redirect(tr.HitPos, vdir)
             end
@@ -1989,14 +2022,14 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 if(refract) then -- When refraction entry is available do the thing
                   -- Calculated refraction ray. Reflect when not possible
                   if(data.StRfract) then -- Laser is within the map water submerged
-                    data:ApplyWater(refract[3] or key, tr)
+                    data:SetWater(refract[3] or key, tr)
                     data:Redirect(trace.HitPos, direct) -- Keep the same direction and initial origin
                     data.StRfract = false -- Lower the flag so no preformance hit is present
                   else -- Beam comes from the air and hits the water. Store water plane and refract
                     -- Get the trace tready to check the other side and point and register the location
                     local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                          trace.HitNormal, data.TrMedium.S[1][1], refract[1])
-                    data:ApplyWater(refract[3] or key, trace)
+                    data:SetWater(refract[3] or key, trace)
                     data:Redirect(trace.HitPos, vdir)
                   end -- Need to make the traversed destination the new source
                   data:SetRefractWorld(trace, refract, key)
@@ -2011,7 +2044,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         end
       else data:Finish(trace) end; data:Bounce() -- Refresh medium pass trough information
     else data:Finish(trace) end -- Trace did not hit anything to be bounced off from
-  until(not data.IsTrace or data.NvBounce <= 0 or data.NvLength <= 0)
+  until(data:IsFinish())
 
   -- Reset the normal for the next call
   data:ClearWater()
