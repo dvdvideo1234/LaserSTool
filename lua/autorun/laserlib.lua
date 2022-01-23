@@ -157,8 +157,8 @@ DATA.REFLECT = { -- Reflection data descriptor
   [1] = "cubemap", -- Cube maps textures
   [2] = "chrome" , -- Chrome stuff reflect
   [3] = "shiny"  , -- All shiny stuff reflect
-  [4] = "metal"  , -- All shiny metal reflect
-  [5] = "white"  , -- All general white paint
+  [4] = "white"  , -- All general white paint
+  [5] = "metal"  , -- All shiny metal reflect
   -- Used for prop updates and checks
   [DATA.KEYD]                            = "debug/env_cubemap_model",
   -- User for general class control
@@ -167,11 +167,11 @@ DATA.REFLECT = { -- Reflection data descriptor
   [""]                                   = false, -- Disable empty materials
   ["**empty**"]                          = false, -- Disable empty world materials
   ["**studio**"]                         = false, -- Disable empty prop materials
-  ["shiny"]                              = {0.854, "shiny"  },
-  ["metal"]                              = {0.045, "metal"  },
-  ["white"]                              = {0.342, "white"  },
-  ["chrome"]                             = {0.955, "chrome" },
   ["cubemap"]                            = {0.999, "cubemap"},
+  ["chrome"]                             = {0.955, "chrome" },
+  ["shiny"]                              = {0.854, "shiny"  },
+  ["white"]                              = {0.342, "white"  },
+  ["metal"]                              = {0.045, "metal"  },
   -- Materials that are overriden and directly hash searched
   ["models/shiny"]                       = {0.873},
   ["wtp/chrome_1"]                       = {0.955},
@@ -228,11 +228,10 @@ DATA.REFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
   ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles glass
   ["models/props_combine/combine_door01_glass"] = {1.583, 0.341}, -- Bit darker glass
-  ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Bit darker glass
   ["models/props_combine/citadel_cable"]        = {1.583, 0.441}, -- Dark glass
   ["models/props_combine/citadel_cable_b"]      = {1.583, 0.441}, -- Dark glass
-  ["models/props_combine/pipes01"]              = {1.583, 0.911}, -- Dark glass other
-  ["models/props_combine/pipes03"]              = {1.583, 0.911}, -- Dark glass other
+  ["models/props_combine/pipes01"]              = {1.583, 0.761}, -- Dark glass other
+  ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Dark glass other
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
@@ -549,7 +548,7 @@ end
 
 -- Draw a position on the screen
 function LaserLib.DrawPoint(pos, col, idx, msg)
-  if(not CLIENT) then return end
+  if(SERVER) then return end
   local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 0.5, 25, 25, crw)
@@ -572,7 +571,7 @@ end
 
 -- Draw a position on the screen
 function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
-  if(not CLIENT) then return end
+  if(SERVER) then return end
   local ven = pos + (dir * (tonumber(mag) or 1))
   local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
@@ -595,8 +594,112 @@ function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   end
 end
 
-function LaserLib.UpdateMaterials()
+--[[
+ * Creates ordered sequence set for use with
+ * The `Type` key is last and not mandaory
+ * It is used for materials found with indexing match
+ * https://wiki.facepunch.com/gmod/table.sort
+]]
+function LaserLib.GetSequence(set)
+  local ser, inf, row = {Size = 0}
+  if(set == DATA.REFLECT) then
+    inf = {"Rate", "Type", Size = 2}
+  elseif(set == DATA.REFRACT) then
+    inf = {"Ridx", "Rate", "Type", Size = 3}
+  else -- Otherwise raise error!
+    error("Sequence different!")
+  end -- Sequential table created
+  for key, val in pairs(set) do
+    if(type(val) == "table" and tostring(key):find("/")) then
+      row = {Key = key}; ser.Size = table.insert(ser, row)
+      for iD = 1, inf.Size do row[inf[iD]] = val[iD] end
+    end -- Store info and return table
+  end
+  ser.Info = inf; return ser
+end
 
+function LaserLib.GetSequenceInfo(row, info)
+  local ret = "" -- Temporary storage
+  for iD = 1, info.Size local dat = row[iD]
+    if(dat) then ret = ret.."|"..tostring(dat) end
+  end; return "{"..ret:sub(2, -1).."}"
+end
+
+function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+  if(SERVER) then return end
+  -- Clear Material selection content
+  for key, val in pairs(pnMat.Controls) do
+    val:Remove(); pnMat.Controls[k] = nil
+  end -- Remove all rerma image panels
+  pnMat.List:CleanList()
+  pnMat.SelectedMaterial = nil
+  -- Update material panel with ordered values
+  for iD = 1, data.Size do local tRow, pnImg = data[iD]
+    local sCon = LaserLib.GetSequenceInfo(tRow, data.Info)
+    local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
+    if(sKey == data.Conv:GetString()) then pnFrame:SetTitle(data.Conv.." > "..sInf) end
+    pnMat:AddMaterial(sInf, sKey); pnImg = pnMat.Controls[iD]
+    pnImg.DoClick = function(button)
+      LaserLib.ConCommand(nil, sors:lower().."used", sKey)
+      pnFrame:SetTitle(data.Conv.." > "..sInf)
+    end
+    pnImg.DoRightClick = function(button)
+      local pnMenu = DermaMenu(false, pnFrame)
+      if(not IsValid(pnMenu)) then return end
+      pnMenu:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cmat"),
+        function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("page_copy"))
+      pnMenu:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cset"),
+        function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("page_copy"))
+      pnMenu:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_call"),
+        function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("page_copy"))
+
+      local pSort, pOpts = pnMenu:AddSubMenu("Sort")
+      if(not IsValid(pSort)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("table_sort"))
+      -- Sort data by the entry key
+      if(tRow.Key) then
+        pSort:AddOption("Key, ASC",
+          function()
+            table.SortByMember(data, "Key", true)
+            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+          end):SetImage(LaserLib.GetIcon("arrow_down"))
+        pSort:AddOption("Key, DESC",
+          function()
+            table.SortByMember(data, "Key", false)
+            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+          end):SetImage(LaserLib.GetIcon("arrow_up"))
+      end
+      -- Sort data by the absorbtion rate
+      if(tRow.Rate) then
+        pSort:AddOption("Absorbtion, ASC",
+          function()
+            table.SortByMember(data, "Rate", true)
+            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+          end):SetImage(LaserLib.GetIcon("basket_remove"))
+        pSort:AddOption("Absorbtion, DESC",
+          function()
+            table.SortByMember(data, "Rate", false)
+            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+          end):SetImage(LaserLib.GetIcon("basket_put"))
+      end
+      -- Sort data by the medium refraction index
+      if(tRow.Ridx) then
+        pSort:AddOption("Refraction, ASC",
+          function()
+            table.SortByMember(data, "Ridx", true)
+            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+          end):SetImage(LaserLib.GetIcon("ruby_get"))
+        pSort:AddOption("Refraction, DESC",
+          function()
+            table.SortByMember(data, "Ridx", false)
+            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+          end):SetImage(LaserLib.GetIcon("ruby_put"))
+        end
+      end
+      pnMenu:Open()
+    end
+  end
 end
 
 function LaserLib.Call(time, func, ...)

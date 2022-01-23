@@ -6,11 +6,11 @@ local gsLaserptCls = LaserLib.GetClass(9, 1)
 if(CLIENT) then
 
   TOOL.Information = {
-    {name = "info"      , icon = "gui/info"       },
-    {name = "mater"     , icon = "icon16/wand.png"},
-    {name = "left"      , icon = "gui/lmb.png"    },
-    {name = "right"     , icon = "gui/rmb.png"    },
-    {name = "reload"    , icon = "gui/r.png"      },
+    {name = "info"      , icon = "gui/info"   },
+    {name = "mater"     , icon = LaserLib.GetIcon("wand")},
+    {name = "left"      , icon = "gui/lmb.png"},
+    {name = "right"     , icon = "gui/rmb.png"},
+    {name = "reload"    , icon = "gui/r.png"  },
     {name = "reload_use", icon = "gui/r.png"  , icon2 = "gui/e.png"},
   }
 
@@ -76,26 +76,29 @@ if(CLIENT) then
   language.Add("Undone_"..gsTool, "Undone Laser emitter")
   language.Add("SBoxLimit_"..gsTool.."s", "You've hit the Laser elements limit!")
 
+  -- http://www.famfamfam.com/lab/icons/silk/preview.php
   concommand.Add(gsTool.."_openmaterial",
     function(ply, cmd, args)
-      local data, sors
+      local base, data, sors
       local reca = LaserLib.GetData("KEYA")
       local rate = LaserLib.GetData("GRAT")
       local argm = tostring(args[1] or ""):upper()
       if(argm == "MIRROR") then
         sors = "REFLECT"
-        data = LaserLib.DataReflect(reca)
+        base = LaserLib.DataReflect(reca)
+        data = LaserLib.GetSequence(base)
       elseif(argm == "TRANSPARENT") then
         sors = "REFRACT"
-        data = LaserLib.DataRefract(reca)
+        base = LaserLib.DataRefract(reca)
+        data = LaserLib.GetSequence(base)
       else
         return nil
       end
-      local varName = GetConVar(gsTool.."_"..sors:lower().."used")
-      local topName = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
+      data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
+      data.Conv = GetConVar(gsTool.."_"..sors:lower().."used")
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
-      pnFrame:SetTitle(topName)
+      pnFrame:SetTitle(data.Conv)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(true)
@@ -108,53 +111,7 @@ if(CLIENT) then
             pnMat:SetItemWidth(0.16)
             pnMat:SetItemHeight(0.22)
             pnMat:InvalidateLayout(true)
-
-      for key, val in pairs(data) do
-        if(type(val) == "table" and tostring(key):find("/")) then
-          local set = "{"..table.concat(val, "|").."}"
-          local inf = set.." "..key
-          if(key == varName:GetString()) then pnFrame:SetTitle(topName.." > "..inf) end
-          local matb = vgui.Create("DImageButton"); if(not IsValid(matb)) then return nil end
-          matb:SetParent(pnMat)
-          matb:SetOnViewMaterial(key, "models/wireframe")
-          matb.AutoSize, matb.Value = false, key
-          matb:SetTooltip(inf)
-          matb.DoClick = function(button)
-            LaserLib.ConCommand(nil, sors:lower().."used", key)
-            pnFrame:SetTitle(topName.." > "..inf)
-          end
-          matb.DoRightClick = function(button)
-            local matm = DermaMenu(false, pnFrame)
-            if(not IsValid(matm)) then return end
-            matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cmat"),
-              function() SetClipboardText(key) end):SetImage("icon16/page_copy.png")
-            matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cset"),
-              function() SetClipboardText(set) end):SetImage("icon16/page_copy.png")
-            matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_call"),
-              function() SetClipboardText(inf) end):SetImage("icon16/page_copy.png")
-
-            local sort, opts = matm:AddSubMenu("Sort")
-            if(not IsValid(sort)) then return end
-            if(not IsValid(opts)) then return end
-            opts:SetImage("icon16/table_sort.png")
-            sort:AddOption("Refraction, ASC",
-              function() print(1) end):SetImage("icon16/ruby_get.png")
-            sort:AddOption("Refraction, DESC",
-              function() print(2) end):SetImage("icon16/ruby_put.png")
-            sort:AddOption("Absorbtion, ASC",
-              function() print(1) end):SetImage("icon16/basket_remove.png")
-            sort:AddOption("Absorbtion, DESC",
-              function() print(2) end):SetImage("icon16/basket_put.png")
-            matm:Open()
-          end
-          pnMat.List:AddItem(matb)
-          table.insert(pnMat.Controls, matb)
-          pnMat:InvalidateLayout(true)
-          pnMat.List:InvalidateLayout(true)
-        end
-      end
-
-
+      LaserLib.UpdateMaterials(pnFrame, pnMat, data)
       pnMat:InvalidateChildren(true)
       pnFrame:Center()
       pnFrame:SetVisible(true)
