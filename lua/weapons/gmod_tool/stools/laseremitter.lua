@@ -94,11 +94,12 @@ if(CLIENT) then
       else
         return nil
       end
+      data.Sors = sors:lower().."used"
+      data.Conv = GetConVar(gsTool.."_"..data.Sors)
       data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
-      data.Conv = GetConVar(gsTool.."_"..sors:lower().."used")
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
-      pnFrame:SetTitle(data.Conv)
+      pnFrame:SetTitle(data.Name)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(true)

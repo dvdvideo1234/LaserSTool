@@ -619,17 +619,18 @@ function LaserLib.GetSequence(set)
 end
 
 function LaserLib.GetSequenceInfo(row, info)
-  local ret = "" -- Temporary storage
-  for iD = 1, info.Size local dat = row[iD]
-    if(dat) then ret = ret.."|"..tostring(dat) end
-  end; return "{"..ret:sub(2, -1).."}"
+  local res = "" -- Temporary storage
+  for iD = 1, info.Size do local dat = row[info[iD]]
+    if(dat) then res = res.."|"..tostring(dat) end
+  end; return "{"..res:sub(2, -1).."}"
 end
 
 function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   if(SERVER) then return end
+  local sTool = LaserLib.GetTool()
   -- Clear Material selection content
   for key, val in pairs(pnMat.Controls) do
-    val:Remove(); pnMat.Controls[k] = nil
+    val:Remove(); pnMat.Controls[key] = nil
   end -- Remove all rerma image panels
   pnMat.List:CleanList()
   pnMat.SelectedMaterial = nil
@@ -637,34 +638,34 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   for iD = 1, data.Size do local tRow, pnImg = data[iD]
     local sCon = LaserLib.GetSequenceInfo(tRow, data.Info)
     local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
-    if(sKey == data.Conv:GetString()) then pnFrame:SetTitle(data.Conv.." > "..sInf) end
+    if(sKey == data.Conv:GetString()) then pnFrame:SetTitle(data.Name.." > "..sInf) end
     pnMat:AddMaterial(sInf, sKey); pnImg = pnMat.Controls[iD]
     pnImg.DoClick = function(button)
-      LaserLib.ConCommand(nil, sors:lower().."used", sKey)
-      pnFrame:SetTitle(data.Conv.." > "..sInf)
+      LaserLib.ConCommand(nil, data.Sors, sKey)
+      pnFrame:SetTitle(data.Name.." > "..sInf)
     end
     pnImg.DoRightClick = function(button)
       local pnMenu = DermaMenu(false, pnFrame)
       if(not IsValid(pnMenu)) then return end
-      pnMenu:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cmat"),
+      pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
         function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("page_copy"))
-      pnMenu:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cset"),
+      pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cset"),
         function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("page_copy"))
-      pnMenu:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_call"),
+      pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_call"),
         function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("page_copy"))
-
+      -- Attach sub-menu to the menu items
       local pSort, pOpts = pnMenu:AddSubMenu("Sort")
       if(not IsValid(pSort)) then return end
       if(not IsValid(pOpts)) then return end
       pOpts:SetImage(LaserLib.GetIcon("table_sort"))
       -- Sort data by the entry key
       if(tRow.Key) then
-        pSort:AddOption("Key, ASC",
+        pSort:AddOption("Material, ASC",
           function()
             table.SortByMember(data, "Key", true)
             LaserLib.UpdateMaterials(pnFrame, pnMat, data)
           end):SetImage(LaserLib.GetIcon("arrow_down"))
-        pSort:AddOption("Key, DESC",
+        pSort:AddOption("Material, DESC",
           function()
             table.SortByMember(data, "Key", false)
             LaserLib.UpdateMaterials(pnFrame, pnMat, data)
@@ -695,7 +696,6 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
             table.SortByMember(data, "Ridx", false)
             LaserLib.UpdateMaterials(pnFrame, pnMat, data)
           end):SetImage(LaserLib.GetIcon("ruby_put"))
-        end
       end
       pnMenu:Open()
     end
