@@ -259,6 +259,12 @@ DATA.TRACE = {
 
 DATA.WORLD = game.GetWorld()
 
+if(CLIENT) then
+  DATA.HOVM = Material("gui/ps_hover.png", "nocull")
+  DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
+  DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, DATA.COLOR["WHITE"]) end
+end
+
 -- Callbacks for console variables
 for idx = 2, #DATA.CLS do
   local vset = DATA.CLS[idx]
@@ -611,7 +617,8 @@ function LaserLib.GetSequence(set)
   end -- Sequential table created
   for key, val in pairs(set) do
     if(type(val) == "table" and tostring(key):find("/")) then
-      row = {Key = key}; ser.Size = table.insert(ser, row)
+      row = {Key = key, Draw = true}
+      ser.Size = table.insert(ser, row)
       for iD = 1, inf.Size do row[inf[iD]] = val[iD] end
     end -- Store info and return table
   end
@@ -625,6 +632,18 @@ function LaserLib.GetSequenceInfo(row, info)
   end; return "{"..res:sub(2, -1).."}"
 end
 
+function LaserLib.SetMaterialSize(pnMat, iRow)
+  if(SERVER) then return end
+  local scrW = surface.ScreenWidth()
+  local scrH = surface.ScreenHeight()
+  local nRat = LaserLib.GetData("GRAT")
+  local nRaw, nRah = (scrW / nRat), (scrH / nRat)
+  local iW = (((nRaw - 2*3 - 1) / iRow) / nRaw)
+  local iH = (((nRah - 2*3 - 1) / iRow) / nRah)
+  pnMat:SetItemWidth(iW)
+  pnMat:SetItemHeight(iH)
+end
+
 function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   if(SERVER) then return end
   local sTool = LaserLib.GetTool()
@@ -634,70 +653,84 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   end -- Remove all rerma image panels
   pnMat.List:CleanList()
   pnMat.SelectedMaterial = nil
+  -- Read the controls tabe and craete index
+  local tCont, iC = pnMat.Controls, 0
   -- Update material panel with ordered values
-  for iD = 1, data.Size do local tRow, pnImg = data[iD]
-    local sCon = LaserLib.GetSequenceInfo(tRow, data.Info)
-    local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
-    if(sKey == data.Conv:GetString()) then pnFrame:SetTitle(data.Name.." > "..sInf) end
-    pnMat:AddMaterial(sInf, sKey); pnImg = pnMat.Controls[iD]
-    pnImg.DoClick = function(button)
-      LaserLib.ConCommand(nil, data.Sors, sKey)
-      pnFrame:SetTitle(data.Name.." > "..sInf)
-    end
-    pnImg.DoRightClick = function(button)
-      local pnMenu = DermaMenu(false, pnFrame)
-      if(not IsValid(pnMenu)) then return end
-      pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
-        function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("page_copy"))
-      pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cset"),
-        function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("page_copy"))
-      pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_call"),
-        function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("page_copy"))
-      -- Attach sub-menu to the menu items
-      local pSort, pOpts = pnMenu:AddSubMenu("Sort")
-      if(not IsValid(pSort)) then return end
-      if(not IsValid(pOpts)) then return end
-      pOpts:SetImage(LaserLib.GetIcon("table_sort"))
-      -- Sort data by the entry key
-      if(tRow.Key) then
-        pSort:AddOption("Material, ASC",
-          function()
-            table.SortByMember(data, "Key", true)
-            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-          end):SetImage(LaserLib.GetIcon("arrow_down"))
-        pSort:AddOption("Material, DESC",
-          function()
-            table.SortByMember(data, "Key", false)
-            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-          end):SetImage(LaserLib.GetIcon("arrow_up"))
+  for iD = 1, data.Size do
+    local tRow, pnImg = data[iD]
+    if(tRow.Draw) then -- Drawing is enabled
+      local sCon = LaserLib.GetSequenceInfo(tRow, data.Info)
+      local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
+      if(sKey == data.Conv:GetString()) then pnFrame:SetTitle(data.Name.." > "..sInf) end
+      pnMat:AddMaterial(sInf, sKey); iC = iC + 1; pnImg = tCont[iC]
+      pnImg.DoClick = function(button)
+        -- Remove the old overlay
+        if(pnMat.SelectedMaterial) then
+          pnMat.SelectedMaterial.PaintOver = pnMat.OldSelectedPaintOver
+        end
+        -- Add the overlay to this button
+        pnMat.OldSelectedPaintOver = pnImg.PaintOver
+        pnImg.PaintOver = DATA.HOVP
+        pnMat.SelectedMaterial = pnImg
+        -- Update material convar
+        LaserLib.ConCommand(nil, data.Sors, sKey)
+        pnFrame:SetTitle(data.Name.." > "..sInf)
       end
-      -- Sort data by the absorbtion rate
-      if(tRow.Rate) then
-        pSort:AddOption("Absorbtion, ASC",
-          function()
-            table.SortByMember(data, "Rate", true)
-            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-          end):SetImage(LaserLib.GetIcon("basket_remove"))
-        pSort:AddOption("Absorbtion, DESC",
-          function()
-            table.SortByMember(data, "Rate", false)
-            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-          end):SetImage(LaserLib.GetIcon("basket_put"))
+      pnImg.DoRightClick = function(button)
+        local pnMenu = DermaMenu(false, pnFrame)
+        if(not IsValid(pnMenu)) then return end
+        pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
+          function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("page_copy"))
+        pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cset"),
+          function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("page_copy"))
+        pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_call"),
+          function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("page_copy"))
+        -- Attach sub-menu to the menu items
+        local pSort, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_sort"))
+        if(not IsValid(pSort)) then return end
+        if(not IsValid(pOpts)) then return end
+        pOpts:SetImage(LaserLib.GetIcon("table_sort"))
+        -- Sort data by the entry key
+        if(tRow.Key) then
+          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find1").." (<)",
+            function()
+              table.SortByMember(data, "Key", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+            end):SetImage(LaserLib.GetIcon("arrow_down"))
+          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find1").." (>)",
+            function()
+              table.SortByMember(data, "Key", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+            end):SetImage(LaserLib.GetIcon("arrow_up"))
+        end
+        -- Sort data by the absorbtion rate
+        if(tRow.Rate) then
+          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find2").." (<)",
+            function()
+              table.SortByMember(data, "Rate", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+            end):SetImage(LaserLib.GetIcon("basket_remove"))
+          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find2").." (>)",
+            function()
+              table.SortByMember(data, "Rate", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+            end):SetImage(LaserLib.GetIcon("basket_put"))
+        end
+        -- Sort data by the medium refraction index
+        if(tRow.Ridx) then
+          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find3").." (<)",
+            function()
+              table.SortByMember(data, "Ridx", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+            end):SetImage(LaserLib.GetIcon("ruby_get"))
+          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find3").." (>)",
+            function()
+              table.SortByMember(data, "Ridx", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+            end):SetImage(LaserLib.GetIcon("ruby_put"))
+        end
+        pnMenu:Open()
       end
-      -- Sort data by the medium refraction index
-      if(tRow.Ridx) then
-        pSort:AddOption("Refraction, ASC",
-          function()
-            table.SortByMember(data, "Ridx", true)
-            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-          end):SetImage(LaserLib.GetIcon("ruby_get"))
-        pSort:AddOption("Refraction, DESC",
-          function()
-            table.SortByMember(data, "Ridx", false)
-            LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-          end):SetImage(LaserLib.GetIcon("ruby_put"))
-      end
-      pnMenu:Open()
     end
   end
 end

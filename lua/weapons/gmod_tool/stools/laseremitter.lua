@@ -71,6 +71,12 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".openmaterial_cmat", "Copy material")
   language.Add("tool."..gsTool..".openmaterial_cset", "Copy settings")
   language.Add("tool."..gsTool..".openmaterial_call", "Copy all info")
+  language.Add("tool."..gsTool..".openmaterial_sort", "Sort materials")
+  language.Add("tool."..gsTool..".openmaterial_find","Select which value you need a search for using patterns")
+  language.Add("tool."..gsTool..".openmaterial_find0","Search by value...")
+  language.Add("tool."..gsTool..".openmaterial_find1","Surface material name")
+  language.Add("tool."..gsTool..".openmaterial_find2","Power reduction ratio")
+  language.Add("tool."..gsTool..".openmaterial_find3","Medium refractive index")
   language.Add("Cleanup_"..gsTool.."s", "Laser elements")
   language.Add("Cleaned_"..gsTool.."s", "Cleaned up all Laser elements")
   language.Add("Undone_"..gsTool, "Undone Laser emitter")
@@ -99,21 +105,46 @@ if(CLIENT) then
       data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
+      local iPa, iSx, iSy = 5, (scrW / rate), (scrH / rate)
       pnFrame:SetTitle(data.Name)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(true)
       pnFrame:SetPos(0, 0)
-      pnFrame:SetSize(scrW / rate, scrH / rate)
+      pnFrame:SetSize(iSx , iSy)
+      local pnCombo = vgui.Create("DComboBox"); if(not IsValid(pnCombo)) then return nil end
+            pnCombo:SetParent(pnFrame)
+            pnCombo:SetSortItems(false)
+            pnCombo:SetPos(iPa, 24 + iPa)
+            pnCombo:SetSize(pnFrame:GetWide() - (rate - 1) * pnFrame:GetWide(), 25)
+            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTool..".openmaterial_find"))
+            pnCombo:SetValue(language.GetPhrase("tool."..gsTool..".openmaterial_find0"))
+            if(data[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(data[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(data[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+      local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
+            pnText:SetParent(pnFrame)
+            pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
+            pnText:SetSize(pnFrame:GetWide() - pnCombo:GetWide() - 3 * iPa, pnCombo:GetTall())
       local pnMat = vgui.Create("MatSelect"); if(not IsValid(pnMat)) then return nil end
             pnMat:SetParent(pnFrame)
-            pnMat:DockPadding(3, 3, 3, 3)
-            pnMat:Dock(FILL)
-            pnMat:SetItemWidth(0.16)
-            pnMat:SetItemHeight(0.22)
-            pnMat:InvalidateLayout(true)
+            pnMat:SetPos(iPa, pnCombo:GetY() + pnCombo:GetTall() + iPa)
+            pnMat:SetSize(pnFrame:GetWide() - 2 * iPa, pnFrame:GetTall() - 2 * iPa)
+      function pnText:OnEnter(sTxt)
+        local iD = pnCombo:GetSelectedID()
+        if(not iD or iD <= 0) then return end
+        local sD = pnCombo:GetOptionData(iD)
+        local fD = (sD and sD:len() > 0)
+        for iD = 1, data.Size do local tRow = data[iD]
+          if(fD) then
+            if(tostring(tRow[sD]):find(sTxt)) then
+              tRow.Draw = true else tRow.Draw = false end
+          else tRow.Draw = true end
+        end; LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+      end
+      LaserLib.SetMaterialSize(pnMat, 4)
       LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-      pnMat:InvalidateChildren(true)
+      pnFrame:InvalidateChildren(true)
       pnFrame:Center()
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()
