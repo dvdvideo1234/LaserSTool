@@ -105,7 +105,7 @@ if(CLIENT) then
       data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
-      local iPa, iSx, iSy = 5, (scrW / rate), (scrH / rate)
+      local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
       pnFrame:SetTitle(data.Name)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
@@ -130,7 +130,7 @@ if(CLIENT) then
             pnMat:SetParent(pnFrame)
             pnMat:SetPos(iPa, pnCombo:GetY() + pnCombo:GetTall() + iPa)
             pnMat:SetSize(pnFrame:GetWide() - 2 * iPa, pnFrame:GetTall() - 2 * iPa)
-      function pnText:OnEnter(sTxt)
+      pnText.OnEnter = function(pnTxt, sTxt)
         local iD = pnCombo:GetSelectedID()
         if(not iD or iD <= 0) then return end
         local sD = pnCombo:GetOptionData(iD)
@@ -144,7 +144,7 @@ if(CLIENT) then
       end
       LaserLib.SetMaterialSize(pnMat, 4)
       LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-      pnFrame:InvalidateChildren(true)
+      -- pnFrame:InvalidateChildren(true)
       pnFrame:Center()
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()

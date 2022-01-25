@@ -644,15 +644,34 @@ function LaserLib.SetMaterialSize(pnMat, iRow)
   pnMat:SetItemHeight(iH)
 end
 
+function LaserLib.ClearMaterials(pnMat)
+  if(SERVER) then return end
+  -- Clear all entries from the list
+  for key, val in pairs(pnMat.Controls) do
+    val:Remove(); pnMat.Controls[key] = nil
+  end -- Remove all rermaining image panels
+  pnMat.List:CleanList()
+  pnMat.SelectedMaterial = nil
+  pnMat.OldSelectedPaintOver = nil
+end
+
+function LaserLib.SetMaterialPaintOver(pnMat, pnImg)
+  if(SERVER) then return end
+  -- Remove the current overlay
+  if(pnMat.SelectedMaterial) then
+    pnMat.SelectedMaterial.PaintOver = pnMat.OldSelectedPaintOver
+  end
+  -- Add the overlay to this button
+  pnMat.OldSelectedPaintOver = pnImg.PaintOver
+  pnImg.PaintOver = DATA.HOVP
+  pnMat.SelectedMaterial = pnImg
+end
+
 function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   if(SERVER) then return end
   local sTool = LaserLib.GetTool()
   -- Clear Material selection content
-  for key, val in pairs(pnMat.Controls) do
-    val:Remove(); pnMat.Controls[key] = nil
-  end -- Remove all rerma image panels
-  pnMat.List:CleanList()
-  pnMat.SelectedMaterial = nil
+  LaserLib.ClearMaterials(pnMat)
   -- Read the controls tabe and craete index
   local tCont, iC = pnMat.Controls, 0
   -- Update material panel with ordered values
@@ -661,22 +680,13 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
     if(tRow.Draw) then -- Drawing is enabled
       local sCon = LaserLib.GetSequenceInfo(tRow, data.Info)
       local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
-      if(sKey == data.Conv:GetString()) then pnFrame:SetTitle(data.Name.." > "..sInf) end
       pnMat:AddMaterial(sInf, sKey); iC = iC + 1; pnImg = tCont[iC]
-      pnImg.DoClick = function(button)
-        -- Remove the old overlay
-        if(pnMat.SelectedMaterial) then
-          pnMat.SelectedMaterial.PaintOver = pnMat.OldSelectedPaintOver
-        end
-        -- Add the overlay to this button
-        pnMat.OldSelectedPaintOver = pnImg.PaintOver
-        pnImg.PaintOver = DATA.HOVP
-        pnMat.SelectedMaterial = pnImg
-        -- Update material convar
+      pnImg.DoClick = function(pnBut)
+        LaserLib.SetMaterialPaintOver(pnMat, pnBut)
         LaserLib.ConCommand(nil, data.Sors, sKey)
         pnFrame:SetTitle(data.Name.." > "..sInf)
       end
-      pnImg.DoRightClick = function(button)
+      pnImg.DoRightClick = function(pnBut)
         local pnMenu = DermaMenu(false, pnFrame)
         if(not IsValid(pnMenu)) then return end
         pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
@@ -730,6 +740,11 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
             end):SetImage(LaserLib.GetIcon("ruby_put"))
         end
         pnMenu:Open()
+      end
+      -- When the variable value is the same as the key
+      if(sKey == data.Conv:GetString()) then
+        pnFrame:SetTitle(data.Name.." > "..sInf)
+        LaserLib.SetMaterialPaintOver(pnMat, pnImg)
       end
     end
   end
@@ -1800,6 +1815,31 @@ function mtBeam:SetRefractWorld(trace, refract, key)
 end
 
 --[[
+ * Checks when another medium is present on exit
+ * When present tranfers the beam to the new medium
+ * origin > Origin position to be checked
+ * normal > Normal vector of the refraction surface
+ * target > Entity being the target
+ * trace  > Trace structure to temporary store the result
+]]
+function mtBeam:IsRefractExit(origin, normal, target, trace)
+  local refract = self:GetSolidMedium(origin, self.VrDirect, target, trace)
+  if(not refract) then return false end
+  -- Refract the hell out of this requested beam with enity destination
+  local vdir, bout = LaserLib.GetRefracted(self.VrDirect,
+                 normal, self.TrMedium.D[1][1], refract[1])
+  if(bout) then
+    self.IsRfract, self.StRfract = false, true
+    self:Redirect(origin, nil, true) -- The beam did not traverse mediums
+    self:SetMediumMemory(self.TrMedium.D, nil, normal)
+    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
+  else -- Get the trace ready to check the other side and register the location
+    self:SetTraceNext(origin, vdir) -- The beam did not traverse mediums
+    if(self.BrRefrac) then self:SetPowerRatio(self.TrMedium.D[1][2]) end
+  end; return true -- Apply power ratio when requested
+end
+
+--[[
  * Function handler for calculating SISO actor routines
  * These are specific handlers for specific classes
  * having single input beam and single output beam
@@ -1939,7 +1979,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local bIsValid  = false -- Stores whenever the trace is valid entity or not
   local sTrMaters = "" -- This stores the current extracted material as string
-  local sTrclass  = nil -- This stores the calss of the current trace entity
+  local sTrClass  = nil -- This stores the calss of the current trace entity
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
   local data = Beam(origin, direct, width, damage, length, force) -- Beam data structure
   -- Reports dedicated values that are being used by other entities and processses
@@ -1982,11 +2022,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       end
     end
     -- Check current target for being a valid specific actor
-    bIsValid, sTrclass = data:ActorTarget(target)
+    bIsValid, sTrClass = data:ActorTarget(target)
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(bIsValid) then -- Target is valis and it is a actor
-        if(sTrclass and gtActors[sTrclass]) then
+        if(sTrClass and gtActors[sTrClass]) then
           data:RegisterNode(trace.HitPos, trace.LengthNR, false)
         else -- The trace entity target is not special actor case
           data:RegisterNode(trace.HitPos, trace.LengthNR)
@@ -2012,8 +2052,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
          if(data.IsRfract) then
           -- Well the beam is still tracing
           data.IsTrace = true -- Produce next ray
-          -- Make sure that outer trace will always hit
-          LaserLib.VecNegate(data.VrDirect)
           -- Decide whenever to go out of the entity according to the hit location
           if(data:IsAir()) then
             data:SetMediumSours(mtBeam.A)
@@ -2023,26 +2061,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             else -- Check if point is in or out of the water
               data:SetMediumSours(mtBeam.A)
             end -- Update the source accordingly
-          end -- Make sure to pick the correct refract exit medium for current node
-          local refract = data:GetSolidMedium(trace.HitPos, data.VrDirect, target, tr)
-          if(refract) then
-            -- Nagate the normal so it must point inwards before refraction
-            LaserLib.VecNegate(trace.HitNormal)
-            -- Refract the hell out of this requested beam with enity destination
-            local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                           trace.HitNormal, data.TrMedium.D[1][1], refract[1])
-            if(bout) then
-              data.IsRfract, data.StRfract = false, true
-              data:Redirect(trace.HitPos, nil, true) -- The beam did not traverse mediums
-              data:SetMediumMemory(data.TrMedium.D, nil, trace.HitNormal)
-              if(usrfre) then data:SetPowerRatio(refract[2]) end
-            else -- Get the trace ready to check the other side and register the location
-              data:SetTraceNext(trace.HitPos, vdir) -- The beam did not traverse mediums
-              if(usrfre) then data:SetPowerRatio(data.TrMedium.D[1][2]) end
-            end -- Apply power ratio when requested
-          else
-            -- Nagate the normal so it must point inwards before refraction
-            LaserLib.VecNegate(trace.HitNormal)
+          end -- Nagate the normal so it must point inwards before refraction
+          LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
+          -- Make sure to pick the correct refract exit medium for current node
+          if(not data:IsRefractExit(trace.HitPos, trace.HitNormal, target, tr)) then
             -- Refract the hell out of this requested beam with enity destination
             local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                            trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
@@ -2058,8 +2080,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(usrfre) then data:SetPowerRatio(data.TrMedium.D[1][2]) end
           end
         else -- Put special cases here
-          if(sTrclass and gtActors[sTrclass]) then
-            local suc, err = pcall(gtActors[sTrclass], trace, data)
+          if(sTrClass and gtActors[sTrClass]) then
+            local suc, err = pcall(gtActors[sTrClass], trace, data)
             if(not suc) then data.IsTrace = false; error("Actor: "..err) end
           else
             sTrMaters = GetMaterialID(trace, data)
@@ -2115,25 +2137,28 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             -- Well the beam is still tracing
             data.IsTrace = true -- Produce next ray
             -- Make sure that outer trace will always hit
-            local org = data:GetNudge(trace.LengthLS + DATA.NUGE)
+            local org, nrm = data:GetNudge(trace.LengthLS + DATA.NUGE)
             LaserLib.VecNegate(data.VrDirect)
             -- Margin multiplier for trace back to find correct surface normal
             -- This is the only way to get the proper surface normal vector
             local tr = TraceBeam(org, data.VrDirect, 2 * DATA.NUGE,
               mtBeam.F, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
+            -- Store hit position and normal in beam temprary
+            local nrm = Vector(tr.HitNormal); org:Set(tr.HitPos)
             -- Reverse direction of the normal to point inside transperent
-            LaserLib.VecNegate(tr.HitNormal)
-            LaserLib.VecNegate(data.VrDirect)
+            LaserLib.VecNegate(nrm); LaserLib.VecNegate(data.VrDirect)
             -- Do the refraction according to medium boundary
-            local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                 tr.HitNormal, data.TrMedium.D[1][1], mtBeam.A[1][1])
-            if(bout) then -- When the beam gets out of the medium
-              data:Redirect(tr.HitPos, vdir, true)
-              data:SetMediumSours(mtBeam.A)
-              -- Memorizing will help when beam traverses from world to no-collided entity
-              data:SetMediumMemory(data.TrMedium.D, nil, tr.HitNormal)
-            else -- Get the trace ready to check the other side and register the location
-              data:Redirect(tr.HitPos, vdir)
+            if(not data:IsRefractExit(org, nrm, target, tr)) then
+              local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
+                                   nrm, data.TrMedium.D[1][1], mtBeam.A[1][1])
+              if(bout) then -- When the beam gets out of the medium
+                data:Redirect(org, vdir, true)
+                data:SetMediumSours(mtBeam.A)
+                -- Memorizing will help when beam traverses from world to no-collided entity
+                data:SetMediumMemory(data.TrMedium.D, nil, nrm)
+              else -- Get the trace ready to check the other side and register the location
+                data:Redirect(org, vdir)
+              end
             end
           else -- The beam ends inside a solid transperent medium
             local org = data:GetNudge(data.NvLength)
@@ -2142,8 +2167,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end -- Apply power ratio when requested
           if(usrfre) then data:SetPowerRatio(data.TrMedium.D[1][2]) end
         else
-          if(sTrclass and gtActors[sTrclass]) then
-            local suc, err = pcall(gtActors[sTrclass], trace, data)
+          if(sTrClass and gtActors[sTrClass]) then
+            local suc, err = pcall(gtActors[sTrClass], trace, data)
             if(not suc) then data.IsTrace = false; error("Actor: "..err) end
           else
             sTrMaters = GetMaterialID(trace, data)
