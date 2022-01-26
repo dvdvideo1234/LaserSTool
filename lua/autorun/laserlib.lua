@@ -260,9 +260,12 @@ DATA.TRACE = {
 DATA.WORLD = game.GetWorld()
 
 if(CLIENT) then
+  surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
   DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, DATA.COLOR["WHITE"]) end
+  DATA.REFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
+  DATA.REFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
 end
 
 -- Callbacks for console variables
@@ -606,23 +609,21 @@ end
  * It is used for materials found with indexing match
  * https://wiki.facepunch.com/gmod/table.sort
 ]]
-function LaserLib.GetSequence(set)
-  local ser, inf, row = {Size = 0}
-  if(set == DATA.REFLECT) then
-    inf = {"Rate", "Type", Size = 2}
-  elseif(set == DATA.REFRACT) then
-    inf = {"Ridx", "Rate", "Type", Size = 3}
-  else -- Otherwise raise error!
-    error("Sequence different!")
-  end -- Sequential table created
-  for key, val in pairs(set) do
-    if(type(val) == "table" and tostring(key):find("/")) then
-      row = {Key = key, Draw = true}
-      ser.Size = table.insert(ser, row)
-      for iD = 1, inf.Size do row[inf[iD]] = val[iD] end
-    end -- Store info and return table
-  end
-  ser.Info = inf; return ser
+function LaserLib.GetSequenceData(set)
+  if(SERVER) then return end
+  local ser = set.Sort
+  if(not ser) then return end
+  local inf = ser.Info
+  if(not inf) then return end
+  for key, val in pairs(set) do -- Check database
+    if(not ser[key]) then -- Entry is not present
+      if(type(val) == "table" and tostring(key):find("/")) then
+        row = {Key = key, Draw = true}; ser[key] = true
+        ser.Size = table.insert(ser, row) -- Insert
+        for iD = 1, inf.Size do row[inf[iD]] = val[iD] end
+      end -- Store info and return sequential table
+    end -- Entry is added to the squential list
+  end; return ser
 end
 
 function LaserLib.GetSequenceInfo(row, info)
@@ -669,6 +670,17 @@ end
 
 function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   if(SERVER) then return end
+  local pnBar = pnMat.List.VBar
+  if(pnBar) then
+    pnBar.OnMouseReleased = function(pnBut)
+      pnBut.Dragging = false
+      pnBut.DraggingCanvas = nil
+      pnBut:MouseCapture( false )
+      pnBut.btnGrip.Depressed = false
+      data.Mpos = pnBut:GetScroll()
+    end
+    pnBar:AnimateTo(data.Mpos, 0.05)
+  end
   local sTool = LaserLib.GetTool()
   -- Clear Material selection content
   LaserLib.ClearMaterials(pnMat)
@@ -836,7 +848,7 @@ end
  * destin > Refraction index of the destination medium
  * Return the refracted ray and beam status
   [1] > The refracted ray direction vector
-  [2] > Will the beam go out of the medium
+  [2] > Will the beam traverse to the next medium
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
   local inc = direct:GetNormalized() -- Read normalized copy os incident
@@ -1070,6 +1082,12 @@ function LaserLib.SnapNormal(base, hitp, norm, angle)
   base:SetPos(org); base:SetAngles(ang)
 end
 
+--[[
+ * Generates a custom local angle for lasers
+ * Defines value bases on a domainat direction
+ * base   > Entity to calculate for
+ * direct > Local direction for beam align
+]]
 function LaserLib.GetCustomAngle(base, direct)
   local tab = base:GetTable(); if(tab.anCustom) then
     return tab.anCustom else tab.anCustom = Angle() end
@@ -1243,11 +1261,7 @@ if(SERVER) then
 
     return laser
   end
-elseif(CLIENT) then
-  surface.CreateFont("LaserMedium",{
-    font = "Arial", size = 28,
-    weight = 600
-  })
+
 end
 
 --[[
@@ -1283,7 +1297,9 @@ end
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__index = mtBeam -- If not found in self search here
-      mtBeam.__vtemp = Vector() -- Temprary calculation vector object
+      mtBeam.__vtorg = Vector() -- Temprary calculation origin vector
+      mtBeam.__vtdir = Vector() -- Temprary calculation direct vector
+      mtBeam.__vtnor = Vector() -- Temprary calculation normal vector
       mtBeam.A = {DATA.REFRACT["air"  ], "air"  } -- General air info
       mtBeam.W = {DATA.REFRACT["water"], "water"} -- General water info
       mtBeam.F = function(ent) return (ent == DATA.WORLD) end
@@ -1385,7 +1401,7 @@ end
  * margn > Marging to adjust the temporary with
 ]]
 function mtBeam:GetNudge(margn)
-  local vtm = self.__vtemp
+  local vtm = self.__vtorg
   vtm:Set(self.VrDirect); vtm:Mul(margn)
   vtm:Add(self.VrOrigin); return vtm
 end
@@ -1541,7 +1557,7 @@ function mtBeam:SetTraceWidth(trace, length)
      self.IsRfract and -- Library must be refracting
      self.BmTracew and -- Beam width is available
      self.BmTracew > 0) then -- Beam width is present
-    local vtm = self.__vtemp; vtm:Set(trace.HitNormal)
+    local vtm = self.__vtorg; vtm:Set(trace.HitNormal)
     vtm:Mul(-DATA.TRDG * self.BmTracew); trace.HitPos:Add(vtm)
   end -- At this point we know exacly how long will the trace be
   -- In this case the value of node regster length is calculated
@@ -1556,7 +1572,7 @@ end
  * Beam traverses from medium [1] to medium [2]
  * origin > The node position to be registered
  * nbulen > Update the length according to the new node
- *          Positove number when provided else internal length
+ *          Positive number when provided else internal length
  *          Pass true boolean to update the node with distance
  * bedraw > Enable draw beam node on the CLIENT
  *          Use this for portals when skip gap is needed
@@ -1571,7 +1587,7 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
     self.NvLength = self.NvLength - cnlen -- Direct length
   else local size = info.Size -- Read the node stack size
     if(size > 0 and nbulen) then -- Length is not provided
-      local prev, vtmp = info[size][1], self.__vtemp
+      local prev, vtmp = info[size][1], self.__vtorg
       vtmp:Set(node); vtmp:Sub(prev) -- Relative to previous
       self.NvLength = self.NvLength - vtmp:Length()
     end -- Use the nodes and make sure previos exists
@@ -1613,7 +1629,7 @@ function mtBeam:IsNode()
   local set = self.TvPoints -- Set of nodes
   local siz = set.Size -- Read stack size
   if(siz < 2) then return true end -- Exit
-  local vtm = self.__vtemp -- Index temporary
+  local vtm = self.__vtorg -- Index temporary
   local nxt, prv = set[siz][1], set[siz-1][1]
   vtm:Set(nxt); vtm:Sub(prv); vtm:Normalize()
   vtm:Mul(self.NvLength); nxt:Add(vtm)
@@ -1736,7 +1752,7 @@ end
 function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit ouside the water
   local wat = self.__water -- Local reference indexing water
-  local vtm = self.__vtemp; LaserLib.VecNegate(self.VrDirect)
+  local vtm = self.__vtorg; LaserLib.VecNegate(self.VrDirect)
   local vwa = self:IntersectRayPlane(wat.P, wat.N)
   -- Registering the node cannot be done with direct substraction
   LaserLib.VecNegate(self.VrDirect); self:RegisterNode(vwa, true)
@@ -1817,24 +1833,28 @@ end
 --[[
  * Checks when another medium is present on exit
  * When present tranfers the beam to the new medium
- * origin > Origin position to be checked
+ * origin > Origin position to be checked ( not mandatory )
+ * direct > Ray direction vector override ( not mandatory )
  * normal > Normal vector of the refraction surface
- * target > Entity being the target
+ * target > Entity being the current beam target
  * trace  > Trace structure to temporary store the result
 ]]
-function mtBeam:IsRefractExit(origin, normal, target, trace)
-  local refract = self:GetSolidMedium(origin, self.VrDirect, target, trace)
+function mtBeam:IsTraverse(origin, direct, normal, target, trace)
+  local org = mtBeam.__vtorg; org:Set(origin or self.VrOrigin)
+  local dir = mtBeam.__vtdir; dir:Set(direct or self.VrDirect)
+  local refract = self:GetSolidMedium(org, dir, target, trace)
   if(not refract) then return false end
   -- Refract the hell out of this requested beam with enity destination
-  local vdir, bout = LaserLib.GetRefracted(self.VrDirect,
-                 normal, self.TrMedium.D[1][1], refract[1])
+  local nor = mtBeam.__vtnor; nor:Set(normal)
+  local vdir, bout = LaserLib.GetRefracted(dir,
+                 nor, self.TrMedium.D[1][1], refract[1])
   if(bout) then
     self.IsRfract, self.StRfract = false, true
-    self:Redirect(origin, nil, true) -- The beam did not traverse mediums
-    self:SetMediumMemory(self.TrMedium.D, nil, normal)
+    self:Redirect(org, nil, true) -- The beam did not traverse mediums
+    self:SetMediumMemory(self.TrMedium.D, nil, nor)
     if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
   else -- Get the trace ready to check the other side and register the location
-    self:SetTraceNext(origin, vdir) -- The beam did not traverse mediums
+    self:SetTraceNext(org, vdir) -- The beam did not traverse mediums
     if(self.BrRefrac) then self:SetPowerRatio(self.TrMedium.D[1][2]) end
   end; return true -- Apply power ratio when requested
 end
@@ -2064,7 +2084,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end -- Nagate the normal so it must point inwards before refraction
           LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
           -- Make sure to pick the correct refract exit medium for current node
-          if(not data:IsRefractExit(trace.HitPos, trace.HitNormal, target, tr)) then
+          if(not data:IsTraverse(trace.HitPos, nil, trace.HitNormal, target, tr)) then
             -- Refract the hell out of this requested beam with enity destination
             local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                            trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
@@ -2117,7 +2137,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                    trace.HitNormal, data.TrMedium.S[1][1], refract[1])
                   end
-                  data:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
+                  if(bout) then -- We have to change mediums
+                    data:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
+                  else -- Redirect the beam with the reflected ray
+                    data:Redirect(trace.HitPos, vdir)
+                  end
                   -- Apply power ratio when requested
                   if(usrfre) then data:SetPowerRatio(refract[2]) end
                   -- We cannot be able to refract as the requested data is missing
@@ -2148,7 +2172,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             -- Reverse direction of the normal to point inside transperent
             LaserLib.VecNegate(nrm); LaserLib.VecNegate(data.VrDirect)
             -- Do the refraction according to medium boundary
-            if(not data:IsRefractExit(org, nrm, target, tr)) then
+            if(not data:IsTraverse(org, nil, nrm, target, tr)) then
               local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
                                    nrm, data.TrMedium.D[1][1], mtBeam.A[1][1])
               if(bout) then -- When the beam gets out of the medium

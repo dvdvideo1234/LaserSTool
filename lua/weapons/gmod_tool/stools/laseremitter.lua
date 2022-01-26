@@ -92,14 +92,12 @@ if(CLIENT) then
       if(argm == "MIRROR") then
         sors = "REFLECT"
         base = LaserLib.DataReflect(reca)
-        data = LaserLib.GetSequence(base)
+        data = LaserLib.GetSequenceData(base)
       elseif(argm == "TRANSPARENT") then
         sors = "REFRACT"
         base = LaserLib.DataRefract(reca)
-        data = LaserLib.GetSequence(base)
-      else
-        return nil
-      end
+        data = LaserLib.GetSequenceData(base)
+      else return nil end
       data.Sors = sors:lower().."used"
       data.Conv = GetConVar(gsTool.."_"..data.Sors)
       data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
@@ -144,7 +142,6 @@ if(CLIENT) then
       end
       LaserLib.SetMaterialSize(pnMat, 4)
       LaserLib.UpdateMaterials(pnFrame, pnMat, data)
-      -- pnFrame:InvalidateChildren(true)
       pnFrame:Center()
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()
@@ -480,7 +477,7 @@ end
 
 function TOOL:DrawHUD(a,b,c)
   local tr = LocalPlayer():GetEyeTrace()
-  if(not (tr or tr.Hit)) then return end
+  if(not (tr and tr.Hit)) then return end
   local rat = LaserLib.GetData("GRAT")
   local txt = self:GetSurface(tr.Entity)
   if(not txt) then return end
@@ -489,13 +486,13 @@ function TOOL:DrawHUD(a,b,c)
   local bkg = LaserLib.GetColor("BACKGND")
   local w = surface.ScreenWidth()
   local h = surface.ScreenHeight()
-  local sx, sy = (w / (1.2 * rat)), (h / (12 * rat))
+  local sx, sy = (w / rat), (h / (15 * rat))
   local px = (w / 2) - (sx / 2)
   local py = h - sy - (rat - 1) * sy
   local tx = px + (sx / 2)
   local ty = py + (sy / 2)
   draw.RoundedBox(16, px, py, sx, sy, bkg)
-  draw.SimpleText(txt, "LaserMedium", tx, ty, blk, alg, alg)
+  draw.SimpleText(txt, "LaserHUD", tx, ty, blk, alg, alg)
 end
 
 function TOOL:Think()
