@@ -6,11 +6,11 @@ local gsLaserptCls = LaserLib.GetClass(9, 1)
 if(CLIENT) then
 
   TOOL.Information = {
-    {name = "info"      , icon = "gui/info"       },
-    {name = "mater"     , icon = "icon16/wand.png"},
-    {name = "left"      , icon = "gui/lmb.png"    },
-    {name = "right"     , icon = "gui/rmb.png"    },
-    {name = "reload"    , icon = "gui/r.png"      },
+    {name = "info"      , icon = "gui/info"   },
+    {name = "mater"     , icon = LaserLib.GetIcon("wand")},
+    {name = "left"      , icon = "gui/lmb.png"},
+    {name = "right"     , icon = "gui/rmb.png"},
+    {name = "reload"    , icon = "gui/r.png"  },
     {name = "reload_use", icon = "gui/r.png"  , icon2 = "gui/e.png"},
   }
 
@@ -71,75 +71,77 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".openmaterial_cmat", "Copy material")
   language.Add("tool."..gsTool..".openmaterial_cset", "Copy settings")
   language.Add("tool."..gsTool..".openmaterial_call", "Copy all info")
+  language.Add("tool."..gsTool..".openmaterial_sort", "Sort materials")
+  language.Add("tool."..gsTool..".openmaterial_find","Select which value you need a search for using patterns")
+  language.Add("tool."..gsTool..".openmaterial_find0","Search by value...")
+  language.Add("tool."..gsTool..".openmaterial_find1","Surface material name")
+  language.Add("tool."..gsTool..".openmaterial_find2","Power reduction ratio")
+  language.Add("tool."..gsTool..".openmaterial_find3","Medium refractive index")
   language.Add("Cleanup_"..gsTool.."s", "Laser elements")
   language.Add("Cleaned_"..gsTool.."s", "Cleaned up all Laser elements")
   language.Add("Undone_"..gsTool, "Undone Laser emitter")
   language.Add("SBoxLimit_"..gsTool.."s", "You've hit the Laser elements limit!")
 
+  -- http://www.famfamfam.com/lab/icons/silk/preview.php
   concommand.Add(gsTool.."_openmaterial",
     function(ply, cmd, args)
-      local data, sors
+      local base, data, sors
       local reca = LaserLib.GetData("KEYA")
       local rate = LaserLib.GetData("GRAT")
       local argm = tostring(args[1] or ""):upper()
       if(argm == "MIRROR") then
         sors = "REFLECT"
-        data = LaserLib.DataReflect(reca)
+        base = LaserLib.DataReflect(reca)
+        data = LaserLib.GetSequenceData(base)
       elseif(argm == "TRANSPARENT") then
         sors = "REFRACT"
-        data = LaserLib.DataRefract(reca)
-      else
-        return nil
-      end
-      local varName = GetConVar(gsTool.."_"..sors:lower().."used")
-      local topName = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
+        base = LaserLib.DataRefract(reca)
+        data = LaserLib.GetSequenceData(base)
+      else return nil end
+      data.Sors = sors:lower().."used"
+      data.Conv = GetConVar(gsTool.."_"..data.Sors)
+      data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
-      pnFrame:SetTitle(topName)
+      local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
+      pnFrame:SetTitle(data.Name)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
-      pnFrame:SetDeleteOnClose(false)
+      pnFrame:SetDeleteOnClose(true)
       pnFrame:SetPos(0, 0)
-      pnFrame:SetSize(scrW / rate, scrH / rate)
+      pnFrame:SetSize(iSx , iSy)
+      local pnCombo = vgui.Create("DComboBox"); if(not IsValid(pnCombo)) then return nil end
+            pnCombo:SetParent(pnFrame)
+            pnCombo:SetSortItems(false)
+            pnCombo:SetPos(iPa, 24 + iPa)
+            pnCombo:SetSize(pnFrame:GetWide() - (rate - 1) * pnFrame:GetWide(), 25)
+            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTool..".openmaterial_find"))
+            pnCombo:SetValue(language.GetPhrase("tool."..gsTool..".openmaterial_find0"))
+            if(data[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(data[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(data[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+      local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
+            pnText:SetParent(pnFrame)
+            pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
+            pnText:SetSize(pnFrame:GetWide() - pnCombo:GetWide() - 3 * iPa, pnCombo:GetTall())
       local pnMat = vgui.Create("MatSelect"); if(not IsValid(pnMat)) then return nil end
             pnMat:SetParent(pnFrame)
-            pnMat:DockPadding(3, 3, 3, 3)
-            pnMat:Dock(FILL)
-            pnMat:SetItemWidth(0.16)
-            pnMat:SetItemHeight(0.22)
-            pnMat:InvalidateLayout(true)
-      for key, val in pairs(data) do
-        if(type(val) == "table" and tostring(key):find("/")) then
-          local set = "{"..table.concat(val, "|").."}"
-          local inf = set.." "..key
-          if(key == varName:GetString()) then pnFrame:SetTitle(topName.." > "..inf) end
-          local matb = vgui.Create("DImageButton"); if(not IsValid(matb)) then return nil end
-          matb:SetParent(pnMat)
-          matb:SetOnViewMaterial(key, "models/wireframe")
-          matb.AutoSize, matb.Value = false, key
-          matb:SetTooltip(inf)
-          matb.DoClick = function(button)
-            LaserLib.ConCommand(nil, sors:lower().."used", key)
-            pnFrame:SetTitle(topName.." > "..inf)
-          end
-          matb.DoRightClick = function(button)
-            local matm = DermaMenu(false, pnFrame)
-            if(not IsValid(matm)) then return end
-            matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cmat"),
-              function() SetClipboardText(key) end):SetIcon("icon16/page_copy.png")
-            matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_cset"),
-              function() SetClipboardText(set) end):SetIcon("icon16/page_copy.png")
-            matm:AddOption(language.GetPhrase("tool."..gsTool..".openmaterial_call"),
-              function() SetClipboardText(inf) end):SetIcon("icon16/page_copy.png")
-            matm:Open()
-          end
-          pnMat.List:AddItem(matb)
-          table.insert(pnMat.Controls, matb)
-          pnMat:InvalidateLayout(true)
-          pnMat.List:InvalidateLayout(true)
-        end
+            pnMat:SetPos(iPa, pnCombo:GetY() + pnCombo:GetTall() + iPa)
+            pnMat:SetSize(pnFrame:GetWide() - 2 * iPa, pnFrame:GetTall() - 2 * iPa)
+      pnText.OnEnter = function(pnTxt, sTxt)
+        local iD = pnCombo:GetSelectedID()
+        if(not iD or iD <= 0) then return end
+        local sD = pnCombo:GetOptionData(iD)
+        local fD = (sD and sD:len() > 0)
+        for iD = 1, data.Size do local tRow = data[iD]
+          if(fD) then
+            if(tostring(tRow[sD]):find(sTxt)) then
+              tRow.Draw = true else tRow.Draw = false end
+          else tRow.Draw = true end
+        end; LaserLib.UpdateMaterials(pnFrame, pnMat, data)
       end
-      pnMat:InvalidateChildren(true)
+      LaserLib.SetMaterialSize(pnMat, 4)
+      LaserLib.UpdateMaterials(pnFrame, pnMat, data)
       pnFrame:Center()
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()
@@ -461,6 +463,36 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
   end
 
   ent:SetNoDraw(false)
+end
+
+function TOOL:GetSurface(ent)
+  if(not LaserLib.IsValid(ent)) then return end
+  local mat = ent:GetMaterial()
+  local row = LaserLib.DataReflect(mat)
+  if(row) then return "{"..table.concat(row, "|").."} "..mat
+  else row = LaserLib.DataRefract(mat)
+    if(row) then return "{"..table.concat(row, "|").."} "..mat end
+  end
+end
+
+function TOOL:DrawHUD(a,b,c)
+  local tr = LocalPlayer():GetEyeTrace()
+  if(not (tr and tr.Hit)) then return end
+  local rat = LaserLib.GetData("GRAT")
+  local txt = self:GetSurface(tr.Entity)
+  if(not txt) then return end
+  local alg = TEXT_ALIGN_CENTER
+  local blk = LaserLib.GetColor("BLACK")
+  local bkg = LaserLib.GetColor("BACKGND")
+  local w = surface.ScreenWidth()
+  local h = surface.ScreenHeight()
+  local sx, sy = (w / rat), (h / (15 * rat))
+  local px = (w / 2) - (sx / 2)
+  local py = h - sy - (rat - 1) * sy
+  local tx = px + (sx / 2)
+  local ty = py + (sy / 2)
+  draw.RoundedBox(16, px, py, sx, sy, bkg)
+  draw.SimpleText(txt, "LaserHUD", tx, ty, blk, alg, alg)
 end
 
 function TOOL:Think()
