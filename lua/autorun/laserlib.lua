@@ -626,6 +626,10 @@ function LaserLib.GetSequenceData(set)
   end; return ser
 end
 
+--[[
+ * Extracts information for a given sorted row
+ * Returns the information as a string
+]]
 function LaserLib.GetSequenceInfo(row, info)
   local res = "" -- Temporary storage
   for iD = 1, info.Size do local dat = row[info[iD]]
@@ -633,6 +637,10 @@ function LaserLib.GetSequenceInfo(row, info)
   end; return "{"..res:sub(2, -1).."}"
 end
 
+--[[
+ * Automatically adjusts the materil size
+ * Materials button will apways be square
+]]
 function LaserLib.SetMaterialSize(pnMat, iRow)
   if(SERVER) then return end
   local scrW = surface.ScreenWidth()
@@ -645,6 +653,10 @@ function LaserLib.SetMaterialSize(pnMat, iRow)
   pnMat:SetItemHeight(iH)
 end
 
+--[[
+ * Clears the materil selector from eny content
+ * This is used for sorting and filtering
+]]
 function LaserLib.ClearMaterials(pnMat)
   if(SERVER) then return end
   -- Clear all entries from the list
@@ -656,6 +668,10 @@ function LaserLib.ClearMaterials(pnMat)
   pnMat.OldSelectedPaintOver = nil
 end
 
+--[[
+ * Changes the selected materil paint over function
+ * When other one is clicked reverts the last change
+]]
 function LaserLib.SetMaterialPaintOver(pnMat, pnImg)
   if(SERVER) then return end
   -- Remove the current overlay
@@ -668,21 +684,35 @@ function LaserLib.SetMaterialPaintOver(pnMat, pnImg)
   pnMat.SelectedMaterial = pnImg
 end
 
-function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+--[[
+ * Triggers save request for the material select
+ * scroll bar and reads it on the next panel open
+ * Animates the slider to the last remembered poistion
+]]
+function LaserLib.SetMaterialScroll(pnMat, data)
   if(SERVER) then return end
   local pnBar = pnMat.List.VBar
   if(pnBar) then
     pnBar.OnMouseReleased = function(pnBut)
       pnBut.Dragging = false
       pnBut.DraggingCanvas = nil
-      pnBut:MouseCapture( false )
+      pnBut:MouseCapture(false)
       pnBut.btnGrip.Depressed = false
       data.Mpos = pnBut:GetScroll()
     end
     pnBar:AnimateTo(data.Mpos, 0.05)
   end
+end
+
+--[[
+ * Preforms material selection panel update for the requested entries
+ * Clears the content and remembers the last panel view state
+ * Called recursively when sorting or filtering is requested
+]]
+function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+  if(SERVER) then return end
   local sTool = LaserLib.GetTool()
-  -- Clear Material selection content
+  -- Update material selection content
   LaserLib.ClearMaterials(pnMat)
   -- Read the controls tabe and craete index
   local tCont, iC = pnMat.Controls, 0
@@ -760,8 +790,14 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
       end
     end
   end
+  -- Update material panel scroll bar
+  LaserLib.SetMaterialScroll(pnMat, data)
 end
 
+--[[
+ * Used to debug and set random stuff  in an interval
+ * Good for perventing spam of printing traces for example
+]]
 function LaserLib.Call(time, func, ...)
   local tnew = SysTime()
   if((tnew - DATA.TOLD) > time)
