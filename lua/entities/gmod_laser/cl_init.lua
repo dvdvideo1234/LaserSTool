@@ -2,9 +2,6 @@ include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
-local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
-local DRWBMSPD = LaserLib.GetData("DRWBMSPD")
-
 --[[
  * This is actually faster than stuffing all the beams
  * information for every laser in a dedicated table and
@@ -14,39 +11,10 @@ local DRWBMSPD = LaserLib.GetData("DRWBMSPD")
  * source > Entity that has laser related properties
 ]]
 function ENT:DrawEndingEffect(trace, data, source)
-  local sent = (source or self)
-  if(trace and not trace.HitSky and
-    sent:GetEndingEffect() and self.isEffect)
-  then
-    if(not self.beamEffect) then
-      self.beamEffect = EffectData()
-    end -- Allocate effect data class
-    if(trace.Hit) then
-      local ent = trace.Entity
-      local eff = self.beamEffect
-      if(not LaserLib.IsUnit(ent)) then
-        eff:SetStart(trace.HitPos)
-        eff:SetOrigin(trace.HitPos)
-        eff:SetNormal(trace.HitNormal)
-        util.Effect("AR2Impact", eff)
-        -- Draw particle effects
-        if(data.NvDamage > 0) then
-          if(not (ent:IsPlayer() or ent:IsNPC())) then
-            local mul = (data.NvDamage / MXBMDAMG:GetFloat())
-            local dir = LaserLib.GetReflected(data.VrDirect,
-                                              trace.HitNormal)
-            eff:SetNormal(dir)
-            eff:SetScale(0.5)
-            eff:SetRadius(10 * mul)
-            eff:SetMagnitude(3 * mul)
-            util.Effect("Sparks", eff)
-          else
-            util.Effect("BloodImpact", eff)
-          end
-        end
-      end
-    end
-  end
+  local okent = LaserLib.IsValid(source)
+  local usent = (okent and source or self)
+  local endrw = usent:GetEndingEffect()
+  data:DrawEffect(usent, trace, endrw)
 end
 
 --[[
@@ -56,42 +24,11 @@ end
  * source > Entity that has laser related properties
 ]]
 function ENT:DrawTrace(data, source)
-  local sent = (source or self)
-  local rgba = sent:GetBeamColorRGBA(true)
-  local ushit = LocalPlayer():GetEyeTrace().HitPos
-  local bbmin = self:LocalToWorld(self:OBBMins())
-  local bbmax = self:LocalToWorld(self:OBBMaxs())
-  local first = data.TvPoints[1][1]
-  -- Extend render bounds with player hit position
-  LaserLib.UpdateRB(bbmin, ushit, math.min)
-  LaserLib.UpdateRB(bbmax, ushit, math.max)
-  -- Extend render bounds with the first node
-  LaserLib.UpdateRB(bbmin, first, math.min)
-  LaserLib.UpdateRB(bbmax, first, math.max)
-  -- Adjust the render bounds with world-space coordinates
-  self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
-  -- Material must be cached and pdated with left click setup
-  local mat = sent:GetBeamMaterial(true)
-  if(mat) then render.SetMaterial(mat) end
-  local spd = DRWBMSPD:GetFloat()
-
-  -- Draw the beam sequentially being faster
-  for idx = 2, data.TvPoints.Size do
-    local org = data.TvPoints[idx - 1]
-    local new = data.TvPoints[idx - 0]
-    local otx, ntx, wdt = org[1], new[1], org[2]
-
-    -- Make sure the coordinates are conveted to world ones
-    LaserLib.UpdateRB(bbmin, ntx, math.min)
-    LaserLib.UpdateRB(bbmax, ntx, math.max)
-
-    if(org[5]) then -- Current node has its draw enabled
-      local dtm, len = (spd * CurTime()), ntx:Distance(otx)
-      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, rgba)
-    end -- Draw the actual beam texture
-  end
-  -- Adjust the render bounds with world-space coordinates
-  self:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+  local okent = LaserLib.IsValid(source)
+  local usent = (okent and source or self)
+  local corgb = usent:GetBeamColorRGBA(true)
+  local imatr = usent:GetBeamMaterial(true)
+  data:Draw(usent, imatr, corgb)
 end
 
 function ENT:DrawBeam()

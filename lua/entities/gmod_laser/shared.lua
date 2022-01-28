@@ -167,16 +167,15 @@ function ENT:SetBeamMaterial(mat)
 end
 
 function ENT:GetBeamMaterial(bool)
+  local mac = self.roMaterial
   local mat = self:GetInBeamMaterial()
   if(bool) then
-    if(self.matCached) then
-      if(self.matCached:GetName() ~= mat) then
-        self.matCached = Material(mat)
+    if(mac) then
+      if(mac:GetName() ~= mat) then
+        mac = Material(mat)
       end
-    else
-      self.matCached = Material(mat)
-    end
-    return self.matCached
+    else mac = Material(mat) end
+    self.roMaterial = mac; return mac
   else
     return mat
   end
@@ -315,8 +314,8 @@ function ENT:GetBeamColorRGBA(bcol)
   local v = self:GetBeamColor()
   local a = self:GetBeamAlpha()
   local r, g, b = (v.x * m), (v.y * m), (v.z * m)
-  if(bcol) then local c = self.rgbCached
-    if(not c) then c = Color(0,0,0,0); self.rgbCached = c end
+  if(bcol) then local c = self.roColor
+    if(not c) then c = Color(0,0,0,0); self.roColor = c end
     c.r, c.g, c.b, c.a = r, g, b, a; return c
   else -- The user requests four numbers instead
     return r, g, b, a
