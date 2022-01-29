@@ -1,6 +1,9 @@
 -- Instructions and info
-SWEP.Instructions           = "Left click to shoot a laser beam"
-SWEP.PrintName              = "Laser beam pistol"
+SWEP.Author                 = "DVD"
+SWEP.Contact                = "dvd_video@abv.bg"
+SWEP.Purpose                = "The laser pawer in your hands"
+SWEP.Instructions           = "Make primary attack to shoot a laser beam"
+SWEP.PrintName              = "Laser pistol"
 SWEP.Category               = LaserLib.GetData("CATG")
 -- Control values
 SWEP.Weight                 = 5
@@ -27,9 +30,7 @@ SWEP.Secondary.ClipSize     = -1
 SWEP.Secondary.DefaultClip  = -1
 SWEP.Secondary.Automatic    = false
 SWEP.Secondary.Ammo         = "none"
-SWEP.Class                  = SWEP.Folder:gsub("weapons/", "")
-
-LaserLib.GetData("CLS")[SWEP.Class] = {true, true}
+SWEP.AccurateCrosshair      = true
 
 local gsTool = LaserLib.GetTool()
 local gsPref = gsTool.."_"
@@ -44,6 +45,36 @@ local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 if(SERVER) then
   resource.AddFile("materials/vgui/entities/gmod_laser_pistol.vmt")
+end
+
+function SWEP:SetupView()
+  local user = self:GetOwner()
+  if(CLIENT) then
+    if(user.GetViewModel and user:GetViewModel():IsValid()) then
+      local iD = user:GetViewModel():LookupAttachment("muzzle")
+      if(iD == 0) then iD = user:GetViewModel():LookupAttachment("1") end
+      if(LocalPlayer():GetAttachment(iD)) then
+        self.VM = user:GetViewModel()
+        self.Attach = iD
+      end
+    end
+    if(user:IsValid())then
+      local iD = user:LookupAttachment("anim_attachment_RH")
+      if(user:GetAttachment(iD)) then
+        self.WM = user
+        self.WAttach = iD
+      end
+    end
+  end
+
+  LaserLib.GetData("CLS")[self:GetClass()] = {true, true}
+
+  print("V:", self.VM, self.Attach)
+  print("W:", self.WM, self.WAttach)
+end
+
+function SWEP:Initialize()
+  self:SetupView()
 end
 
 --[[---------------------------------------------------------
@@ -195,15 +226,28 @@ function SWEP:GetEndingEffect()
   return (self:GetOwner():GetInfoNum(gsPref.."endingeffect", 0) ~= 0)
 end
 
-function SWEP:DoBeam()
-  local user   = self:GetOwner()
-  local origin = user:GetShootPos()
-  local direct = user:GetAimVector()
-  local weapon = user:GetActiveWeapon()
-  local force  = math.Clamp(user:GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
-  local width  = math.Clamp(user:GetInfoNum(gsPref.."width", 0), 0, MXBMWIDT:GetFloat())
-  local damage = math.Clamp(user:GetInfoNum(gsPref.."damage", 0), 0, MXBMDAMG:GetFloat())
-  local length = math.Clamp(user:GetInfoNum(gsPref.."length", 0), 0, MXBMLENG:GetFloat())
+function SWEP:GetBeamWidth()
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."width", 0), 0, MXBMWIDT:GetFloat())
+end
+
+function SWEP:GetBeamDamage()
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."damage", 0), 0, MXBMDAMG:GetFloat())
+end
+
+function SWEP:GetBeamLength()
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."length", 0), 0, MXBMLENG:GetFloat())
+end
+
+function SWEP:GetBeamForce()
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
+end
+
+function SWEP:DoBeam(origin, direct)
+  local user = self:GetOwner()
+  local width  = self:GetBeamWidth()
+  local damage = self:GetBeamDamage()
+  local length = self:GetBeamLength()
+  local force  = self:GetBeamForce()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
@@ -220,60 +264,85 @@ function SWEP:DoBeam()
   return trace, data
 end
 
-if(SERVER) then
-
-  function SWEP:Think()
-    self:UpdateFlags()
-
-    if(self:GetOn()) then
-      local trace, data = self:DoBeam()
-      if(data and trace and
-        LaserLib.IsValid(trace.Entity) and not
-        LaserLib.IsUnit(trace.Entity)
-      ) then
-
-      local user = self:GetOwner()
-      local fcen = self:GetForceCenter()
-      local dtyp = self:GetDissolveType()
-      local ssnd = self:GetStopSound()
-      local ksnd = self:GetKillSound()
-
-      LaserLib.DoDamage(trace.Entity,
-                        trace.HitPos,
-                        trace.Normal,
-                        data.VrDirect,
-                        data.NvDamage,
-                        data.NvForce,
-                        user,
-                        LaserLib.GetDissolveID(dtyp),
-                        ksnd,
-                        fcen,
-                        self)
-      end
-    end
-
-    self:NextThink(CurTime())
-
-    return true
-  end
+function SWEP:DrawBeam()
 
 end
 
-function SWEP:Draw()
-  self:DrawModel()
+function SWEP:ServerBeam()
   self:UpdateFlags()
 
   if(self:GetOn()) then
-    local trace, data = self:DoBeam()
-    if(not data) then return end
-    if(not trace) then return end
+    local user = self:GetOwner()
+    local vorg = user:EyePos()
+    local vdir = user:GetAimVector()
 
-    local matr = self:GetBeamMaterial(true)
-    local colr = self:GetBeamColorRGBA(true)
-    local eeff = self:GetEndingEffect()
+    local trace, data = self:DoBeam(vorg, vdir)
+    if(data and trace and
+      LaserLib.IsValid(trace.Entity) and not
+      LaserLib.IsUnit(trace.Entity)
+    ) then
 
-    data:Draw(self, matr, colr)
-    data:DrawEffect(self, trace, eeff)
+    local user = self:GetOwner()
+    local fcen = self:GetForceCenter()
+    local dtyp = self:GetDissolveType()
+    local ssnd = self:GetStopSound()
+    local ksnd = self:GetKillSound()
+
+    LaserLib.DoDamage(trace.Entity,
+                      trace.HitPos,
+                      trace.Normal,
+                      data.VrDirect,
+                      data.NvDamage,
+                      data.NvForce,
+                      user,
+                      LaserLib.GetDissolveID(dtyp),
+                      ksnd,
+                      fcen,
+                      self)
+    end
   end
 end
 
+if(SERVER) then
+
+  function SWEP:Think()
+    self:ServerBeam()
+    self:NextThink(CurTime())
+    return true
+  end
+
+else
+--[[
+  function SWEP:PreDrawViewModel()
+    self:DrawBeam()
+  end
+]]
+
+  function SWEP:ViewModelDrawn()
+    local user = self:GetOwner()
+    local view = user:GetViewModel()
+    if(not view) then return end
+    local muss = view:GetAttachment(1)
+
+    self:UpdateFlags()
+
+    if(self:GetOn()) then
+      LaserLib.DrawVector(muss.Pos, muss.Ang:Forward(), 5)
+
+      local trace, data = self:DoBeam(muss.Pos, muss.Ang:Forward())
+      if(not data) then return end
+      if(not trace) then return end
+
+      -- Disable drawing forst point
+      data.TvPoints[1][5] = false
+
+      local eeff = self:GetEndingEffect()
+      local matr = self:GetBeamMaterial(true)
+      local colr = self:GetBeamColorRGBA(true)
+
+      data:Draw(self, matr, colr)
+      data:DrawEffect(self, trace, eeff)
+    end
+  end
+
+end

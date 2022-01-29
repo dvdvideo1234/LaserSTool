@@ -1912,6 +1912,7 @@ function mtBeam:Draw(sours, imatr, color)
   -- Check node avalability
   if(not tvpnt[1]) then return end
   if(not tvpnt.Size) then return end
+  if(tvpnt.Size <= 0) then return end
   -- Extend render bounds with player hit position
   LaserLib.UpdateRB(bbmin, ushit, math.min)
   LaserLib.UpdateRB(bbmax, ushit, math.max)
@@ -2134,15 +2135,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
   local data = Beam(origin, direct, width, damage, length, force) -- Beam data structure
   -- Reports dedicated values that are being used by other entities and processses
-  data.BmSource = entity -- The beam source entity. Populated customly depending on the API
-  data.TeFilter = entity -- Make sure the initial laser source is skipped
-  if(entity and entity:IsValid()) then
-    if(entity:IsPlayer()) then
-      local eGun = entity:GetActiveWeapon()
-      if(LaserLib.IsUnit(eGun)) then
-        data.BmSource = eGun
-        data.TeFilter = {entity, eGun}
-      end
+  data.BmSource, data.TeFilter = entity, entity -- Populated customly depending on the API
+   -- Make sure the initial laser source is skipped
+  if(entity and entity:IsValid()) then -- Entity is switch the entity type
+    if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
+      if(LaserLib.IsUnit(eGun)) then data.BmSource, data.TeFilter = eGun, {entity, eGun} end
+    elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
+      if(LaserLib.IsUnit(entity)) then data.BmSource, data.TeFilter = entity, {entity, ePly} end
     end
   end -- Switch the filter according to the waepon the player is holding
   data.BrReflec = usrfle -- Beam reflection ratio flag. Reduce beam power when reflecting
