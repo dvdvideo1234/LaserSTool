@@ -51,6 +51,7 @@ DATA.ERAD = 1.12            -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.27            -- Beam backtrace trace width when refracting
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.TRWU = 50000           -- The amount of units to trace for finding water surface
+DATA.BONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
@@ -1293,6 +1294,14 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   return pos, dir
 end
 
+function LaserLib.Bounces(num)
+  if(num and num > 0) then
+    DATA.BONC = math.floor(num)
+  else -- Reset the exterlan limit
+    DATA.BONC = 0
+  end
+end
+
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__index = mtBeam -- If not found in self search here
@@ -1313,10 +1322,11 @@ local function Beam(origin, direct, width, damage, length, force)
   local self = {}; setmetatable(self, mtBeam)
   self.TrMedium = {} -- Contains information for the mediums being traversed
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
-  self.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
-  self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam
-  self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]}
-  self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()}
+  self.MxBounce = math.floor(DATA.BONC) -- Max bounces for the laser loop
+  if(self.MxBounce <= 0) then self.MxBounce = DATA.MBOUNCES:GetInt() end
+  self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
+  self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
+  self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory
   self.VrOrigin = Vector(origin) -- Copy origin not to modify it
   self.VrDirect = direct:GetNormalized() -- Copy deirection not to modify it
   self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
@@ -1357,7 +1367,6 @@ end
 
 --[[
  * Issues a finish command to the traced laser beam
- * trace > Trace structure of the current iteration
 ]]
 function mtBeam:Bounce()
   -- We are neither hitting something nor still tracing or hit dedicated entity
@@ -2370,8 +2379,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     else data:Finish(trace) end -- Trace did not hit anything to be bounced off from
   until(data:IsFinish())
 
-  -- Reset the normal for the next call
+  -- Reset the parameters for the next call
   data:ClearWater()
+  LaserLib.Bounces()
 
   -- The beam ends inside transperent medium
   if(not data:IsNode()) then return nil, data end

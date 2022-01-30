@@ -2,7 +2,7 @@
 SWEP.Author                 = "DVD"
 SWEP.Contact                = "dvd_video@abv.bg"
 SWEP.Purpose                = "The laser pawer in your hands"
-SWEP.Instructions           = "Make primary attack to shoot a laser beam"
+SWEP.Instructions           = "Primary attack to shoot a laser beam"
 SWEP.PrintName              = "Laser pistol"
 SWEP.Category               = LaserLib.GetData("CATG")
 -- Control values
@@ -47,34 +47,31 @@ if(SERVER) then
   resource.AddFile("materials/vgui/entities/gmod_laser_pistol.vmt")
 end
 
-function SWEP:SetupView()
-  local user = self:GetOwner()
+function SWEP:Setup()
   if(CLIENT) then
+    local user = self:GetOwner()
     if(user.GetViewModel and user:GetViewModel():IsValid()) then
-      local iD = user:GetViewModel():LookupAttachment("muzzle")
-      if(iD == 0) then iD = user:GetViewModel():LookupAttachment("1") end
-      if(LocalPlayer():GetAttachment(iD)) then
-        self.VM = user:GetViewModel()
-        self.Attach = iD
+      local mod = user:GetViewModel()
+      local idx = mod:LookupAttachment("muzzle")
+      if(idx == 0) then idx = mod:LookupAttachment("1") end
+      if(user:GetAttachment(idx)) then
+        self.VM = mod
+        self.VA = idx
       end
     end
-    if(user:IsValid())then
-      local iD = user:LookupAttachment("anim_attachment_RH")
-      if(user:GetAttachment(iD)) then
-        self.WM = user
-        self.WAttach = iD
-      end
-    end
+    self.WA = self:LookupAttachment("muzzle")
+    self.MO, self.MD = Vector(), Vector()
   end
 
   LaserLib.GetData("CLS")[self:GetClass()] = {true, true}
-
-  print("V:", self.VM, self.Attach)
-  print("W:", self.WM, self.WAttach)
 end
 
 function SWEP:Initialize()
-  self:SetupView()
+  self:Setup()
+end
+
+function SWEP:Deploy()
+  self:Setup()
 end
 
 --[[---------------------------------------------------------
@@ -264,10 +261,6 @@ function SWEP:DoBeam(origin, direct)
   return trace, data
 end
 
-function SWEP:DrawBeam()
-
-end
-
 function SWEP:ServerBeam()
   self:UpdateFlags()
 
@@ -275,6 +268,8 @@ function SWEP:ServerBeam()
     local user = self:GetOwner()
     local vorg = user:EyePos()
     local vdir = user:GetAimVector()
+
+    LaserLib.Bounces(1)
 
     local trace, data = self:DoBeam(vorg, vdir)
     if(data and trace and
@@ -312,36 +307,56 @@ if(SERVER) then
   end
 
 else
---[[
-  function SWEP:PreDrawViewModel()
-    self:DrawBeam()
-  end
-]]
 
-  function SWEP:ViewModelDrawn()
-    local user = self:GetOwner()
-    local view = user:GetViewModel()
-    if(not view) then return end
-    local muss = view:GetAttachment(1)
-
+  function SWEP:DrawBeam(origin, direct)
     self:UpdateFlags()
+    LaserLib.Bounces(1)
 
+    local trace, data = self:DoBeam(origin, direct)
+    if(not data) then return end
+    if(not trace) then return end
+
+    local eeff = self:GetEndingEffect()
+    local matr = self:GetBeamMaterial(true)
+    local colr = self:GetBeamColorRGBA(true)
+
+    data:Draw(self, matr, colr)
+    data:DrawEffect(self, trace, eeff)
+  end
+
+  function SWEP:GetBeamDrawRay(mussle, udotp)
+    if(not mussle) then return end
+    local musfwd = mussle.Ang:Forward()
+    local hitpos = self:GetOwner():GetEyeTrace().HitPos
+    local direct = self.MD; direct:Set(hitpos)
+    local origin = self.MO; origin:Set(mussle.Pos)
+          direct:Sub(origin)
+          direct:Normalize()
+    return origin, direct
+  end
+
+  -- How the local player sees the laser pistol
+  function SWEP:PreDrawViewModel()
+    self:DrawModel()
     if(self:GetOn()) then
-      LaserLib.DrawVector(muss.Pos, muss.Ang:Forward(), 5)
+      if(not (self.VM and self.VA)) then return end
+      local mussle = self.VM:GetAttachment(self.VA)
+      local org, dir = self:GetBeamDrawRay(mussle)
+      if(not org) then return end
+      self:DrawBeam(org, dir)
+    end
+  end
 
-      local trace, data = self:DoBeam(muss.Pos, muss.Ang:Forward())
-      if(not data) then return end
-      if(not trace) then return end
-
-      -- Disable drawing forst point
-      data.TvPoints[1][5] = false
-
-      local eeff = self:GetEndingEffect()
-      local matr = self:GetBeamMaterial(true)
-      local colr = self:GetBeamColorRGBA(true)
-
-      data:Draw(self, matr, colr)
-      data:DrawEffect(self, trace, eeff)
+  -- How others players see the laser pistol
+  function SWEP:DrawWorldModel()
+    self:DrawModel()
+    if(self:GetOn()) then
+      if(not self.WA) then return end
+      local mussle = self:GetAttachment(self.WA)
+      if(not mussle) then return end
+      local org, dir = self:GetBeamDrawRay(mussle, true)
+      if(not org) then return end
+      self:DrawBeam(org, dir)
     end
   end
 
