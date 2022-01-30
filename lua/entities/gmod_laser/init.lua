@@ -114,12 +114,7 @@ function ENT:DoDamage(trace, data)
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
       -- Check whenever target is beam source
-      if(LaserLib.IsUnit(trent)) then
-        -- Register the source to the ones who has it
-        if(trent.RegisterSource) then
-          trent:RegisterSource(self)
-        end -- Define the method to register sources
-      else
+      if(not LaserLib.IsUnit(trent)) then
         local sors = data.BmSource
         local user = (self.ply or self.player)
         local dtyp = sors:GetDissolveType()

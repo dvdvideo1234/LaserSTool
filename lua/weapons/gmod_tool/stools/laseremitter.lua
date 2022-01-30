@@ -128,7 +128,7 @@ if(CLIENT) then
             pnMat:SetParent(pnFrame)
             pnMat:SetPos(iPa, pnCombo:GetY() + pnCombo:GetTall() + iPa)
             pnMat:SetSize(pnFrame:GetWide() - 2 * iPa, pnFrame:GetTall() - 2 * iPa)
-      pnText.OnEnter = function(pnTxt, sTxt)
+      function pnText:OnEnter(sTxt)
         local iD = pnCombo:GetSelectedID()
         if(not iD or iD <= 0) then return end
         local sD = pnCombo:GetOptionData(iD)
@@ -218,6 +218,13 @@ LaserLib.SetupSoundEffects()
 LaserLib.SetupDissolveTypes()
 
 cleanup.Register(gsTool.."s")
+
+function TOOL:Holster()
+  if(LaserLib.IsValid(self.GhostEntity)) then
+    self.GhostEntity:SetNoDraw(true)
+    self.GhostEntity:Remove()
+  end; self.GhostEntity = nil
+end
 
 function TOOL:GetAngleOffset()
   local amax = LaserLib.GetData("AMAX")

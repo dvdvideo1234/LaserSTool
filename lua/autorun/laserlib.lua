@@ -51,6 +51,7 @@ DATA.ERAD = 1.12            -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.27            -- Beam backtrace trace width when refracting
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.TRWU = 50000           -- The amount of units to trace for finding water surface
+DATA.BONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
 DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
@@ -371,6 +372,38 @@ function LaserLib.GetSign(arg)
   return arg / math.abs(arg)
 end
 
+function LaserLib.GetIcon(icon)
+  return DATA.ICON:format(tostring(icon or ""))
+end
+
+function LaserLib.GetData(key)
+  if(not key) then return end
+  return DATA[key]
+end
+
+function LaserLib.GetTool()
+  return DATA.TOOL
+end
+
+function LaserLib.GetZeroVector()
+  return DATA.VZERO
+end
+
+function LaserLib.GetZeroAngle()
+  return DATA.AZERO
+end
+
+function LaserLib.GetZeroTransform()
+  return DATA.VZERO, DATA.AZERO
+end
+
+function LaserLib.VecNegate(vec)
+  vec.x = -vec.x
+  vec.y = -vec.y
+  vec.z = -vec.z
+  return vec
+end
+
 function LaserLib.Clear(arr, idx)
   if(not arr) then return end
   local idx = math.floor(tonumber(idx) or 1)
@@ -410,42 +443,10 @@ function LaserLib.Notify(user, text, mtyp)
 end
 
 function LaserLib.ConCommand(user, name, value)
-  local key = DATA.TOOL.."_"..name
+  local key = LaserLib.GetTool().."_"..name
   if(LaserLib.IsValid(user)) then
     user:ConCommand(key.." \""..tostring(value or "").."\"\n")
   else RunConsoleCommand(key, tostring(value or "")) end
-end
-
-function LaserLib.GetIcon(icon)
-  return DATA.ICON:format(tostring(icon or ""))
-end
-
-function LaserLib.GetData(key)
-  if(not key) then return end
-  return DATA[key]
-end
-
-function LaserLib.GetTool()
-  return DATA.TOOL
-end
-
-function LaserLib.GetZeroVector()
-  return DATA.VZERO
-end
-
-function LaserLib.GetZeroAngle()
-  return DATA.AZERO
-end
-
-function LaserLib.GetZeroTransform()
-  return DATA.VZERO, DATA.AZERO
-end
-
-function LaserLib.VecNegate(vec)
-  vec.x = -vec.x
-  vec.y = -vec.y
-  vec.z = -vec.z
-  return vec
 end
 
 function LaserLib.ToString(tav)
@@ -689,18 +690,18 @@ end
  * scroll bar and reads it on the next panel open
  * Animates the slider to the last remembered poistion
 ]]
-function LaserLib.SetMaterialScroll(pnMat, data)
+function LaserLib.SetMaterialScroll(pnMat, sort)
   if(SERVER) then return end
   local pnBar = pnMat.List.VBar
   if(pnBar) then
-    pnBar.OnMouseReleased = function(pnBut)
-      pnBut.Dragging = false
-      pnBut.DraggingCanvas = nil
-      pnBut:MouseCapture(false)
-      pnBut.btnGrip.Depressed = false
-      data.Mpos = pnBut:GetScroll()
+    function pnBar:OnMouseReleased()
+      self.Dragging = false
+      self.DraggingCanvas = nil
+      self:MouseCapture(false)
+      self.btnGrip.Depressed = false
+      sort.Mpos = self:GetScroll()
     end
-    pnBar:AnimateTo(data.Mpos, 0.05)
+    pnBar:AnimateTo(sort.Mpos, 0.05)
   end
 end
 
@@ -709,7 +710,7 @@ end
  * Clears the content and remembers the last panel view state
  * Called recursively when sorting or filtering is requested
 ]]
-function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+function LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
   if(SERVER) then return end
   local sTool = LaserLib.GetTool()
   -- Update material selection content
@@ -717,18 +718,18 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
   -- Read the controls tabe and craete index
   local tCont, iC = pnMat.Controls, 0
   -- Update material panel with ordered values
-  for iD = 1, data.Size do
-    local tRow, pnImg = data[iD]
+  for iD = 1, sort.Size do
+    local tRow, pnImg = sort[iD]
     if(tRow.Draw) then -- Drawing is enabled
-      local sCon = LaserLib.GetSequenceInfo(tRow, data.Info)
+      local sCon = LaserLib.GetSequenceInfo(tRow, sort.Info)
       local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
       pnMat:AddMaterial(sInf, sKey); iC = iC + 1; pnImg = tCont[iC]
-      pnImg.DoClick = function(pnBut)
-        LaserLib.SetMaterialPaintOver(pnMat, pnBut)
-        LaserLib.ConCommand(nil, data.Sors, sKey)
-        pnFrame:SetTitle(data.Name.." > "..sInf)
+      function pnImg:DoClick()
+        LaserLib.SetMaterialPaintOver(pnMat, self)
+        LaserLib.ConCommand(nil, sort.Sors, sKey)
+        pnFrame:SetTitle(sort.Name.." > "..sInf)
       end
-      pnImg.DoRightClick = function(pnBut)
+      function pnImg:DoRightClick()
         local pnMenu = DermaMenu(false, pnFrame)
         if(not IsValid(pnMenu)) then return end
         pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
@@ -742,56 +743,56 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, data)
         if(not IsValid(pSort)) then return end
         if(not IsValid(pOpts)) then return end
         pOpts:SetImage(LaserLib.GetIcon("table_sort"))
-        -- Sort data by the entry key
+        -- Sort sort by the entry key
         if(tRow.Key) then
           pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find1").." (<)",
             function()
-              table.SortByMember(data, "Key", true)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+              table.SortByMember(sort, "Key", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
             end):SetImage(LaserLib.GetIcon("arrow_down"))
           pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find1").." (>)",
             function()
-              table.SortByMember(data, "Key", false)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+              table.SortByMember(sort, "Key", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
             end):SetImage(LaserLib.GetIcon("arrow_up"))
         end
-        -- Sort data by the absorbtion rate
+        -- Sort sort by the absorbtion rate
         if(tRow.Rate) then
           pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find2").." (<)",
             function()
-              table.SortByMember(data, "Rate", true)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+              table.SortByMember(sort, "Rate", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
             end):SetImage(LaserLib.GetIcon("basket_remove"))
           pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find2").." (>)",
             function()
-              table.SortByMember(data, "Rate", false)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+              table.SortByMember(sort, "Rate", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
             end):SetImage(LaserLib.GetIcon("basket_put"))
         end
-        -- Sort data by the medium refraction index
+        -- Sorted members by the medium refraction index
         if(tRow.Ridx) then
           pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find3").." (<)",
             function()
-              table.SortByMember(data, "Ridx", true)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+              table.SortByMember(sort, "Ridx", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
             end):SetImage(LaserLib.GetIcon("ruby_get"))
           pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find3").." (>)",
             function()
-              table.SortByMember(data, "Ridx", false)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+              table.SortByMember(sort, "Ridx", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
             end):SetImage(LaserLib.GetIcon("ruby_put"))
         end
         pnMenu:Open()
       end
       -- When the variable value is the same as the key
-      if(sKey == data.Conv:GetString()) then
-        pnFrame:SetTitle(data.Name.." > "..sInf)
+      if(sKey == sort.Conv:GetString()) then
+        pnFrame:SetTitle(sort.Name.." > "..sInf)
         LaserLib.SetMaterialPaintOver(pnMat, pnImg)
       end
     end
   end
   -- Update material panel scroll bar
-  LaserLib.SetMaterialScroll(pnMat, data)
+  LaserLib.SetMaterialScroll(pnMat, sort)
 end
 
 --[[
@@ -965,60 +966,21 @@ end
 
 function LaserLib.SetMaterial(ent, mat)
   if(not LaserLib.IsValid(ent)) then return end
-  local data = {MaterialOverride = tostring(mat or "")}
-  local key  = "laseremitter_material"
-  ent:SetMaterial(data.MaterialOverride)
-  duplicator.StoreEntityModifier(ent, key, data)
+  local tab = {MaterialOverride = tostring(mat or "")}
+  local key = "laseremitter_material"
+  ent:SetMaterial(tab.MaterialOverride)
+  duplicator.StoreEntityModifier(ent, key, tab)
 end
 
 function LaserLib.SetProperties(ent, mat)
   if(not LaserLib.IsValid(ent)) then return end
   local phy = ent:GetPhysicsObject()
   if(not LaserLib.IsValid(phy)) then return end
-  local data = {Material = tostring(mat or "")}
-  local key  = "laseremitter_properties"
-  construct.SetPhysProp(nil, ent, 0, phy, data)
-  duplicator.StoreEntityModifier(ent, key, data)
+  local tab = {Material = tostring(mat or "")}
+  local key = "laseremitter_properties"
+  construct.SetPhysProp(nil, ent, 0, phy, tab)
+  duplicator.StoreEntityModifier(ent, key, tab)
 end
-
---[[
- * https://wiki.facepunch.com/gmod/Enums/MAT
- * https://wiki.facepunch.com/gmod/Entity:GetMaterialType
- * Retrieves material override for a trace or use the default
- * Toggles material original selecton when not available
- * When flag is disabled uses the material type for checking
- * The value must be available for client and server sides
- * trace > Reference to trace result structure
- * data  > Reference to current beam data parameters
- * Returns: Material extracted from the entity on server and client
-]]
-local function GetMaterialID(trace, data)
-  if(not trace) then return nil end
-  if(not trace.Hit) then return nil end
-  if(trace.HitWorld) then
-    local mat = trace.HitTexture -- Use trace material type
-    if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-      mat = DATA.MATYPE[trace.MatType] -- Material lookup
-    end -- **studio**, **displacement**, **empty**
-    return mat
-  else
-    local ent = trace.Entity
-    if(not LaserLib.IsValid(ent)) then return nil end
-    local mat = ent:GetMaterial() -- Entity may not have override
-    if(mat == "") then -- Empty then use the material type
-      if(data.BmNoover) then -- No override is available use original
-        mat = ent:GetMaterials()[1] -- Just grab the first material
-      else -- Gmod can not simply decide which material is hit
-        mat = trace.HitTexture -- Use trace material type
-        if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-          mat = DATA.MATYPE[trace.MatType] -- Material lookup
-        end -- **studio**, **displacement**, **empty**
-      end -- Physobj has a single surfacetype related to model
-    end
-    return mat
-  end
-end
-
 
 --[[
  * Checks when the entity has interactive material
@@ -1194,12 +1156,14 @@ if(SERVER) then
                              damage, force  , attacker, dissolve,
                              noise , fcenter, laser)
     local phys = target:GetPhysicsObject()
-    if(force and LaserLib.IsValid(phys)) then
-      if(fcenter) then -- Force relative to mass center
-        phys:ApplyForceCenter(direct * force)
-      else -- Keep force separate from damage inflicting
-        phys:ApplyForceOffset(direct * force, origin)
-      end -- This is the way laser can be used as forcer
+    if(not LaserLib.IsUnit(target)) then
+      if(force and LaserLib.IsValid(phys)) then
+        if(fcenter) then -- Force relative to mass center
+          phys:ApplyForceCenter(direct * force)
+        else -- Keep force separate from damage inflicting
+          phys:ApplyForceOffset(direct * force, origin)
+        end -- This is the way laser can be used as forcer
+      end -- Do not apply force on laser units
     end
 
     if(laser.isDamage) then
@@ -1330,6 +1294,14 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   return pos, dir
 end
 
+function LaserLib.Bounces(num)
+  if(num and num > 0) then
+    DATA.BONC = math.floor(num)
+  else -- Reset the exterlan limit
+    DATA.BONC = 0
+  end
+end
+
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__index = mtBeam -- If not found in self search here
@@ -1350,10 +1322,11 @@ local function Beam(origin, direct, width, damage, length, force)
   local self = {}; setmetatable(self, mtBeam)
   self.TrMedium = {} -- Contains information for the mediums being traversed
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
-  self.MxBounce = DATA.MBOUNCES:GetInt() -- All the bounces the loop made so far
-  self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam
-  self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]}
-  self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()}
+  self.MxBounce = math.floor(DATA.BONC) -- Max bounces for the laser loop
+  if(self.MxBounce <= 0) then self.MxBounce = DATA.MBOUNCES:GetInt() end
+  self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
+  self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
+  self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory
   self.VrOrigin = Vector(origin) -- Copy origin not to modify it
   self.VrDirect = direct:GetNormalized() -- Copy deirection not to modify it
   self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
@@ -1394,7 +1367,6 @@ end
 
 --[[
  * Issues a finish command to the traced laser beam
- * trace > Trace structure of the current iteration
 ]]
 function mtBeam:Bounce()
   -- We are neither hitting something nor still tracing or hit dedicated entity
@@ -1703,6 +1675,44 @@ function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
 end
 
 --[[
+ * https://wiki.facepunch.com/gmod/Enums/MAT
+ * https://wiki.facepunch.com/gmod/Entity:GetMaterialType
+ * Retrieves material override for a trace or use the default
+ * Toggles material original selecton when not available
+ * When flag is disabled uses the material type for checking
+ * The value must be available for client and server sides
+ * trace > Reference to trace result structure
+ * data  > Reference to current beam data parameters
+ * Returns: Material extracted from the entity on server and client
+]]
+function mtBeam:GetMaterialID(trace)
+  if(not trace) then return nil end
+  if(not trace.Hit) then return nil end
+  if(trace.HitWorld) then
+    local mat = trace.HitTexture -- Use trace material type
+    if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
+      mat = DATA.MATYPE[trace.MatType] -- Material lookup
+    end -- **studio**, **displacement**, **empty**
+    return mat
+  else
+    local ent = trace.Entity
+    if(not LaserLib.IsValid(ent)) then return nil end
+    local mat = ent:GetMaterial() -- Entity may not have override
+    if(mat == "") then -- Empty then use the material type
+      if(self.BmNoover) then -- No override is available use original
+        mat = ent:GetMaterials()[1] -- Just grab the first material
+      else -- Gmod can not simply decide which material is hit
+        mat = trace.HitTexture -- Use trace material type
+        if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
+          mat = DATA.MATYPE[trace.MatType] -- Material lookup
+        end -- **studio**, **displacement**, **empty**
+      end -- Physobj has a single surfacetype related to model
+    end
+    return mat
+  end
+end
+
+--[[
  * Samples the medium ahead in given direction
  * This aims to hit a solids of the map or entities
  * On success will return the refraction surface entry
@@ -1715,7 +1725,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
     filter, MASK_SOLID, COLLISION_GROUP_NONE, false, 0, trace)
   if(not (tr or tr.Hit)) then return nil end -- Nothing traces
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
-  return GetMaterialEntry(GetMaterialID(tr, self), DATA.REFRACT)
+  return GetMaterialEntry(self:GetMaterialID(tr), DATA.REFRACT)
 end
 
 --[[
@@ -1896,6 +1906,101 @@ function mtBeam:IsTraverse(origin, direct, normal, target, trace)
 end
 
 --[[
+ * This traps the beam by following the trace
+ * You can mark trace view points as visible
+ * sours > Override for laser unit entity `self`
+ * imatr > Reference to a beam materil object
+ * color > Color structure reference for RGBA
+]]
+function mtBeam:Draw(sours, imatr, color)
+  local tvpnt = self.TvPoints
+  local sours = (sours or self.BmSource)
+  local ushit = LocalPlayer():GetEyeTrace().HitPos
+  local bbmin = sours:LocalToWorld(sours:OBBMins())
+  local bbmax = sours:LocalToWorld(sours:OBBMaxs())
+  -- Check node avalability
+  if(not tvpnt[1]) then return end
+  if(not tvpnt.Size) then return end
+  if(tvpnt.Size <= 0) then return end
+  -- Extend render bounds with player hit position
+  LaserLib.UpdateRB(bbmin, ushit, math.min)
+  LaserLib.UpdateRB(bbmax, ushit, math.max)
+  -- Extend render bounds with the first node
+  LaserLib.UpdateRB(bbmin, tvpnt[1][1], math.min)
+  LaserLib.UpdateRB(bbmax, tvpnt[1][1], math.max)
+  -- Adjust the render bounds with world-space coordinates
+  sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+  -- Material must be cached and pdated with left click setup
+  if(imatr) then render.SetMaterial(imatr) end
+  local spd = DATA.DRWBMSPD:GetFloat()
+
+  -- Draw the beam sequentially being faster
+  for idx = 2, tvpnt.Size do
+    local org = tvpnt[idx - 1]
+    local new = tvpnt[idx - 0]
+    local otx = org[1] -- Start origin
+    local ntx = new[1] -- End origin
+    local wdt = org[2] -- Start width
+
+    -- Make sure the coordinates are conveted to world ones
+    LaserLib.UpdateRB(bbmin, ntx, math.min)
+    LaserLib.UpdateRB(bbmax, ntx, math.max)
+
+    if(org[5]) then -- Current node has its draw enabled
+      local dtm, len = (spd * CurTime()), ntx:Distance(otx)
+      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, color)
+    end -- Draw the actual beam texture
+  end
+  -- Adjust the render bounds with world-space coordinates
+  sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+end
+
+--[[
+ * This is actually faster than stuffing all the beams
+ * information for every laser in a dedicated table and
+ * draw the table elements one by one at once.
+ * sours > Entity keping the beam effects internals
+ * trace > Trace data recieved from the beam
+ * endrw > Draw enabled flag from beam sources
+]]
+function mtBeam:DrawEffect(sours, trace, endrw)
+  local sours = (sours or self.BmSource)
+  if(trace and not trace.HitSky and
+    endrw and sours.isEffect)
+  then
+    if(not sours.dtEffect) then
+      sours.dtEffect = EffectData()
+    end -- Allocate effect data class
+    if(trace.Hit) then
+      local ent = trace.Entity
+      local eff = sours.dtEffect
+      if(not LaserLib.IsUnit(ent)) then
+        eff:SetStart(trace.HitPos)
+        eff:SetOrigin(trace.HitPos)
+        eff:SetNormal(trace.HitNormal)
+        util.Effect("AR2Impact", eff)
+        -- Draw particle effects
+        if(self.NvDamage > 0) then
+          if(not (ent:IsPlayer() or ent:IsNPC())) then
+            local dmr = DATA.MXBMDAMG:GetFloat()
+            local mul = (self.NvDamage / dmr)
+            local dir = LaserLib.GetReflected(self.VrDirect,
+                                              trace.HitNormal)
+            eff:SetNormal(dir)
+            eff:SetScale(0.5)
+            eff:SetRadius(10 * mul)
+            eff:SetMagnitude(3 * mul)
+            util.Effect("Sparks", eff)
+          else
+            util.Effect("BloodImpact", eff)
+          end
+        end
+      end
+    end
+  end
+end
+
+--[[
  * Function handler for calculating SISO actor routines
  * These are specific handlers for specific classes
  * having single input beam and single output beam
@@ -2039,8 +2144,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
   local data = Beam(origin, direct, width, damage, length, force) -- Beam data structure
   -- Reports dedicated values that are being used by other entities and processses
-  data.TeFilter = entity -- Make sure the initial laser source is skipped
-  data.BmSource = entity -- The beam source entity. Populated customly depending on the API
+  data.BmSource, data.TeFilter = entity, entity -- Populated customly depending on the API
+   -- Make sure the initial laser source is skipped
+  if(entity and entity:IsValid()) then -- Entity is switch the entity type
+    if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
+      if(LaserLib.IsUnit(eGun)) then data.BmSource, data.TeFilter = eGun, {entity, eGun} end
+    elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
+      if(LaserLib.IsUnit(entity)) then data.BmSource, data.TeFilter = entity, {entity, ePly} end
+    end
+  end -- Switch the filter according to the waepon the player is holding
   data.BrReflec = usrfle -- Beam reflection ratio flag. Reduce beam power when reflecting
   data.BrRefrac = usrfre -- Beam refraction ratio flag. Reduce beam power when refracting
   data.BmNoover = noverm -- Beam no override material flag. Try to extract original material
@@ -2140,7 +2252,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             local suc, err = pcall(gtActors[sTrClass], trace, data)
             if(not suc) then data.IsTrace = false; error("Actor: "..err) end
           else
-            sTrMaters = GetMaterialID(trace, data)
+            sTrMaters = data:GetMaterialID(trace)
             data.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
             if(reflect and not data.StRfract) then -- Just call reflection and get done with it..
@@ -2231,7 +2343,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             local suc, err = pcall(gtActors[sTrClass], trace, data)
             if(not suc) then data.IsTrace = false; error("Actor: "..err) end
           else
-            sTrMaters = GetMaterialID(trace, data)
+            sTrMaters = data:GetMaterialID(trace)
             data.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
             if(reflect and not data.StRfract) then
@@ -2267,8 +2379,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     else data:Finish(trace) end -- Trace did not hit anything to be bounced off from
   until(data:IsFinish())
 
-  -- Reset the normal for the next call
+  -- Reset the parameters for the next call
   data:ClearWater()
+  LaserLib.Bounces()
 
   -- The beam ends inside transperent medium
   if(not data:IsNode()) then return nil, data end
@@ -2277,48 +2390,52 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     data.RaLength = data.RaLength - data.NvLength
   end
 
-  if(LaserLib.IsUnit(entity)) then
-    if(entity.SetHitReport) then
+  if(LaserLib.IsValid(entity)) then
+    if(entity:IsPlayer()) then
+      -- Try to retrieve the player weapon
+      -- This is done to register a source
+      entity = entity:GetActiveWeapon()
+    end
+    -- Update hit report of the source
+    if(entity.SetHitReport and LaserLib.IsUnit(entity)) then
       -- Update the current beam source hit report
       -- This is done to know what we just hit
       entity:SetHitReport(trace, data, index)
-    end -- Reduce indexing by using last target
-    if(LaserLib.IsValid(target) and target.RegisterSource) then
-      target:RegisterSource(entity) -- Register source entity
     end
+  end
+  -- Register us to the target sources table
+  if(LaserLib.IsValid(target) and target.RegisterSource) then
+    -- Reduce indexing by using last target
+    -- This is done to register us in the target sources
+    target:RegisterSource(entity) -- Register source entity
   end
 
   return trace, data
 end
 
-function LaserLib.GetTerm(str, def)
-  local str = tostring(str or "")
-  local def = tostring(def or "")
-        str = ((str == "") and def or str)
-  return ((str == "") and DATA.NOAV or str)
-end
-
 function LaserLib.ComboBoxString(panel, convar, nameset)
   local unit = LaserLib.GetTool()
-  local data = GetConVar(unit.."_"..convar):GetString()
+  local svar = GetConVar(unit.."_"..convar):GetString()
   local base = language.GetPhrase("tool."..unit.."."..convar.."_con")
   local hint = language.GetPhrase("tool."..unit.."."..convar)
   local item, name = panel:ComboBox(base, unit.."_"..convar)
   item:SetTooltip(hint); name:SetTooltip(hint)
   item:SetSortItems(true); item:Dock(TOP); item:SetTall(22)
   for key, val in pairs(list.GetForEdit(nameset)) do
+    local bsel = (svar == val.name)
+    local name = language.GetPhrase(key)
     local icon = LaserLib.GetIcon(val.icon)
-    item:AddChoice(key, val.name, (data == val.name), icon)
+    item:AddChoice(name, val.name, bsel, icon)
   end
-  item.DoRightClick = function(pnSelf)
-    local sN = DATA.NOAV
-    local vV = pnSelf:GetValue()
-    local iD = pnSelf:GetSelectedID()
-    local vT = pnSelf:GetOptionText(iD)
-    SetClipboardText(LaserLib.GetTerm(vT, vV))
+  function name:DoRightClick()
+    SetClipboardText(self:GetValue())
   end
-  name.DoRightClick = function(pnSelf)
-    SetClipboardText(pnSelf:GetValue())
+  function item:DoRightClick()
+    local vN = name:GetValue()
+    local iD = self:GetSelectedID()
+    local vT = self:GetOptionText(iD)
+    local vD = self:GetOptionData(iD)
+    SetClipboardText(vN.." "..vT.." ["..vD.."]")
   end
   return item, name
 end
@@ -2458,6 +2575,8 @@ function LaserLib.SetupModels()
 
   -- Automatic data population. Add models in the list above
   table.Empty(list.GetForEdit("LaserEmitterModels"))
+
+  local sTool = LaserLib.GetTool()
   for idx = 1, #data do
     local rec = data[idx]
     local mod = tostring(rec[1] or "")
@@ -2465,10 +2584,10 @@ function LaserLib.SetupModels()
     local org = tostring(rec[3] or "")
     local dir = tostring(rec[4] or "")
     table.Empty(rec)
-    rec[DATA.TOOL.."_model" ] = mod
-    rec[DATA.TOOL.."_angle" ] = ang
-    rec[DATA.TOOL.."_origin"] = org
-    rec[DATA.TOOL.."_direct"] = dir
+    rec[sTool.."_model" ] = mod
+    rec[sTool.."_angle" ] = ang
+    rec[sTool.."_origin"] = org
+    rec[sTool.."_direct"] = dir
     list.Set("LaserEmitterModels", mod, rec)
   end
 end
