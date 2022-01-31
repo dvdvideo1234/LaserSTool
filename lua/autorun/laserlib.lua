@@ -1906,6 +1906,45 @@ function mtBeam:IsTraverse(origin, direct, normal, target, trace)
 end
 
 --[[
+ * This does some logic on the start entity
+ * Preforms some logick to calculate the filter
+ * entity > Entity we intend the start the beam from
+]]
+function mtBeam:SourceFilter(entity)
+  if(not LaserLib.IsValid(entity)) then return self end
+  -- Populated customly depending on the API
+  -- Make sure the initial laser source is skipped
+  if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
+    if(LaserLib.IsUnit(eGun)) then self.BmSource, self.TeFilter = eGun, {entity, eGun} end
+  elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
+    if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly} end
+  else -- Switch the filter according to the waepon the player is holding
+    self.BmSource, self.TeFilter = entity, entity
+  end; return self
+end
+
+--[[
+ * This does post-update fnd regiasters beam sources
+ * Preforms some logick to calculate the filter
+ * trace > Trace result after the last iteration
+]]
+function mtBeam:SourceUpdate(trace)
+  local entity, target = self.BmSource, trace.Entity
+  -- Calculates the range as beam distanc traveled
+  if(trace.Hit and self.RaLength > self.NvLength) then
+    self.RaLength = self.RaLength - self.NvLength
+  end -- Update hit report of the source
+  if(entity.SetHitReport and LaserLib.IsUnit(entity)) then
+    -- Update the current beam source hit report
+    entity:SetHitReport(trace, self) -- What we just hit
+  end -- Register us to the target sources table
+  if(LaserLib.IsValid(target) and target.RegisterSource) then
+    -- Register the beam initial entity to target sources
+    target:RegisterSource(entity) -- Register target in sources
+  end; return self -- Coding effective API
+end
+
+--[[
  * This traps the beam by following the trace
  * You can mark trace view points as visible
  * sours > Override for laser unit entity `self`
@@ -2144,24 +2183,16 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
   local data = Beam(origin, direct, width, damage, length, force) -- Beam data structure
   -- Reports dedicated values that are being used by other entities and processses
-  data.BmSource, data.TeFilter = entity, entity -- Populated customly depending on the API
-   -- Make sure the initial laser source is skipped
-  if(entity and entity:IsValid()) then -- Entity is switch the entity type
-    if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
-      if(LaserLib.IsUnit(eGun)) then data.BmSource, data.TeFilter = eGun, {entity, eGun} end
-    elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
-      if(LaserLib.IsUnit(entity)) then data.BmSource, data.TeFilter = entity, {entity, ePly} end
-    end
-  end -- Switch the filter according to the waepon the player is holding
-  data.BrReflec = usrfle -- Beam reflection ratio flag. Reduce beam power when reflecting
-  data.BrRefrac = usrfre -- Beam refraction ratio flag. Reduce beam power when refracting
-  data.BmNoover = noverm -- Beam no override material flag. Try to extract original material
-  data.BmIdenty = index  -- Beam hit report index. Usually one if not provided
+  data.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
+  data.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
+  data.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
+  data.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
 
   if(data.NvLength <= 0) then return end
   if(data.VrDirect:LengthSqr() <= 0) then return end
   if(not LaserLib.IsValid(entity)) then return end
 
+  data:SourceFilter(entity)
   data:RegisterNode(origin)
 
   repeat
@@ -2386,29 +2417,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- The beam ends inside transperent medium
   if(not data:IsNode()) then return nil, data end
 
-  if(trace.Hit and data.RaLength > data.NvLength) then
-    data.RaLength = data.RaLength - data.NvLength
-  end
-
-  if(LaserLib.IsValid(entity)) then
-    if(entity:IsPlayer()) then
-      -- Try to retrieve the player weapon
-      -- This is done to register a source
-      entity = entity:GetActiveWeapon()
-    end
-    -- Update hit report of the source
-    if(entity.SetHitReport and LaserLib.IsUnit(entity)) then
-      -- Update the current beam source hit report
-      -- This is done to know what we just hit
-      entity:SetHitReport(trace, data, index)
-    end
-  end
-  -- Register us to the target sources table
-  if(LaserLib.IsValid(target) and target.RegisterSource) then
-    -- Reduce indexing by using last target
-    -- This is done to register us in the target sources
-    target:RegisterSource(entity) -- Register source entity
-  end
+  data:SourceUpdate(trace)
 
   return trace, data
 end

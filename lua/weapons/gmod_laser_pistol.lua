@@ -164,12 +164,11 @@ end
 --[[
  * Registers a trace hit report under the specified index
  * trace > Trace result structure to register
- * trace > Beam data structure to register
- * index > Index to use for storige ( defaults to 1 )
+ * data  > Beam data structure to register
 ]]
-function SWEP:SetHitReport(trace, data, index)
+function SWEP:SetHitReport(trace, data)
   if(not self.hitReports) then self.hitReports = {Size = 0} end
-  local rep, idx = self.hitReports, (tonumber(index) or 1)
+  local rep, idx = self.hitReports, data.BmIdenty
   if(idx >= rep.Size) then rep.Size = idx end
   if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
   rep["DT"] = data; rep["TR"] = trace; return self
@@ -180,9 +179,9 @@ end
  * index > Hit report index to read ( defaults to 1 )
 ]]
 function SWEP:GetHitReport(index)
+  if(not index) then return end
   if(not self.hitReports) then return end
-  local idx = (tonumber(index) or 1)
-  local rep = self.hitReports[idx]
+  local rep = self.hitReports[index]
   if(not rep) then return end
   return rep["TR"], rep["DT"]
 end
