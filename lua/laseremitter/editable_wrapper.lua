@@ -1,11 +1,11 @@
 ENT.EditableOrderInfo = {Ord = 0, Typ = {}}
 
 function ENT:EditableGetOrderID(typ)
-  local data = self.EditableOrderInfo
-  if(not data.Typ[typ]) then data.Typ[typ] = 0
-  else data.Typ[typ] = data.Typ[typ] + 1 end
-  data.Ord = data.Ord + 1
-  return typ, data.Ord, data.Typ[typ]
+  local tab = self.EditableOrderInfo
+  if(not tab.Typ[typ]) then tab.Typ[typ] = 0
+  else tab.Typ[typ] = tab.Typ[typ] + 1 end
+  tab.Ord = tab.Ord + 1
+  return typ, tab.Ord, tab.Typ[typ]
 end
 
 function ENT:EditableRemoveOrderInfo()

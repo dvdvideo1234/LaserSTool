@@ -79,11 +79,11 @@ function ENT:GetBeamDirection(direct, nocnv)
   return dir
 end
 
-function ENT:GetHitPower(normal, trace, data, bmln)
+function ENT:GetHitPower(normal, trace, beam, bmln)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
-  local dotv = math.abs(norm:Dot(data.VrDirect))
+  local dotv = math.abs(norm:Dot(beam.VrDirect))
   if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
   local dott = math.abs(norm:Dot(trace.HitNormal))
   return (dott > (1 - dotm)), dotv
@@ -298,12 +298,12 @@ function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
     v.x = ((mr[1] or mr["r"] or m) / m)
     v.y = ((mr[2] or mr["g"] or m) / m)
     v.z = ((mr[3] or mr["b"] or m) / m)
-    a = (mr[4] or mr["a"] or m)
+      a =  (mr[4] or mr["a"] or m)
   else
     v.x = ((mr or m) / m) -- [0-1]
     v.y = ((mg or m) / m) -- [0-1]
     v.z = ((mb or m) / m) -- [0-1]
-    a = (ma or m) -- [0-255]
+      a =  (ma or m) -- [0-255]
   end
   self:SetBeamColor(v)
   self:SetBeamAlpha(a)
@@ -369,7 +369,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
                                       length,
@@ -380,7 +380,7 @@ function ENT:DoBeam(org, dir, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, data
+  return trace, beam
 end
 
 function ENT:Setup(width       , length     , damage     , material    ,
@@ -478,10 +478,10 @@ function ENT:GetHitSourceID(ent, idx, bri)
   local rep = ent.hitReports -- Retrieve and localize hit reports
   if(not rep) then return nil end -- No hit reports. Exit at once
   if(idx and not bri) then -- Retrieve the report requested by ID
-    local trace, data = ent:GetHitReport(idx) -- Retrieve beam report
+    local trace, beam = ent:GetHitReport(idx) -- Retrieve beam report
     if(trace and trace.Hit and self == trace.Entity) then return idx end
   else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
-    for cnt = anc, rep.Size do local trace, data = ent:GetHitReport(cnt)
+    for cnt = anc, rep.Size do local trace, beam = ent:GetHitReport(cnt)
       if(trace and trace.Hit and self == trace.Entity) then return cnt end
     end -- The hit report list is scanned and no reports are found hitting us `self`
   end; return nil -- Tell requestor we did not find anything that hits us `self`
@@ -490,18 +490,18 @@ end
 --[[
  * Registers a trace hit report under the specified index
  * trace > Trace result structure to register
- * data  > Beam data structure to register
+ * beam  > Beam structure to register
 ]]
-function ENT:SetHitReport(trace, data)
+function ENT:SetHitReport(trace, beam)
   if(not self.hitReports) then self.hitReports = {Size = 0} end
-  local rep, idx = self.hitReports, data.BmIdenty
+  local rep, idx = self.hitReports, beam.BmIdenty
   if(idx >= rep.Size) then rep.Size = idx end
   if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
-  rep["DT"] = data; rep["TR"] = trace; return self
+  rep["DT"] = beam; rep["TR"] = trace; return self
 end
 
 --[[
- * Retrieves hit report trace and data under specified index
+ * Retrieves hit report trace and beam under specified index
  * index > Hit report index to read ( defaults to 1 )
 ]]
 function ENT:GetHitReport(index)
@@ -547,7 +547,7 @@ end
  * proc > Scope function to process. Arguments:
  *      > index  > Hit report active index
  *      > trace  > Hit report active trace
- *      > data   > Hit report active data
+ *      > beam   > Hit report active beam
  * Returns flag indicating presence of hit reports
 ]]
 function ENT:ProcessReports(ent, proc)
@@ -555,8 +555,8 @@ function ENT:ProcessReports(ent, proc)
   local idx = self:GetHitSourceID(ent)
   if(idx) then local siz = ent.hitReports.Size
     while(idx and idx <= siz) do -- First index always hits when present
-      local trace, data = ent:GetHitReport(idx) -- When the report hits us
-      local suc, err = pcall(proc, self, ent, idx, trace, data) -- Call process
+      local trace, beam = ent:GetHitReport(idx) -- When the report hits us
+      local suc, err = pcall(proc, self, ent, idx, trace, beam) -- Call process
       if(not suc) then self:Remove(); error(err); return false end
       idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
     end; return true -- At least one report is processed for the current entity
@@ -574,7 +574,7 @@ end
  *      > entity > Hit report active entity
  *      > index  > Hit report active index
  *      > trace  > Hit report active trace
- *      > data   > Hit report active data
+ *      > beam   > Hit report active beam
  * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
 function ENT:ProcessSources(proc)
@@ -644,7 +644,7 @@ function ENT:SetArrays(...)
 end
 
 --[[
- * Triggers all the dedicated data arrays in one call
+ * Triggers all the dedicated arrays in one call
 ]]
 function ENT:WireArrays()
   if(not SERVER) then return self end
@@ -660,15 +660,15 @@ function ENT:WireArrays()
 end
 
 --[[
- * Updates beam the data according to the source entity
- * data > Data to be updated currently ( mandatory )
- * sdat > Beam data from the previous stage
+ * Updates beam the beam according to the source entity
+ * beam > Data to be updated currently ( mandatory )
+ * sdat > Beam source from the previous stage
 ]]
-function ENT:UpdateBeam(data, sdat)
+function ENT:UpdateBeam(beam, sdat)
   if(LaserLib.IsUnit(self, 2)) then -- When actual source
-    data.BmSource = self -- Initial stage store source
+    beam.BmSource = self -- Initial stage store source
   else -- Make sure we always know which entity is source
-    data.BmSource = sdat.BmSource -- Inherit previous source
+    beam.BmSource = sdat.BmSource -- Inherit previous source
   end -- Otherwise inherit the source from previos stage
-  return data -- The routine will always succeed
+  return beam -- The routine will always succeed
 end

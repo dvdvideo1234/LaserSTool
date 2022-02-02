@@ -91,13 +91,13 @@ end
 
 local opower, report, doment, domsrc
 
-function ENT:ActionSource(entity, index, trace, data)
-  if(trace and trace.Hit and data) then
-    local npower = LaserLib.GetPower(data.NvWidth,
-                                     data.NvDamage)
+function ENT:ActionSource(entity, index, trace, beam)
+  if(trace and trace.Hit and beam) then
+    local npower = LaserLib.GetPower(beam.NvWidth,
+                                     beam.NvDamage)
     if(not opower or npower >= opower) then
       opower, report = npower, index
-      doment, domsrc = entity, data.BmSource
+      doment, domsrc = entity, beam.BmSource
     end
   end
 end
@@ -112,15 +112,15 @@ function ENT:UpdateSources()
   if(not LaserLib.IsValid(domsrc)) then return nil end
   local count = self:GetBeamCount()
   if(count > 0) then
-    local trace, data = doment:GetHitReport(report)
-    if(data) then -- Dominant result hit
-      self:SetBeamForce(data.NvForce)
-      self:SetBeamWidth(data.NvWidth)
-      self:SetBeamDamage(data.NvDamage)
+    local trace, beam = doment:GetHitReport(report)
+    if(beam) then -- Dominant result hit
+      self:SetBeamForce(beam.NvForce)
+      self:SetBeamWidth(beam.NvWidth)
+      self:SetBeamDamage(beam.NvDamage)
       if(self:IsInfinite(doment)) then
-        self:SetBeamLength(data.BmLength)
+        self:SetBeamLength(beam.BmLength)
       else -- When not looping use the remaining
-        self:SetBeamLength(data.NvLength)
+        self:SetBeamLength(beam.NvLength)
       end -- Apply length based on looping
     else -- Dominant did not hit anything
       self:SetBeamForce(domsrc:GetBeamForce())

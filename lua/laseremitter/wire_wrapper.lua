@@ -66,7 +66,7 @@ function ENT:WireError(sM)
 end
 
 --[[
- * Used to inder a wite port and return its data
+ * Used to index a wite port and return its content
  * sT > Port key `Input` or `Output`
  * sN > Port name must be string
 ]]
@@ -191,8 +191,8 @@ end
 --[[
  * Writes to a port of a wire able entity
  * sN > The output name to write
- * vD > The data to write
- * bT > Set to true to force data type check
+ * vD > The wire port content to write
+ * bT > Set to true to force type check
 ]]
 function ENT:WireWrite(sN, vD, bT)
   if(not WireLib) then return self end; local tP, sP = self:WireIndex("Outputs", sN)

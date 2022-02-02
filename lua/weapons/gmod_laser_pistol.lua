@@ -63,7 +63,7 @@ function SWEP:Setup()
     self.MO, self.MD = Vector(), Vector()
   end
 
-  LaserLib.GetData("CLS")[self:GetClass()] = {true, true}
+  LaserLib.GetData("CLS")[self:GetClass()] = {true, false}
 end
 
 function SWEP:Initialize()
@@ -164,18 +164,18 @@ end
 --[[
  * Registers a trace hit report under the specified index
  * trace > Trace result structure to register
- * data  > Beam data structure to register
+ * beam  > Beam class register being registered
 ]]
-function SWEP:SetHitReport(trace, data)
+function SWEP:SetHitReport(trace, beam)
   if(not self.hitReports) then self.hitReports = {Size = 0} end
-  local rep, idx = self.hitReports, data.BmIdenty
+  local rep, idx = self.hitReports, beam.BmIdenty
   if(idx >= rep.Size) then rep.Size = idx end
   if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
-  rep["DT"] = data; rep["TR"] = trace; return self
+  rep["DT"] = beam; rep["TR"] = trace; return self
 end
 
 --[[
- * Retrieves hit report trace and data under specified index
+ * Retrieves hit report trace and beam by specified index
  * index > Hit report index to read ( defaults to 1 )
 ]]
 function SWEP:GetHitReport(index)
@@ -247,7 +247,7 @@ function SWEP:DoBeam(origin, direct)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(user,
+  local trace, beam = LaserLib.DoBeam(user,
                                       origin,
                                       direct,
                                       length,
@@ -257,7 +257,7 @@ function SWEP:DoBeam(origin, direct)
                                       usrfle,
                                       usrfre,
                                       noverm)
-  return trace, data
+  return trace, beam
 end
 
 function SWEP:ServerBeam()
@@ -270,8 +270,8 @@ function SWEP:ServerBeam()
 
     LaserLib.Bounces(1)
 
-    local trace, data = self:DoBeam(vorg, vdir)
-    if(data and trace and
+    local trace, beam = self:DoBeam(vorg, vdir)
+    if(beam and trace and
       LaserLib.IsValid(trace.Entity) and not
       LaserLib.IsUnit(trace.Entity)
     ) then
@@ -285,9 +285,9 @@ function SWEP:ServerBeam()
     LaserLib.DoDamage(trace.Entity,
                       trace.HitPos,
                       trace.Normal,
-                      data.VrDirect,
-                      data.NvDamage,
-                      data.NvForce,
+                      beam.VrDirect,
+                      beam.NvDamage,
+                      beam.NvForce,
                       user,
                       LaserLib.GetDissolveID(dtyp),
                       ksnd,
@@ -311,16 +311,16 @@ else
     self:UpdateFlags()
     LaserLib.Bounces(1)
 
-    local trace, data = self:DoBeam(origin, direct)
-    if(not data) then return end
+    local trace, beam = self:DoBeam(origin, direct)
+    if(not beam) then return end
     if(not trace) then return end
 
     local eeff = self:GetEndingEffect()
     local matr = self:GetBeamMaterial(true)
     local colr = self:GetBeamColorRGBA(true)
 
-    data:Draw(self, matr, colr)
-    data:DrawEffect(self, trace, eeff)
+    beam:Draw(self, matr, colr)
+    beam:DrawEffect(self, trace, eeff)
   end
 
   function SWEP:GetBeamDrawRay(mussle, udotp)

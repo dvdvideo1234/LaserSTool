@@ -85,26 +85,26 @@ if(CLIENT) then
   -- http://www.famfamfam.com/lab/icons/silk/preview.php
   concommand.Add(gsTool.."_openmaterial",
     function(ply, cmd, args)
-      local base, data, sors
+      local base, tseq, sors
       local reca = LaserLib.GetData("KEYA")
       local rate = LaserLib.GetData("GRAT")
       local argm = tostring(args[1] or ""):upper()
       if(argm == "MIRROR") then
         sors = "REFLECT"
         base = LaserLib.DataReflect(reca)
-        data = LaserLib.GetSequenceData(base)
+        tseq = LaserLib.GetSequenceData(base)
       elseif(argm == "TRANSPARENT") then
         sors = "REFRACT"
         base = LaserLib.DataRefract(reca)
-        data = LaserLib.GetSequenceData(base)
+        tseq = LaserLib.GetSequenceData(base)
       else return nil end
-      data.Sors = sors:lower().."used"
-      data.Conv = GetConVar(gsTool.."_"..data.Sors)
-      data.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
+      tseq.Sors = sors:lower().."used"
+      tseq.Conv = GetConVar(gsTool.."_"..tseq.Sors)
+      tseq.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
       local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
-      pnFrame:SetTitle(data.Name)
+      pnFrame:SetTitle(tseq.Name)
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(true)
@@ -117,9 +117,9 @@ if(CLIENT) then
             pnCombo:SetSize(pnFrame:GetWide() - (rate - 1) * pnFrame:GetWide(), 25)
             pnCombo:SetTooltip(language.GetPhrase("tool."..gsTool..".openmaterial_find"))
             pnCombo:SetValue(language.GetPhrase("tool."..gsTool..".openmaterial_find0"))
-            if(data[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
-            if(data[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
-            if(data[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
       local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
             pnText:SetParent(pnFrame)
             pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
@@ -133,15 +133,15 @@ if(CLIENT) then
         if(not iD or iD <= 0) then return end
         local sD = pnCombo:GetOptionData(iD)
         local fD = (sD and sD:len() > 0)
-        for iD = 1, data.Size do local tRow = data[iD]
+        for iD = 1, tseq.Size do local tRow = tseq[iD]
           if(fD) then
             if(tostring(tRow[sD]):find(sTxt)) then
               tRow.Draw = true else tRow.Draw = false end
           else tRow.Draw = true end
-        end; LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+        end; LaserLib.UpdateMaterials(pnFrame, pnMat, tseq)
       end
       LaserLib.SetMaterialSize(pnMat, 4)
-      LaserLib.UpdateMaterials(pnFrame, pnMat, data)
+      LaserLib.UpdateMaterials(pnFrame, pnMat, tseq)
       pnFrame:Center()
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()
@@ -154,10 +154,10 @@ TOOL.Name     = (language and language.GetPhrase("tool."..gsTool..".name"))
 
 if(SERVER) then
   duplicator.RegisterEntityModifier("laseremitter_material",
-    function(ply, ent, data) LaserLib.SetMaterial(ent, data.MaterialOverride) end)
+    function(ply, ent, dupe) LaserLib.SetMaterial(ent, dupe.MaterialOverride) end)
 
   duplicator.RegisterEntityModifier("laseremitter_properties",
-    function(ply, ent, data) LaserLib.SetMaterial(ent, data.Material) end)
+    function(ply, ent, dupe) LaserLib.SetMaterial(ent, dupe.Material) end)
 
   CreateConVar("sbox_max"..gsTool.."s", 20)
 end
@@ -380,9 +380,9 @@ function TOOL:RightClick(trace)
         if(ply:KeyDown(IN_SPEED)) then -- Easy export custom model
           dir = "\""..tostring(dir):Trim():gsub("%s+", ",").."\""
           org = "\""..tostring(org):Trim():gsub("%s+", ",").."\""
-          print("table.insert(data, {\""..mod.."\",0,"..org..","..dir.."})")
+          print("table.insert(moar, {\""..mod.."\",0,"..org..","..dir.."})")
         else
-          print("table.insert(data, {\""..mod.."\","..ang.."})")
+          print("table.insert(moar, {\""..mod.."\","..ang.."})")
         end
       else
         if(ply:KeyDown(IN_SPEED)) then
