@@ -123,7 +123,7 @@ function ENT:DoBeam(ent, org, dir, sdat, idx)
   local damage = sdat.NvDamage / todiv
   local force  = sdat.NvForce  / todiv
   local width  = LaserLib.GetWidth(sdat.NvWidth / todiv)
-  local trace, beam = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self:GetBeamSource(sdat.BmSource),
                                       org,
                                       dir,
                                       length,

@@ -89,11 +89,11 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local doment , domsrc
 local xlength, bpower
 local xforce , xwidth, xdamage
 local opower , npower, force
 local width  , length, damage
+local doment , domsrc, dobeam
 
 function ENT:ActionSource(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
@@ -122,22 +122,23 @@ function ENT:ActionSource(entity, index, trace, beam)
       opower = npower
       domsrc = beam.BmSource
       doment = entity
+      dobeam = beam
     end
   end
 end
 
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
-  doment , domsrc = nil, nil
   xlength, bpower = 0, false
   xforce , xwidth, xdamage = 0, 0, 0
   width  , length, damage  = 0, 0, 0
   npower , force , opower  = 0, 0, nil
+  doment , domsrc, dobeam = nil, nil, nil
 
   self:ProcessSources()
 
   if(self.hitSize > 0) then
-    self:SetDominant(domsrc)
+    self:SetDominant(domsrc, dobeam)
 
     if(bpower) then -- Sum settings
       self:SetBeamForce(force)

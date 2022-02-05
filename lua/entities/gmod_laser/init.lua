@@ -141,7 +141,7 @@ end
  * Takes the values tom the argument and updated source
  * ent > Dominant entity reference being extracted
 ]]
-function ENT:SetDominant(ent)
+function ENT:SetDominant(ent, beam)
   if(not LaserLib.IsUnit(ent, 2)) then return self end
   -- We set the same non-addable properties
   -- The most powerful source (biggest damage/width)
@@ -155,7 +155,7 @@ function ENT:SetDominant(ent)
   self:SetReflectRatio(ent:GetReflectRatio())
   self:SetRefractRatio(ent:GetRefractRatio())
   self:SetNonOverMater(ent:GetNonOverMater())
-  self:SetBeamColorRGBA(ent:GetBeamColorRGBA())
+  self:SetBeamColorRGBA(beam.NvColor or ent:GetBeamColorRGBA(true))
 
   self:WireWrite("Dominant", ent)
   LaserLib.SetPlayer(self, (ent.ply or ent.player))

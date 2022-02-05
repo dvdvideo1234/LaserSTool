@@ -24,6 +24,7 @@ DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/Furnitur
 DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the portal model")
 DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the splitter multy model")
 DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the paralleller multy model")
+DATA.MFILTER  = CreateConVar("laseremitter_mfilter" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the filter model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
@@ -102,7 +103,8 @@ DATA.CLS = {
   {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `DoBeam`
   {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `ActionSource`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel `DoBeam`
+  {"gmod_laser_parallel" , "parallel" , "paralel"}, -- Laser beam parallel `DoBeam`
+  {"gmod_laser_filter"   , "filter"   , nil      }  -- Laser beam filter `DoBeam`
 }
 
 DATA.MOD = { -- Model used by the entities menu
@@ -115,20 +117,22 @@ DATA.MOD = { -- Model used by the entities menu
   DATA.MDIMMER:GetString() ,
   DATA.MSPLITRM:GetString(),
   DATA.MPORTAL:GetString() , -- Portal: Well... Portals being entities
-  DATA.MPARALEL:GetString()
+  DATA.MPARALEL:GetString(),
+  DATA.MFILTER:GetString()
 }
 
 DATA.MAT = {
   "", -- Laser material is changed with the model
-  "models/dog/eyeglass"    ,
-  "debug/env_cubemap_model",
-  "models/dog/eyeglass"    ,
-  "models/dog/eyeglass"    ,
-  "models/props_combine/citadel_cable",
-  "models/dog/eyeglass"    ,
-  "models/dog/eyeglass"    ,
+  "models/dog/eyeglass"                ,
+  "debug/env_cubemap_model"            ,
+  "models/dog/eyeglass"                ,
+  "models/dog/eyeglass"                ,
+  "models/props_combine/citadel_cable" ,
+  "models/dog/eyeglass"                ,
+  "models/dog/eyeglass"                ,
   "models/props_combine/com_shield001a",
-  "models/dog/eyeglass"
+  "models/dog/eyeglass"                ,
+  "models/props_combine/citadel_cable"
 }
 
 DATA.COLOR = {
@@ -1952,14 +1956,15 @@ end
 ]]
 function mtBeam:Draw(sours, imatr, color)
   local tvpnt = self.TvPoints
-  local sours = (sours or self.BmSource)
-  local ushit = LocalPlayer():GetEyeTrace().HitPos
-  local bbmin = sours:LocalToWorld(sours:OBBMins())
-  local bbmax = sours:LocalToWorld(sours:OBBMaxs())
   -- Check node avalability
   if(not tvpnt[1]) then return end
   if(not tvpnt.Size) then return end
   if(tvpnt.Size <= 0) then return end
+  -- Update rendering boundaries
+  local sours = (sours or self.BmSource)
+  local ushit = LocalPlayer():GetEyeTrace().HitPos
+  local bbmin = sours:LocalToWorld(sours:OBBMins())
+  local bbmax = sours:LocalToWorld(sours:OBBMaxs())
   -- Extend render bounds with player hit position
   LaserLib.UpdateRB(bbmin, ushit, math.min)
   LaserLib.UpdateRB(bbmax, ushit, math.max)
@@ -1970,8 +1975,7 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
   -- Material must be cached and pdated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local spd = DATA.DRWBMSPD:GetFloat()
-
+  local spd, clr = DATA.DRWBMSPD:GetFloat(), color
   -- Draw the beam sequentially being faster
   for idx = 2, tvpnt.Size do
     local org = tvpnt[idx - 1]
@@ -1979,14 +1983,14 @@ function mtBeam:Draw(sours, imatr, color)
     local otx = org[1] -- Start origin
     local ntx = new[1] -- End origin
     local wdt = org[2] -- Start width
-
     -- Make sure the coordinates are conveted to world ones
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
-
+    -- When we need to draw the beam with rendering library
     if(org[5]) then -- Current node has its draw enabled
+      clr = (org[6] or clr) -- Update the color for the node
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
-      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, color)
+      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, clr)
     end -- Draw the actual beam texture
   end
   -- Adjust the render bounds with world-space coordinates
@@ -2141,6 +2145,42 @@ local gtActors = {
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
       node[1]:Set(trace.HitPos) -- We are not portal update position
       node[5] = true            -- We are not portal enable drawing
+    end
+  end,
+  ["gmod_laser_filter"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local ent, src = trace.Entity, beam.BmSource
+    local matc = ent:GetInBeamMaterial()
+    local mats = src:GetInBeamMaterial()
+    if(matc == "" or (matc == mats)) then
+      local norm = ent:GetHitNormal()
+      local bdot = ent:GetHitPower(norm, trace, beam)
+      if(trace and trace.Hit and beam and bdot) then
+        beam.IsTrace = true -- Beam hits correct surface. Continue
+        local info = beam.TvPoints
+        local size = info.Size
+        local node, prev = info[size], info[size - 1]
+        local width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
+        local damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
+        local force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
+        local length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
+        local ec = ent:GetBeamColorRGBA(true)
+        local sc = (prev[6] or src:GetBeamColorRGBA(true))
+        if(not node[6]) then node[6] = Color(0,0,0,0) end
+        node[6].r = math.max(sc.r - ec.r, 0)
+        node[6].g = math.max(sc.g - ec.g, 0)
+        node[6].b = math.max(sc.b - ec.b, 0)
+        node[6].a = math.max(sc.a - ec.a, 0)
+        beam.NvColor   = node[6]
+        beam.NvLength  = length; -- Length not used in visuals
+        beam.NvWidth   = width ; node[2] = width
+        beam.NvDamage  = damage; node[3] = damage
+        beam.NvForce   = force ; node[4] = force
+        beam.VrOrigin:Set(trace.HitPos)
+        beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+        node[1]:Set(trace.HitPos) -- We are not portal update position
+        node[5] = true            -- We are not portal enable drawing
+      end
     end
   end,
   ["gmod_laser_parallel"] = function(trace, beam)

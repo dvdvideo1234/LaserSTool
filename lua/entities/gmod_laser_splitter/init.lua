@@ -89,22 +89,22 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local opower, report, doment, domsrc
+local opower, report, doment, domsrc, dobeam
 
 function ENT:ActionSource(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)
     if(not opower or npower >= opower) then
-      opower, report = npower, index
       doment, domsrc = entity, beam.BmSource
+      opower, report, dobeam = npower, index, beam
     end
   end
 end
 
 function ENT:UpdateSources()
   opower, report = nil, nil
-  doment, domsrc = nil, nil
+  doment, domsrc, dobeam = nil, nil, nil
 
   self:ProcessSources()
 
@@ -135,7 +135,7 @@ function ENT:UpdateSources()
     self:SetBeamDamage(0)
   end
 
-  self:SetDominant(domsrc)
+  self:SetDominant(domsrc, dobeam)
 
   return domsrc
 end
