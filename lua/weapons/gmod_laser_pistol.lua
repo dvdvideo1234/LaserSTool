@@ -164,18 +164,18 @@ end
 --[[
  * Registers a trace hit report under the specified index
  * trace > Trace result structure to register
- * data  > Beam data structure to register
+ * beam  > Beam class register being registered
 ]]
-function SWEP:SetHitReport(trace, data)
+function SWEP:SetHitReport(trace, beam)
   if(not self.hitReports) then self.hitReports = {Size = 0} end
-  local rep, idx = self.hitReports, data.BmIdenty
+  local rep, idx = self.hitReports, beam.BmIdenty
   if(idx >= rep.Size) then rep.Size = idx end
   if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
-  rep["DT"] = data; rep["TR"] = trace; return self
+  rep["DT"] = beam; rep["TR"] = trace; return self
 end
 
 --[[
- * Retrieves hit report trace and data under specified index
+ * Retrieves hit report trace and beam by specified index
  * index > Hit report index to read ( defaults to 1 )
 ]]
 function SWEP:GetHitReport(index)
@@ -238,6 +238,22 @@ function SWEP:GetBeamForce()
   return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
 end
 
+function SWEP:GetBeamOrigin()
+  local user = self:GetOwner()
+  local vorg = user:GetCurrentViewOffset()
+  local vobb = user:LocalToWorld(user:OBBCenter())
+        vorg:Mul(4); vorg:Add(vobb)
+  return vorg
+end
+
+function SWEP:GetBeamDirect()
+  local user = self:GetOwner()
+  local vorg = self:GetBeamOrigin()
+  local vdir = user:GetEyeTrace().HitPos
+        vdir:Sub(vorg); vdir:Normalize()
+  return vdir
+end
+
 function SWEP:DoBeam(origin, direct)
   local user = self:GetOwner()
   local width  = self:GetBeamWidth()
@@ -247,7 +263,7 @@ function SWEP:DoBeam(origin, direct)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
-  local trace, data = LaserLib.DoBeam(user,
+  local trace, beam = LaserLib.DoBeam(user,
                                       origin,
                                       direct,
                                       length,
@@ -257,7 +273,7 @@ function SWEP:DoBeam(origin, direct)
                                       usrfle,
                                       usrfre,
                                       noverm)
-  return trace, data
+  return trace, beam
 end
 
 function SWEP:ServerBeam()
@@ -265,18 +281,17 @@ function SWEP:ServerBeam()
 
   if(self:GetOn()) then
     local user = self:GetOwner()
-    local vorg = user:EyePos()
-    local vdir = user:GetAimVector()
+    local vorg = self:GetBeamOrigin()
+    local vdir = self:GetBeamDirect()
 
     LaserLib.Bounces(1)
 
-    local trace, data = self:DoBeam(vorg, vdir)
-    if(data and trace and
+    local trace, beam = self:DoBeam(vorg, vdir)
+    if(beam and trace and
       LaserLib.IsValid(trace.Entity) and not
       LaserLib.IsUnit(trace.Entity)
     ) then
 
-    local user = self:GetOwner()
     local fcen = self:GetForceCenter()
     local dtyp = self:GetDissolveType()
     local ssnd = self:GetStopSound()
@@ -285,9 +300,9 @@ function SWEP:ServerBeam()
     LaserLib.DoDamage(trace.Entity,
                       trace.HitPos,
                       trace.Normal,
-                      data.VrDirect,
-                      data.NvDamage,
-                      data.NvForce,
+                      beam.VrDirect,
+                      beam.NvDamage,
+                      beam.NvForce,
                       user,
                       LaserLib.GetDissolveID(dtyp),
                       ksnd,
@@ -311,16 +326,16 @@ else
     self:UpdateFlags()
     LaserLib.Bounces(1)
 
-    local trace, data = self:DoBeam(origin, direct)
-    if(not data) then return end
+    local trace, beam = self:DoBeam(origin, direct)
+    if(not beam) then return end
     if(not trace) then return end
 
     local eeff = self:GetEndingEffect()
     local matr = self:GetBeamMaterial(true)
     local colr = self:GetBeamColorRGBA(true)
 
-    data:Draw(self, matr, colr)
-    data:DrawEffect(self, trace, eeff)
+    beam:Draw(self, matr, colr)
+    beam:DrawEffect(self, trace, eeff)
   end
 
   function SWEP:GetBeamDrawRay(mussle, udotp)

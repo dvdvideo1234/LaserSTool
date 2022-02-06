@@ -145,7 +145,7 @@ function ENT:DoBeam(org, dir, idx)
   local force  = self:GetBeamForce() / todiv
   local damage = self:GetBeamDamage() / todiv
   local width  = LaserLib.GetWidth(self:GetBeamWidth() / todiv)
-  local trace, data = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self,
                                       origin,
                                       direct,
                                       length,
@@ -156,5 +156,5 @@ function ENT:DoBeam(org, dir, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, data
+  return trace, beam
 end

@@ -1,4 +1,4 @@
--- Wiremode dedicated entity method to retrieve data from laser sources
+-- Wiremod dedicated entity method to retrieve information from laser sources
 E2Helper.Descriptions["laserGetBeamDamage(e:)"]             = "Returns the laser source beam damage"
 E2Helper.Descriptions["laserGetBeamForce(e:)"]              = "Returns the laser source beam force"
 E2Helper.Descriptions["laserGetBeamLength(e:)"]             = "Returns the laser source beam length"
@@ -16,7 +16,7 @@ E2Helper.Descriptions["laserGetReflectRatio(e:)"]           = "Returns the laser
 E2Helper.Descriptions["laserGetRefractRatio(e:)"]           = "Returns the laser source refraction ratio flag"
 E2Helper.Descriptions["laserGetStartSound(e:)"]             = "Returns the laser source start sound"
 E2Helper.Descriptions["laserGetStopSound(e:)"]              = "Returns the laser source stop sound"
--- Wiremode dedicated entity method to retrieve beam data from hit reports
+-- Wiremod dedicated entity method to retrieve beam information from hit reports
 E2Helper.Descriptions["laserGetDataBounceMax(e:n)"]         = "Returns the maximum allowed laser beam bounces"
 E2Helper.Descriptions["laserGetDataBounceRest(e:n)"]        = "Returns the remaining laser beam bounces"
 E2Helper.Descriptions["laserGetDataDamage(e:n)"]            = "Returns the remaining laser beam damage"

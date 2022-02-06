@@ -1,11 +1,11 @@
 include("shared.lua")
 
 function ENT:DrawBeam(org, dir, index)
-  local trace, data = self:DoBeam(org, dir, index)
-  if(not data) then return end
-  self:DrawTrace(data)
+  local trace, beam = self:DoBeam(org, dir, index)
+  if(not beam) then return end
+  self:DrawTrace(beam)
   -- Handle drawing the effects when have to be drawwn
-  self:DrawEndingEffect(trace, data)
+  self:DrawEndingEffect(trace, beam)
 end
 
 function ENT:Draw()

@@ -24,6 +24,7 @@ DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/Furnitur
 DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the portal model")
 DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the splitter multy model")
 DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the paralleller multy model")
+DATA.MFILTER  = CreateConVar("laseremitter_mfilter" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the filter model")
 DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
@@ -54,8 +55,8 @@ DATA.TRWU = 50000           -- The amount of units to trace for finding water su
 DATA.BONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
-DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
-DATA.TIME = {Size = 1, Done = false, Suma = 0} -- Used for testing perposes
+DATA.AMAX = {-360, 360}     -- General angular limis for having min/max
+DATA.ESRC = nil             -- This stores the entity source for the beam update
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
@@ -102,7 +103,8 @@ DATA.CLS = {
   {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `DoBeam`
   {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `ActionSource`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , "parallel" , "paralel"}  -- Laser beam parallel `DoBeam`
+  {"gmod_laser_parallel" , "parallel" , "paralel"}, -- Laser beam parallel `DoBeam`
+  {"gmod_laser_filter"   , "filter"   , nil      }  -- Laser beam filter `DoBeam`
 }
 
 DATA.MOD = { -- Model used by the entities menu
@@ -115,20 +117,22 @@ DATA.MOD = { -- Model used by the entities menu
   DATA.MDIMMER:GetString() ,
   DATA.MSPLITRM:GetString(),
   DATA.MPORTAL:GetString() , -- Portal: Well... Portals being entities
-  DATA.MPARALEL:GetString()
+  DATA.MPARALEL:GetString(),
+  DATA.MFILTER:GetString()
 }
 
 DATA.MAT = {
   "", -- Laser material is changed with the model
-  "models/dog/eyeglass"    ,
-  "debug/env_cubemap_model",
-  "models/dog/eyeglass"    ,
-  "models/dog/eyeglass"    ,
-  "models/props_combine/citadel_cable",
-  "models/dog/eyeglass"    ,
-  "models/dog/eyeglass"    ,
+  "models/dog/eyeglass"                ,
+  "debug/env_cubemap_model"            ,
+  "models/dog/eyeglass"                ,
+  "models/dog/eyeglass"                ,
+  "models/props_combine/citadel_cable" ,
+  "models/dog/eyeglass"                ,
+  "models/dog/eyeglass"                ,
   "models/props_combine/com_shield001a",
-  "models/dog/eyeglass"
+  "models/dog/eyeglass"                ,
+  "models/props_combine/citadel_cable"
 }
 
 DATA.COLOR = {
@@ -154,7 +158,7 @@ DATA.DISTYPE = {
   ["core"]      = 3
 }
 
-DATA.REFLECT = { -- Reflection data descriptor
+DATA.REFLECT = { -- Reflection descriptor
   [1] = "cubemap", -- Cube maps textures
   [2] = "chrome" , -- Chrome stuff reflect
   [3] = "shiny"  , -- All shiny stuff reflect
@@ -480,7 +484,7 @@ end
  * Adjusts the custom model angle and calculates the touch position
  * base  > The laser entity to preform the operation for
  * trace > The trace that player is aiming for
- * tran  > Transform data array information
+ * tran  > Transform information setup array
 ]]
 function LaserLib.ApplySpawn(base, trace, tran)
   if(tran[2] and tran[3]) then
@@ -522,38 +526,6 @@ end
 function LaserLib.GetMaterial(iK)
   local sT = DATA.MAT[tonumber(iK)]
   return (sT and sT or nil)
-end
-
---[[
- * This is used to time a given code sippet when debugging
- * Call it without arguments to reset the state
- * Dinamically sums N-calls and reurns the average
- * num > Number of samples to be registered
- * tim > Time difference to be registered
-]]
-function LaserLib.Time(num, tim)
-  local arr = DATA.TIME
-  if(num and tim) then
-    local siz = arr.Size
-    if(siz <= num) then
-      arr.Suma = arr.Suma - (arr[siz] or 0)
-      arr[siz] = tim
-      arr.Suma = arr.Suma + tim
-      arr.Size = siz + 1
-    else
-      arr.Suma = arr.Suma - arr[1]
-      arr[1] = tim
-      arr.Suma = arr.Suma + tim
-      arr.Size = 1
-      arr.Done = true
-    end
-    local top = arr.Done and num or siz
-    return (arr.Suma / top), top
-  else
-    arr.Size = 1
-    arr.Suma = 0
-    arr.Done = false
-  end
 end
 
 -- Draw a position on the screen
@@ -1108,7 +1080,7 @@ function LaserLib.GetCustomAngle(base, direct)
   end -- Forward is max projection up is min projection
   local f = az[mt[th.ID]](az); f:Mul(th.V) -- Primary forward (orthogonal)
   local u = az[mt[tl.ID]](az); u:Mul(tl.V) -- Primary up (orthogonal)
-  tab.anCustom:Set(f:AngleEx(u)) -- Transfer data and applt angle pitch
+  tab.anCustom:Set(f:AngleEx(u)) -- Transfer and apply angle pitch
   tab.anCustom:RotateAroundAxis(f:Cross(u), -90) -- Cache angle
   return tab.anCustom
 end
@@ -1294,14 +1266,35 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   return pos, dir
 end
 
-function LaserLib.Bounces(num)
-  if(num and num > 0) then
-    DATA.BONC = math.floor(num)
+--[[
+ * Makes the laser trace loop use pre-defined bounces cout
+ * When this is not given the loop will use MBOUNCES
+ * bounce > The amount of bounces the loop will have
+]]
+function LaserLib.Bounces(bounce)
+  if(bounce and bounce > 0) then
+    DATA.BONC = math.floor(bounce)
   else -- Reset the exterlan limit
     DATA.BONC = 0
   end
 end
 
+--[[
+ * Updates the beam source according to the current entity
+ * entity > Reference to the current entity
+ * former > Reference to the source from last split
+]]
+function LaserLib.Sources(entity, former)
+  if(entity and former) then
+    if(LaserLib.IsUnit(entity, 2)) then
+      DATA.ESRC = entity
+    else DATA.ESRC = former end
+  else DATA.ESRC = nil end
+end
+
+--[[
+ * This implements beam OOP with all its specifics
+]]
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__index = mtBeam -- If not found in self search here
@@ -1645,12 +1638,12 @@ function mtBeam:IsNode()
 end
 
 --[[
- * Prepares the laser beam data structure for entity refraction
+ * Prepares the laser beam structure for entity refraction
  * origin  > New beam origin location vector
  * direct  > New beam ray direction vector
  * target  > New entity target being switched
- * refract > Refraction data entry
- * key     > Refraction data key
+ * refract > Refraction descriptor entry
+ * key     > Refraction descriptor key
 ]]
 function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
   -- Register desination medium and raise calculate refraction flag
@@ -1682,7 +1675,6 @@ end
  * When flag is disabled uses the material type for checking
  * The value must be available for client and server sides
  * trace > Reference to trace result structure
- * data  > Reference to current beam data parameters
  * Returns: Material extracted from the entity on server and client
 ]]
 function mtBeam:GetMaterialID(trace)
@@ -1746,7 +1738,7 @@ end
 --[[
  * Requests a beam reflection
  * reflect > Reflection info structure
- * trace   > The current trace data
+ * trace   > The current trace result
 ]]
 function mtBeam:Reflect(reflect, trace)
   self.VrDirect:Set(LaserLib.GetReflected(self.VrDirect, trace.HitNormal))
@@ -1924,11 +1916,29 @@ function mtBeam:SourceFilter(entity)
 end
 
 --[[
+ * Applies the beam current active source entity
+ * Checks when we have SIMO source request
+]]
+function mtBeam:SetSource()
+  if(DATA.ESRC) then  -- Used for SIMO units
+    self.BmSource = DATA.ESRC -- Update
+    LaserLib.Sources() -- Clear request
+  end; return self -- Coding effective API
+end
+
+--[[
+ * Returns the beam current active source entity
+]]
+function mtBeam:GetSource()
+  return (DATA.ESRC or self.BmSource)
+end
+
+--[[
  * This does post-update fnd regiasters beam sources
  * Preforms some logick to calculate the filter
  * trace > Trace result after the last iteration
 ]]
-function mtBeam:SourceUpdate(trace)
+function mtBeam:UpdateSource(trace)
   local entity, target = self.BmSource, trace.Entity
   -- Calculates the range as beam distanc traveled
   if(trace.Hit and self.RaLength > self.NvLength) then
@@ -1953,14 +1963,15 @@ end
 ]]
 function mtBeam:Draw(sours, imatr, color)
   local tvpnt = self.TvPoints
-  local sours = (sours or self.BmSource)
-  local ushit = LocalPlayer():GetEyeTrace().HitPos
-  local bbmin = sours:LocalToWorld(sours:OBBMins())
-  local bbmax = sours:LocalToWorld(sours:OBBMaxs())
   -- Check node avalability
   if(not tvpnt[1]) then return end
   if(not tvpnt.Size) then return end
   if(tvpnt.Size <= 0) then return end
+  -- Update rendering boundaries
+  local sours = (sours or self.BmSource)
+  local ushit = LocalPlayer():GetEyeTrace().HitPos
+  local bbmin = sours:LocalToWorld(sours:OBBMins())
+  local bbmax = sours:LocalToWorld(sours:OBBMaxs())
   -- Extend render bounds with player hit position
   LaserLib.UpdateRB(bbmin, ushit, math.min)
   LaserLib.UpdateRB(bbmax, ushit, math.max)
@@ -1971,8 +1982,7 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
   -- Material must be cached and pdated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local spd = DATA.DRWBMSPD:GetFloat()
-
+  local spd, cup = DATA.DRWBMSPD:GetFloat(), color
   -- Draw the beam sequentially being faster
   for idx = 2, tvpnt.Size do
     local org = tvpnt[idx - 1]
@@ -1980,14 +1990,14 @@ function mtBeam:Draw(sours, imatr, color)
     local otx = org[1] -- Start origin
     local ntx = new[1] -- End origin
     local wdt = org[2] -- Start width
-
     -- Make sure the coordinates are conveted to world ones
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
-
-    if(org[5]) then -- Current node has its draw enabled
+    -- When we need to draw the beam with rendering library
+    if(org[5]) then -- Current node has its draw flag enabled
+      cup = (org[6] or cup) -- Update the color for the node
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
-      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, color)
+      render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
     end -- Draw the actual beam texture
   end
   -- Adjust the render bounds with world-space coordinates
@@ -1999,7 +2009,7 @@ end
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
  * sours > Entity keping the beam effects internals
- * trace > Trace data recieved from the beam
+ * trace > Trace result recieved from the beam
  * endrw > Draw enabled flag from beam sources
 ]]
 function mtBeam:DrawEffect(sours, trace, endrw)
@@ -2009,7 +2019,7 @@ function mtBeam:DrawEffect(sours, trace, endrw)
   then
     if(not sours.dtEffect) then
       sours.dtEffect = EffectData()
-    end -- Allocate effect data class
+    end -- Allocate effect class
     if(trace.Hit) then
       local ent = trace.Entity
       local eff = sours.dtEffect
@@ -2044,31 +2054,31 @@ end
  * These are specific handlers for specific classes
  * having single input beam and single output beam
  * trace > Reference to trace result structure
- * data  > Reference to trace beam data
+ * beam  > Reference to laser beam class
 ]]
 local gtActors = {
-  ["event_horizon"] = function(trace, data)
-    data:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, data.BmSource
-    local pob, dir = trace.HitPos, data.VrDirect
+  ["event_horizon"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local ent, src = trace.Entity, beam:GetSource()
+    local pob, dir = trace.HitPos, beam.VrDirect
     local eff, out = src.isEffect, ent.Target
     if(out == ent) then return end -- We need to go somewhere
     if(not LaserLib.IsValid(out)) then return end
     -- Leave networking to CAP. Invalid target. Stop
     local pot, dit = ent:GetTeleportedVector(pob, dir)
     if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
-      ent:EnterEffect(pob, data.NvWidth) -- Enter effect
-      out:EnterEffect(pot, data.NvWidth) -- Exit effect
+      ent:EnterEffect(pob, beam.NvWidth) -- Enter effect
+      out:EnterEffect(pot, beam.NvWidth) -- Exit effect
     end -- Stargate ( CAP ) requires little nudge in the origin vector
-    data.VrOrigin:Set(pot); data.VrDirect:Set(dit)
+    beam.VrOrigin:Set(pot); beam.VrDirect:Set(dit)
     -- Otherwise the trace will get stick and will hit again
-    data:RegisterNode(data.VrOrigin, false, true)
-    data.TeFilter, data.TrFActor = out, true
-    data.IsTrace = true -- CAP networking is correct. Continue
+    beam:RegisterNode(beam.VrOrigin, false, true)
+    beam.TeFilter, beam.TrFActor = out, true
+    beam.IsTrace = true -- CAP networking is correct. Continue
   end,
-  ["gmod_laser_portal"] = function(trace, data)
-    data:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, data.BmSource
+  ["gmod_laser_portal"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsHitNormal(trace)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
     if(idx <= 0) then return end -- No output ID chosen
@@ -2077,7 +2087,7 @@ local gtActors = {
     local nrm = ent:GetNormalLocal() -- Read current normal
     local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
     local mir = ent:GetMirrorExitPos()
-    local pos, dir = trace.HitPos, data.VrDirect
+    local pos, dir = trace.HitPos, beam.VrDirect
     nps, ndr = GetBeamPortal(ent, out, pos, dir,
       function(ppos)
         if(mir and bnr) then
@@ -2100,62 +2110,127 @@ local gtActors = {
           pdir:Set(v); pdir:Rotate(a)
         end
       end)
-    data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
-    data:RegisterNode(data.VrOrigin, false, true)
-    data.TeFilter, data.TrFActor = out, true
-    data.IsTrace = true -- Output model is validated. Continue
+    beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
+    beam:RegisterNode(beam.VrOrigin, false, true)
+    beam.TeFilter, beam.TrFActor = out, true
+    beam.IsTrace = true -- Output model is validated. Continue
   end,
-  ["prop_portal"] = function(trace, data)
-    data:Finish(trace) -- Assume that beam stops traversing
-    local ent, src, out = trace.Entity, data.BmSource
+  ["prop_portal"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local ent, src, out = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
     if(SERVER) then out = ent:FindOpenPair() -- Retrieve open pair
     else out = Entity(ent:GetNWInt("laseremitter_portal", 0)) end
     -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
     ent:SetNWInt("laseremitter_portal", out:EntIndex())
-    local inf = data.TvPoints; inf[inf.Size][5] = true
-    local dir, nrm, pos = data.VrDirect, trace.HitNormal, trace.HitPos
+    local inf = beam.TvPoints; inf[inf.Size][5] = true
+    local dir, nrm, pos = beam.VrDirect, trace.HitNormal, trace.HitPos
     local eps, ean, mav = ent:GetPos(), ent:GetAngles(), Vector(dir)
     local fwd, wvc = ent:GetForward(), Vector(pos); wvc:Sub(eps)
     local mar = math.abs(wvc:Dot(fwd)) -- Project entrance vector
     local vsm = mar / math.cos(math.asin(fwd:Cross(dir):Length()))
     vsm = 2 * vsm; mav:Set(dir); mav:Mul(vsm); mav:Add(trace.HitPos)
-    data:RegisterNode(mav, false, false)
+    beam:RegisterNode(mav, false, false)
     local nps, ndr = GetBeamPortal(ent, out, pos, dir)
-    data:RegisterNode(nps); nps:Add(vsm * ndr)
-    data.VrOrigin:Set(nps); data.VrDirect:Set(ndr)
-    data:RegisterNode(nps)
-    data.TeFilter, data.TrFActor = out, true
-    data.IsTrace = true -- Output portal is validated. Continue
+    beam:RegisterNode(nps); nps:Add(vsm * ndr)
+    beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
+    beam:RegisterNode(nps)
+    beam.TeFilter, beam.TrFActor = out, true
+    beam.IsTrace = true -- Output portal is validated. Continue
   end,
-  ["gmod_laser_dimmer"] = function(trace, data)
-    data:Finish(trace) -- Assume that beam stops traversing
+  ["gmod_laser_dimmer"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
-    local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
-    if(trace and trace.Hit and data and bdot) then
-      data.IsTrace = true -- Beam hits correct surface. Continue
+    local bdot, mdot = ent:GetHitPower(norm, trace, beam, bmln)
+    if(trace and trace.Hit and beam and bdot) then
+      beam.IsTrace = true -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
-      local node = data:SetPowerRatio(vdot) -- May absorb
-      data.VrOrigin:Set(trace.HitPos)
-      data.TeFilter, data.TrFActor = ent, true -- Makes beam pass the dimmer
+      local node = beam:SetPowerRatio(vdot) -- May absorb
+      beam.VrOrigin:Set(trace.HitPos)
+      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
       node[1]:Set(trace.HitPos) -- We are not portal update position
       node[5] = true            -- We are not portal enable drawing
     end
   end,
-  ["gmod_laser_parallel"] = function(trace, data)
-    data:Finish(trace) -- Assume that beam stops traversing
+  ["gmod_laser_filter"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local ent, src = trace.Entity, beam:GetSource()
+    local norm = ent:GetHitNormal()
+    local bdot = ent:GetHitPower(norm, trace, beam)
+    if(trace and trace.Hit and beam and bdot) then
+      local ctol = (0.2 * DATA.CLMX) -- Color tolerance
+      local info = beam.TvPoints -- Read current nore stack
+      local size = info.Size -- Extract nodes stack size
+      local matc = ent:GetInBeamMaterial()
+      local mats = src:GetInBeamMaterial()
+      local width, damage, force, length
+      local node, prev = info[size], info[size - 1]
+      local ec = ent:GetBeamColorRGBA(true)
+      local sc = (beam.NvColor or src:GetBeamColorRGBA(true))
+      local mctr, mctg = math.abs(sc.r - ec.r), math.abs(sc.g - ec.g)
+      local mctb, mcta = math.abs(sc.b - ec.b), math.abs(sc.a - ec.a)
+      if(ent:GetBeamPassTexture()) then
+        if(matc ~= "" and (matc ~= mats)) then return end
+      else -- Must decide when it needs to go out right now
+        if(matc ~= "" and (matc == mats)) then return end
+      end -- The beam did not fell victim to direct draw filtering
+      if(ent:GetBeamReplicate()) then
+        width  = beam.NvWidth
+        damage = beam.NvDamage
+        force  = beam.NvForce
+        length = beam.NvLength
+      else -- Color needs to be changed for the current node
+        if(not node[6]) then node[6] = Color(0,0,0,0) end
+        if(ent:GetBeamPowerClamp()) then
+          local ew, bw = ent:GetInBeamWidth() , beam.NvWidth
+          local ed, bd = ent:GetInBeamDamage(), beam.NvDamage
+          local ef, bf = ent:GetInBeamForce() , beam.NvForce
+          local el, bl = ent:GetInBeamLength(), beam.NvLength
+          width  = (ew > 0) and math.Clamp(bw, 0, ew) or bw
+          damage = (ed > 0) and math.Clamp(bd, 0, ed) or bd
+          force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
+          length = (el > 0) and math.Clamp(bl, 0, el) or bl
+          node[6].r = math.Clamp(sc.r, 0, ec.r)
+          node[6].g = math.Clamp(sc.g, 0, ec.g)
+          node[6].b = math.Clamp(sc.b, 0, ec.b)
+          node[6].a = math.Clamp(sc.a, 0, ec.a)
+        else
+          width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
+          damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
+          force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
+          length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
+          node[6].r = math.max(sc.r - ec.r, 0)
+          node[6].g = math.max(sc.g - ec.g, 0)
+          node[6].b = math.max(sc.b - ec.b, 0)
+          node[6].a = math.max(sc.a - ec.a, 0)
+        end
+        beam.NvColor = node[6] -- Last beam color being used
+      end -- Remove from the output beams with such color and material
+      beam.NvLength  = length; -- Length not used in visuals
+      beam.NvWidth   = width ; node[2] = width
+      beam.NvDamage  = damage; node[3] = damage
+      beam.NvForce   = force ; node[4] = force
+      beam.VrOrigin:Set(trace.HitPos)
+      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+      node[1]:Set(trace.HitPos) -- We are not portal update position
+      node[5] = true            -- We are not portal enable drawing
+      beam.IsTrace = true -- Beam hits correct surface. Continue
+    end
+  end,
+  ["gmod_laser_parallel"] = function(trace, beam)
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
-    local bdot, mdot = ent:GetHitPower(norm, trace, data, bmln)
-    if(trace and trace.Hit and data and bdot) then
-      data.IsTrace = true -- Beam hits correct surface. Continue
+    local bdot, mdot = ent:GetHitPower(norm, trace, beam, bmln)
+    if(trace and trace.Hit and beam and bdot) then
+      beam.IsTrace = true -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamDimmer() and mdot or 1)
-      local node = data:SetPowerRatio(vdot) -- May absorb
-      data.VrOrigin:Set(trace.HitPos)
-      data.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
-      data.TeFilter, data.TrFActor = ent, true -- Makes beam pass the parallel
+      local node = beam:SetPowerRatio(vdot) -- May absorb
+      beam.VrOrigin:Set(trace.HitPos)
+      beam.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
+      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the parallel
       node[1]:Set(trace.HitPos) -- We are not portal update node
       node[5] = true            -- We are not portal enable drawing
     end
@@ -2181,245 +2256,245 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local sTrMaters = "" -- This stores the current extracted material as string
   local sTrClass  = nil -- This stores the calss of the current trace entity
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
-  local data = Beam(origin, direct, width, damage, length, force) -- Beam data structure
+  local beam = Beam(origin, direct, width, damage, length, force) -- Create beam class
   -- Reports dedicated values that are being used by other entities and processses
-  data.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
-  data.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
-  data.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
-  data.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
+  beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
+  beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
+  beam.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
+  beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
 
-  if(data.NvLength <= 0) then return end
-  if(data.VrDirect:LengthSqr() <= 0) then return end
+  if(beam.NvLength <= 0) then return end
+  if(beam.VrDirect:LengthSqr() <= 0) then return end
   if(not LaserLib.IsValid(entity)) then return end
 
-  data:SourceFilter(entity)
-  data:RegisterNode(origin)
+  beam:SourceFilter(entity)
+  beam:RegisterNode(origin)
 
   repeat
     -- Run the trace using the defined conditianl parameters
-    trace = data:Trace(trace); target = trace.Entity
+    trace = beam:Trace(trace); target = trace.Entity
 
     -- Initial start so the beam separate from the laser
-    if(data.NvBounce == data.MxBounce) then
-      data.TeFilter = nil
+    if(beam.NvBounce == beam.MxBounce) then
+      beam.TeFilter = nil
 
-      if(trace.HitWorld and trace.StartSolid and data.NvMask == MASK_ALL) then
+      if(trace.HitWorld and trace.StartSolid and beam.NvMask == MASK_ALL) then
         -- Beam starts inside map solid and source must be changed
         if(bit.band(trace.Contents, CONTENTS_WATER) > 0) then
-          data:SetRefractContent(3, trace)
+          beam:SetRefractContent(3, trace)
         elseif(bit.band(trace.Contents, CONTENTS_WINDOW) > 0) then
-          data:SetRefractContent(2, trace)
+          beam:SetRefractContent(2, trace)
         end
       end
     else
-      if(not data:IsAir() and not data.IsRfract) then
-        if(not data:IsWater(trace.HitPos)) then
-          data:RefractWaterAir() -- Water to air specifics
-          -- Update the trace reference with the new data
-          trace = data:Trace(trace); target = trace.Entity
+      if(not beam:IsAir() and not beam.IsRfract) then
+        if(not beam:IsWater(trace.HitPos)) then
+          beam:RefractWaterAir() -- Water to air specifics
+          -- Update the trace reference with the new beam
+          trace = beam:Trace(trace); target = trace.Entity
         end
       end
     end
     -- Check current target for being a valid specific actor
-    bIsValid, sTrClass = data:ActorTarget(target)
+    bIsValid, sTrClass = beam:ActorTarget(target)
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(bIsValid) then -- Target is valis and it is a actor
         if(sTrClass and gtActors[sTrClass]) then
-          data:RegisterNode(trace.HitPos, trace.LengthNR, false)
+          beam:RegisterNode(trace.HitPos, trace.LengthNR, false)
         else -- The trace entity target is not special actor case
-          data:RegisterNode(trace.HitPos, trace.LengthNR)
+          beam:RegisterNode(trace.HitPos, trace.LengthNR)
         end
       else -- The trace has hit invalid entity or world
         if(trace.FractionLeftSolid > 0) then
           local mar = trace.LengthLS -- Use the feft-solid value
-          local org = data:GetNudge(mar) -- Calculate nudge origin
+          local org = beam:GetNudge(mar) -- Calculate nudge origin
           -- Register the node at the location the laser lefts the glass
-          data:RegisterNode(org, mar)
+          beam:RegisterNode(org, mar)
         else
-          data:RegisterNode(trace.HitPos, trace.LengthLS)
+          beam:RegisterNode(trace.HitPos, trace.LengthLS)
         end
-        data.StRfract = trace.StartSolid -- Start in world entity
+        beam.StRfract = trace.StartSolid -- Start in world entity
       end
     else -- Trace distance lenght is zero so enable refraction
-      data.StRfract = true -- Do not alter the beam direction
+      beam.StRfract = true -- Do not alter the beam direction
     end -- Do not put a node when beam does not traverse
     -- When we are still tracing and hit something that is not specific unit
-    if(data.IsTrace and trace.Hit and not LaserLib.IsUnit(target)) then
+    if(beam.IsTrace and trace.Hit and not LaserLib.IsUnit(target)) then
       -- Register a hit so reduce bounces count
       if(bIsValid) then
-         if(data.IsRfract) then
+         if(beam.IsRfract) then
           -- Well the beam is still tracing
-          data.IsTrace = true -- Produce next ray
+          beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
-          if(data:IsAir()) then
-            data:SetMediumSours(mtBeam.A)
+          if(beam:IsAir()) then
+            beam:SetMediumSours(mtBeam.A)
           else -- Water general flag is present
-            if(data:IsWater(trace.HitPos)) then
-              data:SetMediumSours(mtBeam.W)
+            if(beam:IsWater(trace.HitPos)) then
+              beam:SetMediumSours(mtBeam.W)
             else -- Check if point is in or out of the water
-              data:SetMediumSours(mtBeam.A)
+              beam:SetMediumSours(mtBeam.A)
             end -- Update the source accordingly
           end -- Nagate the normal so it must point inwards before refraction
-          LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(data.VrDirect)
+          LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
           -- Make sure to pick the correct refract exit medium for current node
-          if(not data:IsTraverse(trace.HitPos, nil, trace.HitNormal, target, tr)) then
+          if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target, tr)) then
             -- Refract the hell out of this requested beam with enity destination
-            local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                           trace.HitNormal, data.TrMedium.D[1][1], data.TrMedium.S[1][1])
+            local vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                           trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bout) then -- When the beam gets out of the medium
-              data:Redirect(trace.HitPos, vdir, true)
-              if(not data:IsWater()) then -- Check for zero when water only
-                if(not data:IsAir()) then data:ClearWater() end
+              beam:Redirect(trace.HitPos, vdir, true)
+              if(not beam:IsWater()) then -- Check for zero when water only
+                if(not beam:IsAir()) then beam:ClearWater() end
               end -- Reset the normal. We are out of the water now
-              data:SetMediumMemory(data.TrMedium.D, nil, trace.HitNormal)
+              beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
-              data:SetTraceNext(trace.HitPos, vdir)
+              beam:SetTraceNext(trace.HitPos, vdir)
             end -- Apply power ratio when requested
-            if(usrfre) then data:SetPowerRatio(data.TrMedium.D[1][2]) end
+            if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
           end
         else -- Put special cases here
           if(sTrClass and gtActors[sTrClass]) then
-            local suc, err = pcall(gtActors[sTrClass], trace, data)
-            if(not suc) then data.IsTrace = false; error("Actor: "..err) end
+            local suc, err = pcall(gtActors[sTrClass], trace, beam)
+            if(not suc) then beam.IsTrace = false; target:Remove(); error("Actor: "..err) end
           else
-            sTrMaters = data:GetMaterialID(trace)
-            data.IsTrace  = true -- Still tracing the beam
+            sTrMaters = beam:GetMaterialID(trace)
+            beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
-            if(reflect and not data.StRfract) then -- Just call reflection and get done with it..
-              data:Reflect(reflect, trace) -- Call reflection method
+            if(reflect and not beam.StRfract) then -- Just call reflection and get done with it..
+              beam:Reflect(reflect, trace) -- Call reflection method
             else
               local refract, key = GetMaterialEntry(sTrMaters, DATA.REFRACT)
-              if(data.StRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
+              if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Substact traced lenght from total length
-                  data.NvLength = data.NvLength - data.NvLength * trace.Fraction
+                  beam.NvLength = beam.NvLength - beam.NvLength * trace.Fraction
                   -- Calculated refraction ray. Reflect when not possible
                   local vdir, bout -- Refraction entity direction and reflection
                   -- Call refraction cases and prepare to trace-back
-                  if(data.StRfract) then -- Bounces were decremented so move it up
-                    if(data.NvBounce == data.MxBounce) then
+                  if(beam.StRfract) then -- Bounces were decremented so move it up
+                    if(beam.NvBounce == beam.MxBounce) then
                       vdir = Vector(direct) -- Primary node starts inside solid
                     else -- When two props are stuck save the middle boundary and traverse
                       -- When the traverse mediums is differerent and node is not inside a laser
-                      if(data:IsMemory(refract[1], trace.HitPos)) then
-                        vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                       data.TrMedium.M[3], data.TrMedium.M[1][1], refract[1])
+                      if(beam:IsMemory(refract[1], trace.HitPos)) then
+                        vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                                       beam.TrMedium.M[3], beam.TrMedium.M[1][1], refract[1])
                         -- Do not waste game ticks to refract the same refraction ratio
                       else -- When there is no medium traverse change
-                        vdir = Vector(data.VrDirect) -- Keep the last beam direction
+                        vdir = Vector(beam.VrDirect) -- Keep the last beam direction
                       end -- Finish start-refraction for current iteration
                     end -- Marking the fraction being zero and refracting from the last entity
-                    data.StRfract = false -- Make sure to disable the flag agian
+                    beam.StRfract = false -- Make sure to disable the flag agian
                   else -- Otherwise do a normal water-entity-air refraction
-                    vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                   trace.HitNormal, data.TrMedium.S[1][1], refract[1])
+                    vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                                   trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
                   end
                   if(bout) then -- We have to change mediums
-                    data:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
+                    beam:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
                   else -- Redirect the beam with the reflected ray
-                    data:Redirect(trace.HitPos, vdir)
+                    beam:Redirect(trace.HitPos, vdir)
                   end
                   -- Apply power ratio when requested
-                  if(usrfre) then data:SetPowerRatio(refract[2]) end
-                  -- We cannot be able to refract as the requested data is missing
-                else data:Finish(trace) end
+                  if(usrfre) then beam:SetPowerRatio(refract[2]) end
+                  -- We cannot be able to refract as the requested beam is missing
+                else beam:Finish(trace) end
                 -- We are neither reflecting nor refracting and have hit a wall
-              else data:Finish(trace) end -- All triggers are processed
+              else beam:Finish(trace) end -- All triggers are processed
             end
           end
         end -- Comes from air then hits and refracts in water or starts in water
       elseif(trace.HitWorld) then
-        if(data.IsRfract) then
+        if(beam.IsRfract) then
           if(not trace.AllSolid) then
             -- Important thing is to consider what is the shape of the world entity
             -- We can eather memorize the normal vector which will fail for different shapes
             -- We can eather set the trace length insanely long will fail windows close to the gound
             -- Another trace is made here to account for these probles above
             -- Well the beam is still tracing
-            data.IsTrace = true -- Produce next ray
+            beam.IsTrace = true -- Produce next ray
             -- Make sure that outer trace will always hit
-            local org, nrm = data:GetNudge(trace.LengthLS + DATA.NUGE)
-            LaserLib.VecNegate(data.VrDirect)
+            local org, nrm = beam:GetNudge(trace.LengthLS + DATA.NUGE)
+            LaserLib.VecNegate(beam.VrDirect)
             -- Margin multiplier for trace back to find correct surface normal
             -- This is the only way to get the proper surface normal vector
-            local tr = TraceBeam(org, data.VrDirect, 2 * DATA.NUGE,
+            local tr = TraceBeam(org, beam.VrDirect, 2 * DATA.NUGE,
               mtBeam.F, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
-            -- Store hit position and normal in beam temprary
+            -- Store hit position and normal in beam temporary
             local nrm = Vector(tr.HitNormal); org:Set(tr.HitPos)
             -- Reverse direction of the normal to point inside transperent
-            LaserLib.VecNegate(nrm); LaserLib.VecNegate(data.VrDirect)
+            LaserLib.VecNegate(nrm); LaserLib.VecNegate(beam.VrDirect)
             -- Do the refraction according to medium boundary
-            if(not data:IsTraverse(org, nil, nrm, target, tr)) then
-              local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                   nrm, data.TrMedium.D[1][1], mtBeam.A[1][1])
+            if(not beam:IsTraverse(org, nil, nrm, target, tr)) then
+              local vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                                   nrm, beam.TrMedium.D[1][1], mtBeam.A[1][1])
               if(bout) then -- When the beam gets out of the medium
-                data:Redirect(org, vdir, true)
-                data:SetMediumSours(mtBeam.A)
+                beam:Redirect(org, vdir, true)
+                beam:SetMediumSours(mtBeam.A)
                 -- Memorizing will help when beam traverses from world to no-collided entity
-                data:SetMediumMemory(data.TrMedium.D, nil, nrm)
+                beam:SetMediumMemory(beam.TrMedium.D, nil, nrm)
               else -- Get the trace ready to check the other side and register the location
-                data:Redirect(org, vdir)
+                beam:Redirect(org, vdir)
               end
             end
           else -- The beam ends inside a solid transperent medium
-            local org = data:GetNudge(data.NvLength)
-            data:RegisterNode(org, data.NvLength)
-            data:Finish(trace)
+            local org = beam:GetNudge(beam.NvLength)
+            beam:RegisterNode(org, beam.NvLength)
+            beam:Finish(trace)
           end -- Apply power ratio when requested
-          if(usrfre) then data:SetPowerRatio(data.TrMedium.D[1][2]) end
+          if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
         else
           if(sTrClass and gtActors[sTrClass]) then
-            local suc, err = pcall(gtActors[sTrClass], trace, data)
-            if(not suc) then data.IsTrace = false; error("Actor: "..err) end
+            local suc, err = pcall(gtActors[sTrClass], trace, beam)
+            if(not suc) then beam.IsTrace = false; target:Remove(); error("Actor: "..err) end
           else
-            sTrMaters = data:GetMaterialID(trace)
-            data.IsTrace  = true -- Still tracing the beam
+            sTrMaters = beam:GetMaterialID(trace)
+            beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
-            if(reflect and not data.StRfract) then
-              data:Reflect(reflect, trace) -- Call reflection method
+            if(reflect and not beam.StRfract) then
+              beam:Reflect(reflect, trace) -- Call reflection method
             else
               local refract, key = GetMaterialEntry(sTrMaters, DATA.REFRACT)
-              if(data.StRfract or (refract and key ~= data.TrMedium.S[2])) then -- Needs to be refracted
+              if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Calculated refraction ray. Reflect when not possible
-                  if(data.StRfract) then -- Laser is within the map water submerged
-                    data:SetWater(refract[3] or key, tr)
-                    data:Redirect(trace.HitPos, direct) -- Keep the same direction and initial origin
-                    data.StRfract = false -- Lower the flag so no preformance hit is present
+                  if(beam.StRfract) then -- Laser is within the map water submerged
+                    beam:SetWater(refract[3] or key, tr)
+                    beam:Redirect(trace.HitPos, direct) -- Keep the same direction and initial origin
+                    beam.StRfract = false -- Lower the flag so no preformance hit is present
                   else -- Beam comes from the air and hits the water. Store water plane and refract
                     -- Get the trace tready to check the other side and point and register the location
-                    local vdir, bout = LaserLib.GetRefracted(data.VrDirect,
-                                         trace.HitNormal, data.TrMedium.S[1][1], refract[1])
-                    data:SetWater(refract[3] or key, trace)
-                    data:Redirect(trace.HitPos, vdir)
+                    local vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                                         trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
+                    beam:SetWater(refract[3] or key, trace)
+                    beam:Redirect(trace.HitPos, vdir)
                   end -- Need to make the traversed destination the new source
-                  data:SetRefractWorld(trace, refract, key)
+                  beam:SetRefractWorld(trace, refract, key)
                   -- Apply power ratio when requested
-                  if(usrfre) then data:SetPowerRatio(refract[2]) end
-                  -- We cannot be able to refract as the requested data is missing
-                else data:Finish(trace) end
+                  if(usrfre) then beam:SetPowerRatio(refract[2]) end
+                  -- We cannot be able to refract as the requested entry is missing
+                else beam:Finish(trace) end
                 -- All triggers when reflecting and refracting are processed
-              else data:Finish(trace) end -- Not traversing and have hit a wall
+              else beam:Finish(trace) end -- Not traversing and have hit a wall
             end
           end -- We are neither hit a valid entity nor a map water
         end
-      else data:Finish(trace) end; data:Bounce() -- Refresh medium pass trough information
-    else data:Finish(trace) end -- Trace did not hit anything to be bounced off from
-  until(data:IsFinish())
+      else beam:Finish(trace) end; beam:Bounce() -- Refresh medium pass trough information
+    else beam:Finish(trace) end -- Trace did not hit anything to be bounced off from
+  until(beam:IsFinish())
 
   -- Reset the parameters for the next call
-  data:ClearWater()
+  beam:ClearWater()
   LaserLib.Bounces()
 
-  -- The beam ends inside transperent medium
-  if(not data:IsNode()) then return nil, data end
+  -- The beam ends inside transperent entity
+  if(not beam:IsNode()) then return nil, beam:SetSource() end
 
-  data:SourceUpdate(trace)
+  beam:UpdateSource(trace):SetSource()
 
-  return trace, data
+  return trace, beam
 end
 
 function LaserLib.ComboBoxString(panel, convar, nameset)
@@ -2496,7 +2571,7 @@ end
 function LaserLib.SetupModels()
   if(SERVER) then return end
 
-  local data = {
+  local moar = {
     {"models/props_lab/tpplug.mdl"},
     {"models/hunter/plates/plate.mdl"},
     {"models/props_junk/flare.mdl",90},
@@ -2517,77 +2592,78 @@ function LaserLib.SetupModels()
   }
 
   if(IsMounted("portal")) then -- Portal
-    table.insert(data, {"models/props_bts/rocket.mdl"})
-    table.insert(data, {"models/props/cake/cake.mdl",90})
-    table.insert(data, {"models/props/water_bottle/water_bottle.mdl",90})
-    table.insert(data, {"models/props/turret_01.mdl",0,"12,0,36.75","1,0,0"})
-    table.insert(data, {"models/props_bts/projector.mdl",0,"1,-10,5","0,-1,0"})
-    table.insert(data, {"models/props/laser_emitter.mdl",0,"29,0,-14","1,0,0"})
-    table.insert(data, {"models/props/laser_emitter_center.mdl",0,"29,0,0","1,0,0"})
-    table.insert(data, {"models/weapons/w_portalgun.mdl",0,"-20,-0.7,-0.3","-1,0,0"})
-    table.insert(data, {"models/props_bts/glados_ball_reference.mdl",0,"0,15,0","0,1,0"})
-    table.insert(data, {"models/props/pc_case02/pc_case02.mdl",0,"-0.2,2.4,-9.2","1,0,0"})
+    table.insert(moar, {"models/props_bts/rocket.mdl"})
+    table.insert(moar, {"models/props/cake/cake.mdl",90})
+    table.insert(moar, {"models/props/water_bottle/water_bottle.mdl",90})
+    table.insert(moar, {"models/props/turret_01.mdl",0,"12,0,36.75","1,0,0"})
+    table.insert(moar, {"models/props_bts/projector.mdl",0,"1,-10,5","0,-1,0"})
+    table.insert(moar, {"models/props/laser_emitter.mdl",0,"29,0,-14","1,0,0"})
+    table.insert(moar, {"models/props/laser_emitter_center.mdl",0,"29,0,0","1,0,0"})
+    table.insert(moar, {"models/weapons/w_portalgun.mdl",0,"-20,-0.7,-0.3","-1,0,0"})
+    table.insert(moar, {"models/props_bts/glados_ball_reference.mdl",0,"0,15,0","0,1,0"})
+    table.insert(moar, {"models/props/pc_case02/pc_case02.mdl",0,"-0.2,2.4,-9.2","1,0,0"})
+    table.insert(moar, {"models/props/radio_reference.mdl",0,"0.006396,3.646849,14.241646","0,0,1"})
   end
 
   if(IsMounted("portal2")) then -- Portal 2
-    table.insert(data, {"models/br_debris/deb_s8_cube.mdl"})
-    table.insert(data, {"models/npcs/turret/turret.mdl",0,"12,0,36.75","1,0,0"})
-    table.insert(data, {"models/npcs/turret/turret_skeleton.mdl",0,"12,0,36.75","1,0,0"})
+    table.insert(moar, {"models/br_debris/deb_s8_cube.mdl"})
+    table.insert(moar, {"models/npcs/turret/turret.mdl",0,"12,0,36.75","1,0,0"})
+    table.insert(moar, {"models/npcs/turret/turret_skeleton.mdl",0,"12,0,36.75","1,0,0"})
   end
 
   if(IsMounted("hl2")) then -- HL2
-    table.insert(data, {"models/items/ar2_grenade.mdl"})
-    table.insert(data, {"models/props_lab/huladoll.mdl",90})
-    table.insert(data, {"models/weapons/w_missile_closed.mdl"})
-    table.insert(data, {"models/weapons/w_missile_launch.mdl"})
-    table.insert(data, {"models/props_c17/canister01a.mdl",90})
-    table.insert(data, {"models/props_combine/weaponstripper.mdl"})
-    table.insert(data, {"models/items/combine_rifle_ammo01.mdl",90})
-    table.insert(data, {"models/props_borealis/bluebarrel001.mdl",90})
-    table.insert(data, {"models/props_c17/canister_propane01a.mdl",90})
-    table.insert(data, {"models/props_borealis/door_wheel001a.mdl",180})
-    table.insert(data, {"models/items/combine_rifle_cartridge01.mdl",-90})
-    table.insert(data, {"models/props_trainstation/trashcan_indoor001b.mdl",-90})
-    table.insert(data, {"models/props_lab/reciever01b.mdl",0,"-7.12,-6.56,0.35","-1,0,0"})
-    table.insert(data, {"models/props_c17/trappropeller_lever.mdl",0,"0,-6,-0.15","0,-1,0"})
+    table.insert(moar, {"models/items/ar2_grenade.mdl"})
+    table.insert(moar, {"models/props_lab/huladoll.mdl",90})
+    table.insert(moar, {"models/weapons/w_missile_closed.mdl"})
+    table.insert(moar, {"models/weapons/w_missile_launch.mdl"})
+    table.insert(moar, {"models/props_c17/canister01a.mdl",90})
+    table.insert(moar, {"models/props_combine/weaponstripper.mdl"})
+    table.insert(moar, {"models/items/combine_rifle_ammo01.mdl",90})
+    table.insert(moar, {"models/props_borealis/bluebarrel001.mdl",90})
+    table.insert(moar, {"models/props_c17/canister_propane01a.mdl",90})
+    table.insert(moar, {"models/props_borealis/door_wheel001a.mdl",180})
+    table.insert(moar, {"models/items/combine_rifle_cartridge01.mdl",-90})
+    table.insert(moar, {"models/props_trainstation/trashcan_indoor001b.mdl",-90})
+    table.insert(moar, {"models/props_lab/reciever01b.mdl",0,"-7.12,-6.56,0.35","-1,0,0"})
+    table.insert(moar, {"models/props_c17/trappropeller_lever.mdl",0,"0,-6,-0.15","0,-1,0"})
   end
 
   if(IsMounted("dod")) then -- DoD
-    table.insert(data, {"models/weapons/w_smoke_ger.mdl",-90})
+    table.insert(moar, {"models/weapons/w_smoke_ger.mdl",-90})
   end
 
   if(IsMounted("ep2")) then -- HL2 EP2
-    table.insert(data, {"models/props_junk/gnome.mdl",0,"-3,0.94,6","-1,0,0"})
+    table.insert(moar, {"models/props_junk/gnome.mdl",0,"-3,0.94,6","-1,0,0"})
   end
 
   if(IsMounted("cstrike")) then -- Counter-Strike Source
-    table.insert(data, {"models/props/de_nuke/emergency_lighta.mdl",90})
+    table.insert(moar, {"models/props/de_nuke/emergency_lighta.mdl",90})
   end
 
   if(IsMounted("left4dead")) then -- Left 4 Dead
-    table.insert(data, {"models/props_unique/airport/line_post.mdl",90})
-    table.insert(data, {"models/props_street/firehydrant.mdl",0,"-0.081,0.052,39.31","0,0,1"})
+    table.insert(moar, {"models/props_unique/airport/line_post.mdl",90})
+    table.insert(moar, {"models/props_street/firehydrant.mdl",0,"-0.081,0.052,39.31","0,0,1"})
   end
 
   if(IsMounted("tf")) then -- Team Fortress 2
-    table.insert(data, {"models/props_hydro/road_bumper01.mdl",90})
+    table.insert(moar, {"models/props_hydro/road_bumper01.mdl",90})
   end
 
   if(WireLib) then -- Make these model available only if the player has Wire
-    table.insert(data, {"models/led2.mdl", 90})
-    table.insert(data, {"models/venompapa/wirecdlock.mdl", 90})
-    table.insert(data, {"models/jaanus/wiretool/wiretool_siren.mdl", 90})
-    table.insert(data, {"models/jaanus/wiretool/wiretool_range.mdl", 90})
-    table.insert(data, {"models/jaanus/wiretool/wiretool_beamcaster.mdl", 90})
-    table.insert(data, {"models/jaanus/wiretool/wiretool_grabber_forcer.mdl", 90})
+    table.insert(moar, {"models/led2.mdl", 90})
+    table.insert(moar, {"models/venompapa/wirecdlock.mdl", 90})
+    table.insert(moar, {"models/jaanus/wiretool/wiretool_siren.mdl", 90})
+    table.insert(moar, {"models/jaanus/wiretool/wiretool_range.mdl", 90})
+    table.insert(moar, {"models/jaanus/wiretool/wiretool_beamcaster.mdl", 90})
+    table.insert(moar, {"models/jaanus/wiretool/wiretool_grabber_forcer.mdl", 90})
   end
 
-  -- Automatic data population. Add models in the list above
+  -- Automatic model array population. Add models in the list above
   table.Empty(list.GetForEdit("LaserEmitterModels"))
 
   local sTool = LaserLib.GetTool()
-  for idx = 1, #data do
-    local rec = data[idx]
+  for idx = 1, #moar do
+    local rec = moar[idx]
     local mod = tostring(rec[1] or "")
     local ang = (tonumber(rec[2]) or 0)
     local org = tostring(rec[3] or "")

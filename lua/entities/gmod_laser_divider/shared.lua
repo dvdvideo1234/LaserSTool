@@ -83,16 +83,16 @@ end
 
 local hdx = 0
 
-function ENT:ActionSource(entity, index, trace, data)
-  if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+function ENT:ActionSource(entity, index, trace, beam)
+  if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
-    local ref = LaserLib.GetReflected(data.VrDirect, trace.HitNormal)
+    local ref = LaserLib.GetReflected(beam.VrDirect, trace.HitNormal)
     if(CLIENT) then
-      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, data, hdx)
-      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, data.VrDirect, data, hdx)
+      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, beam, hdx)
+      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, beam.VrDirect, beam, hdx)
     else
-      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, data, hdx))
-      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, data.VrDirect, data, hdx))
+      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, beam, hdx))
+      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, beam.VrDirect, beam, hdx))
     end
   end -- Sources are located in the table hash part
 end
@@ -111,10 +111,11 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * sdat > Source beam trace data
+ * sdat > Source trace beam class
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, sdat, idx)
+  LaserLib.Sources(self, sdat.BmSource)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
@@ -123,7 +124,7 @@ function ENT:DoBeam(ent, org, dir, sdat, idx)
   local damage = sdat.NvDamage / todiv
   local force  = sdat.NvForce  / todiv
   local width  = LaserLib.GetWidth(sdat.NvWidth / todiv)
-  local trace, data = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self,
                                       org,
                                       dir,
                                       length,
@@ -134,5 +135,5 @@ function ENT:DoBeam(ent, org, dir, sdat, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, ent:UpdateBeam(data, sdat)
+  return trace, beam
 end

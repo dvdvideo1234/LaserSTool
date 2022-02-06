@@ -131,15 +131,15 @@ end
 
 local hdx, count
 
-function ENT:ActionSource(entity, index, trace, data)
-  if(trace and trace.Hit and data and self:IsHitNormal(trace)) then
+function ENT:ActionSource(entity, index, trace, beam)
+  if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
     local upwrd = Vector(self:GetUpwardLocal())
           upwrd:Rotate(self:GetAngles())
     local bsdir = Vector(trace.HitNormal)
     local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
     local angle = bsdir:AngleEx(upwrd)
-    local mrdotm = math.abs(data.VrDirect:Dot(bsdir))
+    local mrdotm = math.abs(beam.VrDirect:Dot(bsdir))
     local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
     if(count > 1) then
       local marbx = self:GetBeamLeanX()
@@ -150,17 +150,17 @@ function ENT:ActionSource(entity, index, trace, data)
         local newdr = marby * angle:Up()
               newdr:Add(marbx * angle:Forward())
         if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, data, mrdotv, hdx)
+          hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, beam, mrdotv, hdx)
         else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, newdr, data, mrdotv, hdx))
+          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, newdr, beam, mrdotv, hdx))
         end
         angle:RotateAroundAxis(bsdir, mnang)
       end
     else
       if(CLIENT) then
-        hdx = hdx + 1; self:DrawBeam(entity, bmorg, bsdir, data, mrdotv, hdx)
+        hdx = hdx + 1; self:DrawBeam(entity, bmorg, bsdir, beam, mrdotv, hdx)
       else
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, bsdir, data, mrdotv, hdx))
+        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, bsdir, beam, mrdotv, hdx))
       end
     end
   end -- Sources are located in the table hash part
@@ -184,10 +184,11 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * sdat > Source beam trace data
+ * sdat > Source trace beam class
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
+  LaserLib.Sources(self, sdat.BmSource)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
@@ -198,7 +199,7 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
   local damage = (sdat.NvDamage / todiv)
   local force  = (sdat.NvForce  / todiv)
   local width  = LaserLib.GetWidth((sdat.NvWidth / todiv))
-  local trace, data = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self,
                                       org,
                                       dir,
                                       length,
@@ -209,5 +210,5 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, ent:UpdateBeam(data, sdat)
+  return trace, beam
 end

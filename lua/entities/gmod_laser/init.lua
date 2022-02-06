@@ -109,21 +109,21 @@ function ENT:SpawnFunction(user, trace)
   end
 end
 
-function ENT:DoDamage(trace, data)
+function ENT:DoDamage(trace, beam)
   if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
       -- Check whenever target is beam source
       if(not LaserLib.IsUnit(trent)) then
-        local sors = data.BmSource
+        local sors = beam.BmSource
         local user = (self.ply or self.player)
         local dtyp = sors:GetDissolveType()
         LaserLib.DoDamage(trent,
                           trace.HitPos,
                           trace.Normal,
-                          data.VrDirect,
-                          data.NvDamage,
-                          data.NvForce,
+                          beam.VrDirect,
+                          beam.NvDamage,
+                          beam.NvForce,
                           (user or sors:GetCreator()),
                           LaserLib.GetDissolveID(dtyp),
                           sors:GetKillSound(),
@@ -141,7 +141,7 @@ end
  * Takes the values tom the argument and updated source
  * ent > Dominant entity reference being extracted
 ]]
-function ENT:SetDominant(ent)
+function ENT:SetDominant(ent, beam)
   if(not LaserLib.IsUnit(ent, 2)) then return self end
   -- We set the same non-addable properties
   -- The most powerful source (biggest damage/width)
@@ -155,7 +155,7 @@ function ENT:SetDominant(ent)
   self:SetReflectRatio(ent:GetReflectRatio())
   self:SetRefractRatio(ent:GetRefractRatio())
   self:SetNonOverMater(ent:GetNonOverMater())
-  self:SetBeamColorRGBA(ent:GetBeamColorRGBA())
+  self:SetBeamColorRGBA(beam.NvColor or ent:GetBeamColorRGBA(true))
 
   self:WireWrite("Dominant", ent)
   LaserLib.SetPlayer(self, (ent.ply or ent.player))
@@ -166,10 +166,10 @@ end
 function ENT:Think()
   if(self:GetOn()) then
     self:UpdateFlags()
-    local trace, data = self:DoBeam()
+    local trace, beam = self:DoBeam()
 
-    if(data) then
-      self:WireWrite("Range", data.RaLength)
+    if(beam) then
+      self:WireWrite("Range", beam.RaLength)
     end
 
     if(trace) then
@@ -184,7 +184,7 @@ function ENT:Think()
       end
     end
 
-    self:DoDamage(trace, data)
+    self:DoDamage(trace, beam)
   else
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)

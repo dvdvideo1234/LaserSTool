@@ -1,11 +1,11 @@
-ENT.EditableOrderInfo = {Ord = 0, Typ = {}}
+ENT.EditableOrderInfo = {N = 0, T = {}}
 
-function ENT:EditableGetOrderID(typ)
-  local data = self.EditableOrderInfo
-  if(not data.Typ[typ]) then data.Typ[typ] = 0
-  else data.Typ[typ] = data.Typ[typ] + 1 end
-  data.Ord = data.Ord + 1
-  return typ, data.Ord, data.Typ[typ]
+function ENT:EditableGetOrderID(key)
+  local info = self.EditableOrderInfo
+  if(not info.T[key]) then info.T[key] = 0
+  else info.T[key] = info.T[key] + 1 end
+  info.N = info.N + 1 -- Increment order
+  return key, info.N, info.T[key]
 end
 
 function ENT:EditableRemoveOrderInfo()

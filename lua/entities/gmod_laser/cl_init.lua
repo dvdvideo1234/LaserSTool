@@ -6,37 +6,37 @@ ENT.RenderGroup = RENDERGROUP_BOTH
  * This is actually faster than stuffing all the beams
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
- * trace  > Trace data recieved from the beam
- * data   > Information parameters of the current beam
+ * trace  > Trace result recieved from the beam
+ * beam   > Information parameters of the current beam
  * source > Entity that has laser related properties
 ]]
-function ENT:DrawEndingEffect(trace, data, source)
+function ENT:DrawEndingEffect(trace, beam, source)
   local okent = LaserLib.IsValid(source)
   local usent = (okent and source or self)
   local endrw = usent:GetEndingEffect()
-  data:DrawEffect(usent, trace, endrw)
+  beam:DrawEffect(usent, trace, endrw)
 end
 
 --[[
  * This traps the beam by following the trace
  * You can mark trace view points as visible
- * data   > Beam  information status structure
+ * beam   > Beam information status structure
  * source > Entity that has laser related properties
 ]]
-function ENT:DrawTrace(data, source)
+function ENT:DrawTrace(beam, source)
   local okent = LaserLib.IsValid(source)
   local usent = (okent and source or self)
   local corgb = usent:GetBeamColorRGBA(true)
   local imatr = usent:GetBeamMaterial(true)
-  data:Draw(usent, imatr, corgb)
+  beam:Draw(usent, imatr, corgb)
 end
 
 function ENT:DrawBeam()
-  local trace, data = self:DoBeam()
-  if(not data) then return end
-  self:DrawTrace(data) -- Draws the beam trace
+  local trace, beam = self:DoBeam()
+  if(not beam) then return end
+  self:DrawTrace(beam) -- Draws the beam trace
   -- Handle drawing the effects when have to be drawwn
-  self:DrawEndingEffect(trace, data)
+  self:DrawEndingEffect(trace, beam)
 end
 
 function ENT:Draw()

@@ -103,23 +103,23 @@ local opower, npower, force  = 0, 0, 0
 local width , length, damage = 0, 0, 0
 local origin, direct = Vector(), Vector()
 
-function ENT:ActionSource(entity, index, trace, data)
+function ENT:ActionSource(entity, index, trace, beam)
   local norm = self:GetUnitDirection()
-  local bdot, mdot = self:GetHitPower(norm, trace, data)
-  if(trace and trace.Hit and data) then
+  local bdot, mdot = self:GetHitPower(norm, trace, beam)
+  if(trace and trace.Hit and beam) then
     self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
-      npower = LaserLib.GetPower(data.NvWidth, data.NvDamage)
-      width  = width  + data.NvWidth
-      damage = damage + data.NvDamage
-      force  = force  + data.NvForce
+      npower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
+      width  = width  + beam.NvWidth
+      damage = damage + beam.NvDamage
+      force  = force  + beam.NvForce
       if(not opower or npower >= opower) then
         normh  = true
         opower = npower
-        domsrc = data.BmSource
-        length = data.NvLength
-        origin:Set(data.VrOrigin)
-        direct:Set(data.VrDirect)
+        domsrc = beam.BmSource
+        length = beam.NvLength
+        origin:Set(beam.VrOrigin)
+        direct:Set(beam.VrDirect)
       end
     end
   end -- Sources are located in the table hash part
@@ -166,7 +166,7 @@ function ENT:UpdateSources()
          (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
          (mlength == 0 or (mlength > 0 and length >= mlength)) and
          (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
-        if(self:GetCheckDominant()) then -- Compare dominant data
+        if(self:GetCheckDominant()) then -- Compare dominant
           -- Sensor configurations
           local mfcentr = self:GetForceCenter()
           local mreflec = self:GetReflectRatio()

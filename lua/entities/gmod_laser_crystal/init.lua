@@ -89,55 +89,56 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local doment , domsrc
 local xlength, bpower
 local xforce , xwidth, xdamage
 local opower , npower, force
 local width  , length, damage
+local doment , domsrc, dobeam
 
-function ENT:ActionSource(entity, index, trace, data)
-  if(trace and trace.Hit and data) then
+function ENT:ActionSource(entity, index, trace, beam)
+  if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
-    npower = LaserLib.GetPower(data.NvWidth,
-                               data.NvDamage)
+    npower = LaserLib.GetPower(beam.NvWidth,
+                               beam.NvDamage)
     if(not self:IsInfinite(entity)) then
-      width  = width  + data.NvWidth
-      length = length + data.NvLength
-      damage = damage + data.NvDamage
-      force  = force  + data.NvForce
+      width  = width  + beam.NvWidth
+      length = length + beam.NvLength
+      damage = damage + beam.NvDamage
+      force  = force  + beam.NvForce
       bpower = (bpower or true)
     else
       if(doment ~= entity) then
-        xforce  = data.NvForce
-        xwidth  = data.NvWidth
-        xdamage = data.NvDamage
-        xlength = data.BmLength
+        xforce  = beam.NvForce
+        xwidth  = beam.NvWidth
+        xdamage = beam.NvDamage
+        xlength = beam.BmLength
       else
-        xforce  = xforce  + data.NvForce
-        xwidth  = xwidth  + data.NvWidth
-        xdamage = xdamage + data.NvDamage
+        xforce  = xforce  + beam.NvForce
+        xwidth  = xwidth  + beam.NvWidth
+        xdamage = xdamage + beam.NvDamage
       end
     end
     if(not opower or npower >= opower) then
       opower = npower
-      domsrc = data.BmSource
+      domsrc = beam.BmSource
       doment = entity
+      dobeam = beam
     end
   end
 end
 
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
-  doment , domsrc = nil, nil
   xlength, bpower = 0, false
   xforce , xwidth, xdamage = 0, 0, 0
   width  , length, damage  = 0, 0, 0
   npower , force , opower  = 0, 0, nil
+  doment , domsrc, dobeam = nil, nil, nil
 
   self:ProcessSources()
 
   if(self.hitSize > 0) then
-    self:SetDominant(domsrc)
+    self:SetDominant(domsrc, dobeam)
 
     if(bpower) then -- Sum settings
       self:SetBeamForce(force)
@@ -175,10 +176,10 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:UpdateFlags()
-    local trace, data = self:DoBeam()
+    local trace, beam = self:DoBeam()
 
-    if(data) then
-      self:WireWrite("Range", data.RaLength)
+    if(beam) then
+      self:WireWrite("Range", beam.RaLength)
     end
 
     if(trace) then
@@ -193,7 +194,7 @@ function ENT:Think()
       end
     end
 
-    self:DoDamage(trace, data)
+    self:DoDamage(trace, beam)
   else
     self:RemHitReports()
     self:WireWrite("Hit", 0)

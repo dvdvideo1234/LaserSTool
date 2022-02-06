@@ -1,6 +1,6 @@
 E2Lib.RegisterExtension("laserbeam", true,
   "Lets E2 chips utilize entity finction form the laser sources.",
-  "Provides a dedicated API that can extract data from laser source entities."
+  "Provides a dedicated API that can extract beam information from laser entities."
 )
 
 local REFLECT = LaserLib.GetData("REFLECT")
