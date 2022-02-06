@@ -188,6 +188,7 @@ end
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
+  LaserLib.Sources(self, sdat.BmSource)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
@@ -209,5 +210,5 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, ent:UpdateBeam(beam, sdat)
+  return trace, beam
 end

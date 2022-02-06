@@ -22,6 +22,8 @@ function ENT:Initialize()
   self:SetInBeamForce(0)
   self:SetInBeamMaterial("")
   self:SetBeamReplicate(false)
+  self:SetBeamPowerClamp(false)
+  self:SetBeamRemoveDraw(false)
   self:SetBeamColorRGBA(0,0,0,0)
 
   local phys = self:GetPhysicsObject()

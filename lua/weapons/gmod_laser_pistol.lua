@@ -63,7 +63,7 @@ function SWEP:Setup()
     self.MO, self.MD = Vector(), Vector()
   end
 
-  LaserLib.GetData("CLS")[self:GetClass()] = {true, false}
+  LaserLib.GetData("CLS")[self:GetClass()] = {true, true}
 end
 
 function SWEP:Initialize()
@@ -238,6 +238,22 @@ function SWEP:GetBeamForce()
   return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
 end
 
+function SWEP:GetBeamOrigin()
+  local user = self:GetOwner()
+  local vorg = user:GetCurrentViewOffset()
+  local vobb = user:LocalToWorld(user:OBBCenter())
+        vorg:Mul(4); vorg:Add(vobb)
+  return vorg
+end
+
+function SWEP:GetBeamDirect()
+  local user = self:GetOwner()
+  local vorg = self:GetBeamOrigin()
+  local vdir = user:GetEyeTrace().HitPos
+        vdir:Sub(vorg); vdir:Normalize()
+  return vdir
+end
+
 function SWEP:DoBeam(origin, direct)
   local user = self:GetOwner()
   local width  = self:GetBeamWidth()
@@ -265,8 +281,8 @@ function SWEP:ServerBeam()
 
   if(self:GetOn()) then
     local user = self:GetOwner()
-    local vorg = user:EyePos()
-    local vdir = user:GetAimVector()
+    local vorg = self:GetBeamOrigin()
+    local vdir = self:GetBeamDirect()
 
     LaserLib.Bounces(1)
 
@@ -276,7 +292,6 @@ function SWEP:ServerBeam()
       LaserLib.IsUnit(trace.Entity)
     ) then
 
-    local user = self:GetOwner()
     local fcen = self:GetForceCenter()
     local dtyp = self:GetDissolveType()
     local ssnd = self:GetStopSound()

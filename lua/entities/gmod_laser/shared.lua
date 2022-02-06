@@ -658,26 +658,3 @@ function ENT:WireArrays()
     if(nam) then self:WireWrite(nam, arr) end
   end; return self
 end
-
---[[
- * Updates beam the beam according to the source entity
- * beam > Data to be updated currently ( mandatory )
- * sdat > Beam source from the previous stage
-]]
-function ENT:UpdateBeam(beam, sdat)
-  if(LaserLib.IsUnit(self, 2)) then -- When actual source
-    beam.BmSource = self -- Initial stage store source
-  else -- Make sure we always know which entity is source
-    beam.BmSource = sdat.BmSource -- Inherit previous source
-  end -- Otherwise inherit the source from previos stage
-  return beam -- The routine will always succeed
-end
-
---[[
- * Updates beam the beam according to the source entity
- * beam > Data to be updated currently ( mandatory )
- * sdat > Beam source from the previous stage
-]]
-function ENT:GetBeamSource(sors)
-  return (LaserLib.IsUnit(self, 2) and self or sors)
-end

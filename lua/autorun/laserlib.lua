@@ -55,8 +55,8 @@ DATA.TRWU = 50000           -- The amount of units to trace for finding water su
 DATA.BONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
-DATA.AMAX = {-360, 360}     -- Genral angular limis for having min/max
-DATA.TIME = {Size = 1, Done = false, Suma = 0} -- Used for testing perposes
+DATA.AMAX = {-360, 360}     -- General angular limis for having min/max
+DATA.ESRC = nil             -- This stores the entity source for the beam update
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
@@ -526,38 +526,6 @@ end
 function LaserLib.GetMaterial(iK)
   local sT = DATA.MAT[tonumber(iK)]
   return (sT and sT or nil)
-end
-
---[[
- * This is used to time a given code sippet when debugging
- * Call it without arguments to reset the state
- * Dinamically sums N-calls and reurns the average
- * num > Number of samples to be registered
- * tim > Time difference to be registered
-]]
-function LaserLib.Time(num, tim)
-  local arr = DATA.TIME
-  if(num and tim) then
-    local siz = arr.Size
-    if(siz <= num) then
-      arr.Suma = arr.Suma - (arr[siz] or 0)
-      arr[siz] = tim
-      arr.Suma = arr.Suma + tim
-      arr.Size = siz + 1
-    else
-      arr.Suma = arr.Suma - arr[1]
-      arr[1] = tim
-      arr.Suma = arr.Suma + tim
-      arr.Size = 1
-      arr.Done = true
-    end
-    local top = arr.Done and num or siz
-    return (arr.Suma / top), top
-  else
-    arr.Size = 1
-    arr.Suma = 0
-    arr.Done = false
-  end
 end
 
 -- Draw a position on the screen
@@ -1298,14 +1266,35 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   return pos, dir
 end
 
-function LaserLib.Bounces(num)
-  if(num and num > 0) then
-    DATA.BONC = math.floor(num)
+--[[
+ * Makes the laser trace loop use pre-defined bounces cout
+ * When this is not given the loop will use MBOUNCES
+ * bounce > The amount of bounces the loop will have
+]]
+function LaserLib.Bounces(bounce)
+  if(bounce and bounce > 0) then
+    DATA.BONC = math.floor(bounce)
   else -- Reset the exterlan limit
     DATA.BONC = 0
   end
 end
 
+--[[
+ * Updates the beam source according to the current entity
+ * entity > Reference to the current entity
+ * former > Reference to the source from last split
+]]
+function LaserLib.Sources(entity, former)
+  if(entity and former) then
+    if(LaserLib.IsUnit(entity, 2)) then
+      DATA.ESRC = entity
+    else DATA.ESRC = former end
+  else DATA.ESRC = nil end
+end
+
+--[[
+ * This implements beam OOP with all its specifics
+]]
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__index = mtBeam -- If not found in self search here
@@ -1927,11 +1916,29 @@ function mtBeam:SourceFilter(entity)
 end
 
 --[[
+ * Applies the beam current active source entity
+ * Checks when we have SIMO source request
+]]
+function mtBeam:SetSource()
+  if(DATA.ESRC) then  -- Used for SIMO units
+    self.BmSource = DATA.ESRC -- Update
+    LaserLib.Sources() -- Clear request
+  end; return self -- Coding effective API
+end
+
+--[[
+ * Returns the beam current active source entity
+]]
+function mtBeam:GetSource()
+  return (DATA.ESRC or self.BmSource)
+end
+
+--[[
  * This does post-update fnd regiasters beam sources
  * Preforms some logick to calculate the filter
  * trace > Trace result after the last iteration
 ]]
-function mtBeam:SourceUpdate(trace)
+function mtBeam:UpdateSource(trace)
   local entity, target = self.BmSource, trace.Entity
   -- Calculates the range as beam distanc traveled
   if(trace.Hit and self.RaLength > self.NvLength) then
@@ -1975,7 +1982,7 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
   -- Material must be cached and pdated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local spd, clr = DATA.DRWBMSPD:GetFloat(), color
+  local spd, cup = DATA.DRWBMSPD:GetFloat(), color
   -- Draw the beam sequentially being faster
   for idx = 2, tvpnt.Size do
     local org = tvpnt[idx - 1]
@@ -1987,10 +1994,10 @@ function mtBeam:Draw(sours, imatr, color)
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
     -- When we need to draw the beam with rendering library
-    if(org[5]) then -- Current node has its draw enabled
-      clr = (org[6] or clr) -- Update the color for the node
+    if(org[5]) then -- Current node has its draw flag enabled
+      cup = (org[6] or cup) -- Update the color for the node
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
-      render.DrawBeam(otx, ntx, wdt, dtm + len / 8, dtm, clr)
+      render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
     end -- Draw the actual beam texture
   end
   -- Adjust the render bounds with world-space coordinates
@@ -2052,7 +2059,7 @@ end
 local gtActors = {
   ["event_horizon"] = function(trace, beam)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, beam.BmSource
+    local ent, src = trace.Entity, beam:GetSource()
     local pob, dir = trace.HitPos, beam.VrDirect
     local eff, out = src.isEffect, ent.Target
     if(out == ent) then return end -- We need to go somewhere
@@ -2071,7 +2078,7 @@ local gtActors = {
   end,
   ["gmod_laser_portal"] = function(trace, beam)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, beam.BmSource
+    local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsHitNormal(trace)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
     if(idx <= 0) then return end -- No output ID chosen
@@ -2110,7 +2117,7 @@ local gtActors = {
   end,
   ["prop_portal"] = function(trace, beam)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src, out = trace.Entity, beam.BmSource
+    local ent, src, out = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
     if(SERVER) then out = ent:FindOpenPair() -- Retrieve open pair
     else out = Entity(ent:GetNWInt("laseremitter_portal", 0)) end
@@ -2149,38 +2156,67 @@ local gtActors = {
   end,
   ["gmod_laser_filter"] = function(trace, beam)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, beam.BmSource
-    local matc = ent:GetInBeamMaterial()
-    local mats = src:GetInBeamMaterial()
-    if(matc == "" or (matc == mats)) then
-      local norm = ent:GetHitNormal()
-      local bdot = ent:GetHitPower(norm, trace, beam)
-      if(trace and trace.Hit and beam and bdot) then
-        beam.IsTrace = true -- Beam hits correct surface. Continue
-        local info = beam.TvPoints
-        local size = info.Size
-        local node, prev = info[size], info[size - 1]
-        local width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
-        local damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
-        local force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
-        local length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
-        local ec = ent:GetBeamColorRGBA(true)
-        local sc = (prev[6] or src:GetBeamColorRGBA(true))
+    local ent, src = trace.Entity, beam:GetSource()
+    local norm = ent:GetHitNormal()
+    local bdot = ent:GetHitPower(norm, trace, beam)
+    if(trace and trace.Hit and beam and bdot) then
+      local ctol = (0.2 * DATA.CLMX) -- Color tolerance
+      local info = beam.TvPoints -- Read current nore stack
+      local size = info.Size -- Extract nodes stack size
+      local matc = ent:GetInBeamMaterial()
+      local mats = src:GetInBeamMaterial()
+      local width, damage, force, length
+      local node, prev = info[size], info[size - 1]
+      local ec = ent:GetBeamColorRGBA(true)
+      local sc = (beam.NvColor or src:GetBeamColorRGBA(true))
+      local mctr, mctg = math.abs(sc.r - ec.r), math.abs(sc.g - ec.g)
+      local mctb, mcta = math.abs(sc.b - ec.b), math.abs(sc.a - ec.a)
+      if(ent:GetBeamPassTexture()) then
+        if(matc ~= "" and (matc ~= mats)) then return end
+      else -- Must decide when it needs to go out right now
+        if(matc ~= "" and (matc == mats)) then return end
+      end -- The beam did not fell victim to direct draw filtering
+      if(ent:GetBeamReplicate()) then
+        width  = beam.NvWidth
+        damage = beam.NvDamage
+        force  = beam.NvForce
+        length = beam.NvLength
+      else -- Color needs to be changed for the current node
         if(not node[6]) then node[6] = Color(0,0,0,0) end
-        node[6].r = math.max(sc.r - ec.r, 0)
-        node[6].g = math.max(sc.g - ec.g, 0)
-        node[6].b = math.max(sc.b - ec.b, 0)
-        node[6].a = math.max(sc.a - ec.a, 0)
-        beam.NvColor   = node[6]
-        beam.NvLength  = length; -- Length not used in visuals
-        beam.NvWidth   = width ; node[2] = width
-        beam.NvDamage  = damage; node[3] = damage
-        beam.NvForce   = force ; node[4] = force
-        beam.VrOrigin:Set(trace.HitPos)
-        beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
-        node[1]:Set(trace.HitPos) -- We are not portal update position
-        node[5] = true            -- We are not portal enable drawing
-      end
+        if(ent:GetBeamPowerClamp()) then
+          local ew, bw = ent:GetInBeamWidth() , beam.NvWidth
+          local ed, bd = ent:GetInBeamDamage(), beam.NvDamage
+          local ef, bf = ent:GetInBeamForce() , beam.NvForce
+          local el, bl = ent:GetInBeamLength(), beam.NvLength
+          width  = (ew > 0) and math.Clamp(bw, 0, ew) or bw
+          damage = (ed > 0) and math.Clamp(bd, 0, ed) or bd
+          force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
+          length = (el > 0) and math.Clamp(bl, 0, el) or bl
+          node[6].r = math.Clamp(sc.r, 0, ec.r)
+          node[6].g = math.Clamp(sc.g, 0, ec.g)
+          node[6].b = math.Clamp(sc.b, 0, ec.b)
+          node[6].a = math.Clamp(sc.a, 0, ec.a)
+        else
+          width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
+          damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
+          force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
+          length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
+          node[6].r = math.max(sc.r - ec.r, 0)
+          node[6].g = math.max(sc.g - ec.g, 0)
+          node[6].b = math.max(sc.b - ec.b, 0)
+          node[6].a = math.max(sc.a - ec.a, 0)
+        end
+        beam.NvColor = node[6] -- Last beam color being used
+      end -- Remove from the output beams with such color and material
+      beam.NvLength  = length; -- Length not used in visuals
+      beam.NvWidth   = width ; node[2] = width
+      beam.NvDamage  = damage; node[3] = damage
+      beam.NvForce   = force ; node[4] = force
+      beam.VrOrigin:Set(trace.HitPos)
+      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+      node[1]:Set(trace.HitPos) -- We are not portal update position
+      node[5] = true            -- We are not portal enable drawing
+      beam.IsTrace = true -- Beam hits correct surface. Continue
     end
   end,
   ["gmod_laser_parallel"] = function(trace, beam)
@@ -2320,7 +2356,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         else -- Put special cases here
           if(sTrClass and gtActors[sTrClass]) then
             local suc, err = pcall(gtActors[sTrClass], trace, beam)
-            if(not suc) then beam.IsTrace = false; error("Actor: "..err) end
+            if(not suc) then beam.IsTrace = false; target:Remove(); error("Actor: "..err) end
           else
             sTrMaters = beam:GetMaterialID(trace)
             beam.IsTrace  = true -- Still tracing the beam
@@ -2411,7 +2447,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         else
           if(sTrClass and gtActors[sTrClass]) then
             local suc, err = pcall(gtActors[sTrClass], trace, beam)
-            if(not suc) then beam.IsTrace = false; error("Actor: "..err) end
+            if(not suc) then beam.IsTrace = false; target:Remove(); error("Actor: "..err) end
           else
             sTrMaters = beam:GetMaterialID(trace)
             beam.IsTrace  = true -- Still tracing the beam
@@ -2453,10 +2489,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam:ClearWater()
   LaserLib.Bounces()
 
-  -- The beam ends inside transperent medium
-  if(not beam:IsNode()) then return nil, beam end
+  -- The beam ends inside transperent entity
+  if(not beam:IsNode()) then return nil, beam:SetSource() end
 
-  beam:SourceUpdate(trace)
+  beam:UpdateSource(trace):SetSource()
 
   return trace, beam
 end
@@ -2566,6 +2602,7 @@ function LaserLib.SetupModels()
     table.insert(moar, {"models/weapons/w_portalgun.mdl",0,"-20,-0.7,-0.3","-1,0,0"})
     table.insert(moar, {"models/props_bts/glados_ball_reference.mdl",0,"0,15,0","0,1,0"})
     table.insert(moar, {"models/props/pc_case02/pc_case02.mdl",0,"-0.2,2.4,-9.2","1,0,0"})
+    table.insert(moar, {"models/props/radio_reference.mdl",0,"0.006396,3.646849,14.241646","0,0,1"})
   end
 
   if(IsMounted("portal2")) then -- Portal 2

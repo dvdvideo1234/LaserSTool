@@ -115,6 +115,7 @@ end
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, sdat, idx)
+  LaserLib.Sources(self, sdat.BmSource)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
@@ -123,7 +124,7 @@ function ENT:DoBeam(ent, org, dir, sdat, idx)
   local damage = sdat.NvDamage / todiv
   local force  = sdat.NvForce  / todiv
   local width  = LaserLib.GetWidth(sdat.NvWidth / todiv)
-  local trace, beam = LaserLib.DoBeam(self:GetBeamSource(sdat.BmSource),
+  local trace, beam = LaserLib.DoBeam(self,
                                       org,
                                       dir,
                                       length,
@@ -134,5 +135,5 @@ function ENT:DoBeam(ent, org, dir, sdat, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, ent:UpdateBeam(beam, sdat)
+  return trace, beam
 end
