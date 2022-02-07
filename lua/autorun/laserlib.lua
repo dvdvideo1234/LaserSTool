@@ -2164,7 +2164,6 @@ local gtActors = {
       local size = info.Size -- Extract nodes stack size
       local matc = ent:GetInBeamMaterial()
       local mats = src:GetInBeamMaterial()
-      local width, damage, force, length
       local node, vcon = info[size], beam.NvColor
       local ec = ent:GetBeamColorRGBA(true)
       local sc = (vcon or src:GetBeamColorRGBA(true))
@@ -2196,6 +2195,7 @@ local gtActors = {
         node[5] = true            -- We are not portal enable drawing
         beam.IsTrace = true -- Beam hits correct surface. Continue
       else -- The beam did not fell victim to direct draw filtering
+        local width, damage, force, length
         if(ent:GetBeamReplicate()) then
           width  = beam.NvWidth
           damage = beam.NvDamage
@@ -2210,6 +2210,7 @@ local gtActors = {
             local el, bl = ent:GetInBeamLength(), beam.NvLength
             width  = (ew > 0) and math.Clamp(bw, 0, ew) or bw
             damage = (ed > 0) and math.Clamp(bd, 0, ed) or bd
+            if(not LaserLib.IsPower(width, damage)) then return end
             force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
             length = (el > 0) and math.Clamp(bl, 0, el) or bl
             node[6].r = math.Clamp(sc.r, 0, ec.r)
@@ -2219,6 +2220,7 @@ local gtActors = {
           else
             width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
             damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
+            if(not LaserLib.IsPower(width, damage)) then return end
             force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
             length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
             node[6].r = math.max(sc.r - ec.r, 0)
