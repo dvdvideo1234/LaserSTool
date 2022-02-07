@@ -23,10 +23,12 @@ include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
   local material = list.Get("LaserEmitterMaterials"); material["Empty"] = ""
-  self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
+  self:EditableSetVector("NormalLocal"  , "General") -- Used as normal
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("BeamPowerClamp", "General")
+  self:EditableSetBool  ("BeamPassEnable", "General")
   self:EditableSetBool  ("BeamPassTexture", "General")
+  self:EditableSetBool  ("BeamPassColor", "General")
   self:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
   self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())

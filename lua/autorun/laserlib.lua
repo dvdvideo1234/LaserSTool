@@ -2160,63 +2160,84 @@ local gtActors = {
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, trace, beam)
     if(trace and trace.Hit and beam and bdot) then
-      local ctol = (0.2 * DATA.CLMX) -- Color tolerance
       local info = beam.TvPoints -- Read current nore stack
       local size = info.Size -- Extract nodes stack size
       local matc = ent:GetInBeamMaterial()
       local mats = src:GetInBeamMaterial()
       local width, damage, force, length
-      local node, prev = info[size], info[size - 1]
+      local node, vcon = info[size], beam.NvColor
       local ec = ent:GetBeamColorRGBA(true)
-      local sc = (beam.NvColor or src:GetBeamColorRGBA(true))
-      local mctr, mctg = math.abs(sc.r - ec.r), math.abs(sc.g - ec.g)
-      local mctb, mcta = math.abs(sc.b - ec.b), math.abs(sc.a - ec.a)
-      if(ent:GetBeamPassTexture()) then
-        if(matc ~= "" and (matc ~= mats)) then return end
-      else -- Must decide when it needs to go out right now
-        if(matc ~= "" and (matc == mats)) then return end
-      end -- The beam did not fell victim to direct draw filtering
-      if(ent:GetBeamReplicate()) then
-        width  = beam.NvWidth
-        damage = beam.NvDamage
-        force  = beam.NvForce
-        length = beam.NvLength
-      else -- Color needs to be changed for the current node
-        if(not node[6]) then node[6] = Color(0,0,0,0) end
-        if(ent:GetBeamPowerClamp()) then
-          local ew, bw = ent:GetInBeamWidth() , beam.NvWidth
-          local ed, bd = ent:GetInBeamDamage(), beam.NvDamage
-          local ef, bf = ent:GetInBeamForce() , beam.NvForce
-          local el, bl = ent:GetInBeamLength(), beam.NvLength
-          width  = (ew > 0) and math.Clamp(bw, 0, ew) or bw
-          damage = (ed > 0) and math.Clamp(bd, 0, ed) or bd
-          force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
-          length = (el > 0) and math.Clamp(bl, 0, el) or bl
-          node[6].r = math.Clamp(sc.r, 0, ec.r)
-          node[6].g = math.Clamp(sc.g, 0, ec.g)
-          node[6].b = math.Clamp(sc.b, 0, ec.b)
-          node[6].a = math.Clamp(sc.a, 0, ec.a)
-        else
-          width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
-          damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
-          force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
-          length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
-          node[6].r = math.max(sc.r - ec.r, 0)
-          node[6].g = math.max(sc.g - ec.g, 0)
-          node[6].b = math.max(sc.b - ec.b, 0)
-          node[6].a = math.max(sc.a - ec.a, 0)
+      local sc = (vcon or src:GetBeamColorRGBA(true))
+      if(ent:GetBeamPassEnable()) then
+        local mc = (0.15 * DATA.CLMX) -- Color tolerance
+        local mcr = (math.abs(sc.r - ec.r) <= mc)
+        local mcg = (math.abs(sc.g - ec.g) <= mc)
+        local mcb = (math.abs(sc.b - ec.b) <= mc)
+        local mca = (math.abs(sc.a - ec.a) <= mc)
+        if(ent:GetBeamPassTexture()) then
+          if(matc ~= "" and (matc ~= mats)) then return end
+        else -- Block the given texture
+          if(matc ~= "" and (matc == mats)) then return end
         end
-        beam.NvColor = node[6] -- Last beam color being used
-      end -- Remove from the output beams with such color and material
-      beam.NvLength  = length; -- Length not used in visuals
-      beam.NvWidth   = width ; node[2] = width
-      beam.NvDamage  = damage; node[3] = damage
-      beam.NvForce   = force ; node[4] = force
-      beam.VrOrigin:Set(trace.HitPos)
-      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
-      node[1]:Set(trace.HitPos) -- We are not portal update position
-      node[5] = true            -- We are not portal enable drawing
-      beam.IsTrace = true -- Beam hits correct surface. Continue
+        if(ent:GetBeamPassColor()) then
+          if(ec.r > 0 and not mcr) then return end
+          if(ec.g > 0 and not mcg) then return end
+          if(ec.b > 0 and not mcb) then return end
+          if(ec.a > 0 and not mca) then return end
+        else -- Block similar beams
+          if(ec.r > 0 and mcr) then return end
+          if(ec.g > 0 and mcg) then return end
+          if(ec.b > 0 and mcb) then return end
+          if(ec.a > 0 and mca) then return end
+        end
+        beam.VrOrigin:Set(trace.HitPos)
+        beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+        node[1]:Set(trace.HitPos) -- We are not portal update position
+        node[5] = true            -- We are not portal enable drawing
+        beam.IsTrace = true -- Beam hits correct surface. Continue
+      else -- The beam did not fell victim to direct draw filtering
+        if(ent:GetBeamReplicate()) then
+          width  = beam.NvWidth
+          damage = beam.NvDamage
+          force  = beam.NvForce
+          length = beam.NvLength
+        else -- Color needs to be changed for the current node
+          if(not node[6]) then node[6] = Color(0,0,0,0) end
+          if(ent:GetBeamPowerClamp()) then
+            local ew, bw = ent:GetInBeamWidth() , beam.NvWidth
+            local ed, bd = ent:GetInBeamDamage(), beam.NvDamage
+            local ef, bf = ent:GetInBeamForce() , beam.NvForce
+            local el, bl = ent:GetInBeamLength(), beam.NvLength
+            width  = (ew > 0) and math.Clamp(bw, 0, ew) or bw
+            damage = (ed > 0) and math.Clamp(bd, 0, ed) or bd
+            force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
+            length = (el > 0) and math.Clamp(bl, 0, el) or bl
+            node[6].r = math.Clamp(sc.r, 0, ec.r)
+            node[6].g = math.Clamp(sc.g, 0, ec.g)
+            node[6].b = math.Clamp(sc.b, 0, ec.b)
+            node[6].a = math.Clamp(sc.a, 0, ec.a)
+          else
+            width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
+            damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
+            force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
+            length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
+            node[6].r = math.max(sc.r - ec.r, 0)
+            node[6].g = math.max(sc.g - ec.g, 0)
+            node[6].b = math.max(sc.b - ec.b, 0)
+            node[6].a = math.max(sc.a - ec.a, 0)
+          end
+          beam.NvColor = node[6] -- Last beam color being used
+        end -- Remove from the output beams with such color and material
+        beam.NvLength  = length; -- Length not used in visuals
+        beam.NvWidth   = width ; node[2] = width
+        beam.NvDamage  = damage; node[3] = damage
+        beam.NvForce   = force ; node[4] = force
+        beam.VrOrigin:Set(trace.HitPos)
+        beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+        node[1]:Set(trace.HitPos) -- We are not portal update position
+        node[5] = true            -- We are not portal enable drawing
+        beam.IsTrace = true -- Beam hits correct surface. Continue
+      end
     end
   end,
   ["gmod_laser_parallel"] = function(trace, beam)
