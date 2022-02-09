@@ -83,7 +83,7 @@ end
 
 local hdx = 0
 
-function ENT:ActionSource(entity, index, trace, beam)
+function ENT:ProcessBeam(entity, index, trace, beam)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
     local ref = LaserLib.GetReflected(beam.VrDirect, trace.HitNormal)

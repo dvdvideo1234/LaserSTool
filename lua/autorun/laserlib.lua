@@ -95,13 +95,13 @@ DATA.CLS = {
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
   {"gmod_laser"          , nil        , nil      }, -- Laser entity calss `PriarySource`
-  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `ActionSource`
+  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `ProcessBeam`
   {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `ActionSource`
+  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `ProcessBeam`
   {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `DoBeam`
-  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `ActionSource`
+  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `ProcessBeam`
   {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `DoBeam`
-  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `ActionSource`
+  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `ProcessBeam`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
   {"gmod_laser_parallel" , "parallel" , "paralel"}, -- Laser beam parallel `DoBeam`
   {"gmod_laser_filter"   , "filter"   , nil      }  -- Laser beam filter `DoBeam`

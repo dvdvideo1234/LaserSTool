@@ -4,6 +4,8 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
+local CLMX = LaserLib.GetData("CLMX")
+
 function ENT:RegisterSource(ent)
   if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
@@ -57,6 +59,7 @@ function ENT:Initialize()
   self:SetRefractRatio(false)
   self:SetForceCenter(false)
   self:SetNonOverMater(false)
+  self:SetCombineColors(false)
   self:SetBeamColorRGBA(255,255,255,255)
 
   self:WireWrite("Entity", self)
@@ -93,9 +96,29 @@ local xlength, bpower
 local xforce , xwidth, xdamage
 local opower , npower, force
 local width  , length, damage
-local doment , domsrc, dobeam
+local domcor, doment , dobeam = Color(0,0,0,0)
 
-function ENT:ActionSource(entity, index, trace, beam)
+function ENT:EverySource(entity, index)
+  local trace, beam = entity:GetHitReport(index)
+  if(self:GetCombineColors()) then
+    local cov = beam.NvColor
+    local src = beam.BmSource
+    if(LaserLib.IsValid(src)) then
+      com = src:GetBeamColorRGBA(true)
+      domcor.r = domcor.r + (cov and cov.r or com.r)
+      domcor.g = domcor.g + (cov and cov.g or com.g)
+      domcor.b = domcor.b + (cov and cov.b or com.b)
+      domcor.a = math.max(domcor.a, (cov and cov.a or com.a))
+    else
+      domcor.r = domcor.r + (cov and cov.r or 0)
+      domcor.g = domcor.g + (cov and cov.g or 0)
+      domcor.b = domcor.b + (cov and cov.b or 0)
+      domcor.a = math.max(domcor.a, (cov and cov.a or 0))
+    end
+  end
+end
+
+function ENT:ProcessBeam(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     npower = LaserLib.GetPower(beam.NvWidth,
@@ -120,7 +143,6 @@ function ENT:ActionSource(entity, index, trace, beam)
     end
     if(not opower or npower >= opower) then
       opower = npower
-      domsrc = beam.BmSource
       doment = entity
       dobeam = beam
     end
@@ -129,16 +151,27 @@ end
 
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
+  domcor.r, domcor.g = 0, 0
+  domcor.b, domcor.a = 0, 0
+  doment , dobeam = nil, nil
   xlength, bpower = 0, false
   xforce , xwidth, xdamage = 0, 0, 0
   width  , length, damage  = 0, 0, 0
   npower , force , opower  = 0, 0, nil
-  doment , domsrc, dobeam = nil, nil, nil
 
   self:ProcessSources()
 
   if(self.hitSize > 0) then
-    self:SetDominant(domsrc, dobeam)
+    if(self:GetCombineColors()) then
+      local mar = math.max(domcor.r, domcor.g, domcor.b)
+      if(mar > 0) then
+        if(mar > CLMX) then
+          domcor.r = (domcor.r / mar) * CLMX
+          domcor.g = (domcor.g / mar) * CLMX
+          domcor.b = (domcor.b / mar) * CLMX
+        end; self:SetDominant(dobeam, domcor)
+      else self:SetDominant(dobeam) end
+    else self:SetDominant(dobeam) end
 
     if(bpower) then -- Sum settings
       self:SetBeamForce(force)

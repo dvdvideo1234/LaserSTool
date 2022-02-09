@@ -89,55 +89,43 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local opower, report, doment, domsrc, dobeam
+local opower, doment, dobeam
 
-function ENT:ActionSource(entity, index, trace, beam)
+function ENT:ProcessBeam(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)
     if(not opower or npower >= opower) then
-      doment, domsrc = entity, beam.BmSource
-      opower, report, dobeam = npower, index, beam
+      opower, dobeam, doment = npower, beam, entity
     end
   end
 end
 
 function ENT:UpdateSources()
-  opower, report = nil, nil
-  doment, domsrc, dobeam = nil, nil, nil
+  opower, dobeam, doment = nil, nil, nil
 
   self:ProcessSources()
 
-  if(not LaserLib.IsValid(doment)) then return nil end
-  if(not LaserLib.IsValid(domsrc)) then return nil end
   local count = self:GetBeamCount()
-  if(count > 0) then
-    local trace, beam = doment:GetHitReport(report)
-    if(beam) then -- Dominant result hit
-      self:SetBeamForce(beam.NvForce)
-      self:SetBeamWidth(beam.NvWidth)
-      self:SetBeamDamage(beam.NvDamage)
-      if(self:IsInfinite(doment)) then
-        self:SetBeamLength(beam.BmLength)
-      else -- When not looping use the remaining
-        self:SetBeamLength(beam.NvLength)
-      end -- Apply length based on looping
-    else -- Dominant did not hit anything
-      self:SetBeamForce(domsrc:GetBeamForce())
-      self:SetBeamWidth(domsrc:GetBeamWidth())
-      self:SetBeamDamage(domsrc:GetBeamDamage())
-      self:SetBeamLength(domsrc:GetBeamLength())
-    end -- The most powerful source (biggest damage/width)
+  if(dobeam and count > 0) then -- Dominant result hit
+    self:SetBeamForce(dobeam.NvForce)
+    self:SetBeamWidth(dobeam.NvWidth)
+    self:SetBeamDamage(dobeam.NvDamage)
+    if(self:IsInfinite(doment)) then
+      self:SetBeamLength(dobeam.BmLength)
+    else -- When not looping use the remaining
+      self:SetBeamLength(dobeam.NvLength)
+    end -- Apply length based on looping
+    -- Transfer visuals from the dominant
+    self:SetDominant(dobeam)
+    -- Send the dominant entity
+    return dobeam.BmSource
   else
     self:SetBeamForce(0)
     self:SetBeamWidth(0)
     self:SetBeamLength(0)
     self:SetBeamDamage(0)
   end
-
-  self:SetDominant(domsrc, dobeam)
-
-  return domsrc
 end
 
 function ENT:Think()

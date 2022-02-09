@@ -139,26 +139,29 @@ end
 --[[
  * Extract the parameters needed to create a beam
  * Takes the values tom the argument and updated source
- * ent > Dominant entity reference being extracted
+ * beam  > Dominant laser beam reference being extracted
+ * color > Beam color for override. Not mandatory
 ]]
-function ENT:SetDominant(ent, beam)
-  if(not LaserLib.IsUnit(ent, 2)) then return self end
+function ENT:SetDominant(beam, color)
+  local src = beam.BmSource
+  local cor = (color or beam.NvColor)
   -- We set the same non-addable properties
+  if(not LaserLib.IsUnit(src, 2)) then return self end
   -- The most powerful source (biggest damage/width)
-  self:SetStopSound(ent:GetStopSound())
-  self:SetKillSound(ent:GetKillSound())
-  self:SetStartSound(ent:GetStartSound())
-  self:SetForceCenter(ent:GetForceCenter())
-  self:SetBeamMaterial(ent:GetBeamMaterial())
-  self:SetDissolveType(ent:GetDissolveType())
-  self:SetEndingEffect(ent:GetEndingEffect())
-  self:SetReflectRatio(ent:GetReflectRatio())
-  self:SetRefractRatio(ent:GetRefractRatio())
-  self:SetNonOverMater(ent:GetNonOverMater())
-  self:SetBeamColorRGBA(beam.NvColor or ent:GetBeamColorRGBA(true))
+  self:SetStopSound(src:GetStopSound())
+  self:SetKillSound(src:GetKillSound())
+  self:SetStartSound(src:GetStartSound())
+  self:SetForceCenter(src:GetForceCenter())
+  self:SetBeamMaterial(src:GetBeamMaterial())
+  self:SetDissolveType(src:GetDissolveType())
+  self:SetEndingEffect(src:GetEndingEffect())
+  self:SetReflectRatio(src:GetReflectRatio())
+  self:SetRefractRatio(src:GetRefractRatio())
+  self:SetNonOverMater(src:GetNonOverMater())
+  self:SetBeamColorRGBA(cor or src:GetBeamColorRGBA(true))
 
-  self:WireWrite("Dominant", ent)
-  LaserLib.SetPlayer(self, (ent.ply or ent.player))
+  self:WireWrite("Dominant", src)
+  LaserLib.SetPlayer(self, (src.ply or src.player))
 
   return self
 end

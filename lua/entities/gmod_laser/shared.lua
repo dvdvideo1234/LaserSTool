@@ -544,16 +544,23 @@ end
  * source `ent` affects our `self` behavior.
  * self > Entity base item that is being issued
  * ent  > Entity hit reports getting checked
- * proc > Scope function to process. Arguments:
+ * proc > Scope function per-beam handler. Arguments:
+ *      > entity > Hit report active source
  *      > index  > Hit report active index
  *      > trace  > Hit report active trace
  *      > beam   > Hit report active beam
+ * each > Scope function per-source handler. Arguments:
+        > entity > Hit report active source
+        > index  > Hit report active index
  * Returns flag indicating presence of hit reports
 ]]
-function ENT:ProcessReports(ent, proc)
+function ENT:ProcessReports(ent, proc, each)
   if(not LaserLib.IsValid(ent)) then return false end
   local idx = self:GetHitSourceID(ent)
   if(idx) then local siz = ent.hitReports.Size
+    if(each) then local suc, err = pcall(each, self, ent, idx)
+      if(not suc) then self:Remove(); error(err); return false end
+    end -- When whe have dedicated methor to apply on each source
     while(idx and idx <= siz) do -- First index always hits when present
       local trace, beam = ent:GetHitReport(idx) -- When the report hits us
       local suc, err = pcall(proc, self, ent, idx, trace, beam) -- Call process
@@ -577,13 +584,14 @@ end
  *      > beam   > Hit report active beam
  * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
-function ENT:ProcessSources(proc)
-  local proc = (proc or self.ActionSource)
+function ENT:ProcessSources(proc, each)
+  local proc = (proc or self.ProcessBeam)
+  local each = (each or self.EverySource)
   if(not proc) then return false end
   if(not self.hitSources) then return false end
   for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
     if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
-      if(not self:ProcessReports(ent, proc)) then -- Are there any procesed sources
+      if(not self:ProcessReports(ent, proc, each)) then -- Are there any procesed sources
         self.hitSources[ent] = nil -- Remove the netity from the list
       end -- Check when there is any hit report that is processed correctly
     else self.hitSources[ent] = nil end -- Delete the entity when force skipped
@@ -647,7 +655,7 @@ end
  * Triggers all the dedicated arrays in one call
 ]]
 function ENT:WireArrays()
-  if(not SERVER) then return self end
+  if(CLIENT) then return self end
   local set = self.hitSetup
   if(not set) then return self end
   local idx = (tonumber(self.hitSize) or 0)

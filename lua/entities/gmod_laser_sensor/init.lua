@@ -103,7 +103,7 @@ local opower, npower, force  = 0, 0, 0
 local width , length, damage = 0, 0, 0
 local origin, direct = Vector(), Vector()
 
-function ENT:ActionSource(entity, index, trace, beam)
+function ENT:ProcessBeam(entity, index, trace, beam)
   local norm = self:GetUnitDirection()
   local bdot, mdot = self:GetHitPower(norm, trace, beam)
   if(trace and trace.Hit and beam) then
