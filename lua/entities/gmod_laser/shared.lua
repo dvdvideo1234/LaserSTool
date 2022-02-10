@@ -585,7 +585,7 @@ end
  * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
 function ENT:ProcessSources(proc, each)
-  local proc = (proc or self.ProcessBeam)
+  local proc = (proc or self.EveryBeacon)
   local each = (each or self.EverySource)
   if(not proc) then return false end
   if(not self.hitSources) then return false end

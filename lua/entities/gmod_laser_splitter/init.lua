@@ -91,7 +91,7 @@ end
 
 local opower, doment, dobeam
 
-function ENT:ProcessBeam(entity, index, trace, beam)
+function ENT:EveryBeacon(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)

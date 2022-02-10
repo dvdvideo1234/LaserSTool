@@ -118,7 +118,7 @@ function ENT:EverySource(entity, index)
   end
 end
 
-function ENT:ProcessBeam(entity, index, trace, beam)
+function ENT:EveryBeacon(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     npower = LaserLib.GetPower(beam.NvWidth,
