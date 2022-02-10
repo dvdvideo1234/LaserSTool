@@ -623,12 +623,10 @@ function ENT:UpdateArrays()
   local set = self.hitSetup
   if(not set) then return self end
   local idx = (tonumber(self.hitSize) or 0) + 1
-  for cnt = 1, set.Size do
-    local arr = set[cnt]
-    if(arr and arr.Data) then
-      LaserLib.Clear(arr.Data, idx)
-    end
-  end; return self
+  for cnt = 1, set.Size do local arr = set[cnt]
+    if(arr and arr.Data) then LaserLib.Clear(arr.Data, idx) end
+  end; set.Save = nil -- Clear the last top enntity
+  return self -- Use coding effective API
 end
 
 --[[
@@ -639,14 +637,12 @@ end
 function ENT:SetArrays(...)
   local set = self.hitSetup
   if(not set) then return self end
-  local idx = (tonumber(self.hitSize) or 0)
-  local arr, arg = set[1].Data, {...}
-  if(not arr) then return self end
-  if(idx > 0 and arr[idx] == arg[1]) then return self end
-  idx = idx + 1 -- Entity is different so increment
-  for cnt = 1, set.Size do -- Copy values to arrays
-    arr = set[cnt].Data
-    arr[idx] = arg[cnt]
+  local arg, idx = {...}, self.hitSize
+  if(set.Save == arg[1]) then return self end
+  if(not set.Save) then set.Save = arg[1] end
+  idx = (tonumber(idx) or 0) + 1
+  for cnt = 1, set.Size do
+    set[cnt].Data[idx] = arg[cnt]
   end; self.hitSize = idx
   return self
 end

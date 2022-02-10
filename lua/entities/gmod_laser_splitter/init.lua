@@ -95,7 +95,7 @@ function ENT:EveryBeacon(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)
-    if(not opower or npower >= opower) then
+    if(not opower or npower > opower) then
       opower, dobeam, doment = npower, beam, entity
     end
   end

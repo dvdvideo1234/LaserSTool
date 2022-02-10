@@ -113,7 +113,7 @@ function ENT:EveryBeacon(entity, index, trace, beam)
       width  = width  + beam.NvWidth
       damage = damage + beam.NvDamage
       force  = force  + beam.NvForce
-      if(not opower or npower >= opower) then
+      if(not opower or npower > opower) then
         normh  = true
         opower = npower
         domsrc = beam.BmSource

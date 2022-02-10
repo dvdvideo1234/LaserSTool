@@ -104,7 +104,7 @@ function ENT:EverySource(entity, index)
     local cov = beam.NvColor
     local src = beam.BmSource
     if(LaserLib.IsValid(src)) then
-      com = src:GetBeamColorRGBA(true)
+      local com = src:GetBeamColorRGBA(true)
       domcor.r = domcor.r + (cov and cov.r or com.r)
       domcor.g = domcor.g + (cov and cov.g or com.g)
       domcor.b = domcor.b + (cov and cov.b or com.b)
@@ -141,7 +141,7 @@ function ENT:EveryBeacon(entity, index, trace, beam)
         xdamage = xdamage + beam.NvDamage
       end
     end
-    if(not opower or npower >= opower) then
+    if(not opower or npower > opower) then
       opower = npower
       doment = entity
       dobeam = beam
