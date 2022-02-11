@@ -14,7 +14,7 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
   self:SetupSourceDataTables()
-  self:EditableSetBool("CombineColors","General")
+  self:EditableSetBool("CombineColors","Visuals")
   self:EditableRemoveOrderInfo()
 end
 

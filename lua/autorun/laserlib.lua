@@ -15,6 +15,7 @@ DATA.MXBMFORC = CreateConVar("laseremitter_maxbmforc", 25000, DATA.FGSRVCN, "Max
 DATA.MXBMLENG = CreateConVar("laseremitter_maxbmleng", 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
 DATA.MBOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MFORCELM = CreateConVar("laseremitter_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
+DATA.MAXRAYAS = CreateConVar("laseremitter_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
 DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
@@ -53,6 +54,8 @@ DATA.TRWD = 0.27            -- Beam backtrace trace width when refracting
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.TRWU = 50000           -- The amount of units to trace for finding water surface
 DATA.BONC = 0               -- External forced beam max bounces. Resets on every beam
+DATA.COSV = 0.5             -- Cosinus value for cone section search
+DATA.CNLN = 1000            -- Cone slope length for cone section search
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
 DATA.AMAX = {-360, 360}     -- General angular limis for having min/max
@@ -519,13 +522,48 @@ function LaserLib.IsUnit(ent, idx)
 end
 
 function LaserLib.GetModel(iK)
-  local sM = DATA.MOD[tonumber(iK)]
+  local sM = DATA.MOD[tonumber(iK) or 0]
   return (sM and sM or nil)
 end
 
 function LaserLib.GetMaterial(iK)
-  local sT = DATA.MAT[tonumber(iK)]
+  local sT = DATA.MAT[tonumber(iK) or 0]
   return (sT and sT or nil)
+end
+
+function LaserLib.ProjectRay(pos, org, dir)
+  local vrs = Vector(pos); vrs:Sub(org)
+  local mar = vrs:Dot(dir); vrs:Set(dir)
+        vrs:Mul(mar); vrs:Add(org)
+  local amr = pos:DistToSqr(vrs)
+  return vrs, mar, amr
+end
+
+function LaserLib.DrawAssist(org, dir, ray, enr)
+  if(SERVER) then return end -- Server can go out now
+  if(ray <= 0) then return end -- Ray assist disabled
+  local ncst = math.Clamp(ray, 0, DATA.MAXRAYAS:GetFloat())^2
+  local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
+  for idx = 1, #teun do local ent = teun[idx]
+    if(enr ~= ent and ent:GetClass():find("gmod_laser", 1, true)) then
+      local vbb = ent:LocalToWorld(ent:OBBCenter())
+      local vrs, mar, amr = LaserLib.ProjectRay(vbb, org, dir)
+      local so, sv = vbb:ToScreen(), vrs:ToScreen()
+      if(so.visible) then surface.DrawCircle(so.x, so.y, 3, 0, 255, 0) end
+      if(amr < ncst and so.visible and sv.visible) then
+        surface.DrawCircle(sv.x, sv.y, 5, 255, 255, 0)
+        surface.SetDrawColor(255, 255, 0)
+        surface.DrawLine(so.x, so.y, sv.x, sv.y)
+        surface.SetFont("Trebuchet18")
+        surface.SetTextPos(sv.x, sv.y)
+        surface.SetTextColor(0, 255, 0)
+        surface.DrawText(("%.2f"):format(math.sqrt(amr)))
+      end
+    end
+  end
+  if(LaserLib.IsValid(enr)) then
+    -- Put reverse assist here
+  end
 end
 
 -- Draw a position on the screen

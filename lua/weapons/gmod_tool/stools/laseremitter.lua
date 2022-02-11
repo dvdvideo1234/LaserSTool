@@ -14,6 +14,26 @@ if(CLIENT) then
     {name = "reload_use", icon = "gui/r.png"  , icon2 = "gui/e.png"},
   }
 
+  hook.Add("PostDrawHUD", gsTool.."_grab_draw", -- Physgun draw beam assist
+    function() -- Handles drawing the assist when user holds laser unit
+      local ply = LocalPlayer(); if(not LaserLib.IsValid(ply)) then return end
+      local ray = ply:GetInfoNum(gsTool.."_rayassist", 0); if(ray <= 0) then return end
+      local wgn = ply:GetActiveWeapon(); if(not LaserLib.IsValid(wgn)) then return end
+      if(wgn:GetClass() ~= "weapon_physgun") then return end
+      local tr = ply:GetEyeTrace(); if(not (tr and tr.Hit)) then return end
+      local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
+      if(tre:GetClass():find("gmod_laser", 1, true)) then
+        local org = (tre.GetOriginLocal and tre:GetOriginLocal() or nil)
+        local dir = (tre.GetDirectLocal and tre:GetDirectLocal() or nil)
+        if(not dir) then  dir = (tre.GetNormalLocal and tre:GetNormalLocal() or nil) end
+        if(not (org and dir)) then return end
+        local pos, ang = tre:GetPos(), tre:GetAngles()
+        local vor = Vector(org); vor:Rotate(ang); vor:Add(pos);
+        local vdr = Vector(dir); vdr:Rotate(ang)
+        LaserLib.DrawAssist(vor, vdr, ray, tre) -- convert to world-sopace and call assistant
+      end
+    end)
+
   language.Add("tool."..gsTool..".name", "Laser Spawner")
   language.Add("tool."..gsTool..".desc", "Spawns very dangerous lasers!")
   language.Add("tool."..gsTool..".0", "Do not look into the beam source with the remaining eye!")
@@ -59,8 +79,8 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".surfweld", "Welds the laser to the trace surface")
   language.Add("tool."..gsTool..".nocollide_con", "No-collide to surface")
   language.Add("tool."..gsTool..".nocollide", "No-collides the laser to the trace surface")
-  language.Add("tool."..gsTool..".rayassist_con", "Beam ray assistant")
-  language.Add("tool."..gsTool..".rayassist", "Assists the player when setting up laser systems")
+  language.Add("tool."..gsTool..".rayassist_con", "Assist margin:")
+  language.Add("tool."..gsTool..".rayassist", "Distance margin to assists the player when setting up laser systems")
   language.Add("tool."..gsTool..".forcelimit_con", "Force limit:")
   language.Add("tool."..gsTool..".forcelimit", "Conrold the force limit on the weld created")
   language.Add("tool."..gsTool..".reflectrate_con", "Reflection power ratio")
@@ -188,7 +208,7 @@ TOOL.ClientConVar =
   [ "colorb"       ] = 255,
   [ "colora"       ] = 255,
   [ "angle"        ] = 270,
-  [ "rayassist"    ] = 1,
+  [ "rayassist"    ] = 25,
   [ "origin"       ] = "",
   [ "direct"       ] = "",
   [ "material"     ] = "trails/laser",
@@ -485,32 +505,12 @@ function TOOL:GetSurface(ent)
   end
 end
 
-function TOOL:DrawAssist(ply, tr)
-  if(self:GetClientNumber("rayassist", 0) == 0) then return end
-  local org, dir = ply:EyePos(), ply:GetAimVector()
-  local teun = ents.FindInCone(org, dir, 1000, 0.5)
-  for idx = 1, #teun do local ent = teun[idx]
-    if(ent:GetClass():find("gmod_laser", 1, true)) then
-      local vbb = ent:LocalToWorld(ent:OBBCenter())
-      local vrs = Vector(vbb); vrs:Sub(tr.HitPos)
-      local mar = vrs:Dot(tr.HitNormal)
-      vrs:Set(tr.HitNormal); vrs:Mul(mar); vrs:Add(tr.HitPos)
-      local so, sv = vbb:ToScreen(), vrs:ToScreen()
-      if(so.visible) then surface.DrawCircle(so.x, so.y, 3, 0, 255, 0) end
-      if((ent:BoundingRadius() * 2)^2 > vbb:DistToSqr(vrs) and so.visible and sv.visible) then
-        surface.DrawCircle(sv.x, sv.y, 5, 255, 255, 0)
-        surface.SetDrawColor(255, 255, 0)
-        surface.DrawLine(so.x, so.y, sv.x, sv.y)
-      end
-    end
-  end
-end
-
 function TOOL:DrawHUD(a,b,c)
   local ply = LocalPlayer()
   local tr = ply:GetEyeTrace()
   if(not (tr and tr.Hit)) then return end
-  self:DrawAssist(ply, tr)
+  local ray = self:GetClientNumber("rayassist", 0)
+  LaserLib.DrawAssist(tr.HitPos, tr.HitNormal, ray)
   local rat = LaserLib.GetData("GRAT")
   local txt = self:GetSurface(tr.Entity)
   if(not txt) then return end
@@ -598,6 +598,8 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
 
   pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".forcelimit_con"), gsTool.."_forcelimit", 0, LaserLib.GetData("MFORCELM"):GetFloat(), 5)
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".forcelimit")); pItem:SetDefaultValue(gtConvarList[gsTool.."_forcelimit"])
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".rayassist_con"), gsTool.."_rayassist", 0, LaserLib.GetData("MAXRAYAS"):GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".rayassist")); pItem:SetDefaultValue(gtConvarList[gsTool.."_rayassist"])
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".surfweld_con"), gsTool.."_surfweld")
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".surfweld"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".nocollide_con"), gsTool.."_nocollide")
@@ -618,6 +620,4 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".forcecenter"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".enonvermater_con"), gsTool.."_enonvermater")
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".enonvermater"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".rayassist_con"), gsTool.."_rayassist")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".rayassist"))
 end
