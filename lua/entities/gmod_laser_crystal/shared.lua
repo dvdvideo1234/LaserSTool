@@ -14,7 +14,7 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
   self:SetupSourceDataTables()
-  self:EditableSetBool("BeamColorFuse","Visuals")
+  self:EditableSetBool("BeamColorMerge","Visuals")
   self:EditableRemoveOrderInfo()
 end
 
