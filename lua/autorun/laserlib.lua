@@ -54,7 +54,6 @@ DATA.TRWD = 0.27            -- Beam backtrace trace width when refracting
 DATA.WLMR = 10000           -- World vectors to be correctly conveted to local
 DATA.TRWU = 50000           -- The amount of units to trace for finding water surface
 DATA.BONC = 0               -- External forced beam max bounces. Resets on every beam
-DATA.COSV = 0.5             -- Cosinus value for cone section search
 DATA.CNLN = 1000            -- Cone slope length for cone section search
 DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
@@ -268,12 +267,13 @@ DATA.TRACE = {
 DATA.WORLD = game.GetWorld()
 
 if(CLIENT) then
-  surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
+  DATA.COSV = math.cos(math.rad(LocalPlayer():GetFOV()))
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
   DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, DATA.COLOR["WHITE"]) end
   DATA.REFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
   DATA.REFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
+  surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
 end
 
 -- Callbacks for console variables
@@ -539,30 +539,68 @@ function LaserLib.ProjectRay(pos, org, dir)
   return vrs, mar, amr
 end
 
-function LaserLib.DrawAssist(org, dir, ray, enr)
+function LaserLib.GetTransformUnit(ent)
+  if(not LaserLib.IsValid(ent)) then return end
+  local org = (ent.GetOriginLocal and ent:GetOriginLocal() or ent:OBBCenter())
+  local dir = (ent.GetDirectLocal and ent:GetDirectLocal() or nil)
+  if(not dir) then  dir = (ent.GetNormalLocal and ent:GetNormalLocal() or nil) end
+  if(not (org and dir)) then return end
+  local pos, ang = ent:GetPos(), ent:GetAngles()
+  local vor = Vector(org); vor:Rotate(ang); vor:Add(pos);
+  local vdr = Vector(dir); vdr:Rotate(ang)
+  return vor, vdr
+end
+
+function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
+  if(SERVER) then return end -- Server can go out now
+  if(not (org and dir)) then return end
+  local csr = LaserLib.GetColor("YELLOW")
+  local ctr = LaserLib.GetColor("GREEN")
+  local vrs, mar, amr = LaserLib.ProjectRay(vbb, org, dir)
+  if(rev and mar < 0) then return end
+  local so, sv = vbb:ToScreen(), vrs:ToScreen()
+  if(so.visible) then
+    if(rev) then surface.DrawCircle(so.x, so.y, 3, ctr)
+    else surface.DrawCircle(so.x, so.y, 3, ctr) end
+  end
+  if(amr < nar and so.visible and sv.visible) then
+    if(rev) then
+      surface.DrawCircle(sv.x, sv.y, 5, csr)
+      surface.SetDrawColor(ctr)
+    else
+      surface.DrawCircle(sv.x, sv.y, 5, csr)
+      surface.SetDrawColor(csr)
+    end
+    surface.DrawLine(so.x, so.y, sv.x, sv.y)
+    surface.SetFont("Trebuchet18")
+    surface.SetTextPos(sv.x, sv.y)
+    if(rev) then surface.SetTextColor(csr)
+    else surface.SetTextColor(ctr) end
+    surface.DrawText(("%.2f"):format(math.sqrt(amr)))
+  end
+end
+
+function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   if(SERVER) then return end -- Server can go out now
   if(ray <= 0) then return end -- Ray assist disabled
   local ncst = math.Clamp(ray, 0, DATA.MAXRAYAS:GetFloat())^2
   local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
   for idx = 1, #teun do local ent = teun[idx]
-    if(enr ~= ent and ent:GetClass():find("gmod_laser", 1, true)) then
+    if(tre ~= ent and ent:GetClass():find("gmod_laser_", 1, true)) then
       local vbb = ent:LocalToWorld(ent:OBBCenter())
-      local vrs, mar, amr = LaserLib.ProjectRay(vbb, org, dir)
-      local so, sv = vbb:ToScreen(), vrs:ToScreen()
-      if(so.visible) then surface.DrawCircle(so.x, so.y, 3, 0, 255, 0) end
-      if(amr < ncst and so.visible and sv.visible) then
-        surface.DrawCircle(sv.x, sv.y, 5, 255, 255, 0)
-        surface.SetDrawColor(255, 255, 0)
-        surface.DrawLine(so.x, so.y, sv.x, sv.y)
-        surface.SetFont("Trebuchet18")
-        surface.SetTextPos(sv.x, sv.y)
-        surface.SetTextColor(0, 255, 0)
-        surface.DrawText(("%.2f"):format(math.sqrt(amr)))
-      end
-    end
+      LaserLib.DrawAssistOBB(vbb, org, dir, ncst)
+    end -- Aim laser beam at the reciever entity
   end
-  if(LaserLib.IsValid(enr)) then
-    -- Put reverse assist here
+  if(tre and ply) then
+    local vbb = tre:LocalToWorld(tre:OBBCenter())
+    local org, dir = ply:EyePos(), ply:GetAimVector()
+    local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
+    for idx = 1, #teun do local ent = teun[idx]
+      if(tre ~= ent and not ent:GetClass() ~= "gmod_laser") then
+        local org, dir = LaserLib.GetTransformUnit(ent)
+        LaserLib.DrawAssistOBB(vbb, org, dir, ncst, true)
+      end -- Move reciever entity on the laser beam
+    end
   end
 end
 

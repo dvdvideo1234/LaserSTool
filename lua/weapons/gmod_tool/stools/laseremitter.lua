@@ -19,18 +19,12 @@ if(CLIENT) then
       local ply = LocalPlayer(); if(not LaserLib.IsValid(ply)) then return end
       local ray = ply:GetInfoNum(gsTool.."_rayassist", 0); if(ray <= 0) then return end
       local wgn = ply:GetActiveWeapon(); if(not LaserLib.IsValid(wgn)) then return end
-      if(wgn:GetClass() ~= "weapon_physgun") then return end
+      if(wgn:GetClass() ~= "weapon_physgun") then return end -- Not holding physgun
       local tr = ply:GetEyeTrace(); if(not (tr and tr.Hit)) then return end
       local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
-      if(tre:GetClass():find("gmod_laser", 1, true)) then
-        local org = (tre.GetOriginLocal and tre:GetOriginLocal() or nil)
-        local dir = (tre.GetDirectLocal and tre:GetDirectLocal() or nil)
-        if(not dir) then  dir = (tre.GetNormalLocal and tre:GetNormalLocal() or nil) end
-        if(not (org and dir)) then return end
-        local pos, ang = tre:GetPos(), tre:GetAngles()
-        local vor = Vector(org); vor:Rotate(ang); vor:Add(pos);
-        local vdr = Vector(dir); vdr:Rotate(ang)
-        LaserLib.DrawAssist(vor, vdr, ray, tre) -- convert to world-sopace and call assistant
+      if(tre:GetClass():find("gmod_laser", 1, true)) then -- For all laser units
+        local vor, vdr = LaserLib.GetTransformUnit(tre) -- Read unit transform
+        LaserLib.DrawAssist(vor, vdr, ray, tre, ply) -- Convert to world-space
       end
     end)
 

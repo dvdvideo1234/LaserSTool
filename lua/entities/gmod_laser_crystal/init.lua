@@ -59,7 +59,7 @@ function ENT:Initialize()
   self:SetRefractRatio(false)
   self:SetForceCenter(false)
   self:SetNonOverMater(false)
-  self:SetCombineColors(false)
+  self:SetBeamColorFuse(false)
   self:SetBeamColorRGBA(255,255,255,255)
 
   self:WireWrite("Entity", self)
@@ -100,7 +100,7 @@ local domcor, doment , dobeam = Color(0,0,0,0)
 
 function ENT:EverySource(entity, index)
   local trace, beam = entity:GetHitReport(index)
-  if(self:GetCombineColors()) then
+  if(self:GetBeamColorFuse()) then
     local cov = beam.NvColor
     local src = beam.BmSource
     if(LaserLib.IsValid(src)) then
@@ -162,7 +162,7 @@ function ENT:UpdateSources()
   self:ProcessSources()
 
   if(self.hitSize > 0) then
-    if(self:GetCombineColors()) then
+    if(self:GetBeamColorFuse()) then
       local mar = math.max(domcor.r, domcor.g, domcor.b)
       if(mar > 0) then
         if(mar > CLMX) then
