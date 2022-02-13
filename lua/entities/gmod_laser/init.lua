@@ -144,7 +144,7 @@ end
 ]]
 function ENT:SetDominant(beam, color)
   local src = beam.BmSource
-  local cor = (color or beam.NvColor)
+  local cor = (color or beam.NvColor or beam.BmColor)
   -- We set the same non-addable properties
   if(not LaserLib.IsUnit(src, 2)) then return self end
   -- The most powerful source (biggest damage/width)

@@ -180,14 +180,15 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
-function ENT:BeamColorSplit(idx)
+function ENT:BeamColorSplit(idx, color)
+  local src = LaserLib.GetData("BESRC")
+  if(not src) then return self end
+  local c = (color or src:GetBeamColorRGBA(true))
   if(self:GetBeamColorSplit()) then
-    local src = LaserLib.GetData("BESRC")
-    if(not src) then return self end
-    local r, g, b, a = src:GetBeamColorRGBA()
-          r, g, b = LaserLib.GetColorFactorID(idx, r, g, b)
-    print(r, g, b, a)
-    LaserLib.SetColorRGBA(r, g, b, a)
+    local r, g, b = LaserLib.GetColorFactorID(idx, c.r, c.g, c.b)
+    LaserLib.SetColorRGBA(r, g, b, c.a)
+  else
+    LaserLib.SetColorRGBA(c)
   end; return self
 end
 
@@ -211,7 +212,7 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
   local damage = (sdat.NvDamage / todiv)
   local force  = (sdat.NvForce  / todiv)
   local width  = LaserLib.GetWidth((sdat.NvWidth / todiv))
-  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx),
+  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx, sdat.NvColor),
                                       org,
                                       dir,
                                       length,

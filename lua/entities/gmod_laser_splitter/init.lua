@@ -118,7 +118,6 @@ function ENT:UpdateSources()
       self:SetBeamLength(dobeam.NvLength)
     end -- Apply length based on looping
     -- Transfer visuals from the dominant
-    print("T", dobeam)
     self:SetDominant(dobeam)
     -- Send the dominant entity
     return dobeam.BmSource

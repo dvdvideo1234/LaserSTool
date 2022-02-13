@@ -1452,7 +1452,7 @@ local function Beam(origin, direct, width, damage, length, force)
   local self = {}; setmetatable(self, mtBeam)
   self.TrMedium = {} -- Contains information for the mediums being traversed
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
-  self.NvColor  = DATA.BCOLR -- This will store the external forced color
+  self.BmColor  = DATA.BCOLR -- This will store the external start color
   self.MxBounce = math.floor(DATA.BBONC) -- Max bounces for the laser loop
   if(self.MxBounce <= 0) then self.MxBounce = DATA.MBOUNCES:GetInt() end
   self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
@@ -2092,20 +2092,6 @@ function mtBeam:SetColorRGBA(mr, mg, mb, ma)
 end
 
 --[[
- * Returns the beam color currently being used
- * bcol > Flag to force return a color object
-]]
-function mtBeam:GetColorRGBA(bcol)
-  local c = self.NvColor
-  if(c) then
-    if(bcol) then return c end
-    return c.r, c.g, c.b, c.a
-  else local s = self:GetSource()
-    return s:GetBeamColorRGBA(bcol)
-  end
-end
-
---[[
  * This does post-update fnd regiasters beam sources
  * Preforms some logick to calculate the filter
  * trace > Trace result after the last iteration
@@ -2154,7 +2140,8 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
   -- Material must be cached and pdated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local spd, cup = DATA.DRWBMSPD:GetFloat(), color
+  local cup = (color or self.BmColor)
+  local spd = DATA.DRWBMSPD:GetFloat()
   -- Draw the beam sequentially being faster
   for idx = 2, tvpnt.Size do
     local org = tvpnt[idx - 1]
@@ -2166,8 +2153,7 @@ function mtBeam:Draw(sours, imatr, color)
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
     -- When we need to draw the beam with rendering library
-    if(org[5]) then -- Current node has its draw flag enabled
-      cup = (org[6] or cup) -- Update the color for the node
+    if(org[5]) then cup = (org[6] or cup) -- Change color
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
       render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
     end -- Draw the actual beam texture
@@ -2334,7 +2320,7 @@ local gtActors = {
     if(trace and trace.Hit and beam and bdot) then
       local info = beam.TvPoints -- Read current nore stack
       local node = info[info.Size] -- Extract nodes stack size
-      local sc = beam:GetColorRGBA(true)
+      local sc = beam.NvColor or (beam.BmColor or src:GetBeamColorRGBA(true))
       local ec = ent:GetBeamColorRGBA(true)
       local matc = ent:GetInBeamMaterial()
       local mats = src:GetInBeamMaterial()
@@ -2399,7 +2385,7 @@ local gtActors = {
             node[6].b = math.max(sc.b - ec.b, 0)
             node[6].a = math.max(sc.a - ec.a, 0)
           end
-          beam:SetColorRGBA(node[6]) -- Last beam color being used
+          beam.NvColor = node[6] -- Last beam color being used
         end -- Remove from the output beams with such color and material
         beam.NvLength  = length; -- Length not used in visuals
         beam.NvWidth   = width ; node[2] = width
@@ -2456,8 +2442,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
   beam.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
   beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
-
-  print("DoBeam["..beam.BmIdenty.."]:", beam.NvColor)
 
   if(beam.NvLength <= 0) then return end
   if(beam.VrDirect:LengthSqr() <= 0) then return end

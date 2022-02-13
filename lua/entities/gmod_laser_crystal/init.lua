@@ -98,23 +98,34 @@ local opower , npower, force
 local width  , length, damage
 local domcor, doment , dobeam = Color(0,0,0,0)
 
-function ENT:EverySource(entity, index)
-  local trace, beam = entity:GetHitReport(index)
+function ENT:MergeColor(beam, asgn)
   if(self:GetBeamColorMerge()) then
-    local cov = beam.NvColor
     local src = beam.BmSource
+    local cov = (beam.NvColor or beam.BmColor)
     if(LaserLib.IsValid(src)) then
       local com = src:GetBeamColorRGBA(true)
-      domcor.r = domcor.r + (cov and cov.r or com.r)
-      domcor.g = domcor.g + (cov and cov.g or com.g)
-      domcor.b = domcor.b + (cov and cov.b or com.b)
+      if(asgn) then
+        domcor.r = (cov and cov.r or com.r)
+        domcor.g = (cov and cov.g or com.g)
+        domcor.b = (cov and cov.b or com.b)
+      else
+        domcor.r = domcor.r + (cov and cov.r or com.r)
+        domcor.g = domcor.g + (cov and cov.g or com.g)
+        domcor.b = domcor.b + (cov and cov.b or com.b)
+      end
       domcor.a = math.max(domcor.a, (cov and cov.a or com.a))
     else
-      domcor.r = domcor.r + (cov and cov.r or 0)
-      domcor.g = domcor.g + (cov and cov.g or 0)
-      domcor.b = domcor.b + (cov and cov.b or 0)
-      domcor.a = math.max(domcor.a, (cov and cov.a or 0))
+      if(asgn) then
+        domcor.r = (cov and cov.r or 0)
+        domcor.g = (cov and cov.g or 0)
+        domcor.b = (cov and cov.b or 0)
+      else
+        domcor.r = domcor.r + (cov and cov.r or 0)
+        domcor.g = domcor.g + (cov and cov.g or 0)
+        domcor.b = domcor.b + (cov and cov.b or 0)
+      end
     end
+    domcor.a = math.max(domcor.a, (cov and cov.a or 0))
   end
 end
 
@@ -124,18 +135,21 @@ function ENT:EveryBeacon(entity, index, trace, beam)
     npower = LaserLib.GetPower(beam.NvWidth,
                                beam.NvDamage)
     if(not self:IsInfinite(entity)) then
+      self:MergeColor(beam)
+      bpower = (bpower or true)
       width  = width  + beam.NvWidth
       length = length + beam.NvLength
       damage = damage + beam.NvDamage
       force  = force  + beam.NvForce
-      bpower = (bpower or true)
     else
       if(doment ~= entity) then
+        self:MergeColor(beam, true)
         xforce  = beam.NvForce
         xwidth  = beam.NvWidth
         xdamage = beam.NvDamage
         xlength = beam.BmLength
       else
+        self:MergeColor(beam)
         xforce  = xforce  + beam.NvForce
         xwidth  = xwidth  + beam.NvWidth
         xdamage = xdamage + beam.NvDamage
