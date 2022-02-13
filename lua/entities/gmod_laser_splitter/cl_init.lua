@@ -1,7 +1,7 @@
 include("shared.lua")
 
-function ENT:DrawBeam(org, dir, index)
-  local trace, beam = self:DoBeam(org, dir, index)
+function ENT:DrawBeam(org, dir, idx)
+  local trace, beam = self:DoBeam(org, dir, idx)
   if(not beam) then return end
   self:DrawTrace(beam)
   -- Handle drawing the effects when have to be drawwn
@@ -26,17 +26,17 @@ function ENT:Draw()
         local mary = self:GetBeamLeanY()
         local angle = direc:AngleEx(upwrd)
         self:UpdateFlags()
-        for index = 1, mcount do
+        for idx = 1, mcount do
           local dir = mary * angle:Up()
                 dir:Add(marx * angle:Forward())
-          self:DrawBeam(nil, dir, index)
+          self:DrawBeam(nil, dir, idx)
           angle:RotateAroundAxis(direc, delta)
         end
       elseif(mcount == 1) then
         self:UpdateFlags()
         self:DrawBeam()
       end
-      self:RemHitReports(mcount)
+      self:SetHitReportMax(mcount)
     end
   else
     if(mcount > 1) then
@@ -51,7 +51,7 @@ function ENT:Draw()
       local marx = self:GetBeamLeanX()
       local mary = self:GetBeamLeanY()
       local angle = direc:AngleEx(upwrd)
-      for index = 1, mcount do
+      for idx = 1, mcount do
         local dir = mary * angle:Up()
               dir:Add(marx * angle:Forward())
               dir:Set(self:GetBeamDirection(dir))
@@ -68,6 +68,6 @@ function ENT:Draw()
             direc:Mul(lndir); direc:Add(orign)
       render.DrawLine(orign, direc, color)
     end
-    self:RemHitReports()
+    self:SetHitReportMax()
   end
 end

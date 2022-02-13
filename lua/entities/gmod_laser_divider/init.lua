@@ -68,7 +68,7 @@ function ENT:Think()
     self:SetOn(true)
   else
     self:SetOn(false)
-    self:RemHitReports()
+    self:SetHitReportMax()
   end
 
   self:WireArrays()

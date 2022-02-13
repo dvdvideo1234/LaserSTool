@@ -101,7 +101,7 @@ function ENT:UpdateSources()
   hdx = 0; self.hitSize = 0 -- Add sources in array
 
   self:ProcessSources()
-  self:RemHitReports(hdx)
+  self:SetHitReportMax(hdx)
 
   return self:UpdateArrays()
 end
@@ -115,7 +115,7 @@ end
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, sdat, idx)
-  LaserLib.Sources(self, sdat.BmSource)
+  LaserLib.SetSources(self, sdat.BmSource)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac

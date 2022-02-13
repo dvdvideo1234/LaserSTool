@@ -20,6 +20,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
   self:SetupSourceDataTables()
+  self:EditableSetBool("BeamColorSplit","Visuals")
   self:EditableRemoveOrderInfo()
 end
 
@@ -133,6 +134,16 @@ function ENT:GetBeamLeanY()
   return self:GetInBeamLeanY()
 end
 
+function ENT:BeamColorSplit(idx)
+  if(self:GetBeamColorSplit()) then
+    print("-------")
+    print("1.SPLIT")
+    local r, g, b, a = self:GetBeamColorRGBA()
+          r, g, b = LaserLib.GetColorFactorID(idx, r, g, b)
+    LaserLib.SetColorRGBA(r, g, b, a)
+  end; return self
+end
+
 function ENT:DoBeam(org, dir, idx)
   local count  = self:GetBeamCount()
   local origin = self:GetBeamOrigin(org)
@@ -145,7 +156,7 @@ function ENT:DoBeam(org, dir, idx)
   local force  = self:GetBeamForce() / todiv
   local damage = self:GetBeamDamage() / todiv
   local width  = LaserLib.GetWidth(self:GetBeamWidth() / todiv)
-  local trace, beam = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx),
                                       origin,
                                       direct,
                                       length,

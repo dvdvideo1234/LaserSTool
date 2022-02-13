@@ -189,7 +189,7 @@ function ENT:UpdateSources()
     self:SetBeamWidth(0)
     self:SetBeamLength(0)
     self:SetBeamDamage(0)
-    self:RemHitReports()
+    self:SetHitReportMax()
   end
 
   return self:UpdateArrays()
@@ -229,7 +229,7 @@ function ENT:Think()
 
     self:DoDamage(trace, beam)
   else
-    self:RemHitReports()
+    self:SetHitReportMax()
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)
     self:WireWrite("Target")

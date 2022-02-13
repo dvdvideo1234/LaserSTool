@@ -14,14 +14,15 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
-  self:EditableSetVector("UpwardLocal"  , "General")
-  self:EditableSetBool  ("BeamDimmer"   , "General")
-  self:EditableSetBool  ("BeamReplicate", "General")
-  self:EditableSetBool  ("InPowerOn"    , "Internals")
-  self:EditableSetInt   ("InBeamCount"  , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
-  self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
+  self:EditableSetVector("NormalLocal"   , "General") -- Used as forward
+  self:EditableSetVector("UpwardLocal"   , "General")
+  self:EditableSetBool  ("BeamDimmer"    , "General")
+  self:EditableSetBool  ("BeamReplicate" , "General")
+  self:EditableSetBool  ("BeamColorSplit", "Visuals")
+  self:EditableSetBool  ("InPowerOn"     , "Internals")
+  self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
+  self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
   self:EditableRemoveOrderInfo()
 end
 
@@ -174,9 +175,20 @@ function ENT:UpdateSources()
     self:ProcessSources()
   end
 
-  self:RemHitReports(hdx)
+  self:SetHitReportMax(hdx)
 
   return self:UpdateArrays()
+end
+
+function ENT:BeamColorSplit(idx)
+  if(self:GetBeamColorSplit()) then
+    local src = LaserLib.GetData("BESRC")
+    if(not src) then return self end
+    local r, g, b, a = src:GetBeamColorRGBA()
+          r, g, b = LaserLib.GetColorFactorID(idx, r, g, b)
+    print(r, g, b, a)
+    LaserLib.SetColorRGBA(r, g, b, a)
+  end; return self
 end
 
 --[[
@@ -188,7 +200,7 @@ end
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
-  LaserLib.Sources(self, sdat.BmSource)
+  LaserLib.SetSources(self, sdat.BmSource)
   local length = sdat.NvLength
   local usrfle = sdat.BrReflec
   local usrfre = sdat.BrRefrac
@@ -199,7 +211,7 @@ function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
   local damage = (sdat.NvDamage / todiv)
   local force  = (sdat.NvForce  / todiv)
   local width  = LaserLib.GetWidth((sdat.NvWidth / todiv))
-  local trace, beam = LaserLib.DoBeam(self,
+  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx),
                                       org,
                                       dir,
                                       length,

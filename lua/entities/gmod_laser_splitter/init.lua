@@ -54,6 +54,7 @@ function ENT:Initialize()
   self:SetRefractRatio(false)
   self:SetForceCenter(false)
   self:SetNonOverMater(false)
+  self:SetBeamColorSplit(false)
   self:SetBeamColorRGBA(255,255,255,255)
 
   self:WireWrite("Entity", self)
@@ -117,6 +118,7 @@ function ENT:UpdateSources()
       self:SetBeamLength(dobeam.NvLength)
     end -- Apply length based on looping
     -- Transfer visuals from the dominant
+    print("T", dobeam)
     self:SetDominant(dobeam)
     -- Send the dominant entity
     return dobeam.BmSource
@@ -162,9 +164,9 @@ function ENT:Think()
     else
       self:DoDamage(self:DoBeam(nil, direc))
     end
-    self:RemHitReports(mcount)
+    self:SetHitReportMax(mcount)
   else
-    self:RemHitReports()
+    self:SetHitReportMax()
     self:WireWrite("Width" , 0)
     self:WireWrite("Length", 0)
     self:WireWrite("Damage", 0)

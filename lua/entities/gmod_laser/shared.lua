@@ -444,15 +444,13 @@ end
  * Data is stored in notation: self.hitReports[ID]
 ]]
 
-function ENT:RemHitReports(rovr)
+function ENT:SetHitReportMax(rovr)
   if(self.hitReports) then
     local rep, idx = self.hitReports
-    if(rovr) then
+    if(rovr) then -- Overhead mode
       local rovr = tonumber(rovr) or 0
       idx, rep.Size = (rovr + 1), rovr
-    else
-      idx, rep.Size = 1, 0
-    end
+    else idx, rep.Size = 1, 0 end
     -- Wipe selected items
     while(rep[idx]) do
       rep[idx] = nil

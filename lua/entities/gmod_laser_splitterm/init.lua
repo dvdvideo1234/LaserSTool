@@ -27,6 +27,7 @@ function ENT:Initialize()
   self:SetStartSound("")
   self:SetBeamDimmer(false)
   self:SetBeamReplicate(false)
+  self:SetBeamColorSplit(false)
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then
@@ -76,7 +77,7 @@ function ENT:Think()
     self:SetOn(true)
   else
     self:SetOn(false)
-    self:RemHitReports()
+    self:SetHitReportMax()
   end
 
   self:WireArrays()
