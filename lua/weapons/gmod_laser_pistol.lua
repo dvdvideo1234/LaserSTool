@@ -284,7 +284,7 @@ function SWEP:ServerBeam()
     local vorg = self:GetBeamOrigin()
     local vdir = self:GetBeamDirect()
 
-    LaserLib.SetBounces(1)
+    LaserLib.SetExBounces(1)
 
     local trace, beam = self:DoBeam(vorg, vdir)
     if(beam and trace and
@@ -324,7 +324,7 @@ else
 
   function SWEP:DrawBeam(origin, direct)
     self:UpdateFlags()
-    LaserLib.SetBounces(1)
+    LaserLib.SetExBounces(1)
 
     local trace, beam = self:DoBeam(origin, direct)
     if(not beam) then return end

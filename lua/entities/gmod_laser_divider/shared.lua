@@ -111,19 +111,20 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * sdat > Source trace beam class
+ * bmex > Source trace beam class
  * idx  > Index to store the result
 ]]
-function ENT:DoBeam(ent, org, dir, sdat, idx)
-  LaserLib.SetSources(self, sdat.BmSource)
-  local length = sdat.NvLength
-  local usrfle = sdat.BrReflec
-  local usrfre = sdat.BrRefrac
-  local noverm = sdat.BmNoover
+function ENT:DoBeam(ent, org, dir, bmex, idx)
+  LaserLib.SetExSources(ent, bmex.BmSource)
+  LaserLib.SetExLength(bmex.BmLength)
+  local length = bmex.NvLength
+  local usrfle = bmex.BrReflec
+  local usrfre = bmex.BrRefrac
+  local noverm = bmex.BmNoover
   local todiv  = (self:GetBeamReplicate() and 1 or 2)
-  local damage = sdat.NvDamage / todiv
-  local force  = sdat.NvForce  / todiv
-  local width  = LaserLib.GetWidth(sdat.NvWidth / todiv)
+  local damage = bmex.NvDamage / todiv
+  local force  = bmex.NvForce  / todiv
+  local width  = LaserLib.GetWidth(bmex.NvWidth / todiv)
   local trace, beam = LaserLib.DoBeam(self,
                                       org,
                                       dir,

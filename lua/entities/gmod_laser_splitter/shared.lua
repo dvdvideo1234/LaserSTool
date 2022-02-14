@@ -135,12 +135,10 @@ function ENT:GetBeamLeanY()
 end
 
 function ENT:BeamColorSplit(idx)
-  local c = self:GetBeamColorRGBA(true)
   if(self:GetBeamColorSplit()) then
-    local r, g, b = LaserLib.GetColorFactorID(idx, c.r, c.g, c.b)
-    LaserLib.SetColorRGBA(r, g, b, c.a)
-  else
-    LaserLib.SetColorRGBA(c)
+    local r, g, b, a = self:GetBeamColorRGBA()
+    r, g, b = LaserLib.GetColorID(idx, r, g, b)
+    LaserLib.SetExColorRGBA(r, g, b, a)
   end; return self
 end
 

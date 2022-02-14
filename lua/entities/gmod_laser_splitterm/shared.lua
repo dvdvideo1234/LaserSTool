@@ -145,11 +145,9 @@ function ENT:EveryBeacon(entity, index, trace, beam)
     if(count > 1) then
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
-      local anmax = LaserLib.GetData("AMAX")
-      local mnang = anmax[2] / count
+      local mnang = LaserLib.GetData("AMAX")[2] / count
       for idx = 1, count do
-        local newdr = marby * angle:Up()
-              newdr:Add(marbx * angle:Forward())
+        local newdr = marby * angle:Up(); newdr:Add(marbx * angle:Forward())
         if(CLIENT) then
           hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, beam, mrdotv, hdx)
         else
@@ -180,15 +178,12 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
-function ENT:BeamColorSplit(idx, color)
-  local src = LaserLib.GetData("BESRC")
-  if(not src) then return self end
-  local c = (color or src:GetBeamColorRGBA(true))
+function ENT:BeamColorSplit(idx, bmex)
   if(self:GetBeamColorSplit()) then
-    local r, g, b = LaserLib.GetColorFactorID(idx, c.r, c.g, c.b)
-    LaserLib.SetColorRGBA(r, g, b, c.a)
-  else
-    LaserLib.SetColorRGBA(c)
+    local cnt = (idx % self:GetBeamCount() + 1)
+    local r, g, b, a = bmex:GetColorRGBA()
+    r, g, b = LaserLib.GetColorID(cnt, r, g, b)
+    LaserLib.SetExColorRGBA(r, g, b, a)
   end; return self
 end
 
@@ -197,22 +192,23 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * sdat > Source trace beam class
+ * bmex > Source trace beam class
+ * vdot > Dot product with surface normal
  * idx  > Index to store the result
 ]]
-function ENT:DoBeam(ent, org, dir, sdat, vdot, idx)
-  LaserLib.SetSources(self, sdat.BmSource)
-  local length = sdat.NvLength
-  local usrfle = sdat.BrReflec
-  local usrfre = sdat.BrRefrac
-  local noverm = sdat.BmNoover
+function ENT:DoBeam(ent, org, dir, bmex, vdot, idx)
+  LaserLib.SetExSources(ent, bmex.BmSource)
+  LaserLib.SetExLength(bmex.BmLength)
+  local length = bmex.NvLength
+  local usrfle = bmex.BrReflec
+  local usrfre = bmex.BrRefrac
+  local noverm = bmex.BmNoover
   local count  = self:GetBeamCount()
-  local replic = self:GetBeamReplicate()
-  local todiv  = (replic and 1 or (count / vdot))
-  local damage = (sdat.NvDamage / todiv)
-  local force  = (sdat.NvForce  / todiv)
-  local width  = LaserLib.GetWidth((sdat.NvWidth / todiv))
-  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx, sdat.NvColor),
+  local todiv  = (self:GetBeamReplicate() and 1 or (count / vdot))
+  local damage = (bmex.NvDamage / todiv)
+  local force  = (bmex.NvForce  / todiv)
+  local width  = LaserLib.GetWidth((bmex.NvWidth / todiv))
+  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx, bmex),
                                       org,
                                       dir,
                                       length,

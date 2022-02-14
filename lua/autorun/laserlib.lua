@@ -58,7 +58,8 @@ DATA.NTIF = {}              -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"      -- Utilized to print vector in proper manner
 DATA.AMAX = {-360, 360}     -- General angular limis for having min/max
 DATA.BBONC = 0              -- External forced beam max bounces. Resets on every beam
-DATA.BESRC = nil            -- This stores the entity source for the beam update
+DATA.BLENG = 0              -- External forced beam length used in the current request
+DATA.BESRC = nil            -- External forced entity source for the beam update
 DATA.BCOLR = nil            -- External forced beam color used in the current request
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
@@ -604,8 +605,13 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
     local vbb = tre:LocalToWorld(tre:OBBCenter())
     local org, dir = ply:EyePos(), ply:GetAimVector()
     local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
-    for idx = 1, #teun do local ent = teun[idx]
-      if(tre ~= ent and not ent:GetClass() ~= "gmod_laser") then
+    for idx = 1, #teun do
+      local ent = teun[idx]
+      local ecs = ent:GetClass()
+      if(tre ~= ent and not
+         ecs ~= "gmod_laser" and
+         ecs:find("gmod_laser", 1, true))
+      then
         local org, dir = LaserLib.GetTransformUnit(ent)
         LaserLib.DrawAssistOBB(vbb, org, dir, ncst, true)
       end -- Move reciever entity on the laser beam
@@ -1035,7 +1041,7 @@ end
          Can also be a flag for new color if mr is object
  * mb  > Blue component of the picked color channel
 ]]
-function LaserLib.GetColorFactorID(idx, mr, mg, mb)
+function LaserLib.GetColorID(idx, mr, mg, mb)
   if(not (idx and idx > 0)) then return end
   local idc = ((idx - 1) % 3) + 1 -- Index component
   local key = DATA.COLID[idc] -- Key color component
@@ -1385,11 +1391,23 @@ end
  * When this is not given the loop will use MBOUNCES
  * bounce > The amount of bounces the loop will have
 ]]
-function LaserLib.SetBounces(bounce)
+function LaserLib.SetExBounces(bounce)
+  DATA.BBONC = 0 -- Initial value
   if(bounce and bounce > 0) then
     DATA.BBONC = math.floor(bounce)
-  else -- Reset the exterlan limit
-    DATA.BBONC = 0
+  end
+end
+
+--[[
+ * Makes the laser trace loop use pre-defined length
+ * This is done so the next unit will know the
+ * actual length when SIMO entities are used
+ * length > The actual external length for SIMO
+]]
+function LaserLib.SetExLength(length)
+  DATA.BLENG = 0
+  if(length and length > 0) then
+    DATA.BLENG = length
   end
 end
 
@@ -1398,12 +1416,13 @@ end
  * entity > Reference to the current entity
  * former > Reference to the source from last split
 ]]
-function LaserLib.SetSources(entity, former)
-  if(entity and former) then
-    if(LaserLib.IsUnit(entity, 2)) then
-      DATA.BESRC = entity
-    else DATA.BESRC = former end
-  else DATA.BESRC = nil end
+function LaserLib.SetExSources(...)
+  DATA.BESRC = nil -- Initial value
+  for idx, ent in pairs({...}) do
+    if(LaserLib.IsUnit(ent, 2)) then
+      DATA.BESRC = ent; break
+    end -- Source is found
+  end -- No source is found
 end
 
 --[[
@@ -1411,22 +1430,23 @@ end
  * entity > Reference to the current entity
  * former > Reference to the source from last split
 ]]
-function LaserLib.SetColorRGBA(mr, mg, mb, ma)
+function LaserLib.SetExColorRGBA(mr, mg, mb, ma)
+  DATA.BCOLR = nil -- Initial value
   if(mr or mg or mb or ma) then
     local m = DATA.CLMX -- Localize max
     local c = Color(0,0,0,0); DATA.BCOLR = c
-    if(istable(mr)) then
+    if(istable(mr)) then -- Color object
       c.r = math.Clamp(mr[1] or mr["r"], 0, m)
       c.g = math.Clamp(mr[2] or mr["g"], 0, m)
       c.b = math.Clamp(mr[3] or mr["b"], 0, m)
       c.a = math.Clamp(mr[4] or mr["a"], 0, m)
-    else
+    else -- Must utilize numbers
       c.r =  math.Clamp(mr or 0, 0, m)
       c.g =  math.Clamp(mg or 0, 0, m)
       c.b =  math.Clamp(mb or 0, 0, m)
       c.a =  math.Clamp(ma or 0, 0, m)
-    end
-  else DATA.BCOLR = nil end
+    end -- We have input parameter
+  end -- We do not have input parameter
 end
 
 --[[
@@ -1455,6 +1475,7 @@ local function Beam(origin, direct, width, damage, length, force)
   self.BmColor  = DATA.BCOLR -- This will store the external start color
   self.MxBounce = math.floor(DATA.BBONC) -- Max bounces for the laser loop
   if(self.MxBounce <= 0) then self.MxBounce = DATA.MBOUNCES:GetInt() end
+  if(DATA.BLENG > 0) then self.ExLength = DATA.BLENG end
   self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
   self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
   self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory
@@ -2067,13 +2088,26 @@ end
 function mtBeam:SetSource()
   self.BmSource = self:GetSource()
   DATA.BBONC = 0 -- Clear next bounces
+  DATA.BLENG = 0 -- Clear next lenght
   DATA.BESRC = nil -- Clear next source
   DATA.BCOLR = nil -- Clear next color
   return self:ClearWater() -- Clear water
 end
 
 --[[
- * Allocates and updates beam color when needed
+ * Reads draw color from the beam object when needed
+]]
+function mtBeam:GetColorRGBA(bcol)
+  local com = (self.NvColor or self.BmColor)
+  if(not com) then local src = self:GetSource()
+    com = (com or src:GetBeamColorRGBA(true))
+  end -- No forced colors are present use source
+  if(bcol) then return com end -- Return object
+  return com.r, com.g, com.b, com.a -- Numbers
+end
+
+--[[
+ * Cashes the currently used beam color when needed
 ]]
 function mtBeam:SetColorRGBA(mr, mg, mb, ma)
   local c, m = self.NvColor, LaserLib.GetData("CLMX")
@@ -2320,7 +2354,7 @@ local gtActors = {
     if(trace and trace.Hit and beam and bdot) then
       local info = beam.TvPoints -- Read current nore stack
       local node = info[info.Size] -- Extract nodes stack size
-      local sc = beam.NvColor or (beam.BmColor or src:GetBeamColorRGBA(true))
+      local sc = beam:GetColorRGBA(true)
       local ec = ent:GetBeamColorRGBA(true)
       local matc = ent:GetInBeamMaterial()
       local mats = src:GetInBeamMaterial()
@@ -2385,7 +2419,7 @@ local gtActors = {
             node[6].b = math.max(sc.b - ec.b, 0)
             node[6].a = math.max(sc.a - ec.a, 0)
           end
-          beam.NvColor = node[6] -- Last beam color being used
+          beam:SetColorRGBA(node[6]) -- Last beam color being used
         end -- Remove from the output beams with such color and material
         beam.NvLength  = length; -- Length not used in visuals
         beam.NvWidth   = width ; node[2] = width

@@ -96,63 +96,51 @@ local xlength, bpower
 local xforce , xwidth, xdamage
 local opower , npower, force
 local width  , length, damage
-local domcor, doment , dobeam = Color(0,0,0,0)
-
-function ENT:MergeColor(beam, asgn)
-  if(self:GetBeamColorMerge()) then
-    local src = beam.BmSource
-    local cov = (beam.NvColor or beam.BmColor)
-    if(LaserLib.IsValid(src)) then
-      local com = src:GetBeamColorRGBA(true)
-      if(asgn) then
-        domcor.r = (cov and cov.r or com.r)
-        domcor.g = (cov and cov.g or com.g)
-        domcor.b = (cov and cov.b or com.b)
-      else
-        domcor.r = domcor.r + (cov and cov.r or com.r)
-        domcor.g = domcor.g + (cov and cov.g or com.g)
-        domcor.b = domcor.b + (cov and cov.b or com.b)
-      end
-      domcor.a = math.max(domcor.a, (cov and cov.a or com.a))
-    else
-      if(asgn) then
-        domcor.r = (cov and cov.r or 0)
-        domcor.g = (cov and cov.g or 0)
-        domcor.b = (cov and cov.b or 0)
-      else
-        domcor.r = domcor.r + (cov and cov.r or 0)
-        domcor.g = domcor.g + (cov and cov.g or 0)
-        domcor.b = domcor.b + (cov and cov.b or 0)
-      end
-    end
-    domcor.a = math.max(domcor.a, (cov and cov.a or 0))
-  end
-end
+local doment , dobeam, ncolor
+local domcor = Color(0,0,0,0)
+local xomcor = Color(0,0,0,0)
 
 function ENT:EveryBeacon(entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
+    local mrg = self:GetBeamColorMerge()
+    if(mrg) then ncolor = beam:GetColorRGBA(true) end
     npower = LaserLib.GetPower(beam.NvWidth,
                                beam.NvDamage)
     if(not self:IsInfinite(entity)) then
-      self:MergeColor(beam)
       bpower = (bpower or true)
-      width  = width  + beam.NvWidth
+      force = force + beam.NvForce
+      width = width + beam.NvWidth
       length = length + beam.NvLength
       damage = damage + beam.NvDamage
-      force  = force  + beam.NvForce
+      if(mrg) then
+        domcor.r = domcor.r + ncolor.r
+        domcor.g = domcor.g + ncolor.g
+        domcor.b = domcor.b + ncolor.b
+        domcor.a = math.max(domcor.a, ncolor.a)
+      end
     else
       if(doment ~= entity) then
-        self:MergeColor(beam, true)
-        xforce  = beam.NvForce
-        xwidth  = beam.NvWidth
+        xforce = beam.NvForce
+        xwidth = beam.NvWidth
         xdamage = beam.NvDamage
-        xlength = beam.BmLength
+        xlength = (beam.ExLength or beam.BmLength)
+        if(mrg) then
+          xomcor.r = ncolor.r
+          xomcor.g = ncolor.g
+          xomcor.b = ncolor.b
+          xomcor.a = math.max(xomcor.a, ncolor.a)
+        end
       else
-        self:MergeColor(beam)
-        xforce  = xforce  + beam.NvForce
-        xwidth  = xwidth  + beam.NvWidth
+        xforce = xforce + beam.NvForce
+        xwidth = xwidth + beam.NvWidth
         xdamage = xdamage + beam.NvDamage
+        if(mrg) then
+          xomcor.r = xomcor.r + ncolor.r
+          xomcor.g = xomcor.g + ncolor.g
+          xomcor.b = xomcor.b + ncolor.b
+          xomcor.a = math.max(xomcor.a, ncolor.a)
+        end
       end
     end
     if(not opower or npower > opower) then
@@ -163,12 +151,28 @@ function ENT:EveryBeacon(entity, index, trace, beam)
   end
 end
 
+function ENT:DominantColor(beam, cov)
+  local mar = math.max(cov.r, cov.g, cov.b)
+  if(mar > 0) then
+    if(mar > CLMX) then
+      cov.r = (cov.r / mar) * CLMX
+      cov.g = (cov.g / mar) * CLMX
+      cov.b = (cov.b / mar) * CLMX
+    end
+    self:SetDominant(beam, cov)
+  else
+    self:SetDominant(beam)
+  end
+end
+
 function ENT:UpdateSources()
   self.hitSize = 0 -- Add sources in array
   domcor.r, domcor.g = 0, 0
   domcor.b, domcor.a = 0, 0
+  xomcor.r, xomcor.g = 0, 0
+  xomcor.b, xomcor.a = 0, 0
   doment , dobeam = nil, nil
-  xlength, bpower = 0, false
+  xlength, bpower, ncolor  = 0, false
   xforce , xwidth, xdamage = 0, 0, 0
   width  , length, damage  = 0, 0, 0
   npower , force , opower  = 0, 0, nil
@@ -177,14 +181,11 @@ function ENT:UpdateSources()
 
   if(self.hitSize > 0) then
     if(self:GetBeamColorMerge()) then
-      local mar = math.max(domcor.r, domcor.g, domcor.b)
-      if(mar > 0) then
-        if(mar > CLMX) then
-          domcor.r = (domcor.r / mar) * CLMX
-          domcor.g = (domcor.g / mar) * CLMX
-          domcor.b = (domcor.b / mar) * CLMX
-        end; self:SetDominant(dobeam, domcor)
-      else self:SetDominant(dobeam) end
+      if(bpower) then -- No infinite
+        self:DominantColor(dobeam, domcor)
+      else -- Utilize the loop color
+        self:DominantColor(dobeam, xomcor)
+      end -- Use regular dominant
     else self:SetDominant(dobeam) end
 
     if(bpower) then -- Sum settings

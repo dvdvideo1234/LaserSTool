@@ -144,7 +144,6 @@ end
 ]]
 function ENT:SetDominant(beam, color)
   local src = beam.BmSource
-  local cor = (color or beam.NvColor or beam.BmColor)
   -- We set the same non-addable properties
   if(not LaserLib.IsUnit(src, 2)) then return self end
   -- The most powerful source (biggest damage/width)
@@ -158,7 +157,7 @@ function ENT:SetDominant(beam, color)
   self:SetReflectRatio(src:GetReflectRatio())
   self:SetRefractRatio(src:GetRefractRatio())
   self:SetNonOverMater(src:GetNonOverMater())
-  self:SetBeamColorRGBA(cor or src:GetBeamColorRGBA(true))
+  self:SetBeamColorRGBA(color or beam:GetColorRGBA(true))
 
   self:WireWrite("Dominant", src)
   LaserLib.SetPlayer(self, (src.ply or src.player))
