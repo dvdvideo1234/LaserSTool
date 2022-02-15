@@ -782,7 +782,7 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
   local sTool = LaserLib.GetTool()
   -- Update material selection content
   LaserLib.ClearMaterials(pnMat)
-  -- Read the controls tabe and craete index
+  -- Read the controls table and craete index
   local tCont, iC = pnMat.Controls, 0
   -- Update material panel with ordered values
   for iD = 1, sort.Size do
@@ -1472,10 +1472,11 @@ local function Beam(origin, direct, width, damage, length, force)
   local self = {}; setmetatable(self, mtBeam)
   self.TrMedium = {} -- Contains information for the mediums being traversed
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
-  self.BmColor  = DATA.BCOLR -- This will store the external start color
+  -- This will apply the external configuration during the beam creation
   self.MxBounce = math.floor(DATA.BBONC) -- Max bounces for the laser loop
   if(self.MxBounce <= 0) then self.MxBounce = DATA.MBOUNCES:GetInt() end
-  if(DATA.BLENG > 0) then self.ExLength = DATA.BLENG end
+  if(DATA.BCOLR) then self.BmColor = DATA.BCOLR end -- Beam force start color
+  if(DATA.BLENG > 0) then self.BoLength = DATA.BLENG end -- Original length
   self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
   self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
   self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory

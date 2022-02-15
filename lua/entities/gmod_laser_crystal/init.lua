@@ -124,7 +124,7 @@ function ENT:EveryBeacon(entity, index, trace, beam)
         xforce = beam.NvForce
         xwidth = beam.NvWidth
         xdamage = beam.NvDamage
-        xlength = (beam.ExLength or beam.BmLength)
+        xlength = (beam.BoLength or beam.BmLength)
         if(mrg) then
           xomcor.r = ncolor.r
           xomcor.g = ncolor.g
