@@ -630,7 +630,8 @@ function LaserLib.DrawPoint(pos, col, idx, msg)
     if(idx) then txt = txt..tostring(idx)
       if(msg) then txt = txt..": " end end
     if(msg) then txt = txt..tostring(msg) end
-    local ang = dir:AngleEx(DATA.VDRUP)
+    local ang = LocalPlayer():EyeAngles()
+    ang:RotateAroundAxis(ang:Up(), 180)
     local cbk = LaserLib.GetColor("BLACK")
     local cbg = LaserLib.GetColor("BACKGR")
     ang:RotateAroundAxis(ang:Up(), 90)
@@ -872,6 +873,24 @@ function LaserLib.Call(time, func, ...)
     then func(...); DATA.TOLD = tnew end
 end
 
+function LaserLib.PrintOn()
+  DATA.PRDY = true
+end
+
+function LaserLib.PrintOff()
+  DATA.PRDY = false
+end
+
+function LaserLib.Print(...)
+  if(not DATA.PRDY) then return end
+  print(...)
+end
+
+function LaserLib.PrintTable(...)
+  if(not DATA.PRDY) then return end
+  PrintTable(...)
+end
+
 --[[
  * Creates welds between laser and base
  * Applies and controls surface weld flag
@@ -953,10 +972,11 @@ end
  * Return the refracted ray and beam status
   [1] > The refracted ray direction vector
   [2] > Will the beam traverse to the next medium
+  [3] > Mediums have the same refractive index
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
   local inc = direct:GetNormalized() -- Read normalized copy os incident
-  if(source == destin) then return inc, true end -- Continue out medium
+  if(source == destin) then return inc, true, true end -- Continue out medium
   local nrm = Vector(normal) -- Always normalized. Call copy-constructor
   local vcr = inc:Cross(LaserLib.VecNegate(nrm)) -- Sine: |i||n|sin(i^n)
   local ang, sii = nrm:AngleEx(vcr), vcr:Length()
@@ -964,9 +984,9 @@ function LaserLib.GetRefracted(direct, normal, source, destin)
   if(math.abs(mar) <= 1) then -- Valid angle available
     local sio, aup = math.asin(mar), ang:Up()
     ang:RotateAroundAxis(aup, -math.deg(sio))
-    return ang:Forward(), true -- Make refraction
+    return ang:Forward(), true, false -- Make refraction
   else -- Reflect from medum interface boundary
-    return LaserLib.GetReflected(direct, normal), false
+    return LaserLib.GetReflected(direct, normal), false, false
   end
 end
 
@@ -1457,7 +1477,6 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__index = mtBeam -- If not found in self search here
       mtBeam.__vtorg = Vector() -- Temprary calculation origin vector
       mtBeam.__vtdir = Vector() -- Temprary calculation direct vector
-      mtBeam.__vtnor = Vector() -- Temprary calculation normal vector
       mtBeam.A = {DATA.REFRACT["air"  ], "air"  } -- General air info
       mtBeam.W = {DATA.REFRACT["water"], "water"} -- General water info
       mtBeam.F = function(ent) return (ent == DATA.WORLD) end
@@ -1486,12 +1505,12 @@ local function Beam(origin, direct, width, damage, length, force)
   self.NvDamage = math.max(tonumber(damage) or 0, 0) -- Initial current beam damage
   self.NvWidth  = math.max(tonumber(width ) or 0, 0) -- Initial current beam width
   self.NvForce  = math.max(tonumber(force ) or 0, 0) -- Initial current beam force
-  self.StRfract = false -- Start tracing the beam inside a boundary
-  self.IsTrace  = true -- Library is still tracing the beam
-  self.TrFActor = false -- Trace filter was updated by actor and must be cleared
   self.DmRfract = 0 -- Diameter trace-back dimensions of the entity
   self.TrRfract = 0 -- Full length for traces not being bound by hit events
   self.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
+  self.IsTrace  = true -- Library is still tracing the beam and calculating nodes
+  self.StRfract = false -- Start tracing the beam inside a medium boundary
+  self.TrFActor = false -- Trace filter was updated by actor and must be cleared
   self.NvIWorld = false -- Ignore world flag to make it hit the other side
   self.IsRfract = false -- The beam is refracting inside and entity or world solid
   self.NvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
@@ -1770,7 +1789,7 @@ function mtBeam:SetPowerRatio(rate)
   if(rate) then -- There is sanity with adjusting the stuff
     self.NvDamage = rate * self.NvDamage
     self.NvForce  = rate * self.NvForce
-    self.NvWidth  = LaserLib.GetWidth(rate * self.NvWidth)
+    self.NvWidth  = rate * self.NvWidth
     -- Update the parameters used for drawing the beam trace
     node[2] = self.NvWidth -- Adjusts visuals for width
     node[3] = self.NvDamage -- Adjusts visuals for damage
@@ -1955,9 +1974,9 @@ function mtBeam:RefractWaterAir()
   -- Registering the node cannot be done with direct substraction
   LaserLib.VecNegate(self.VrDirect); self:RegisterNode(vwa, true)
   vtm:Set(wat.N); LaserLib.VecNegate(vtm)
-  local vdir, bout = LaserLib.GetRefracted(self.VrDirect, vtm,
+  local vdir, bnex = LaserLib.GetRefracted(self.VrDirect, vtm,
                        mtBeam.W[1][1], mtBeam.A[1][1])
-  if(bout) then
+  if(bnex) then
     wat.N:Zero() -- Set water normal flag to zero
     self:SetMediumSours(mtBeam.A) -- Switch to air medium
     self:Redirect(vwa, vdir, true) -- Redirect and reset laser beam
@@ -2043,13 +2062,12 @@ function mtBeam:IsTraverse(origin, direct, normal, target, trace)
   local refract = self:GetSolidMedium(org, dir, target, trace)
   if(not refract) then return false end
   -- Refract the hell out of this requested beam with enity destination
-  local nor = mtBeam.__vtnor; nor:Set(normal)
-  local vdir, bout = LaserLib.GetRefracted(dir,
-                 nor, self.TrMedium.D[1][1], refract[1])
-  if(bout) then
-    self.IsRfract, self.StRfract = false, true
+  local vdir, bnex, bsam = LaserLib.GetRefracted(dir,
+                 normal, self.TrMedium.D[1][1], refract[1])
+  if(bnex) then
+    self.IsRfract, self.StRfract = false, true -- Force start-refract
     self:Redirect(org, nil, true) -- The beam did not traverse mediums
-    self:SetMediumMemory(self.TrMedium.D, nil, nor)
+    self:SetMediumMemory(self.TrMedium.D, nil, normal)
     if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
   else -- Get the trace ready to check the other side and register the location
     self:SetTraceNext(org, vdir) -- The beam did not traverse mediums
@@ -2181,9 +2199,8 @@ function mtBeam:Draw(sours, imatr, color)
   for idx = 2, tvpnt.Size do
     local org = tvpnt[idx - 1]
     local new = tvpnt[idx - 0]
-    local otx = org[1] -- Start origin
-    local ntx = new[1] -- End origin
-    local wdt = org[2] -- Start width
+    local ntx, otx = new[1], org[1] -- Read origin
+    local wdt = LaserLib.GetWidth(org[2]) -- Start width
     -- Make sure the coordinates are conveted to world ones
     LaserLib.UpdateRB(bbmin, ntx, math.min)
     LaserLib.UpdateRB(bbmax, ntx, math.max)
@@ -2555,9 +2572,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Make sure to pick the correct refract exit medium for current node
           if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target, tr)) then
             -- Refract the hell out of this requested beam with enity destination
-            local vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+            local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
-            if(bout) then -- When the beam gets out of the medium
+            if(bnex) then -- When the beam gets out of the medium
               beam:Redirect(trace.HitPos, vdir, true)
               if(not beam:IsWater()) then -- Check for zero when water only
                 if(not beam:IsAir()) then beam:ClearWater() end
@@ -2586,7 +2603,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   -- Substact traced lenght from total length
                   beam.NvLength = beam.NvLength - beam.NvLength * trace.Fraction
                   -- Calculated refraction ray. Reflect when not possible
-                  local vdir, bout -- Refraction entity direction and reflection
+                  local bnex, bsam, vdir = true, true -- Refraction entity direction and reflection
                   -- Call refraction cases and prepare to trace-back
                   if(beam.StRfract) then -- Bounces were decremented so move it up
                     if(beam.NvBounce == beam.MxBounce) then
@@ -2594,7 +2611,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     else -- When two props are stuck save the middle boundary and traverse
                       -- When the traverse mediums is differerent and node is not inside a laser
                       if(beam:IsMemory(refract[1], trace.HitPos)) then
-                        vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                        vdir, bnex, bsam = LaserLib.GetRefracted(beam.VrDirect,
                                        beam.TrMedium.M[3], beam.TrMedium.M[1][1], refract[1])
                         -- Do not waste game ticks to refract the same refraction ratio
                       else -- When there is no medium traverse change
@@ -2603,10 +2620,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     end -- Marking the fraction being zero and refracting from the last entity
                     beam.StRfract = false -- Make sure to disable the flag agian
                   else -- Otherwise do a normal water-entity-air refraction
-                    vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                    vdir, bnex, bsam = LaserLib.GetRefracted(beam.VrDirect,
                                    trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
                   end
-                  if(bout) then -- We have to change mediums
+                  if(bnex or bsam) then -- We have to change mediums
                     beam:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
                   else -- Redirect the beam with the reflected ray
                     beam:Redirect(trace.HitPos, vdir)
@@ -2642,9 +2659,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             LaserLib.VecNegate(nrm); LaserLib.VecNegate(beam.VrDirect)
             -- Do the refraction according to medium boundary
             if(not beam:IsTraverse(org, nil, nrm, target, tr)) then
-              local vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+              local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                    nrm, beam.TrMedium.D[1][1], mtBeam.A[1][1])
-              if(bout) then -- When the beam gets out of the medium
+              if(bnex) then -- When the beam gets out of the medium
                 beam:Redirect(org, vdir, true)
                 beam:SetMediumSours(mtBeam.A)
                 -- Memorizing will help when beam traverses from world to no-collided entity
@@ -2681,7 +2698,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     beam.StRfract = false -- Lower the flag so no preformance hit is present
                   else -- Beam comes from the air and hits the water. Store water plane and refract
                     -- Get the trace tready to check the other side and point and register the location
-                    local vdir, bout = LaserLib.GetRefracted(beam.VrDirect,
+                    local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                          trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
                     beam:SetWater(refract[3] or key, trace)
                     beam:Redirect(trace.HitPos, vdir)
