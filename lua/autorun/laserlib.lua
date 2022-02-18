@@ -1500,7 +1500,7 @@ local function Beam(origin, direct, width, damage, length, force)
   self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
   self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory
   self.VrOrigin = Vector(origin) -- Copy origin not to modify it
-  self.VrDirect = direct:GetNormalized() -- Copy deirection not to modify it
+  self.VrDirect = Vector(direct); self.VrDirect:Normalize() -- Copy deirection
   self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
   self.NvDamage = math.max(tonumber(damage) or 0, 0) -- Initial current beam damage
   self.NvWidth  = math.max(tonumber(width ) or 0, 0) -- Initial current beam width
@@ -1794,7 +1794,7 @@ function mtBeam:SetPowerRatio(rate)
     node[2] = self.NvWidth -- Adjusts visuals for width
     node[3] = self.NvDamage -- Adjusts visuals for damage
     node[4] = self.NvForce -- Adjusts visuals for force
-  end -- Check out power rankings so the trace absorbed everything
+  end -- Check out power rating so the trace absorbed everything
   local power = LaserLib.GetPower(self.NvWidth, self.NvDamage)
   if(power < DATA.POWL) then self.IsTrace = false end -- Absorbs remaining light
   return node, power -- It is indexed anyway then return it to the caller
@@ -2484,7 +2484,7 @@ local gtActors = {
 ]]
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
   -- Parameter validation check. Allocate only when these conditions are present
-  if(not (origin or direct)) then return end -- Origin and direction must exist
+  if(not (origin and direct)) then return end -- Origin and direction must exist
   if(direct:LengthSqr() <= 0) then return end -- Direction must point to somewhere
   if(not length or length <= 0) then return end -- Length must be positive to traverse
   if(not LaserLib.IsValid(entity)) then return end -- Source entity must be valid
@@ -2608,7 +2608,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   -- Call refraction cases and prepare to trace-back
                   if(beam.StRfract) then -- Bounces were decremented so move it up
                     if(beam.NvBounce == beam.MxBounce) then
-                      vdir, bnex = Vector(direct), true -- Primary node starts inside solid
+                      vdir, bnex = Vector(beam.VrDirect), true -- Primary node starts inside solid
                     else -- When two props are stuck save the middle boundary and traverse
                       -- When the traverse mediums is differerent and node is not inside a laser
                       if(beam:IsMemory(refract[1], trace.HitPos)) then
@@ -2695,7 +2695,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   -- Calculated refraction ray. Reflect when not possible
                   if(beam.StRfract) then -- Laser is within the map water submerged
                     beam:SetWater(refract[3] or key, tr)
-                    beam:Redirect(trace.HitPos, direct) -- Keep the same direction and initial origin
+                    beam:Redirect(trace.HitPos) -- Keep the same direction and initial origin
                     beam.StRfract = false -- Lower the flag so no preformance hit is present
                   else -- Beam comes from the air and hits the water. Store water plane and refract
                     -- Get the trace tready to check the other side and point and register the location
