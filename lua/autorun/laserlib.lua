@@ -2483,6 +2483,11 @@ local gtActors = {
  * noverm > Enable interactions with no material override
 ]]
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
+  -- Parameter validation check. Allocate only when these conditions are present
+  if(not (origin or direct)) then return end -- Origin and direction must exist
+  if(direct:LengthSqr() <= 0) then return end -- Direction must point to somewhere
+  if(not length or length <= 0) then return end -- Length must be positive to traverse
+  if(not LaserLib.IsValid(entity)) then return end -- Source entity must be valid
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local bIsValid  = false -- Stores whenever the trace is valid entity or not
   local sTrMaters = "" -- This stores the current extracted material as string
@@ -2494,10 +2499,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
   beam.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
   beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
-
-  if(beam.NvLength <= 0) then return end
-  if(beam.VrDirect:LengthSqr() <= 0) then return end
-  if(not LaserLib.IsValid(entity)) then return end
 
   beam:SourceFilter(entity)
   beam:RegisterNode(origin)
@@ -2603,19 +2604,19 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   -- Substact traced lenght from total length
                   beam.NvLength = beam.NvLength - beam.NvLength * trace.Fraction
                   -- Calculated refraction ray. Reflect when not possible
-                  local bnex, bsam, vdir = true, true -- Refraction entity direction and reflection
+                  local bnex, bsam, vdir -- Refraction entity direction and reflection
                   -- Call refraction cases and prepare to trace-back
                   if(beam.StRfract) then -- Bounces were decremented so move it up
                     if(beam.NvBounce == beam.MxBounce) then
-                      vdir = Vector(direct) -- Primary node starts inside solid
+                      vdir, bnex = Vector(direct), true -- Primary node starts inside solid
                     else -- When two props are stuck save the middle boundary and traverse
                       -- When the traverse mediums is differerent and node is not inside a laser
                       if(beam:IsMemory(refract[1], trace.HitPos)) then
                         vdir, bnex, bsam = LaserLib.GetRefracted(beam.VrDirect,
                                        beam.TrMedium.M[3], beam.TrMedium.M[1][1], refract[1])
                         -- Do not waste game ticks to refract the same refraction ratio
-                      else -- When there is no medium traverse change
-                        vdir = Vector(beam.VrDirect) -- Keep the last beam direction
+                      else -- When there is no medium refractive index traverse change
+                        vdir, bsam = Vector(beam.VrDirect), true -- Keep the last beam direction
                       end -- Finish start-refraction for current iteration
                     end -- Marking the fraction being zero and refracting from the last entity
                     beam.StRfract = false -- Make sure to disable the flag agian
