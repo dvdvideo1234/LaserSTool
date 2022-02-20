@@ -101,6 +101,7 @@ local domcor = Color(0,0,0,0)
 local xomcor = Color(0,0,0,0)
 
 function ENT:EveryBeacon(entity, index, trace, beam)
+  LaserLib.Print("EveryBeacon", entity, index, trace, beam)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()

@@ -59,3 +59,31 @@ function ENT:GetHitPower(normal, trace, beam, bmln)
   local dott = math.abs(norm:Dot(trace.HitNormal))
   return (dott > (1 - dotm)), dotv
 end
+
+--[[
+ * Registers a trace hit report under the specified index
+ * trace > Trace result structure to register
+ * beam  > Beam structure to register
+]]
+function ENT:SetHitReport(trace, beam)
+  if(not self.hitReports) then self.hitReports = {Size = 0} end
+  local rep, idx = self.hitReports, beam.BmIdenty
+  if(SERVER) then
+    print(self, "reports", idx, trace.Entity)
+  end
+  if(idx >= rep.Size) then rep.Size = idx end
+  if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
+  rep["DT"] = beam; rep["TR"] = trace; return self
+end
+
+--[[
+ * Retrieves hit report trace and beam under specified index
+ * index > Hit report index to read ( defaults to 1 )
+]]
+function ENT:GetHitReport(index)
+  if(not index) then return end
+  if(not self.hitReports) then return end
+  local rep = self.hitReports[index]
+  if(not rep) then return end
+  return rep["TR"], rep["DT"]
+end

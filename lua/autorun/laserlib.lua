@@ -1495,7 +1495,8 @@ local function Beam(origin, direct, width, damage, length, force)
   self.MxBounce = math.floor(DATA.BBONC) -- Max bounces for the laser loop
   if(self.MxBounce <= 0) then self.MxBounce = DATA.MBOUNCES:GetInt() end
   if(DATA.BCOLR) then self.BmColor = DATA.BCOLR end -- Beam force start color
-  if(DATA.BLENG > 0) then self.BoLength = DATA.BLENG end -- Original length
+  if(DATA.BLENG > 0) then self.BoLength = DATA.BLENG; DATA.BLENG = 0 end -- Original length
+  if(DATA.BESRC) then self.BoSource = DATA.BESRC; DATA.BESRC = nil end -- Original length
   self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
   self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
   self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory
@@ -2097,7 +2098,7 @@ end
  * Returns the beam current active source entity
 ]]
 function mtBeam:GetSource()
-  return (DATA.BESRC or self.BmSource)
+  return (self.BoSource or self.BmSource)
 end
 
 --[[
@@ -2105,7 +2106,6 @@ end
  * Checks when we have SIMO source request
 ]]
 function mtBeam:SetSource()
-  self.BmSource = self:GetSource()
   DATA.BBONC = 0 -- Clear next bounces
   DATA.BLENG = 0 -- Clear next lenght
   DATA.BESRC = nil -- Clear next source
@@ -2151,11 +2151,12 @@ end
 ]]
 function mtBeam:UpdateSource(trace)
   local entity, target = self.BmSource, trace.Entity
+  -- print(self.BmIdenty, entity, target)
   -- Calculates the range as beam distanc traveled
   if(trace.Hit and self.RaLength > self.NvLength) then
     self.RaLength = self.RaLength - self.NvLength
   end -- Update hit report of the source
-  if(entity.SetHitReport and LaserLib.IsUnit(entity)) then
+  if(entity.SetHitReport) then
     -- Update the current beam source hit report
     entity:SetHitReport(trace, self) -- What we just hit
   end -- Register us to the target sources table
@@ -2173,6 +2174,7 @@ end
  * color > Color structure reference for RGBA
 ]]
 function mtBeam:Draw(sours, imatr, color)
+  if(SERVER) then return end
   local tvpnt = self.TvPoints
   -- Check node avalability
   if(not tvpnt[1]) then return end
@@ -2223,6 +2225,7 @@ end
  * endrw > Draw enabled flag from beam sources
 ]]
 function mtBeam:DrawEffect(sours, trace, endrw)
+  if(SERVER) then return end
   local sours = (sours or self.BmSource)
   if(trace and not trace.HitSky and
     endrw and sours.isEffect)
@@ -2358,10 +2361,41 @@ local gtActors = {
       beam.IsTrace = true -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
       local node = beam:SetPowerRatio(vdot) -- May absorb
-      beam.VrOrigin:Set(trace.HitPos)
-      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
-      node[1]:Set(trace.HitPos) -- We are not portal update position
-      node[5] = true            -- We are not portal enable drawing
+      if(beam.IsTrace) then
+        function ent:GetOn() return true end
+        local length = (beam.BoLength or beam.NvLength)
+        local origin, direct = trace.HitPos, beam.VrDirect
+        local width , damage, force  = beam.NvWidth, beam.NvDamage, beam.NvForce
+        local usrfle, usrfre, noverm = beam.BrReflec, beam.BrRefrac, beam.BmNoover
+
+        local src = beam:GetSource()
+        local eff = src:GetEndingEffect()
+        local mat = src:GetBeamMaterial(true)
+
+        LaserLib.SetExSources(ent, src)
+        local tr1, bm1 = LaserLib.DoBeam(ent, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, 1)
+        bm1:Draw(src, mat)
+        bm1:DrawEffect(src, tr1, eff)
+        LaserLib.SetExSources(ent, src)
+        local reflect = LaserLib.GetReflected(direct, trace.HitNormal)
+        local tr2, bm2 = LaserLib.DoBeam(ent, origin, reflect, length, width, damage, force, usrfle, usrfre, noverm, 2)
+        bm2:Draw(src, mat)
+        bm2:DrawEffect(src, tr2, eff)
+       -- print("tr1.Entity", tr1.Entity)
+       -- print("tr2.Entity", tr2.Entity)
+        LaserLib.Call(4, function()
+          print("-----------------")
+          print("DATA.BESRC", ent, DATA.BESRC, beam:GetSource())
+          PrintTable(tr1)
+
+          if(DATA.PRDY) then
+            LaserLib.PrintOff()
+          else
+            LaserLib.PrintOn()
+          end
+        end)
+
+      end
     end
   end,
   ["gmod_laser_filter"] = function(trace, beam)

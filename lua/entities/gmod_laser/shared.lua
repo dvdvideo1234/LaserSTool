@@ -471,7 +471,7 @@ function ENT:GetHitSourceID(ent, idx, bri)
   if(not LaserLib.IsValid(ent)) then return nil end -- Invalid
   if(ent == self) then return nil end -- Cannot be source to itself
   if(not self.hitSources[ent]) then return nil end -- Not source
-  if(not LaserLib.IsUnit(ent)) then return nil end -- Not unit
+--  if(not LaserLib.IsUnit(ent)) then return nil end -- Not unit
   if(not ent:GetOn()) then return nil end -- Unit is not powered on
   local rep = ent.hitReports -- Retrieve and localize hit reports
   if(not rep) then return nil end -- No hit reports. Exit at once
@@ -480,6 +480,7 @@ function ENT:GetHitSourceID(ent, idx, bri)
     if(trace and trace.Hit and self == trace.Entity) then return idx end
   else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
     for cnt = anc, rep.Size do local trace, beam = ent:GetHitReport(cnt)
+      print(cnt, self, trace.Entity, ent)
       if(trace and trace.Hit and self == trace.Entity) then return cnt end
     end -- The hit report list is scanned and no reports are found hitting us `self`
   end; return nil -- Tell requestor we did not find anything that hits us `self`
