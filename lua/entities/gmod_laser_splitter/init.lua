@@ -92,7 +92,7 @@ end
 
 local opower, doment, dobeam
 
-function ENT:EveryBeacon(entity, index, trace, beam)
+function ENT:EveryBeacon(entity, index, beam, trace)
   if(trace and trace.Hit and beam) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)
@@ -120,7 +120,7 @@ function ENT:UpdateSources()
     -- Transfer visuals from the dominant
     self:SetDominant(dobeam)
     -- Send the dominant entity
-    return dobeam.BmSource
+    return dobeam:GetSource()
   else
     self:SetBeamForce(0)
     self:SetBeamWidth(0)

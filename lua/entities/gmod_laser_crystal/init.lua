@@ -100,8 +100,7 @@ local doment , dobeam, ncolor
 local domcor = Color(0,0,0,0)
 local xomcor = Color(0,0,0,0)
 
-function ENT:EveryBeacon(entity, index, trace, beam)
-  LaserLib.Print("EveryBeacon", entity, index, trace, beam)
+function ENT:EveryBeacon(entity, index, beam, trace)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
@@ -225,7 +224,7 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:UpdateFlags()
-    local trace, beam = self:DoBeam()
+    local beam, trace = self:DoBeam()
 
     if(beam) then
       self:WireWrite("Range", beam.RaLength)
@@ -243,7 +242,7 @@ function ENT:Think()
       end
     end
 
-    self:DoDamage(trace, beam)
+    self:DoDamage(beam, trace)
   else
     self:SetHitReportMax()
     self:WireWrite("Hit", 0)

@@ -109,13 +109,13 @@ function ENT:SpawnFunction(user, trace)
   end
 end
 
-function ENT:DoDamage(trace, beam)
+function ENT:DoDamage(beam, trace)
   if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
       -- Check whenever target is beam source
       if(not LaserLib.IsUnit(trent)) then
-        local sors = beam.BmSource
+        local sors = beam:GetSource()
         local user = (self.ply or self.player)
         local dtyp = sors:GetDissolveType()
         LaserLib.DoDamage(trent,
@@ -143,7 +143,7 @@ end
  * color > Beam color for override. Not mandatory
 ]]
 function ENT:SetDominant(beam, color)
-  local src = beam.BmSource
+  local src = beam:GetSource()
   -- We set the same non-addable properties
   if(not LaserLib.IsUnit(src, 2)) then return self end
   -- The most powerful source (biggest damage/width)
@@ -168,7 +168,7 @@ end
 function ENT:Think()
   if(self:GetOn()) then
     self:UpdateFlags()
-    local trace, beam = self:DoBeam()
+    local beam, trace = self:DoBeam()
 
     if(beam) then
       self:WireWrite("Range", beam.RaLength)
@@ -186,7 +186,7 @@ function ENT:Think()
       end
     end
 
-    self:DoDamage(trace, beam)
+    self:DoDamage(beam, trace)
   else
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)

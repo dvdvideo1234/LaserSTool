@@ -21,11 +21,20 @@ include(LaserLib.GetTool().."/wire_wrapper.lua")
 AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
+AddCSLuaFile(LaserLib.GetTool().."/report_manager.lua")
+include(LaserLib.GetTool().."/report_manager.lua")
+
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("LinearMapping", "General")
   self:EditableRemoveOrderInfo()
+end
+
+function ENT:GetOn()
+  local src = self.hitSources
+  if(not src) then return false
+  else return table.IsEmpty(src) end
 end
 
 -- Override the beam transormation

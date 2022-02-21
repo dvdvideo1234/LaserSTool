@@ -103,9 +103,9 @@ local opower, npower, force  = 0, 0, 0
 local width , length, damage = 0, 0, 0
 local origin, direct = Vector(), Vector()
 
-function ENT:EveryBeacon(entity, index, trace, beam)
+function ENT:EveryBeacon(entity, index, beam, trace)
   local norm = self:GetUnitDirection()
-  local bdot, mdot = self:GetHitPower(norm, trace, beam)
+  local bdot, mdot = self:GetHitPower(norm, beam, trace)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
@@ -116,7 +116,7 @@ function ENT:EveryBeacon(entity, index, trace, beam)
       if(not opower or npower > opower) then
         normh  = true
         opower = npower
-        domsrc = beam.BmSource
+        domsrc = beam:GetSource()
         length = beam.NvLength
         origin:Set(beam.VrOrigin)
         direct:Set(beam.VrDirect)

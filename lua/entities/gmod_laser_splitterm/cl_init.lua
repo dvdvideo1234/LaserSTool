@@ -1,11 +1,11 @@
 include("shared.lua")
 
 function ENT:DrawBeam(src, org, dir, bmex, vdot, idx)
-  local trace, beam = self:DoBeam(src, org, dir, bmex, vdot, idx)
+  local beam, trace = self:DoBeam(src, org, dir, bmex, vdot, idx)
   if(not beam) then return end
-  self:DrawTrace(beam, bmex.BmSource, beam.BmColor)
-  -- Handle drawing the effects when have to be drawwn
-  self:DrawEndingEffect(trace, beam, bmex.BmSource)
+  local sors = bmex:GetSource()
+  self:DrawTrace(beam, sors, beam.BmColor)
+  self:DrawEndingEffect(beam, trace, sors)
 end
 
 function ENT:Draw()

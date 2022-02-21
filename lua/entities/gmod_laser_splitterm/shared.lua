@@ -132,7 +132,7 @@ end
 
 local hdx, count
 
-function ENT:EveryBeacon(entity, index, trace, beam)
+function ENT:EveryBeacon(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
     local upwrd = Vector(self:GetUpwardLocal())
@@ -197,7 +197,7 @@ end
  * idx  > Index to store the result
 ]]
 function ENT:DoBeam(ent, org, dir, bmex, vdot, idx)
-  LaserLib.SetExSources(ent, bmex.BmSource)
+  LaserLib.SetExSources(ent, bmex:GetSource())
   LaserLib.SetExLength(bmex.BmLength)
   local length = bmex.NvLength
   local usrfle = bmex.BrReflec
@@ -208,7 +208,7 @@ function ENT:DoBeam(ent, org, dir, bmex, vdot, idx)
   local damage = (bmex.NvDamage / todiv)
   local force  = (bmex.NvForce  / todiv)
   local width  = LaserLib.GetWidth((bmex.NvWidth / todiv))
-  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx, bmex),
+  local beam, trace = LaserLib.DoBeam(self:BeamColorSplit(idx, bmex),
                                       org,
                                       dir,
                                       length,
@@ -219,5 +219,5 @@ function ENT:DoBeam(ent, org, dir, bmex, vdot, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, beam
+  return beam, trace
 end

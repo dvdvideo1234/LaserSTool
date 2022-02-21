@@ -52,7 +52,7 @@ function ENT:GetHitNormal()
   end
 end
 
-function ENT:GetHitPower(normal, trace, beam, bmln)
+function ENT:GetHitPower(normal, beam, trace, bmln)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")
