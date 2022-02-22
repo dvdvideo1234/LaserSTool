@@ -92,17 +92,8 @@ DATA.KEYD = "#"
 DATA.KEYA = "*"
 
 DATA.CLS = {
-  -- Classes existing in the hash part have their own beam handling
-  -- Class hashes and flags that are checked by `IsUnit` function
-  -- Class hashes are enabled for creating hit reports via `SetHitReport`
-  -- [1] Can the entity be considered and actual beam source
-  -- [2] Does the entity have the inherited editable laser properties
-  ["gmod_laser"          ] = {true , true },
-  ["gmod_laser_crystal"  ] = {true , true },
-  ["gmod_laser_splitter" ] = {true , true },
-  ["gmod_laser_divider"  ] = {true , false},
-  ["gmod_laser_sensor"   ] = {false, false},
-  ["gmod_laser_splitterm"] = {true , false},
+  -- Classes existing in the hash part are laser-enabled entiies
+  -- Classes are stored in notation `[ent:GetClass()] = true` and used in `IsUnit`
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
@@ -521,14 +512,29 @@ end
 
 --[[
  * Defines when the enty is laser library unit
- * idx (int) > When provided checks for flags
 ]]
-function LaserLib.IsUnit(ent, idx)
-  if(not LaserLib.IsValid(ent)) then return false end
-  local set = DATA.CLS[ent:GetClass()]
-  if(not set) then return false end
-  if(not idx) then return true end
-  return set[idx]
+function LaserLib.IsUnit(ent)
+  if(LaserLib.IsValid(ent)) then
+    return DATA.CLS[ent:GetClass()]
+  else return false end
+end
+
+--[[
+ * Defines when the enty has primary laser settings
+]]
+function LaserLib.IsPrimary(ent)
+  if(LaserLib.IsUnit(ent)) then
+    return (ent.SetupSourceDataTables != nil)
+  else return false end
+end
+
+--[[
+ * Defines when the enty is actual beam source
+]]
+function LaserLib.IsSource(ent)
+  if(LaserLib.IsUnit(ent)) then
+    return (ent.DoBeam != nil)
+  else return false end
 end
 
 function LaserLib.GetModel(iK)
@@ -1439,7 +1445,7 @@ end
 function LaserLib.SetExSources(...)
   DATA.BESRC = nil -- Initial value
   for idx, ent in pairs({...}) do
-    if(LaserLib.IsUnit(ent, 2)) then
+    if(LaserLib.IsPrimary(ent)) then
       DATA.BESRC = ent; break
     end -- Source is found
   end -- No source is found

@@ -356,7 +356,7 @@ function TOOL:RightClick(trace)
   else
     if(not LaserLib.IsValid(ent)) then return false end
 
-    if(LaserLib.IsUnit(ent, 2)) then
+    if(LaserLib.IsPrimary(ent)) then
       local r, g, b, a = ent:GetBeamColorRGBA()
       LaserLib.ConCommand(ply, "colorr"      , r)
       LaserLib.ConCommand(ply, "colorg"      , g)

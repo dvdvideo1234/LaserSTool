@@ -455,12 +455,12 @@ function ENT:IsInfinite(ent, set)
   if(LaserLib.IsValid(ent)) then
     if(set[ent]) then return false end
     if(ent == self) then return true else set[ent] = true end
-    if(LaserLib.IsUnit(ent, 1) and ent.hitSources) then
+    if(LaserLib.IsSource(ent) and ent.hitSources) then
       for src, stat in pairs(ent.hitSources) do
         -- Other hits and we are in its sources
         if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
           if(src == self) then return true end
-          if(LaserLib.IsUnit(src, 1) and src.hitSources) then -- Class propagades the tree
+          if(LaserLib.IsSource(src) and src.hitSources) then -- Class propagades the tree
             if(self:IsInfinite(src, set)) then return true end end
         end -- Cascadely propagate trough the crystal sources from `self`
       end; return false -- The entity does not persists in itself

@@ -28,7 +28,7 @@ end
 
 local function getSource(ent)
   if(not LaserLib.IsValid(ent)) then return nil end
-  if(not LaserLib.IsUnit(ent, 2)) then return nil end
+  if(not LaserLib.IsPrimary(ent)) then return nil end
   return ent -- Entity is actual source
 end
 

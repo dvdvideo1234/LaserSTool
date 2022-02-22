@@ -145,7 +145,7 @@ end
 function ENT:SetDominant(beam, color)
   local src = beam:GetSource()
   -- We set the same non-addable properties
-  if(not LaserLib.IsUnit(src, 2)) then return self end
+  if(not LaserLib.IsPrimary(src)) then return self end
   -- The most powerful source (biggest damage/width)
   self:SetStopSound(src:GetStopSound())
   self:SetKillSound(src:GetKillSound())
