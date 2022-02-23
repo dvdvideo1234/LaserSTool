@@ -499,7 +499,7 @@ function LaserLib.ApplySpawn(base, trace, tran)
 end
 
 --[[
- * Reads class name from the list
+ * Reads entity class name from the list
  * idx (int) > When provided checks settings
 ]]
 function LaserLib.GetClass(iR, iC)
@@ -511,7 +511,7 @@ function LaserLib.GetClass(iR, iC)
 end
 
 --[[
- * Defines when the enty is laser library unit
+ * Check when the entity is laser library unit
 ]]
 function LaserLib.IsUnit(ent)
   if(LaserLib.IsValid(ent)) then
@@ -520,12 +520,59 @@ function LaserLib.IsUnit(ent)
 end
 
 --[[
- * Defines when the enty has primary laser settings
+ * Defines when the entity has primary laser settings
 ]]
 function LaserLib.IsPrimary(ent)
-  if(LaserLib.IsUnit(ent)) then
-    return (ent.SetupSourceDataTables != nil)
-  else return false end
+  if(not LaserLib.IsUnit(ent)) then return false end
+  if(ent.isPrimary) then return true else return false end
+end
+
+--[[
+ * Allocates etity data tables and adds entity to `LaserLib.IsPrimary`
+ * ent > Entity to register as primary laser source
+]]
+function LaserLib.SetPrimary(ent)
+  if(not LaserLib.IsValid(ent)) then return end
+  ent:EditableSetVector("OriginLocal" , "General")
+  ent:EditableSetVector("DirectLocal" , "General")
+  ent:EditableSetBool  ("ForceCenter" , "General")
+  ent:EditableSetBool  ("ReflectRatio", "Material")
+  ent:EditableSetBool  ("RefractRatio", "Material")
+  ent:EditableSetBool  ("InPowerOn"   , "Internals")
+  ent:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  ent:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  ent:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  ent:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  ent:EditableSetStringCombo("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
+  ent:EditableSetBool("InNonOverMater"  , "Internals")
+  ent:EditableSetBool("EndingEffect"    , "Visuals")
+  ent:EditableSetVectorColor("BeamColor", "Visuals")
+  ent:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
+  ent:EditableSetStringCombo("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
+  ent.isPrimary = true
+end
+
+--[[
+ * Clears etity internal order info for the editable wrapper
+ * Registers the entity to the units list on CLIENT/SERVER
+ * ent > Entity to register as primary laser source
+]]
+function LaserLib.ClearOrder(ent)
+  if(not LaserLib.IsValid(ent)) then return end
+  ent.meOrderInfo = nil; DATA.CLS[ent:GetClass()] = true
+end
+
+--[[
+ * Retrieves entity order settings for the given key
+ * ent > Entity to register as primary laser source
+]]
+function LaserLib.GetOrderID(ent, key)
+  if(not key) then return end
+  if(not LaserLib.IsValid(ent)) then return end
+  local info = ent.meOrderInfo; if(not info) then return end
+  local itab = info.T; if(itab[key]) then
+    itab[key] = (itab[key] + 1) else itab[key] = 0 end
+  info.N = (info.N + 1); return key, info.N, itab[key]
 end
 
 --[[

@@ -19,9 +19,9 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
-  self:SetupSourceDataTables()
+  LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorSplit","Visuals")
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 -- Override the beam transormation

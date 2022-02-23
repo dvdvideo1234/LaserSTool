@@ -35,7 +35,7 @@ function ENT:SetupDataTables()
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
   self:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name")
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 function ENT:SetBeamTransform()
