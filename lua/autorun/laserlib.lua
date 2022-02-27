@@ -94,6 +94,18 @@ DATA.KEYA = "*"
 DATA.CLS = {
   -- Classes existing in the hash part are laser-enabled entiies
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `IsUnit`
+  ["gmod_laser"           ] = true,
+  ["gmod_laser_crystal"   ] = true,
+  ["gmod_laser_dimmer"    ] = true,
+  ["gmod_laser_divider"   ] = true,
+  ["gmod_laser_filter"    ] = true,
+  ["gmod_laser_parallel"  ] = true,
+  ["gmod_laser_portal"    ] = true,
+  ["gmod_laser_rdivider"  ] = true,
+  ["gmod_laser_reflector" ] = true,
+  ["gmod_laser_sensor"    ] = true,
+  ["gmod_laser_splitter"  ] = true,
+  ["gmod_laser_splitterm" ] = true,
   -- [1] Actual class passed to ents.Create
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
@@ -560,6 +572,7 @@ end
 function LaserLib.ClearOrder(ent)
   if(not LaserLib.IsValid(ent)) then return end
   ent.meOrderInfo = nil; DATA.CLS[ent:GetClass()] = true
+  print("Register:", ent)
 end
 
 --[[
@@ -649,7 +662,7 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   local ncst = math.Clamp(ray, 0, DATA.MAXRAYAS:GetFloat())^2
   local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
   for idx = 1, #teun do local ent = teun[idx]
-    if(tre ~= ent and ent:GetClass():find("gmod_laser_", 1, true)) then
+    if(tre ~= ent and LaserLib.IsUnit(ent)) then
       local vbb = ent:LocalToWorld(ent:OBBCenter())
       LaserLib.DrawAssistOBB(vbb, org, dir, ncst)
     end -- Aim laser beam at the reciever entity
@@ -1542,6 +1555,11 @@ local mtBeam = {} -- Object metatable for class methods
       }
 local function Beam(origin, direct, width, damage, length, force)
   local self = {}; setmetatable(self, mtBeam)
+  self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
+  if(self.BmLength == 0) then return end -- Length is not available exit now
+  self.VrDirect = Vector(direct) -- Copy direction and normalize when present
+  if(self.VrDirect:LengthSqr() > 0) then self.VrDirect:Normalize() else return end
+  self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
   self.TrMedium = {} -- Contains information for the mediums being traversed
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   -- This will apply the external configuration during the beam creation
@@ -1554,9 +1572,6 @@ local function Beam(origin, direct, width, damage, length, force)
   self.TrMedium.S = {mtBeam.A[1], mtBeam.A[2]} -- Source beam medium
   self.TrMedium.D = {mtBeam.A[1], mtBeam.A[2]} -- Destination beam medium
   self.TrMedium.M = {mtBeam.A[1], mtBeam.A[2], Vector()} -- Medium memory
-  self.VrOrigin = Vector(origin) -- Copy origin not to modify it
-  self.VrDirect = Vector(direct); self.VrDirect:Normalize() -- Copy deirection
-  self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
   self.NvDamage = math.max(tonumber(damage) or 0, 0) -- Initial current beam damage
   self.NvWidth  = math.max(tonumber(width ) or 0, 0) -- Initial current beam width
   self.NvForce  = math.max(tonumber(force ) or 0, 0) -- Initial current beam force
@@ -2199,10 +2214,14 @@ function mtBeam:UpdateSource(trace)
   end -- Update hit report of the source
   if(entity.SetHitReport) then
     -- Update the current beam source hit report
+    if(SERVER) then
+      print("SetHitReport", entity)
+    end
     entity:SetHitReport(self, trace) -- What we just hit
   end -- Register us to the target sources table
   if(LaserLib.IsValid(target) and target.RegisterSource) then
     -- Register the beam initial entity to target sources
+    print("RegisterSource", target, entity)
     target:RegisterSource(entity) -- Register target in sources
   end; return self -- Coding effective API
 end
@@ -2412,46 +2431,16 @@ local gtActors = {
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
-    if(trace and trace.Hit and bdot and ent:GetOn()) then
-
-      local vdot = (ent:GetBeamReplicate() and 1 or mdot)
-      local node = beam:SetPowerRatio(vdot) -- May absorb
-
-      local length = (beam.BoLength or beam.NvLength)
-      local origin, direct = trace.HitPos, beam.VrDirect
-      local width , damage, force  = beam.NvWidth, beam.NvDamage, beam.NvForce
-      local usrfle, usrfre, noverm = beam.BrReflec, beam.BrRefrac, beam.BmNoover
-
-      local src = beam:GetSource()
-      local eff = src:GetEndingEffect()
-      local mat = src:GetBeamMaterial(true)
-
-      LaserLib.SetExSources(ent, src)
-      local bm1, tr1 = LaserLib.DoBeam(ent, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, 1)
-      bm1:Draw(src, mat):DrawEffect(src, tr1, eff)
-      LaserLib.SetExSources(ent, src)
-      local reflect = LaserLib.GetReflected(direct, trace.HitNormal)
-      local bm2, tr2 = LaserLib.DoBeam(ent, origin, reflect, length, width, damage, force, usrfle, usrfre, noverm, 2)
-      bm2:Draw(src, mat):DrawEffect(src, tr2, eff)
-     -- print("tr1.Entity", tr1.Entity)
-     -- print("tr2.Entity", tr2.Entity)
-      LaserLib.Call(4, function()
-        print("----------")
-        PrintTable(ent.hitReports)
-        print("xxxxxxxxxx")
-        PrintTable(tr1)
-        print("aaaaaaaaaa")
-        PrintTable(bm1)
-
-
-
-        if(DATA.PRDY) then
-          LaserLib.PrintOff()
-        else
-          LaserLib.PrintOn()
-        end
-      end)
-
+    if(trace and trace.Hit and bdot) then
+      local aim, nrm = beam.VrDirect, trace.HitNormal
+      local ray = LaserLib.GetReflected(aim, nrm)
+      if(SERVER) then
+        ent:DoDamage(ent:DoBeam(trace.HitPos, aim, beam, 1))
+        ent:DoDamage(ent:DoBeam(trace.HitPos, ray, beam, 2))
+      else
+        ent:DrawBeam(ent:DoBeam(trace.HitPos, aim, beam, 1))
+        ent:DrawBeam(ent:DoBeam(trace.HitPos, ray, beam, 2))
+      end
     end
   end,
   ["gmod_laser_filter"] = function(beam, trace)
@@ -2574,16 +2563,15 @@ local gtActors = {
 ]]
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
   -- Parameter validation check. Allocate only when these conditions are present
-  if(not (origin and direct)) then return end -- Origin and direction must exist
-  if(direct:LengthSqr() <= 0) then return end -- Direction must point to somewhere
-  if(not length or length <= 0) then return end -- Length must be positive to traverse
   if(not LaserLib.IsValid(entity)) then return end -- Source entity must be valid
+  -- Create a laser beam object and validate the current ray spawn parameters
+  local beam = Beam(origin, direct, width, damage, length, force) -- Create beam class
+  if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local bIsValid  = false -- Stores whenever the trace is valid entity or not
   local sTrMaters = "" -- This stores the current extracted material as string
   local sTrClass  = nil -- This stores the calss of the current trace entity
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
-  local beam = Beam(origin, direct, width, damage, length, force) -- Create beam class
   -- Reports dedicated values that are being used by other entities and processses
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
@@ -2643,10 +2631,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       beam.StRfract = true -- Do not alter the beam direction
     end -- Do not put a node when beam does not traverse
     -- When we are still tracing and hit something that is not specific unit
-    if(beam.IsTrace and trace.Hit and not LaserLib.IsUnit(target)) then
+    if(beam.IsTrace and trace.Hit) then
       -- Register a hit so reduce bounces count
       if(bIsValid) then
-         if(beam.IsRfract) then
+        if(beam.IsRfract) then
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
@@ -2680,7 +2668,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           if(sTrClass and gtActors[sTrClass]) then
             local suc, err = pcall(gtActors[sTrClass], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error("Actor: "..err) end
-          else
+          elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action cunction
+            beam:Finish(trace) -- When the entity is unit but does not have actor function
+          else -- Otherwise bust continue medium change. Reduce loops when hit dedicted units
             sTrMaters = beam:GetMaterialID(trace)
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)
@@ -2771,7 +2761,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           if(sTrClass and gtActors[sTrClass]) then
             local suc, err = pcall(gtActors[sTrClass], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error("Actor: "..err) end
-          else
+          elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action cunction
+            beam:Finish(trace) -- When the entity is unit but does not have actor function
+          else -- Otherwise bust continue medium change. Reduce loops when hit dedicted units
             sTrMaters = beam:GetMaterialID(trace)
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, DATA.REFLECT)

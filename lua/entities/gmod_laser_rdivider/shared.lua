@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
-ENT.PrintName      = "Dimmer"
+ENT.PrintName      = "Divider Recursive"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
@@ -9,6 +9,8 @@ else
   ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
+ENT.Purpose        = "Divides incoming beam into pass-trough and reflected"
+ENT.Instructions   = "Position this entity on the incoming beam path"
 ENT.Author         = "DVD"
 ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
@@ -27,7 +29,6 @@ include(LaserLib.GetTool().."/report_manager.lua")
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
-  self:EditableSetBool  ("LinearMapping", "General")
   LaserLib.ClearOrder(self)
 end
 
@@ -67,4 +68,29 @@ function ENT:GetHitPower(normal, beam, trace, bmln)
   if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
   local dott = math.abs(norm:Dot(trace.HitNormal))
   return (dott > (1 - dotm)), dotv
+end
+
+function ENT:DoBeam(org, dir, bmex, idx)
+  LaserLib.SetExSources(ent, bmex:GetSource())
+  LaserLib.SetExLength(bmex.BmLength)
+  local length = bmex.NvLength
+  local usrfle = bmex.BrReflec
+  local usrfre = bmex.BrRefrac
+  local noverm = bmex.BmNoover
+  local todiv  = (self:GetBeamReplicate() and 1 or 2)
+  local damage = bmex.NvDamage / todiv
+  local force  = bmex.NvForce  / todiv
+  local width  = LaserLib.GetWidth(bmex.NvWidth / todiv)
+  local beam, trace = LaserLib.DoBeam(self,
+                                      org,
+                                      dir,
+                                      length,
+                                      width,
+                                      damage,
+                                      force,
+                                      usrfle,
+                                      usrfre,
+                                      noverm,
+                                      idx)
+  return beam, trace
 end

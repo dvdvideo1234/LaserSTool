@@ -2,7 +2,7 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-resource.AddFile("materials/vgui/entities/gmod_laser_dimmer.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser_rdivider.vmt")
 
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
@@ -17,7 +17,6 @@ function ENT:Initialize()
   )
 
   self:SetBeamReplicate(false)
-  self:SetLinearMapping(false)
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then
@@ -32,7 +31,7 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(7, 1))
+  local ent = ents.Create("gmod_laser_rdivider")
   if(LaserLib.IsValid(ent)) then
     LaserLib.SetProperties(ent, "metal")
     LaserLib.SetMaterial(ent, LaserLib.GetMaterial(7))
@@ -53,4 +52,31 @@ function ENT:SpawnFunction(ply, tr)
     ply:AddCleanup(gen.."s", ent)
     return ent
   end
+end
+
+function ENT:DoDamage(beam, trace)
+  if(trace and trace.Hit) then
+    local trent = trace.Entity
+    if(LaserLib.IsValid(trent)) then
+      -- Check whenever target is beam source
+      if(not LaserLib.IsUnit(trent)) then
+        local sors = beam:GetSource()
+        local user = (self.ply or self.player)
+        local dtyp = sors:GetDissolveType()
+        LaserLib.DoDamage(trent,
+                          trace.HitPos,
+                          trace.Normal,
+                          beam.VrDirect,
+                          beam.NvDamage,
+                          beam.NvForce,
+                          (user or sors:GetCreator()),
+                          LaserLib.GetDissolveID(dtyp),
+                          sors:GetKillSound(),
+                          sors:GetForceCenter(),
+                          sors)
+      end
+    end
+  end
+
+  return self
 end
