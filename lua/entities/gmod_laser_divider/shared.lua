@@ -83,7 +83,7 @@ end
 
 local hdx = 0
 
-function ENT:EveryBeacon(entity, index, beam, trace)
+function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
     local ref = LaserLib.GetReflected(beam.VrDirect, trace.HitNormal)

@@ -132,7 +132,7 @@ end
 
 local hdx, count
 
-function ENT:EveryBeacon(entity, index, beam, trace)
+function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
     local upwrd = Vector(self:GetUpwardLocal())

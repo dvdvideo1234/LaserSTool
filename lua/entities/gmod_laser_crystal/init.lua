@@ -100,7 +100,7 @@ local doment , dobeam, ncolor
 local domcor = Color(0,0,0,0)
 local xomcor = Color(0,0,0,0)
 
-function ENT:EveryBeacon(entity, index, beam, trace)
+function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()

@@ -1,5 +1,9 @@
 include("shared.lua")
 
+function ENT:Initialize()
+  self:SetActor()
+end
+
 function ENT:DrawBeam(beam, trace)
   if(not beam) then return end
   local usent = beam:GetSource()

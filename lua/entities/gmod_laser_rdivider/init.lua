@@ -16,6 +16,7 @@ function ENT:Initialize()
     {"Entity", "ENTITY", "Dimmer entity itself" }
   )
 
+  self:SetActor()
   self:SetBeamReplicate(false)
 
   local phys = self:GetPhysicsObject()

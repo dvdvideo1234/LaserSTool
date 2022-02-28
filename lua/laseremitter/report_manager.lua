@@ -82,22 +82,34 @@ end
  *      > trace  > Hit report active trace
  *      > beam   > Hit report active beam
  * each > Scope function per-source handler. Arguments:
-        > entity > Hit report active source
-        > index  > Hit report active index
+ *      > entity > Hit report active source
+ *      > index  > Hit report active index
+ * apre > Action taken for pre-processing
+ *      > entity > Source entity
+ * post > Action taken for post-processing
+ *      > entity > Source entity
  * Returns flag indicating presence of hit reports
 ]]
-function ENT:ProcessReports(ent, proc, each)
+function ENT:ProcessReports(ent, proc, each, apre, post)
   if(not LaserLib.IsValid(ent)) then return false end
+  if(apre) then local suc, err = pcall(apre, self, ent)
+    if(not suc) then self:Remove(); error(err); return false end
+  end -- When whe have dedicated methor to apply on each source
   local idx = self:GetHitSourceID(ent)
   if(idx) then local siz = ent.hitReports.Size
     if(each) then local suc, err = pcall(each, self, ent, idx)
       if(not suc) then self:Remove(); error(err); return false end
-    end -- When whe have dedicated methor to apply on each source
-    while(idx and idx <= siz) do -- First index always hits when present
-      local beam, trace = ent:GetHitReport(idx) -- When the report hits us
-      local suc, err = pcall(proc, self, ent, idx, beam, trace) -- Call process
+    end -- When whe have dedicated method to apply on each source
+    if(proc) then -- Trigger the beam processing routine
+      while(idx and idx <= siz) do -- First index always hits when present
+        local beam, trace = ent:GetHitReport(idx) -- When the report hits us
+        local suc, err = pcall(proc, self, ent, idx, beam, trace) -- Call process
+        if(not suc) then self:Remove(); error(err); return false end
+        idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
+      end -- When whe have dedicated method to apply on each source
+    end -- Trigger the post-processing routine
+    if(post) then local suc, err = pcall(post, self, ent)
       if(not suc) then self:Remove(); error(err); return false end
-      idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
     end; return true -- At least one report is processed for the current entity
   end; return false -- The entity hit reports do not hit us `self`
 end
@@ -116,14 +128,13 @@ end
  *      > beam   > Hit report active beam
  * Process how `ent` hit reports affects us `self`. Remove when no hits
 ]]
-function ENT:ProcessSources(proc, each)
-  local proc = (proc or self.EveryBeacon)
-  local each = (each or self.EverySource)
-  if(not proc) then return false end
+function ENT:ProcessSources(proc, each, apre, post)
+  local proc, each = (proc or self.EveryBeam ), (each or self.EverySource)
+  local apre, post = (apre or self.PreProcess), (post or self.PostProcess)
   if(not self.hitSources) then return false end
   for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
     if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
-      if(not self:ProcessReports(ent, proc, each)) then -- Are there any procesed sources
+      if(not self:ProcessReports(ent, proc, each, apre, post)) then -- Procesed sources
         self.hitSources[ent] = nil -- Remove the netity from the list
       end -- Check when there is any hit report that is processed correctly
     else self.hitSources[ent] = nil end -- Delete the entity when force skipped

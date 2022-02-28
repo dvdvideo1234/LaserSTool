@@ -12,6 +12,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.DoBeam         = nil
 
 function ENT:SetupDataTables()
   local material = list.Get("LaserEmitterMaterials")

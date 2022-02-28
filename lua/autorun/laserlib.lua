@@ -110,13 +110,13 @@ DATA.CLS = {
   -- [2] Extension for folder name indices
   -- [3] Extension for variable name indices
   {"gmod_laser"          , nil        , nil      }, -- Laser entity calss `PriarySource`
-  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeacon`
+  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeam`
   {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `EveryBeacon`
+  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `EveryBeam`
   {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `DoBeam`
-  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `EveryBeacon`
+  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `EveryBeam`
   {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `DoBeam`
-  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `EveryBeacon`
+  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `EveryBeam`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
   {"gmod_laser_parallel" , "parallel" , "paralel"}, -- Laser beam parallel `DoBeam`
   {"gmod_laser_filter"   , "filter"   , nil      }  -- Laser beam filter `DoBeam`
@@ -2214,14 +2214,10 @@ function mtBeam:UpdateSource(trace)
   end -- Update hit report of the source
   if(entity.SetHitReport) then
     -- Update the current beam source hit report
-    if(SERVER) then
-      print("SetHitReport", entity)
-    end
     entity:SetHitReport(self, trace) -- What we just hit
   end -- Register us to the target sources table
   if(LaserLib.IsValid(target) and target.RegisterSource) then
     -- Register the beam initial entity to target sources
-    print("RegisterSource", target, entity)
     target:RegisterSource(entity) -- Register target in sources
   end; return self -- Coding effective API
 end
@@ -2426,6 +2422,7 @@ local gtActors = {
       node[5] = true            -- We are not portal enable drawing
     end
   end,
+  --[[
   ["gmod_laser_rdivider"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
@@ -2435,14 +2432,15 @@ local gtActors = {
       local aim, nrm = beam.VrDirect, trace.HitNormal
       local ray = LaserLib.GetReflected(aim, nrm)
       if(SERVER) then
-        ent:DoDamage(ent:DoBeam(trace.HitPos, aim, beam, 1))
-        ent:DoDamage(ent:DoBeam(trace.HitPos, ray, beam, 2))
+        ent:DoDamage(ent:DoBeam(trace.HitPos, aim, beam))
+        ent:DoDamage(ent:DoBeam(trace.HitPos, ray, beam))
       else
-        ent:DrawBeam(ent:DoBeam(trace.HitPos, aim, beam, 1))
-        ent:DrawBeam(ent:DoBeam(trace.HitPos, ray, beam, 2))
+        ent:DrawBeam(ent:DoBeam(trace.HitPos, aim, beam))
+        ent:DrawBeam(ent:DoBeam(trace.HitPos, ray, beam))
       end
     end
   end,
+  ]]
   ["gmod_laser_filter"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
@@ -2547,6 +2545,12 @@ local gtActors = {
     end
   end
 }
+
+function LaserLib.SetActor(ent, func)
+  if(not LaserLib.IsValid(ent)) then return end
+  print("SetActor", ent, func)
+  gtActors[ent:GetClass()] = func
+end
 
 --[[
  * Traces a laser beam from the entity provided
