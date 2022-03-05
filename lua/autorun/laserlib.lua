@@ -2152,6 +2152,15 @@ end
 function mtBeam:SourceFilter(entity)
   if(not LaserLib.IsValid(entity)) then return self end
   -- Populated customly depending on the API
+
+  if(entity.nxRecuseBeam) then
+    LaserLib.Print("Stage", self.BmRecstg)
+  end
+
+  if(entity.nxRecuseBeam and self.BmRecstg == 1) then -- Recursive
+    LaserLib.Print(SysTime(),"Reset")
+    entity.nxRecuseBeam = 0 -- Reset entity hit report index
+  end -- We need to reset the top index hit reports count
   -- Make sure the initial laser source is skipped
   if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
     if(LaserLib.IsUnit(eGun)) then self.BmSource, self.TeFilter = eGun, {entity, eGun} end
@@ -2207,7 +2216,6 @@ end
 ]]
 function mtBeam:UpdateSource(trace)
   local entity, target = self.BmSource, trace.Entity
-  -- print(self.BmIdenty, entity, target)
   -- Calculates the range as beam distanc traveled
   if(trace.Hit and self.RaLength > self.NvLength) then
     self.RaLength = self.RaLength - self.NvLength
@@ -2216,6 +2224,11 @@ function mtBeam:UpdateSource(trace)
     -- Update the current beam source hit report
     entity:SetHitReport(self, trace) -- What we just hit
   end -- Register us to the target sources table
+  if(entity.nxRecuseBeam and self.BmRecstg == 1) then -- Recursive
+    LaserLib.Print(SysTime(),"Finish",entity.nxRecuseBeam)
+    LaserLib.Print(entity, "Reports", entity.hitReports.Size)
+    entity:SetHitReportMax(entity.nxRecuseBeam) -- Update reports
+  end -- We need to apply the top index hit reports count
   if(LaserLib.IsValid(target) and target.RegisterSource) then
     -- Register the beam initial entity to target sources
     target:RegisterSource(entity) -- Register target in sources
@@ -2565,7 +2578,7 @@ end
  * usrfre > Use surface material refracting efficiency
  * noverm > Enable interactions with no material override
 ]]
-function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index)
+function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index, stage)
   -- Parameter validation check. Allocate only when these conditions are present
   if(not LaserLib.IsValid(entity)) then return end -- Source entity must be valid
   -- Create a laser beam object and validate the current ray spawn parameters
@@ -2580,7 +2593,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
   beam.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
+  beam.BmRecstg = (math.max(tonumber(stage) or 0, 0) + 1) -- Beam recursion depth for units that use it
   beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
+
+  if(beam.BmRecstg == 1) then
+    LaserLib.Call(1, function() LaserLib.PrintOn() end)
+  end
 
   beam:SourceFilter(entity)
   beam:RegisterNode(origin)
@@ -2810,6 +2828,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Update the sources and trigger the hit reports
   beam:UpdateSource(trace)
   -- Return what did the beam hit and stuff
+
+  if(beam.BmRecstg == 1) then
+    LaserLib.PrintOff()
+  end
+
   return beam, trace
 end
 

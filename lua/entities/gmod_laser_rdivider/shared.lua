@@ -30,14 +30,18 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   LaserLib.ClearOrder(self)
-  self.ixBeam = 0
   self.hitSources = {}
+end
+
+function ENT:RegisterSource(ent)
+  if(not self.hitSources) then return self end
+  self.hitSources[ent] = true; return self
 end
 
 function ENT:GetOn()
   local src = self.hitSources
   if(not src) then return false end
-  print("ON:", table.IsEmpty(src))
+  LaserLib.Print("ON:", table.IsEmpty(src))
   return (not table.IsEmpty(src))
 end
 
@@ -71,19 +75,15 @@ function ENT:GetHitPower(normal, beam, trace)
   return (dott > (1 - dotm))
 end
 
-function ENT:PostProcess(ent)
-  print("PostProcess", self.ixBeam)
-  self:SetHitReportMax(self.ixBeam)
-   self.ixBeam = 0
-end
-
-function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
-end
-
 function ENT:DoBeam(org, dir, bmex)
-  self.ixBeam = self.ixBeam + 1
+  if(self.nxRecuseBeam > 10) then
+    self.nxRecuseBeam = 0
+    self:SetHitReportMax()
+    LaserLib.Print("Limit reached")
+  end
+
+  self.nxRecuseBeam = self.nxRecuseBeam + 1
+  LaserLib.Print("Beam", self.nxRecuseBeam, bmex.BmRecstg)
   LaserLib.SetExSources(self, bmex:GetSource())
   LaserLib.SetExLength(bmex.BmLength)
   local length = bmex.NvLength
@@ -104,45 +104,7 @@ function ENT:DoBeam(org, dir, bmex)
                                       usrfle,
                                       usrfre,
                                       noverm,
-                                      self.ixBeam)
+                                      self.nxRecuseBeam,
+                                      bmex.BmRecstg)
   return beam, trace
-end
-
-function ENT:SetActor()
-  LaserLib.SetActor(self, function(beam, trace)
-    beam:Finish(trace) -- Assume that beam stops traversing
-    local ent = trace.Entity -- Retrieve class trace entity
-    local norm = ent:GetHitNormal()
-    local bdot = ent:GetHitPower(norm, beam, trace)
-    if(trace and trace.Hit and bdot) then
-      local aim, nrm = beam.VrDirect, trace.HitNormal
-      local ray = LaserLib.GetReflected(aim, nrm)
-      if(SERVER) then
-        ent:DoDamage(ent:DoBeam(trace.HitPos, aim, beam))
-        ent:DoDamage(ent:DoBeam(trace.HitPos, ray, beam))
-      else
-        ent:DrawBeam(ent:DoBeam(trace.HitPos, aim, beam))
-        ent:DrawBeam(ent:DoBeam(trace.HitPos, ray, beam))
-      end
-    end
-  end)
-end
-
-function ENT:Think()
-
-
-
-  LaserLib.Call(2, function()
-    print("A----------", src)
-    print("SRC", self.hitSources)
-    print("REP", self.hitReports)
-
-    -- PrintTable(self.hitReports)
-
-    LaserLib.PrintOn()
-  end)
-
-
-  self:ProcessSources()
-  self:NextThink(CurTime())
 end
