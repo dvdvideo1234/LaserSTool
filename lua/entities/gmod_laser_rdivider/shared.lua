@@ -83,7 +83,7 @@ function ENT:DoBeam(org, dir, bmex)
   end
 
   self.nxRecuseBeam = self.nxRecuseBeam + 1
-  LaserLib.Print("Beam", self.nxRecuseBeam, bmex.BmRecstg)
+  LaserLib.Print("Beam", self.nxRecuseBeam, bmex.BmRecstg, bmex.TeFilter)
   LaserLib.SetExSources(self, bmex:GetSource())
   LaserLib.SetExLength(bmex.BmLength)
   local length = bmex.NvLength

@@ -345,6 +345,7 @@ end
  * result > Trace output destination table as standard config
 ]]
 local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, result)
+  DATA.TRACE["noDetour"] = true -- Mee's Seamless-Portals. Disable detour
   DATA.TRACE.start:Set(origin)
   DATA.TRACE.endpos:Set(direct)
   DATA.TRACE.endpos:Normalize()
@@ -1447,7 +1448,7 @@ end
  * This assumes that the neam enters th +X and exits at +X
  * This will lead to correct beam representation across portal Y axis
  * base    > Base entity actime as a portal entrance
- * base    > Exit entity actime as a portal beam output location
+ * exit    > Exit entity actime as a portal beam output location
  * origin  > Hit location vector placed on the furst entity surface
  * direct  > Direction that the beam goes inside the first entity
  * forigin > Origin custom modifier function. Negates X, Y by default
@@ -1466,10 +1467,39 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   dir:Add(base:GetPos())
   dir:Set(base:WorldToLocal(dir))
   if(fdirect) then local ok, err = pcall(fdirect, dir)
-    if(not ok) then error("Direction error: "..err) end
+    if(not ok) then error("Direct error: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
   dir:Rotate(exit:GetAngles()); dir:Div(DATA.WLMR)
   return pos, dir
+end
+
+--[[
+ * Projects beam direction onto portal forward and retrieeves
+ * portal beam margin visuas to be displayed correctly in
+ * render target surface. Returns incorrect results when
+ * portal position is not located on the render target surface
+ * entity > The portal entity to calculate margin for
+ * origin > Hit location vector placed on the furst entity surface
+ * direct > Direction that the beam goes inside the first entity
+ * normal > Surface normal vector. Usually portal:GetForward()
+ * Returns the output beam ray margin transition
+]]
+--[[
+    local pos, dir = trace.HitPos, beam.VrDirect
+    local eps, mav = ent:GetPos(), Vector(dir)
+    local fwd, wvc = ent:GetForward(), Vector(pos); wvc:Sub(eps)
+    local mar = math.abs(wvc:Dot(fwd)) -- Project entrance vector
+    local vsm = mar / math.cos(math.asin(fwd:Cross(dir):Length()))
+    vsm = 2 * vsm; mav:Set(dir); mav:Mul(vsm); mav:Add(pos)
+]]
+local function GetMarginPortal(entity, origin, direct, normal)
+  local normal = (normal or entity:GetForward())
+  local pos, mav = entity:GetPos(), Vector(direct)
+  local wvc = Vector(origin); wvc:Sub(pos)
+  local mar = math.abs(wvc:Dot(normal)) -- Project entrance vector
+  local vsm = mar / math.cos(math.asin(normal:Cross(direct):Length()))
+  vsm = 2 * vsm; mav:Mul(vsm); mav:Add(origin)
+  return mav, vsm
 end
 
 --[[
@@ -2406,12 +2436,8 @@ local gtActors = {
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
     ent:SetNWInt("laseremitter_portal", out:EntIndex())
     local inf = beam.TvPoints; inf[inf.Size][5] = true
-    local dir, nrm, pos = beam.VrDirect, trace.HitNormal, trace.HitPos
-    local eps, ean, mav = ent:GetPos(), ent:GetAngles(), Vector(dir)
-    local fwd, wvc = ent:GetForward(), Vector(pos); wvc:Sub(eps)
-    local mar = math.abs(wvc:Dot(fwd)) -- Project entrance vector
-    local vsm = mar / math.cos(math.asin(fwd:Cross(dir):Length()))
-    vsm = 2 * vsm; mav:Set(dir); mav:Mul(vsm); mav:Add(trace.HitPos)
+    local dir, pos = beam.VrDirect, trace.HitPos
+    local mav, vsm = GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)
     local nps, ndr = GetBeamPortal(ent, out, pos, dir)
     beam:RegisterNode(nps); nps:Add(vsm * ndr)
@@ -2435,12 +2461,39 @@ local gtActors = {
       node[5] = true            -- We are not portal enable drawing
     end
   end,
-  --[[
+  ["seamless_portal"] = function(beam, trace)
+    beam:Finish(trace)
+    local ent = trace.Entity
+    local out = ent:ExitPortal()
+    if(not LaserLib.IsValid(out)) then return end
+    local inf = beam.TvPoints; inf[inf.Size][5] = true
+    local osz, esz = out:GetExitSize(), ent:GetExitSize()
+    local siz = Vector(esz.x * osz.x , esz.y * osz.y, esz.z * osz.z)
+    local pos, dir = trace.HitPos, beam.VrDirect
+    local mav, vsm = GetMarginPortal(ent, pos, dir, trace.HitNormal)
+    beam:RegisterNode(mav, false, false)
+    beam:SetPowerRatio(math.min(siz.x, siz.y, siz.z))
+    local nps, ndr = GetBeamPortal(ent, out, pos, dir,
+      function(vpos)
+          vpos.x =  vpos.x * siz.x
+          vpos.y = -vpos.y * siz.y
+          vpos.z =  vpos.z * siz.z
+      end,
+      function(vdir)
+        vdir.y = -vdir.y
+        vdir.z = -vdir.z
+      end)
+    beam:RegisterNode(nps); nps:Add(vsm * ndr)
+    beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
+    beam:RegisterNode(nps)
+    beam.TeFilter, beam.TrFActor = out, true
+    beam.IsTrace = true -- Output portal is validated. Continue
+  end,
   ["gmod_laser_rdivider"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
-    local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
-    local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
+    local norm = ent:GetHitNormal()
+    local bdot = ent:GetHitPower(norm, beam, trace)
     if(trace and trace.Hit and bdot) then
       local aim, nrm = beam.VrDirect, trace.HitNormal
       local ray = LaserLib.GetReflected(aim, nrm)
@@ -2453,7 +2506,6 @@ local gtActors = {
       end
     end
   end,
-  ]]
   ["gmod_laser_filter"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
@@ -2597,8 +2649,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
 
   if(beam.BmRecstg == 1) then
-    LaserLib.Call(1, function() LaserLib.PrintOn() end)
+    LaserLib.Call(2, function() LaserLib.PrintOn() end)
   end
+
+  LaserLib.Print("------------------------", entity.nxRecuseBeam)
+  LaserLib.Print("Start", entity, beam.TeFilter)
 
   beam:SourceFilter(entity)
   beam:RegisterNode(origin)
@@ -2606,6 +2661,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   repeat
     -- Run the trace using the defined conditianl parameters
     trace = beam:Trace(trace); target = trace.Entity
+
+    LaserLib.Print("Target", target, beam.TeFilter)
 
     -- Initial start so the beam separate from the laser
     if(beam.NvBounce == beam.MxBounce) then
@@ -2832,6 +2889,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   if(beam.BmRecstg == 1) then
     LaserLib.PrintOff()
   end
+
+if(entity.nxRecuseBeam) then
+  LaserLib.Print("Return", entity, beam.TeFilter)
+end
 
   return beam, trace
 end
