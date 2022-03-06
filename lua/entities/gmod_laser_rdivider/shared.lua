@@ -76,14 +76,14 @@ function ENT:GetHitPower(normal, beam, trace)
 end
 
 function ENT:DoBeam(org, dir, bmex)
-  if(self.nxRecuseBeam > 10) then
-    self.nxRecuseBeam = 0
+  if(self.RecuseBeamID > 10) then
+    self.RecuseBeamID = 0
     self:SetHitReportMax()
     LaserLib.Print("Limit reached")
   end
 
-  self.nxRecuseBeam = self.nxRecuseBeam + 1
-  LaserLib.Print("Beam", self.nxRecuseBeam, bmex.BmRecstg, bmex.TeFilter)
+  self.RecuseBeamID = self.RecuseBeamID + 1
+  LaserLib.Print("Beam", self.RecuseBeamID, bmex.BmRecstg, bmex.TeFilter)
   LaserLib.SetExSources(self, bmex:GetSource())
   LaserLib.SetExLength(bmex.BmLength)
   local length = bmex.NvLength
@@ -104,7 +104,7 @@ function ENT:DoBeam(org, dir, bmex)
                                       usrfle,
                                       usrfre,
                                       noverm,
-                                      self.nxRecuseBeam,
+                                      self.RecuseBeamID,
                                       bmex.BmRecstg)
   return beam, trace
 end

@@ -34,7 +34,7 @@ function ENT:Initialize()
     end
   end)
 
-  self.nxRecuseBeam = 0 -- Recursive beam index
+  self.RecuseBeamID = 0 -- Recursive beam index
   self:SetBeamReplicate(false)
 
   local phys = self:GetPhysicsObject()

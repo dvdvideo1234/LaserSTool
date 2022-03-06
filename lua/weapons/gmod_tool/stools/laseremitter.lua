@@ -428,18 +428,16 @@ function TOOL:Reload(trace)
   local ply, ent = self:GetOwner(), trace.Entity
   if(trace.HitWorld) then
     if(ply:KeyDown(IN_USE)) then
-      LaserLib.ConCommand(ply, "openmaterial", "transparent")
+      LaserLib.ConCommand(ply, "openmaterial", "transparent"); return true
     elseif(ply:KeyDown(IN_SPEED)) then
-      LaserLib.ConCommand(ply, "openmaterial", "mirror")
-    end
+      LaserLib.ConCommand(ply, "openmaterial", "mirror"); return true
+    end; return false
   else
     if(not LaserLib.IsValid(ent))  then return false end
     if(ent:IsPlayer()) then return false end
-    if(ply:KeyDown(IN_USE)) then
-      if(ent:GetClass() == gsLaserptCls) then return false end
+    if(ply:KeyDown(IN_USE) and ent:GetClass() ~= gsLaserptCls) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
-    elseif(ply:KeyDown(IN_SPEED)) then
-      if(ent:GetClass() == gsLaserptCls) then return false end
+    elseif(ply:KeyDown(IN_SPEED) and ent:GetClass() ~= gsLaserptCls) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("reflectused"))
     elseif(ply:KeyDown(IN_DUCK) and ent:GetCreator() == ply) then
       ent:Remove()
@@ -451,10 +449,8 @@ function TOOL:Reload(trace)
       else
         LaserLib.SetMaterial(ent)
       end
-    end
-  end
-
-  return true
+    end; return true
+  end; return false
 end
 
 if(SERVER) then

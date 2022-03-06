@@ -1,7 +1,7 @@
 include("shared.lua")
 
 function ENT:Initialize()
-  self.nxRecuseBeam = 0 -- Recursive beam index
+  self.RecuseBeamID = 0 -- Recursive beam index
 
   LaserLib.SetActor(self, function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing

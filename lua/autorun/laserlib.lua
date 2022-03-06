@@ -266,6 +266,7 @@ DATA.MATYPE = {
 }
 
 DATA.TRACE = {
+  ["noDetour"]   = true, -- Mee's Seamless-Portals. Disable detour
   start          = Vector(),
   endpos         = Vector(),
   filter         = nil,
@@ -345,7 +346,6 @@ end
  * result > Trace output destination table as standard config
 ]]
 local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, result)
-  DATA.TRACE["noDetour"] = true -- Mee's Seamless-Portals. Disable detour
   DATA.TRACE.start:Set(origin)
   DATA.TRACE.endpos:Set(direct)
   DATA.TRACE.endpos:Normalize()
@@ -1404,11 +1404,12 @@ if(SERVER) then
                         forceCenter, frozen      , enOverMater , rayColor )
 
     local unit = LaserLib.GetTool()
-    if(not (LaserLib.IsValid(user) and user:IsPlayer())) then return nil end
-    if(not user:CheckLimit(unit.."s")) then return nil end
+    if(not LaserLib.IsValid(user)) then return end
+    if(not user:IsPlayer()) then return end
+    if(not user:CheckLimit(unit.."s")) then return end
 
     local laser = ents.Create(LaserLib.GetClass(1, 1))
-    if(not (LaserLib.IsValid(laser))) then return nil end
+    if(not (LaserLib.IsValid(laser))) then return end
 
     laser:SetCollisionGroup(COLLISION_GROUP_NONE)
     laser:SetSolid(SOLID_VPHYSICS)
@@ -2183,13 +2184,13 @@ function mtBeam:SourceFilter(entity)
   if(not LaserLib.IsValid(entity)) then return self end
   -- Populated customly depending on the API
 
-  if(entity.nxRecuseBeam) then
+  if(entity.RecuseBeamID) then
     LaserLib.Print("Stage", self.BmRecstg)
   end
 
-  if(entity.nxRecuseBeam and self.BmRecstg == 1) then -- Recursive
+  if(entity.RecuseBeamID and self.BmRecstg == 1) then -- Recursive
     LaserLib.Print(SysTime(),"Reset")
-    entity.nxRecuseBeam = 0 -- Reset entity hit report index
+    entity.RecuseBeamID = 0 -- Reset entity hit report index
   end -- We need to reset the top index hit reports count
   -- Make sure the initial laser source is skipped
   if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
@@ -2254,10 +2255,10 @@ function mtBeam:UpdateSource(trace)
     -- Update the current beam source hit report
     entity:SetHitReport(self, trace) -- What we just hit
   end -- Register us to the target sources table
-  if(entity.nxRecuseBeam and self.BmRecstg == 1) then -- Recursive
-    LaserLib.Print(SysTime(),"Finish",entity.nxRecuseBeam)
+  if(entity.RecuseBeamID and self.BmRecstg == 1) then -- Recursive
+    LaserLib.Print(SysTime(),"Finish",entity.RecuseBeamID)
     LaserLib.Print(entity, "Reports", entity.hitReports.Size)
-    entity:SetHitReportMax(entity.nxRecuseBeam) -- Update reports
+    entity:SetHitReportMax(entity.RecuseBeamID) -- Update reports
   end -- We need to apply the top index hit reports count
   if(LaserLib.IsValid(target) and target.RegisterSource) then
     -- Register the beam initial entity to target sources
@@ -2652,7 +2653,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     LaserLib.Call(2, function() LaserLib.PrintOn() end)
   end
 
-  LaserLib.Print("------------------------", entity.nxRecuseBeam)
+  LaserLib.Print("------------------------", entity.RecuseBeamID)
   LaserLib.Print("Start", entity, beam.TeFilter)
 
   beam:SourceFilter(entity)
@@ -2890,7 +2891,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     LaserLib.PrintOff()
   end
 
-if(entity.nxRecuseBeam) then
+if(entity.RecuseBeamID) then
   LaserLib.Print("Return", entity, beam.TeFilter)
 end
 
