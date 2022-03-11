@@ -536,33 +536,69 @@ end
  * Defines when the entity has primary laser settings
 ]]
 function LaserLib.IsPrimary(ent)
-  if(not LaserLib.IsUnit(ent)) then return false end
-  if(ent.isPrimary) then return true else return false end
+  if(LaserLib.IsValid(ent)) then
+    return (ent.GetDissolveType ~= nil)
+  end; return false
+end
+
+--[[
+ * Defines when the enty is actual beam source
+]]
+function LaserLib.IsSource(ent)
+  if(LaserLib.IsValid(ent)) then
+    return (ent.DoBeam != nil and ent.GetDissolveType ~= nil)
+  else return false end
+end
+
+--[[
+ * Converts boolean integer combo to boolen
+ * vac > The value being convereted
+]]
+function LaserLib.ToBoolCombo(vac)
+  local van = tonumber(vac)
+  if(van) then return (van == 2) end
+  return vac
 end
 
 --[[
  * Allocates etity data tables and adds entity to `LaserLib.IsPrimary`
  * ent > Entity to register as primary laser source
+ * nov > Enable initializing empty value
 ]]
-function LaserLib.SetPrimary(ent)
+function LaserLib.SetPrimary(ent, nov)
   if(not LaserLib.IsValid(ent)) then return end
+  local dissolve = list.Get("LaserDissolveTypes")
+  local material = list.Get("LaserEmitterMaterials")
+  local comxbool = list.GetForEdit("LaserEmitterComboBools")
   ent:EditableSetVector("OriginLocal" , "General")
   ent:EditableSetVector("DirectLocal" , "General")
-  ent:EditableSetBool  ("ForceCenter" , "General")
-  ent:EditableSetBool  ("ReflectRatio", "Material")
-  ent:EditableSetBool  ("RefractRatio", "Material")
+  if(nov) then
+    material["Empty"] = ""
+    dissolve["Empty"] = {name = "", icon = "delete"}
+    ent:EditableSetIntCombo("ForceCenter" , "General" , comxbool)
+    ent:EditableSetIntCombo("ReflectRatio", "Material", comxbool)
+    ent:EditableSetIntCombo("RefractRatio", "Material", comxbool)
+  else
+    ent:EditableSetBool  ("ForceCenter" , "General")
+    ent:EditableSetBool  ("ReflectRatio", "Material")
+    ent:EditableSetBool  ("RefractRatio", "Material")
+  end
   ent:EditableSetBool  ("InPowerOn"   , "Internals")
   ent:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
   ent:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   ent:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   ent:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  ent:EditableSetStringCombo("InBeamMaterial", "Internals", list.GetForEdit("LaserEmitterMaterials"))
-  ent:EditableSetBool("InNonOverMater"  , "Internals")
-  ent:EditableSetBool("EndingEffect"    , "Visuals")
+  ent:EditableSetStringCombo("InBeamMaterial", "Internals", material)
+  if(nov) then
+    ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool)
+    ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool)
+  else
+    ent:EditableSetBool("InNonOverMater", "Internals")
+    ent:EditableSetBool("EndingEffect"  , "Visuals")
+  end
   ent:EditableSetVectorColor("BeamColor", "Visuals")
   ent:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
-  ent:EditableSetStringCombo("DissolveType", "Visuals", list.GetForEdit("LaserDissolveTypes"), "name")
-  ent.isPrimary = true
+  ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name")
 end
 
 --[[
@@ -587,15 +623,6 @@ function LaserLib.GetOrderID(ent, key)
   local itab = info.T; if(itab[key]) then
     itab[key] = (itab[key] + 1) else itab[key] = 0 end
   info.N = (info.N + 1); return key, info.N, itab[key]
-end
-
---[[
- * Defines when the enty is actual beam source
-]]
-function LaserLib.IsSource(ent)
-  if(LaserLib.IsUnit(ent)) then
-    return (ent.DoBeam != nil)
-  else return false end
 end
 
 function LaserLib.GetModel(iK)
@@ -2469,7 +2496,7 @@ local gtActors = {
     if(not LaserLib.IsValid(out)) then return end
     local inf = beam.TvPoints; inf[inf.Size][5] = true
     local osz, esz = out:GetExitSize(), ent:GetExitSize()
-    local siz = Vector(esz.x * osz.x , esz.y * osz.y, esz.z * osz.z)
+    local siz = Vector(osz.x / esz.x , osz.y / esz.y, osz.z / esz.z)
     local pos, dir = trace.HitPos, beam.VrDirect
     local mav, vsm = GetMarginPortal(ent, pos, dir, trace.HitNormal)
     beam:RegisterNode(mav, false, false)

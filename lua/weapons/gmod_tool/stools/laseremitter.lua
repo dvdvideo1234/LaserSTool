@@ -193,7 +193,7 @@ cleanup.Register(gsTool.."s")
 
 TOOL.ClientConVar =
 {
-  [ "key"          ] = 5,
+  [ "key"          ] = 51,
   [ "width"        ] = 4,
   [ "length"       ] = 1000,
   [ "damage"       ] = 10,
@@ -201,21 +201,20 @@ TOOL.ClientConVar =
   [ "colorg"       ] = 255,
   [ "colorb"       ] = 255,
   [ "colora"       ] = 255,
-  [ "angle"        ] = 270,
-  [ "rayassist"    ] = 25,
+  [ "angle"        ] = 0,
   [ "origin"       ] = "",
   [ "direct"       ] = "",
   [ "material"     ] = "trails/laser",
-  [ "model"        ] = "models/props_combine/headcrabcannister01a_skybox.mdl",
+  [ "model"        ] = "models/props_lab/tpplug.mdl",
   [ "dissolvetype" ] = "core",
   [ "startsound"   ] = "ambient/energy/weld1.wav",
   [ "stopsound"    ] = "ambient/energy/weld2.wav",
   [ "killsound"    ] = "ambient/levels/citadel/weapon_disintegrate1.wav",
-  [ "toggle"       ] = 0,
+  [ "toggle"       ] = 1,
   [ "starton"      ] = 0,
   [ "pushforce"    ] = 100,
   [ "endingeffect" ] = 1,
-  [ "surfweld"     ] = 0,
+  [ "surfweld"     ] = 1,
   [ "forcelimit"   ] = 0,
   [ "nocollide"    ] = 1,
   [ "reflectrate"  ] = 1,
@@ -225,6 +224,7 @@ TOOL.ClientConVar =
   [ "enonvermater" ] = 0,
   [ "forcecenter"  ] = 0,
   [ "portalexit"   ] = 0,
+  [ "rayassist"    ] = 25,
   [ "frozen"       ] = 1 -- The cold never bothered me anyway
 }
 
@@ -350,12 +350,10 @@ function TOOL:RightClick(trace)
   if(CLIENT) then return true end
   if(not trace) then return false end
   local ply, ent = self:GetOwner(), trace.Entity
-
   if(trace.HitWorld) then
     return false -- TODO: Make it actually do something
   else
     if(not LaserLib.IsValid(ent)) then return false end
-
     if(LaserLib.IsPrimary(ent)) then
       local r, g, b, a = ent:GetBeamColorRGBA()
       LaserLib.ConCommand(ply, "colorr"      , r)
@@ -373,11 +371,11 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(ply, "pushforce"   , ent:GetBeamForce())
       LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
       LaserLib.ConCommand(ply, "toggle"      , (ent:GetTable().runToggle and 1 or 0))
-      LaserLib.ConCommand(ply, "forcecenter" , (ent:GetForceCenter() and 1 or 0))
-      LaserLib.ConCommand(ply, "endingeffect", (ent:GetEndingEffect() and 1 or 0))
-      LaserLib.ConCommand(ply, "reflectrate" , (ent:GetReflectRatio() and 1 or 0))
-      LaserLib.ConCommand(ply, "refractrate" , (ent:GetRefractRatio() and 1 or 0))
-      LaserLib.ConCommand(ply, "enonvermater", (ent:GetNonOverMater() and 1 or 0))
+      LaserLib.ConCommand(ply, "forcecenter" , (LaserLib.ToBoolCombo(ent:GetForceCenter()) and 1 or 0))
+      LaserLib.ConCommand(ply, "reflectrate" , (LaserLib.ToBoolCombo(ent:GetReflectRatio()) and 1 or 0))
+      LaserLib.ConCommand(ply, "refractrate" , (LaserLib.ToBoolCombo(ent:GetRefractRatio()) and 1 or 0))
+      LaserLib.ConCommand(ply, "endingeffect", (LaserLib.ToBoolCombo(ent:GetEndingEffect()) and 1 or 0))
+      LaserLib.ConCommand(ply, "enonvermater", (LaserLib.ToBoolCombo(ent:GetNonOverMater()) and 1 or 0))
       LaserLib.Notify(ply, "Copy"..self:GetUnit(ent).."["..ent:EntIndex().."] settings !", "UNDO")
     elseif(ent:GetClass() == gsLaserptCls) then
       local idx = tostring(ent:EntIndex())

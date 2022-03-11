@@ -12,30 +12,12 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
-ENT.DoBeam         = nil
 
 function ENT:SetupDataTables()
-  local material = list.Get("LaserEmitterMaterials")
-  local dissolve = list.Get("LaserDissolveTypes")
-  material["Empty"] = ""; dissolve["Empty"] = {name = "", icon = "delete"}
-  self:EditableSetBool("CheckDominant", "General")
-  self:EditableSetVector("OriginLocal" , "General")
-  self:EditableSetVector("DirectLocal" , "General")
-  self:EditableSetIntCombo("ForceCenter" , "General", list.GetForEdit("LaserEmitterComboBools"))
-  self:EditableSetIntCombo("ReflectRatio", "Material", list.GetForEdit("LaserEmitterComboBools"))
-  self:EditableSetIntCombo("RefractRatio", "Material", list.GetForEdit("LaserEmitterComboBools"))
-  self:EditableSetBool  ("InPowerOn"   , "Internals")
-  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  self:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  self:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  self:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  self:EditableSetStringCombo("InBeamMaterial", "Internals", material)
-  self:EditableSetIntCombo("InNonOverMater", "Internals", list.GetForEdit("LaserEmitterComboBools"))
-  self:EditableSetIntCombo("EndingEffect"  , "Visuals", list.GetForEdit("LaserEmitterComboBools"))
+  self.DoBeam = nil -- Recieve beams only
+  LaserLib.SetPrimary(self, true)
   self:EditableSetBool("CheckBeamColor", "Visuals")
-  self:EditableSetVectorColor("BeamColor", "Visuals")
-  self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
-  self:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name")
+  self:EditableSetBool("CheckDominant", "General")
   LaserLib.ClearOrder(self)
 end
 
