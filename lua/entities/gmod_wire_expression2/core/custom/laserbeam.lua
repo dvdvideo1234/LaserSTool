@@ -9,7 +9,7 @@ local gbRout  = false -- Wire cannot return multiple
 
 local gtBoolToNum = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
-local function getReport(ent, idx, typ, key)
+local function getReport(ent, idx, typ)
   if(not LaserLib.IsValid(ent)) then return nil end
   if(not LaserLib.IsUnit(ent)) then return nil end
   local rep = ent.hitReports; if(not rep) then return nil end
@@ -17,13 +17,18 @@ local function getReport(ent, idx, typ, key)
   if(idx <= 0 or idx > siz) then return nil end
   rep = rep[idx]; if(not rep) then return nil end
   rep = rep[typ]; if(not rep) then return nil end
+  return rep -- Return the indexed hit report type
+end
+
+local function getReportKey(ent, idx, typ, key)
+  local rep = getReport(ent, idx, typ)
   rep = rep[key]; if(not rep) then return nil end
-  return rep -- Return indexed value for hit report
+  return rep -- Return indexed hit report value
 end
 
 local function getSource(ent)
   if(not LaserLib.IsValid(ent)) then return nil end
-  if(not LaserLib.IsUnit(ent, 2)) then return nil end
+  if(not LaserLib.IsPrimary(ent)) then return nil end
   return ent -- Entity is actual source
 end
 
@@ -150,87 +155,90 @@ end
 
 __e2setcost(1)
 e2function vector entity:laserGetDataOrigin(number idx)
-  local ext = getReport(this, idx, "DT", "VrOrigin")
+  local ext = getReportKey(this, idx, "BM", "VrOrigin")
   if(not ext) then return {0,0,0} end
   return {ext[1], ext[2], ext[3]}
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetDataDirect(number idx)
-  local ext = getReport(this, idx, "DT", "VrDirect")
+  local ext = getReportKey(this, idx, "BM", "VrDirect")
   if(not ext) then return {0,0,0} end
   return {ext[1], ext[2], ext[3]}
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataLength(number idx)
-  local ext = getReport(this, idx, "DT", "BmLength")
-  return (ext and ext or 0)
+  local beam = getReport(this, idx, "BM")
+  if(not beam) then return 0 end
+  return beam:GetLength()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataDamage(number idx)
-  local ext = getReport(this, idx, "DT", "NvDamage")
+  local ext = getReportKey(this, idx, "BM", "NvDamage")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataWidth(number idx)
-  local ext = getReport(this, idx, "DT", "NvWidth")
+  local ext = getReportKey(this, idx, "BM", "NvWidth")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataForce(number idx)
-  local ext = getReport(this, idx, "DT", "NvForce")
+  local ext = getReportKey(this, idx, "BM", "NvForce")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataBounceMax(number idx)
-  local ext = getReport(this, idx, "DT", "MxBounce")
+  local ext = getReportKey(this, idx, "BM", "MxBounce")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataBounceRest(number idx)
-  local ext = getReport(this, idx, "DT", "NvBounce")
+  local ext = getReportKey(this, idx, "BM", "NvBounce")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataRange(number idx)
-  local ext = getReport(this, idx, "DT", "RaLength")
+  local ext = getReportKey(this, idx, "BM", "RaLength")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataLengthRest(number idx)
-  local ext = getReport(this, idx, "DT", "NvLength")
+  local ext = getReportKey(this, idx, "BM", "NvLength")
   return (ext and ext or 0)
 end
 
 __e2setcost(1)
 e2function entity entity:laserGetDataSource(number idx)
-  local ext = getReport(this, idx, "DT", "BmSource")
-  return LaserLib.IsValid(ext) and ext or nil
+  local beam = getReport(this, idx, "BM")
+  if(not beam) then return nil end
+  local src = beam:GetSource()
+  return LaserLib.IsValid(src) and src or nil
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataIsReflect(number idx)
-  local ext = getReport(this, idx, "DT", "BrReflec")
+  local ext = getReportKey(this, idx, "BM", "BrReflec")
   if(ext == nil) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataIsRefract(number idx)
-  local ext = getReport(this, idx, "DT", "BrRefrac")
+  local ext = getReportKey(this, idx, "BM", "BrRefrac")
   if(ext == nil) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetDataPointNode(number idx, number cnt)
-  local ext = getReport(this, idx, "DT", "TvPoints")
+  local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return {0,0,0} end
   local set = ext[cnt]; if(not set) then return {0,0,0} end
   if(cnt <= 0 or cnt > ext.Size) then return {0,0,0} end
@@ -239,7 +247,7 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointWidth(number idx, number cnt)
-  local ext = getReport(this, idx, "DT", "TvPoints")
+  local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end
   local set = ext[cnt]; if(not set) then return 0 end
   return set[2]
@@ -247,7 +255,7 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointDamage(number idx, number cnt)
-  local ext = getReport(this, idx, "DT", "TvPoints")
+  local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end
   local set = ext[cnt]; if(not set) then return 0 end
   return set[3]
@@ -255,7 +263,7 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointForce(number idx, number cnt)
-  local ext = getReport(this, idx, "DT", "TvPoints")
+  local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end
   local set = ext[cnt]; if(not set) then return 0 end
   return set[4]
@@ -263,7 +271,7 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointIsDraw(number idx, number cnt)
-  local ext = getReport(this, idx, "DT", "TvPoints")
+  local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end
   local set = ext[cnt]; if(not set) then return 0 end
   return gtBoolToNum[set[5]]
@@ -271,157 +279,157 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointSize(number idx)
-  local ext = getReport(this, idx, "DT", "TvPoints")
+  local ext = getReportKey(this, idx, "BM", "TvPoints")
   return (ext and ext.Size or 0)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceAllSolid(number idx)
-  local ext = getReport(this, idx, "TR", "AllSolid")
+  local ext = getReportKey(this, idx, "TR", "AllSolid")
   if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceContents(number idx)
-  local ext = getReport(this, idx, "TR", "Contents")
+  local ext = getReportKey(this, idx, "TR", "Contents")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceDispFlags(number idx)
-  local ext = getReport(this, idx, "TR", "DispFlags")
+  local ext = getReportKey(this, idx, "TR", "DispFlags")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function entity entity:laserGetTraceEntity(number idx)
-  local ext = getReport(this, idx, "TR", "Entity")
+  local ext = getReportKey(this, idx, "TR", "Entity")
   return LaserLib.IsValid(ext) and ext or nil
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceFraction(number idx)
-  local ext = getReport(this, idx, "TR", "Fraction")
+  local ext = getReportKey(this, idx, "TR", "Fraction")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceFractionLS(number idx)
-  local ext = getReport(this, idx, "TR", "FractionLeftSolid")
+  local ext = getReportKey(this, idx, "TR", "FractionLeftSolid")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHit(number idx)
-  local ext = getReport(this, idx, "TR", "Hit")
+  local ext = getReportKey(this, idx, "TR", "Hit")
   if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitBox(number idx)
-  local ext = getReport(this, idx, "TR", "HitBox")
+  local ext = getReportKey(this, idx, "TR", "HitBox")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitGroup(number idx)
-  local ext = getReport(this, idx, "TR", "HitGroup")
+  local ext = getReportKey(this, idx, "TR", "HitGroup")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNoDraw(number idx)
-  local ext = getReport(this, idx, "TR", "HitNoDraw")
+  local ext = getReportKey(this, idx, "TR", "HitNoDraw")
   if(not ext) then return 0 end
   return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNonWorld(number idx)
-  local ext = getReport(this, idx, "TR", "HitNonWorld")
+  local ext = getReportKey(this, idx, "TR", "HitNonWorld")
   if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetTraceHitNormal(number idx)
-  local ext = getReport(this, idx, "TR", "HitNormal")
+  local ext = getReportKey(this, idx, "TR", "HitNormal")
   if(not ext) then return {0,0,0} end
   return {ext[1], ext[2], ext[3]}
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetTraceHitPos(number idx)
-  local ext = getReport(this, idx, "TR", "HitPos")
+  local ext = getReportKey(this, idx, "TR", "HitPos")
   if(not ext) then return {0,0,0} end
   return {ext[1], ext[2], ext[3]}
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitSky(number idx)
-  local ext = getReport(this, idx, "TR", "HitSky")
+  local ext = getReportKey(this, idx, "TR", "HitSky")
   if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function string entity:laserGetTraceHitTexture(number idx)
-  local ext = getReport(this, idx, "TR", "HitTexture")
+  local ext = getReportKey(this, idx, "TR", "HitTexture")
   if(not ext) then return "" end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitWorld(number idx)
-  local ext = getReport(this, idx, "TR", "HitWorld")
+  local ext = getReportKey(this, idx, "TR", "HitWorld")
   if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetTraceNormal(number idx)
-  local ext = getReport(this, idx, "TR", "Normal")
+  local ext = getReportKey(this, idx, "TR", "Normal")
   if(not ext) then return {0,0,0} end
   return {ext[1], ext[2], ext[3]}
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitPhysicsBone(number idx)
-  local ext = getReport(this, idx, "TR", "PhysicsBone")
+  local ext = getReportKey(this, idx, "TR", "PhysicsBone")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetTraceStartPos(number idx)
-  local ext = getReport(this, idx, "TR", "StartPos")
+  local ext = getReportKey(this, idx, "TR", "StartPos")
   if(not ext) then return {0,0,0} end
   return {ext[1], ext[2], ext[3]}
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceStartSolid(number idx)
-  local ext = getReport(this, idx, "TR", "StartSolid")
+  local ext = getReportKey(this, idx, "TR", "StartSolid")
   if(not ext) then return 0 end; return gtBoolToNum[ext]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceSurfaceFlags(number idx)
-  local ext = getReport(this, idx, "TR", "SurfaceFlags")
+  local ext = getReportKey(this, idx, "TR", "SurfaceFlags")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceSurfacePropsID(number idx)
-  local ext = getReport(this, idx, "TR", "SurfaceProps")
+  local ext = getReportKey(this, idx, "TR", "SurfaceProps")
   if(not ext) then return 0 end; return ext
 end
 
 __e2setcost(1)
 e2function string entity:laserGetTraceSurfacePropsName(number idx)
-  local ext = getReport(this, idx, "TR", "SurfaceProps")
+  local ext = getReportKey(this, idx, "TR", "SurfaceProps")
   if(not ext) then return 0 end
   return util.GetSurfacePropName(ext) or ""
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceMatType(number idx)
-  local ext = getReport(this, idx, "TR", "MatType")
+  local ext = getReportKey(this, idx, "TR", "MatType")
   if(not ext) then return 0 end; return ext
 end
 

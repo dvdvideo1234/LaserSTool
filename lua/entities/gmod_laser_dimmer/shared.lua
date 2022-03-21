@@ -15,17 +15,14 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
-AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("LinearMapping", "General")
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 -- Override the beam transormation
@@ -50,7 +47,7 @@ function ENT:GetHitNormal()
   end
 end
 
-function ENT:GetHitPower(normal, trace, beam, bmln)
+function ENT:GetHitPower(normal, beam, trace, bmln)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")

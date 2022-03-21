@@ -166,12 +166,12 @@ end
  * trace > Trace result structure to register
  * beam  > Beam class register being registered
 ]]
-function SWEP:SetHitReport(trace, beam)
+function SWEP:SetHitReport(beam, trace)
   if(not self.hitReports) then self.hitReports = {Size = 0} end
   local rep, idx = self.hitReports, beam.BmIdenty
   if(idx >= rep.Size) then rep.Size = idx end
   if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
-  rep["DT"] = beam; rep["TR"] = trace; return self
+  rep["BM"] = beam; rep["TR"] = trace; return self
 end
 
 --[[
@@ -183,7 +183,7 @@ function SWEP:GetHitReport(index)
   if(not self.hitReports) then return end
   local rep = self.hitReports[index]
   if(not rep) then return end
-  return rep["TR"], rep["DT"]
+  return rep["BM"], rep["TR"]
 end
 
 function SWEP:GetStopSound()
@@ -263,7 +263,7 @@ function SWEP:DoBeam(origin, direct)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
-  local trace, beam = LaserLib.DoBeam(user,
+  local beam, trace = LaserLib.DoBeam(user,
                                       origin,
                                       direct,
                                       length,
@@ -273,7 +273,7 @@ function SWEP:DoBeam(origin, direct)
                                       usrfle,
                                       usrfre,
                                       noverm)
-  return trace, beam
+  return beam, trace
 end
 
 function SWEP:ServerBeam()
@@ -286,7 +286,7 @@ function SWEP:ServerBeam()
 
     LaserLib.SetExBounces(1)
 
-    local trace, beam = self:DoBeam(vorg, vdir)
+    local beam, trace = self:DoBeam(vorg, vdir)
     if(beam and trace and
       LaserLib.IsValid(trace.Entity) and not
       LaserLib.IsUnit(trace.Entity)
@@ -326,7 +326,7 @@ else
     self:UpdateFlags()
     LaserLib.SetExBounces(1)
 
-    local trace, beam = self:DoBeam(origin, direct)
+    local beam, trace = self:DoBeam(origin, direct)
     if(not beam) then return end
     if(not trace) then return end
 

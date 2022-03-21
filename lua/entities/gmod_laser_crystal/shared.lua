@@ -13,9 +13,9 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
 function ENT:SetupDataTables()
-  self:SetupSourceDataTables()
+  LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorMerge","Visuals")
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 -- Override the beam transormation

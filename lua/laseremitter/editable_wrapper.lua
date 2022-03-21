@@ -1,20 +1,9 @@
-ENT.EditableOrderInfo = {N = 0, T = {}}
+ENT.meOrderInfo = {N = 0, T = {}}
 
-function ENT:EditableGetOrderID(key)
-  local info = self.EditableOrderInfo
-  if(not info.T[key]) then info.T[key] = 0
-  else info.T[key] = info.T[key] + 1 end
-  info.N = info.N + 1 -- Increment order
-  return key, info.N, info.T[key]
-end
 
-function ENT:EditableRemoveOrderInfo()
-  self.EditableOrderInfo = nil
-  return self
-end
 
 function ENT:EditableSetVector(name, catg)
-  local typ, ord, id = self:EditableGetOrderID("Vector")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Vector")
   local a = self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
@@ -25,7 +14,7 @@ function ENT:EditableSetVector(name, catg)
 end
 
 function ENT:EditableSetVectorColor(name, catg)
-  local typ, ord, id = self:EditableGetOrderID("Vector")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Vector")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
@@ -36,7 +25,7 @@ function ENT:EditableSetVectorColor(name, catg)
 end
 
 function ENT:EditableSetBool(name, catg)
-  local typ, ord, id = self:EditableGetOrderID("Bool")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Bool")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
@@ -47,7 +36,7 @@ function ENT:EditableSetBool(name, catg)
 end
 
 function ENT:EditableSetFloat(name, catg, min, max)
-  local typ, ord, id = self:EditableGetOrderID("Float")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Float")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
@@ -61,7 +50,7 @@ end
 
 function ENT:EditableSetFloatCombo(name, catg, vals, key)
   local set = vals -- Use provided values unless a table
-  local typ, ord, id = self:EditableGetOrderID("Float")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Float")
   if(key) then set = {} -- Allocate
     for k, v in pairs(vals) do
       set[k] = v[key] -- Populate values
@@ -78,7 +67,7 @@ function ENT:EditableSetFloatCombo(name, catg, vals, key)
 end
 
 function ENT:EditableSetInt(name, catg, min, max)
-  local typ, ord, id = self:EditableGetOrderID("Int")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Int")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
@@ -92,7 +81,7 @@ end
 
 function ENT:EditableSetIntCombo(name, catg, vals, key)
   local set = vals -- Use provided values unless a table
-  local typ, ord, id = self:EditableGetOrderID("Int")
+  local typ, ord, id = LaserLib.GetOrderID(self, "Int")
   if(key) then set = {} -- Allocate
     for k, v in pairs(vals) do
       set[k] = v[key] -- Populate values
@@ -109,7 +98,7 @@ function ENT:EditableSetIntCombo(name, catg, vals, key)
 end
 
 function ENT:EditableSetStringGeneric(name, catg, enter)
-  local typ, ord, id = self:EditableGetOrderID("String")
+  local typ, ord, id = LaserLib.GetOrderID(self, "String")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
     Edit = {
@@ -122,7 +111,7 @@ end
 
 function ENT:EditableSetStringCombo(name, catg, vals, key)
   local set = vals -- Use provided values unless a table
-  local typ, ord, id = self:EditableGetOrderID("String")
+  local typ, ord, id = LaserLib.GetOrderID(self, "String")
   if(key) then set = {} -- Allocate
     for k, v in pairs(vals) do
       set[k] = v[key] -- Populate values

@@ -15,10 +15,7 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
-AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 local gsNA = LaserLib.GetData("NOAV")
@@ -30,7 +27,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool("ReflectExitDir", "General") -- Reflect the exit ray direction
   self:EditableSetBool("DrawTransfer", "General") -- Draw transfer overlay entity
   self:EditableSetStringGeneric("EntityExitID", "General", true)
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 -- Override the beam transormation

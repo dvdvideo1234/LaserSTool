@@ -19,9 +19,9 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
-  self:SetupSourceDataTables()
+  LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorSplit","Visuals")
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 -- Override the beam transormation
@@ -154,7 +154,7 @@ function ENT:DoBeam(org, dir, idx)
   local force  = self:GetBeamForce() / todiv
   local damage = self:GetBeamDamage() / todiv
   local width  = LaserLib.GetWidth(self:GetBeamWidth() / todiv)
-  local trace, beam = LaserLib.DoBeam(self:BeamColorSplit(idx),
+  local beam, trace = LaserLib.DoBeam(self:BeamColorSplit(idx),
                                       origin,
                                       direct,
                                       length,
@@ -165,5 +165,5 @@ function ENT:DoBeam(org, dir, idx)
                                       usrfre,
                                       noverm,
                                       idx)
-  return trace, beam
+  return beam, trace
 end

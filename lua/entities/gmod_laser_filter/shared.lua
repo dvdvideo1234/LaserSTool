@@ -15,10 +15,7 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
-AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
@@ -36,7 +33,7 @@ function ENT:SetupDataTables()
   self:EditableSetStringCombo("InBeamMaterial", "Internals", material)
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
-  self:EditableRemoveOrderInfo()
+  LaserLib.ClearOrder(self)
 end
 
 --[[ ----------------------
@@ -95,7 +92,7 @@ function ENT:GetHitNormal()
   end
 end
 
-function ENT:GetHitPower(normal, trace, beam)
+function ENT:GetHitPower(normal, beam, trace)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dotm = LaserLib.GetData("DOTM")

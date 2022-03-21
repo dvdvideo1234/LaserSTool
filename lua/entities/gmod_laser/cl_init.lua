@@ -10,7 +10,7 @@ ENT.RenderGroup = RENDERGROUP_BOTH
  * beam   > Information parameters of the current beam
  * source > Entity that has laser related properties
 ]]
-function ENT:DrawEndingEffect(trace, beam, source)
+function ENT:DrawEndingEffect(beam, trace, source)
   local okent = LaserLib.IsValid(source)
   local usent = (okent and source or self)
   local endrw = usent:GetEndingEffect()
@@ -33,11 +33,11 @@ function ENT:DrawTrace(beam, source, color)
 end
 
 function ENT:DrawBeam()
-  local trace, beam = self:DoBeam()
+  local beam, trace = self:DoBeam()
   if(not beam) then return end
   self:DrawTrace(beam) -- Draws the beam trace
   -- Handle drawing the effects when have to be drawwn
-  self:DrawEndingEffect(trace, beam)
+  self:DrawEndingEffect(beam, trace)
 end
 
 function ENT:Draw()
