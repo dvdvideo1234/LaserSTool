@@ -28,7 +28,7 @@ end
  * Data is stored in notation: self.hitReports[ID]
 ]]
 function ENT:GetHitSourceID(ent, idx, bri)
-  if(not LaserLib.IsValid(ent)) then return nil end -- Invalid
+  if(not LaserLib.IsUnit(ent)) then return nil end -- Invalid
   if(ent == self) then return nil end -- Cannot be source to itself
   if(not self.hitSources[ent]) then return nil end -- Not source
   if(not ent:GetOn()) then return nil end -- Unit is not powered on
