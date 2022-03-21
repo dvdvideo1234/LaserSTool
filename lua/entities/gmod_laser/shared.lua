@@ -18,16 +18,9 @@ ENT.RenderGroup    = RENDERGROUP_OPAQUE
 local EFFECTDT = LaserLib.GetData("EFFECTDT")
 local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
-AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/report_manager.lua")
 include(LaserLib.GetTool().."/report_manager.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/array_manager.lua")
 include(LaserLib.GetTool().."/array_manager.lua")
 
 function ENT:SetupDataTables()
@@ -432,16 +425,15 @@ end
  * set  > Contains the already processed items
 ]]
 function ENT:IsInfinite(ent, set)
-  local set = (set or {})
-  if(LaserLib.IsValid(ent)) then
-    if(set[ent]) then return false end
-    if(ent == self) then return true else set[ent] = true end
-    if(LaserLib.IsSource(ent) and ent.hitSources) then
-      for src, stat in pairs(ent.hitSources) do
-        -- Other hits and we are in its sources
+  local set = (set or {}) -- Allocate passtrough entiti registration table
+  if(LaserLib.IsValid(ent)) then -- Invalid entities cannot do infinite loops
+    if(set[ent]) then return false end -- This has already been checked for infinite
+    if(ent == self) then return true else set[ent] = true end -- Check and register
+    if(LaserLib.IsBeam(ent) and ent.hitSources) then -- Can output neams and has sources
+      for src, stat in pairs(ent.hitSources) do -- Other hits and we are in its sources
         if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
-          if(src == self) then return true end
-          if(LaserLib.IsSource(src) and src.hitSources) then -- Class propagades the tree
+          if(src == self) then return true end -- Perforamance optimization
+          if(LaserLib.IsBeam(src) and src.hitSources) then -- Class propagades the tree
             if(self:IsInfinite(src, set)) then return true end end
         end -- Cascadely propagate trough the crystal sources from `self`
       end; return false -- The entity does not persists in itself

@@ -17,7 +17,7 @@ local function getReport(ent, idx, typ)
   if(idx <= 0 or idx > siz) then return nil end
   rep = rep[idx]; if(not rep) then return nil end
   rep = rep[typ]; if(not rep) then return nil end
-  return rep -- Return the indexed hit report
+  return rep -- Return the indexed hit report type
 end
 
 local function getReportKey(ent, idx, typ, key)
@@ -169,8 +169,9 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataLength(number idx)
-  local ext = getReportKey(this, idx, "BM", "BmLength")
-  return (ext and ext or 0)
+  local beam = getReport(this, idx, "BM")
+  if(not beam) then return 0 end
+  return beam:GetLength()
 end
 
 __e2setcost(1)
@@ -217,8 +218,10 @@ end
 
 __e2setcost(1)
 e2function entity entity:laserGetDataSource(number idx)
-  local ext = getReportKey(this, idx, "BM")
-  return ext and ext:GetSource() or nil
+  local beam = getReport(this, idx, "BM")
+  if(not beam) then return nil end
+  local src = beam:GetSource()
+  return LaserLib.IsValid(src) and src or nil
 end
 
 __e2setcost(1)

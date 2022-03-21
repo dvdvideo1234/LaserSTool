@@ -116,7 +116,7 @@ end
 ]]
 function ENT:DoBeam(ent, org, dir, bmex, idx)
   LaserLib.SetExSources(ent, bmex:GetSource())
-  LaserLib.SetExLength(bmex.BmLength)
+  LaserLib.SetExLength(bmex:GetLength())
   local length = bmex.NvLength
   local usrfle = bmex.BrReflec
   local usrfre = bmex.BrRefrac

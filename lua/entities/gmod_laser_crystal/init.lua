@@ -124,7 +124,7 @@ function ENT:EveryBeam(entity, index, beam, trace)
         xforce = beam.NvForce
         xwidth = beam.NvWidth
         xdamage = beam.NvDamage
-        xlength = (beam.BoLength or beam.BmLength)
+        xlength = beam:GetLength()
         if(mrg) then
           xomcor.r = ncolor.r
           xomcor.g = ncolor.g
@@ -172,10 +172,9 @@ function ENT:UpdateSources()
   xomcor.r, xomcor.g = 0, 0
   xomcor.b, xomcor.a = 0, 0
   doment , dobeam = nil, nil
-  xlength, bpower, ncolor  = 0, false
-  xforce , xwidth, xdamage = 0, 0, 0
-  width  , length, damage  = 0, 0, 0
-  npower , force , opower  = 0, 0, nil
+  npower , bpower , opower, ncolor  = 0, false
+  xlength, xforce , xwidth, xdamage = 0, 0, 0, 0
+  force  , width  , length, damage  = 0, 0, 0, 0
 
   self:ProcessSources()
 

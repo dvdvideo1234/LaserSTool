@@ -13,17 +13,12 @@ ENT.Purpose        = "Divides incoming beam into pass-trough and reflected"
 ENT.Instructions   = "Position this entity on the incoming beam path"
 ENT.Author         = "DVD"
 ENT.Contact        = "dvdvideo123@gmail.com"
-ENT.Spawnable      = true
+ENT.Spawnable      = false
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
-AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/wire_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
-
-AddCSLuaFile(LaserLib.GetTool().."/report_manager.lua")
 include(LaserLib.GetTool().."/report_manager.lua")
 
 function ENT:SetupDataTables()
@@ -85,7 +80,7 @@ function ENT:DoBeam(org, dir, bmex)
   self.RecuseBeamID = self.RecuseBeamID + 1
   LaserLib.Print("Beam", self.RecuseBeamID, bmex.BmRecstg, bmex.TeFilter)
   LaserLib.SetExSources(self, bmex:GetSource())
-  LaserLib.SetExLength(bmex.BmLength)
+  LaserLib.SetExLength(bmex:GetLength())
   local length = bmex.NvLength
   local usrfle = bmex.BrReflec
   local usrfre = bmex.BrRefrac
@@ -108,3 +103,4 @@ function ENT:DoBeam(org, dir, bmex)
                                       bmex.BmRecstg)
   return beam, trace
 end
+
