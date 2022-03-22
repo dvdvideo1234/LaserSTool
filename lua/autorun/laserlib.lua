@@ -63,17 +63,16 @@ DATA.BESRC = nil             -- External forced entity source for the beam updat
 DATA.BCOLR = nil             -- External forced beam color used in the current request
 DATA.KEYD = "#"              -- The default key in a collection point to take when not found
 DATA.KEYA = "*"              -- The all key in a collection point to return the all in set
+DATA.AZERO = Angle()         -- Zero angle used across all sources
+DATA.VZERO = Vector()        -- Zero vector used across all sources
+DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
+DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
+DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hitnormal displatement
 DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
 DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 
--- Store zero angle and vector
-DATA.AZERO = Angle()
-DATA.VZERO = Vector()
-DATA.VDFWD = Vector(1, 0, 0)
-DATA.VDRGH = Vector(0,-1, 0) -- Positive direction is to the left
-DATA.VDRUP = Vector(0, 0, 1)
 local gtTCUST = {
   "Forward", "Right", "Up",
   H = {ID = 0, M = 0, V = 0},
@@ -90,23 +89,23 @@ local gtCOLID = {
 }
 
 local gtCLASS = {
-  -- Classes existing in the hash part are laser-enabled entiies
-  -- Classes are stored in notation `[ent:GetClass()] = true` and used in `IsUnit`
-  ["gmod_laser"           ] = true,
-  ["gmod_laser_crystal"   ] = true,
-  ["gmod_laser_dimmer"    ] = true,
-  ["gmod_laser_divider"   ] = true,
-  ["gmod_laser_filter"    ] = true,
-  ["gmod_laser_parallel"  ] = true,
-  ["gmod_laser_portal"    ] = true,
-  ["gmod_laser_rdivider"  ] = true,
-  ["gmod_laser_reflector" ] = true,
-  ["gmod_laser_sensor"    ] = true,
-  ["gmod_laser_splitter"  ] = true,
-  ["gmod_laser_splitterm" ] = true,
-  -- [1] Actual class passed to ents.Create
-  -- [2] Extension for folder name indices
-  -- [3] Extension for variable name indices
+  -- Classes existing in the hash part are laser-enabled entities `LaserLib.ClearOrder(self)`
+  -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
+  ["gmod_laser"           ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_crystal"   ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_dimmer"    ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_divider"   ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_filter"    ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_parallel"  ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_portal"    ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_rdivider"  ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_reflector" ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_sensor"    ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_splitter"  ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_splitterm" ] = true, -- This is present for hot reload. You must register yours separately
+  -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
+  -- [2] Extension for folder name indices. Which filder are entity specific files located
+  -- [3] Extension for variable name indices. Populate this when model control variable is different
   {"gmod_laser"          , nil        , nil      }, -- Laser entity calss `PriarySource`
   {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeam`
   {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
