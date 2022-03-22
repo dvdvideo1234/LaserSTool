@@ -425,6 +425,11 @@ function LaserLib.VecNegate(vec)
   return vec
 end
 
+--[[
+ * Clears an array table from specified index
+ * arr > Array to be cleared
+ * idx > Start clear index (not mandatory)
+]]
 function LaserLib.Clear(arr, idx)
   if(not arr) then return end
   local idx = math.floor(tonumber(idx) or 1)
@@ -432,7 +437,24 @@ function LaserLib.Clear(arr, idx)
   while(arr[idx]) do idx, arr[idx] = (idx + 1) end
 end
 
--- Validates entity or physics object
+--[[
+ * Extracts table values from 2D set specified key
+ * tab > Reference to a table of row tables
+ * key > The key to be extracted (not mandatory)
+]]
+function LaserLib.Extract(tab, key)
+  if(not tab) then return tab end
+  if(not key) then return tab end
+  local set = {} -- Allocate
+  for k, v in pairs(tab) do
+    set[k] = v[key] -- Populate values
+  end; return set -- Key-value pairs
+end
+
+--[[
+ * Validates entity or physics object
+ * arg > Entity or physics object
+]]
 function LaserLib.IsValid(arg)
   if(arg == nil) then return false end
   if(arg == NULL) then return false end
@@ -560,16 +582,6 @@ function LaserLib.IsSource(ent)
 end
 
 --[[
- * Converts boolean integer combo to boolen
- * vac > The value being convereted
-]]
-function LaserLib.ToBoolCombo(vac)
-  local van = tonumber(vac)
-  if(van) then return (van == 2) end
-  return vac
-end
-
---[[
  * Allocates etity data tables and adds entity to `LaserLib.IsPrimary`
  * ent > Entity to register as primary laser source
  * nov > Enable initializing empty value
@@ -618,6 +630,7 @@ end
 function LaserLib.ClearOrder(ent)
   if(not LaserLib.IsValid(ent)) then return end
   ent.meOrderInfo = nil; gtCLASS[ent:GetClass()] = true
+  if(CLIENT) then language.Add(ent:GetClass(), ent.Information) end
 end
 
 --[[
@@ -1484,6 +1497,17 @@ if(SERVER) then
     return laser
   end
 
+end
+
+if(CLIENT) then
+  -- Retrieve the string of the base class
+  local sac = LaserLib.GetClass(1, 1)
+  -- Setup kill icon for the base laser
+  killicon.Add(sac, "vgui/entities/gmod_laser_killicon", LaserLib.GetColor("WHITE"))
+  -- Setup the same kill icon across other units
+  for idx = 2, #gtCLASS do
+    killicon.AddAlias(sac.."_"..LaserLib.GetClass(idx, 2), sac)
+  end
 end
 
 --[[

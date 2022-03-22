@@ -49,6 +49,7 @@ end
 
 function SWEP:Setup()
   if(CLIENT) then
+    local cass = self:GetClass()
     local user = self:GetOwner()
     if(user.GetViewModel and user:GetViewModel():IsValid()) then
       local mod = user:GetViewModel()
@@ -58,12 +59,16 @@ function SWEP:Setup()
         self.VM = mod
         self.VA = idx
       end
+
+      if(not killicon.Exists(cass)) then
+        killicon.AddAlias(cass, LaserLib.GetClass(1, 1))
+      end
     end
     self.WA = self:LookupAttachment("muzzle")
     self.MO, self.MD = Vector(), Vector()
   end
 
-  LaserLib.GetData("CLS")[self:GetClass()] = {true, true}
+  LaserLib.ClearOrder(self)
 end
 
 function SWEP:Initialize()
@@ -255,7 +260,8 @@ function SWEP:GetBeamDirect()
 end
 
 function SWEP:DoBeam(origin, direct)
-  local user = self:GetOwner()
+  LaserLib.SetExBounces(1)
+  local user   = self:GetOwner()
   local width  = self:GetBeamWidth()
   local damage = self:GetBeamDamage()
   local length = self:GetBeamLength()
@@ -280,34 +286,31 @@ function SWEP:ServerBeam()
   self:UpdateFlags()
 
   if(self:GetOn()) then
-    local user = self:GetOwner()
     local vorg = self:GetBeamOrigin()
     local vdir = self:GetBeamDirect()
-
-    LaserLib.SetExBounces(1)
-
     local beam, trace = self:DoBeam(vorg, vdir)
+
     if(beam and trace and
-      LaserLib.IsValid(trace.Entity) and not
-      LaserLib.IsUnit(trace.Entity)
-    ) then
+       LaserLib.IsValid(trace.Entity) and not
+       LaserLib.IsUnit(trace.Entity))
+    then
+      local user = self:GetOwner()
+      local fcen = self:GetForceCenter()
+      local dtyp = self:GetDissolveType()
+      local ssnd = self:GetStopSound()
+      local ksnd = self:GetKillSound()
 
-    local fcen = self:GetForceCenter()
-    local dtyp = self:GetDissolveType()
-    local ssnd = self:GetStopSound()
-    local ksnd = self:GetKillSound()
-
-    LaserLib.DoDamage(trace.Entity,
-                      trace.HitPos,
-                      trace.Normal,
-                      beam.VrDirect,
-                      beam.NvDamage,
-                      beam.NvForce,
-                      user,
-                      LaserLib.GetDissolveID(dtyp),
-                      ksnd,
-                      fcen,
-                      self)
+      LaserLib.DoDamage(trace.Entity,
+                        trace.HitPos,
+                        trace.Normal,
+                        beam.VrDirect,
+                        beam.NvDamage,
+                        beam.NvForce,
+                        user,
+                        LaserLib.GetDissolveID(dtyp),
+                        ksnd,
+                        fcen,
+                        self)
     end
   end
 end
@@ -324,7 +327,6 @@ else
 
   function SWEP:DrawBeam(origin, direct)
     self:UpdateFlags()
-    LaserLib.SetExBounces(1)
 
     local beam, trace = self:DoBeam(origin, direct)
     if(not beam) then return end

@@ -178,17 +178,6 @@ if(SERVER) then
   CreateConVar("sbox_max"..gsTool.."s", 20)
 end
 
-if(CLIENT) then
-  language.Add(gsLaseremCls, "Laser Emiter") -- Relative to materials
-  killicon.Add(gsLaseremCls, "vgui/entities/gmod_laser_killicon", LaserLib.GetColor("WHITE"))
-
-  for idx = 2, #LaserLib.GetData("CLS") do
-    local isc = gsLaseremCls.."_"..LaserLib.GetClass(idx, 2)
-    language.Add(isc, "Laser Crystal")
-    killicon.AddAlias(isc, gsLaseremCls)
-  end
-end
-
 cleanup.Register(gsTool.."s")
 
 TOOL.ClientConVar =
@@ -354,7 +343,7 @@ function TOOL:RightClick(trace)
     return false -- TODO: Make it actually do something
   else
     if(not LaserLib.IsValid(ent)) then return false end
-    if(LaserLib.IsPrimary(ent)) then
+    if(LaserLib.IsSource(ent)) then
       local r, g, b, a = ent:GetBeamColorRGBA()
       LaserLib.ConCommand(ply, "colorr"      , r)
       LaserLib.ConCommand(ply, "colorg"      , g)
@@ -369,13 +358,13 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(ply, "stopsound"   , ent:GetStopSound())
       LaserLib.ConCommand(ply, "killsound"   , ent:GetKillSound())
       LaserLib.ConCommand(ply, "pushforce"   , ent:GetBeamForce())
+      LaserLib.ConCommand(ply, "forcecenter" , ent:GetForceCenter())
+      LaserLib.ConCommand(ply, "reflectrate" , ent:GetReflectRatio())
+      LaserLib.ConCommand(ply, "refractrate" , ent:GetRefractRatio())
+      LaserLib.ConCommand(ply, "endingeffect", ent:GetEndingEffect())
+      LaserLib.ConCommand(ply, "enonvermater", ent:GetNonOverMater())
       LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
       LaserLib.ConCommand(ply, "toggle"      , (ent:GetTable().runToggle and 1 or 0))
-      LaserLib.ConCommand(ply, "forcecenter" , (LaserLib.ToBoolCombo(ent:GetForceCenter()) and 1 or 0))
-      LaserLib.ConCommand(ply, "reflectrate" , (LaserLib.ToBoolCombo(ent:GetReflectRatio()) and 1 or 0))
-      LaserLib.ConCommand(ply, "refractrate" , (LaserLib.ToBoolCombo(ent:GetRefractRatio()) and 1 or 0))
-      LaserLib.ConCommand(ply, "endingeffect", (LaserLib.ToBoolCombo(ent:GetEndingEffect()) and 1 or 0))
-      LaserLib.ConCommand(ply, "enonvermater", (LaserLib.ToBoolCombo(ent:GetNonOverMater()) and 1 or 0))
       LaserLib.Notify(ply, "Copy"..self:GetUnit(ent).."["..ent:EntIndex().."] settings !", "UNDO")
     elseif(ent:GetClass() == gsLaserptCls) then
       local idx = tostring(ent:EntIndex())
@@ -415,9 +404,7 @@ function TOOL:RightClick(trace)
         end
       end
     end
-  end
-
-  return true
+  end; return true
 end
 
 function TOOL:Reload(trace)
