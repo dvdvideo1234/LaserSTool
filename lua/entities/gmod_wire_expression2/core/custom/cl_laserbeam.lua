@@ -71,4 +71,5 @@ E2Helper.Descriptions["laserGetReflectDataRatio(s)"]        = "Returns the refle
 E2Helper.Descriptions["laserGetReflectDataKey(s)"]          = "Returns the reflect loop key database entry"
 E2Helper.Descriptions["laserGetReflectBeam(vv)"]            = "Returns the reflected vector by external incident and normal"
 E2Helper.Descriptions["laserGetRefractBeam(vvnn)"]          = "Returns the refracted vector by external incident, normal and medium indices"
-E2Helper.Descriptions["laserGetRefractIsOut()"]             = "Returns a flag indicating the beam exiting the medium after refracting"
+E2Helper.Descriptions["laserGetRefractIsNext()"]            = "Returns a flag indicating the beam exits the medium after being refracted"
+E2Helper.Descriptions["laserGetRefractIsSame()"]            = "Returns a flag indicating the same refraction indices arguments are present"
