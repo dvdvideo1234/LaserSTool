@@ -390,7 +390,7 @@ e2function vector entity:laserGetTraceNormal(number idx)
 end
 
 __e2setcost(1)
-e2function number entity:laserGetTraceHitPhysicsBone(number idx)
+e2function number entity:laserGetTracePhysicsBone(number idx)
   local ext = getReportKey(this, idx, "TR", "PhysicsBone")
   if(not ext) then return 0 end; return ext
 end
