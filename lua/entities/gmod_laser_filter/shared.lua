@@ -33,7 +33,7 @@ function ENT:SetupDataTables()
   self:EditableSetStringCombo("InBeamMaterial", "Internals", material)
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
-  LaserLib.ClearOrder(self)
+  LaserLib.OnFinish(self)
 end
 
 --[[ ----------------------

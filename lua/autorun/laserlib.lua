@@ -89,7 +89,7 @@ local gtCOLID = {
 }
 
 local gtCLASS = {
-  -- Classes existing in the hash part are laser-enabled entities `LaserLib.ClearOrder(self)`
+  -- Classes existing in the hash part are laser-enabled entities `LaserLib.OnFinish(self)`
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
   ["gmod_laser"           ] = true, -- This is present for hot reload. You must register yours separately
   ["gmod_laser_crystal"   ] = true, -- This is present for hot reload. You must register yours separately
@@ -327,7 +327,7 @@ local function TraceCAP(origin, direct, length, filter)
       length = direct:Length()
     end -- Use proper length even if missing
     gtTRACE.endpos:Mul(length)
-    local tr = StarGate.Trace:New(gtTRACE.start, gtTRACE.endpos, filter);
+    local tr = StarGate.Trace:New(gtTRACE.start, gtTRACE.endpos, filter)
     if(StarGate.Trace.Entities[tr.Entity]) then return tr end
     -- If CAP specific entity is hit return and override the trace
   end; return nil -- Otherwise use the regular trace for refraction control
@@ -625,12 +625,62 @@ end
 --[[
  * Clears entity internal order info for the editable wrapper
  * Registers the entity to the units list on CLIENT/SERVER
- * ent > Entity to register as primary laser source
+ * unit > Entity to register as primary laser source unit
 ]]
-function LaserLib.ClearOrder(ent)
-  if(not LaserLib.IsValid(ent)) then return end
-  ent.meOrderInfo = nil; gtCLASS[ent:GetClass()] = true
-  if(CLIENT) then language.Add(ent:GetClass(), ent.Information) end
+function LaserLib.OnFinish(unit)
+  if(not LaserLib.IsValid(unit)) then return end
+  local cas = unit:GetClass(); unit.meOrderInfo = nil; gtCLASS[cas] = true
+  -- Instance specific configuration
+  if(SERVER) then -- Do server configuration finalizer
+    if(unit.WireRemove) then function unit:OnRemove() self:WireRemove() end end
+    if(unit.WireRestored) then function unit:OnRestore() self:WireRestored() end end
+  else -- Do client configuration finalizer
+    language.Add(cas, unit.Information)
+  end
+  -- General shared configurations
+  --[[
+   * Effects draw handling decides whenever
+   * the current tick has to draw the effects
+   * Flag is automatically reset in every call
+   * then becomes true when it meets requirements
+  ]]
+  function unit:UpdateFlags() local time = CurTime()
+    self.isEffect = false -- Reset the frame effects
+    if(not self.nxEffect or time > self.nxEffect) then
+      local dt = DATA.EFFECTDT:GetFloat() -- Read configuration
+      self.isEffect, self.nxEffect = true, time + dt
+    end
+    if(SERVER) then -- Damage exists only on the server
+      self.isDamage = false -- Reset the frame damage
+      if(not self.nxDamage or time > self.nxDamage) then
+        local dt = DATA.DAMAGEDT:GetFloat() -- Read configuration
+        self.isDamage, self.nxDamage = true, time + dt
+      end
+    end
+  end
+  --[[
+   * Checks for infinite loops when the source `ent`
+   * is powered by other generators powered by `self`
+   * self > The root of the tree propagated
+   * ent  > The entity of the source checked
+   * set  > Contains the already processed items
+  ]]
+  function unit:IsInfinite(ent, set)
+    local set = (set or {}) -- Allocate passtrough entiti registration table
+    if(LaserLib.IsValid(ent)) then -- Invalid entities cannot do infinite loops
+      if(set[ent]) then return false end -- This has already been checked for infinite
+      if(ent == self) then return true else set[ent] = true end -- Check and register
+      if(LaserLib.IsBeam(ent) and ent.hitSources) then -- Can output neams and has sources
+        for src, stat in pairs(ent.hitSources) do -- Other hits and we are in its sources
+          if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
+            if(src == self) then return true end -- Perforamance optimization
+            if(LaserLib.IsBeam(src) and src.hitSources) then -- Class propagades the tree
+              if(self:IsInfinite(src, set)) then return true end end
+          end -- Cascadely propagate trough the crystal sources from `self`
+        end; return false -- The entity does not persists in itself
+      else return false end
+    else return false end
+  end
 end
 
 --[[
@@ -1660,8 +1710,7 @@ local function Beam(origin, direct, width, damage, length, force)
   self.TrMedium = {} -- Contains information for the mediums being traversed
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   -- This will apply the external configuration during the beam creation
-  if(DATA.BBONC > 0) then -- Max bounces for the laser loop being applied
-    self.MxBounce = math.floor(DATA.BBONC); DATA.BBONC = 0 -- External count
+  if(DATA.BBONC > 0) then self.MxBounce = DATA.BBONC; DATA.BBONC = 0 -- External count
   else self.MxBounce = DATA.MBOUNCES:GetInt() end -- Internal count from the convar
   if(DATA.BCOLR) then self.BmColor = DATA.BCOLR; DATA.BCOLR = nil end -- Beam start color
   if(DATA.BESRC) then self.BoSource = DATA.BESRC; DATA.BESRC = nil end -- Original source
@@ -2729,7 +2778,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     trace = beam:Trace(trace); target = trace.Entity
 
     -- Initial start so the beam separates from the laser
-    if(beam.NvBounce == beam.MxBounce) then
+    if(beam:IsFirst()) then
       beam.TeFilter = nil
 
       if(trace.HitWorld and trace.StartSolid and beam.NvMask == MASK_ALL) then
@@ -2830,7 +2879,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   local bnex, bsam, vdir -- Refraction entity direction and reflection
                   -- Call refraction cases and prepare to trace-back
                   if(beam.StRfract) then -- Bounces were decremented so move it up
-                    if(beam.NvBounce == beam.MxBounce) then
+                    if(beam:IsFirst()) then
                       vdir, bnex = Vector(beam.VrDirect), true -- Primary node starts inside solid
                     else -- When two props are stuck save the middle boundary and traverse
                       -- When the traverse mediums is different and node is not inside a laser

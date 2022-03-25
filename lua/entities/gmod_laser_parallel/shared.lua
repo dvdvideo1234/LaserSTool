@@ -24,7 +24,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamDimmer" , "General")
   self:EditableSetBool  ("LinearMapping", "General")
   self:EditableSetBool  ("InPowerOn"  , "Internals")
-  LaserLib.ClearOrder(self)
+  LaserLib.OnFinish(self)
 end
 
 -- Override the beam transormation

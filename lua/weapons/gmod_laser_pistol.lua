@@ -30,7 +30,7 @@ SWEP.Secondary.ClipSize     = -1
 SWEP.Secondary.DefaultClip  = -1
 SWEP.Secondary.Automatic    = false
 SWEP.Secondary.Ammo         = "none"
-SWEP.AccurateCrosshair      = true
+SWEP.AccurateCrosshair      = false
 
 local gsTool = LaserLib.GetTool()
 local gsPref = gsTool.."_"
@@ -68,7 +68,7 @@ function SWEP:Setup()
     self.MO, self.MD = Vector(), Vector()
   end
 
-  LaserLib.ClearOrder(self)
+  LaserLib.OnFinish(self)
 end
 
 function SWEP:Initialize()
@@ -145,24 +145,6 @@ function SWEP:GetBeamColorRGBA(bcol)
     c.r, c.g, c.b, c.a = r, g, b, a; return c
   else -- The user requests four numbers instead
     return r, g, b, a
-  end
-end
-
-function SWEP:UpdateFlags()
-  local time = CurTime()
-
-  self.isEffect = false -- Reset the frame effects
-  if(not self.nxEffect or time > self.nxEffect) then
-    local dt = EFFECTDT:GetFloat() -- Read configuration
-    self.isEffect, self.nxEffect = true, time + dt
-  end
-
-  if(SERVER) then -- Damage exists only on the server
-    self.isDamage = false -- Reset the frame damage
-    if(not self.nxDamage or time > self.nxDamage) then
-      local dt = DAMAGEDT:GetFloat() -- Read configuration
-      self.isDamage, self.nxDamage = true, time + dt
-    end
   end
 end
 
@@ -340,7 +322,7 @@ else
     beam:DrawEffect(self, trace, eeff)
   end
 
-  function SWEP:GetBeamDrawRay(mussle, udotp)
+  function SWEP:GetBeamRay(mussle, udotp)
     if(not mussle) then return end
     local musfwd = mussle.Ang:Forward()
     local hitpos = self:GetOwner():GetEyeTrace().HitPos
@@ -357,7 +339,7 @@ else
     if(self:GetOn()) then
       if(not (self.VM and self.VA)) then return end
       local mussle = self.VM:GetAttachment(self.VA)
-      local org, dir = self:GetBeamDrawRay(mussle)
+      local org, dir = self:GetBeamRay(mussle)
       if(not org) then return end
       self:DrawBeam(org, dir)
     end
@@ -370,7 +352,7 @@ else
       if(not self.WA) then return end
       local mussle = self:GetAttachment(self.WA)
       if(not mussle) then return end
-      local org, dir = self:GetBeamDrawRay(mussle, true)
+      local org, dir = self:GetBeamRay(mussle, true)
       if(not org) then return end
       self:DrawBeam(org, dir)
     end

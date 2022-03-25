@@ -18,7 +18,7 @@ function ENT:SetupDataTables()
   LaserLib.SetPrimary(self, true)
   self:EditableSetBool("CheckBeamColor", "Visuals")
   self:EditableSetBool("CheckDominant", "General")
-  LaserLib.ClearOrder(self)
+  LaserLib.OnFinish(self)
 end
 
 function ENT:SetBeamTransform()

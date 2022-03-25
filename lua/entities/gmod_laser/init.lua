@@ -198,14 +198,6 @@ function ENT:Think()
   return true
 end
 
-function ENT:OnRemove()
-  self:WireRemove()
-end
-
-function ENT:OnRestore()
-  self:WireRestored()
-end
-
 local function On(ply, ent)
   if(not LaserLib.IsValid(ent)) then return end
   if(ent:WireIsConnected("On")) then return end

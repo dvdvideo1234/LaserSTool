@@ -25,7 +25,7 @@ include(LaserLib.GetTool().."/array_manager.lua")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
-  LaserLib.ClearOrder(self)
+  LaserLib.OnFinish(self)
 end
 
 function ENT:SetBeamTransform(tranData)
@@ -302,30 +302,6 @@ function ENT:GetBeamColorRGBA(bcol)
   end
 end
 
---[[
- * Effects draw handling decides whenever
- * the current tick has to draw the effects
- * Flag is automatically reset in every call
- * then becomes true when it meets requirements
-]]
-function ENT:UpdateFlags()
-  local time = CurTime()
-
-  self.isEffect = false -- Reset the frame effects
-  if(not self.nxEffect or time > self.nxEffect) then
-    local dt = EFFECTDT:GetFloat() -- Read configuration
-    self.isEffect, self.nxEffect = true, time + dt
-  end
-
-  if(SERVER) then -- Damage exists only on the server
-    self.isDamage = false -- Reset the frame damage
-    if(not self.nxDamage or time > self.nxDamage) then
-      local dt = DAMAGEDT:GetFloat() -- Read configuration
-      self.isDamage, self.nxDamage = true, time + dt
-    end
-  end
-end
-
 --[[ ----------------------
   Beam uses the original mateial override
 ---------------------- ]]
@@ -415,28 +391,4 @@ function ENT:Setup(width       , length     , damage     , material    ,
   })
 
   return self
-end
-
---[[
- * Checks for infinite loops when the source `ent`
- * is powered by other generators powered by `self`
- * self > The root of the tree propagated
- * ent  > The entity of the source checked
- * set  > Contains the already processed items
-]]
-function ENT:IsInfinite(ent, set)
-  local set = (set or {}) -- Allocate passtrough entiti registration table
-  if(LaserLib.IsValid(ent)) then -- Invalid entities cannot do infinite loops
-    if(set[ent]) then return false end -- This has already been checked for infinite
-    if(ent == self) then return true else set[ent] = true end -- Check and register
-    if(LaserLib.IsBeam(ent) and ent.hitSources) then -- Can output neams and has sources
-      for src, stat in pairs(ent.hitSources) do -- Other hits and we are in its sources
-        if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
-          if(src == self) then return true end -- Perforamance optimization
-          if(LaserLib.IsBeam(src) and src.hitSources) then -- Class propagades the tree
-            if(self:IsInfinite(src, set)) then return true end end
-        end -- Cascadely propagate trough the crystal sources from `self`
-      end; return false -- The entity does not persists in itself
-    else return false end
-  else return false end
 end

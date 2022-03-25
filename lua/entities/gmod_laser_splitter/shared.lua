@@ -21,7 +21,7 @@ function ENT:SetupDataTables()
   self:EditableSetVector("UpwardLocal"  , "General")
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorSplit","Visuals")
-  LaserLib.ClearOrder(self)
+  LaserLib.OnFinish(self)
 end
 
 -- Override the beam transormation
