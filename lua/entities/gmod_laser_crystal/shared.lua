@@ -15,7 +15,7 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorMerge","Visuals")
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 -- Override the beam transormation

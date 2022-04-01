@@ -136,35 +136,6 @@ function ENT:DoDamage(beam, trace)
   return self
 end
 
---[[
- * Extract the parameters needed to create a beam
- * Takes the values tom the argument and updated source
- * beam  > Dominant laser beam reference being extracted
- * color > Beam color for override. Not mandatory
-]]
-function ENT:SetDominant(beam, color)
-  local src = beam:GetSource()
-  -- We set the same non-addable properties
-  if(not LaserLib.IsPrimary(src)) then return self end
-  -- The most powerful source (biggest damage/width)
-  self:SetStopSound(src:GetStopSound())
-  self:SetKillSound(src:GetKillSound())
-  self:SetStartSound(src:GetStartSound())
-  self:SetForceCenter(src:GetForceCenter())
-  self:SetBeamMaterial(src:GetBeamMaterial())
-  self:SetDissolveType(src:GetDissolveType())
-  self:SetEndingEffect(src:GetEndingEffect())
-  self:SetReflectRatio(src:GetReflectRatio())
-  self:SetRefractRatio(src:GetRefractRatio())
-  self:SetNonOverMater(src:GetNonOverMater())
-  self:SetBeamColorRGBA(color or beam:GetColorRGBA(true))
-
-  self:WireWrite("Dominant", src)
-  LaserLib.SetPlayer(self, (src.ply or src.player))
-
-  return self
-end
-
 function ENT:Think()
   if(self:GetOn()) then
     self:UpdateFlags()

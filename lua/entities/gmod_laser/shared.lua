@@ -20,12 +20,10 @@ local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
-include(LaserLib.GetTool().."/report_manager.lua")
-include(LaserLib.GetTool().."/array_manager.lua")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 function ENT:SetBeamTransform(tranData)

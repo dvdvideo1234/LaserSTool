@@ -22,7 +22,7 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("LinearMapping", "General")
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 -- Override the beam transormation

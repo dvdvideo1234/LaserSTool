@@ -34,6 +34,7 @@ DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger 
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.DRWBMSPD = CreateConVar("laseremitter_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
+DATA.SAFEBEAM = CreateConVar("laseremitter_safebeam", 1, DATA.FGSRVCN, "Controls beam safety where player is pushed aside", 0, 1)
 
 DATA.GRAT = 1.61803398875    -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"   -- Tool name for internal use
@@ -89,7 +90,7 @@ local gtCOLID = {
 }
 
 local gtCLASS = {
-  -- Classes existing in the hash part are laser-enabled entities `LaserLib.OnFinish(self)`
+  -- Classes existing in the hash part are laser-enabled entities `LaserLib.Configure(self)`
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
   ["gmod_laser"           ] = true, -- This is present for hot reload. You must register yours separately
   ["gmod_laser_crystal"   ] = true, -- This is present for hot reload. You must register yours separately
@@ -282,12 +283,14 @@ local gtTRACE = {
 
 if(CLIENT) then
   DATA.COSV = math.cos(math.rad(75))
+  DATA.ICON = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
   DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, gtCOLOR["WHITE"]) end
   gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
   gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
+  killicon.Add(gtCLASS[1][1], DATA.ICON, gtCOLOR["WHITE"])
 end
 
 -- Callbacks for console variables
@@ -627,17 +630,54 @@ end
  * Registers the entity to the units list on CLIENT/SERVER
  * unit > Entity to register as primary laser source unit
 ]]
-function LaserLib.OnFinish(unit)
+function LaserLib.Configure(unit)
   if(not LaserLib.IsValid(unit)) then return end
-  local cas = unit:GetClass(); unit.meOrderInfo = nil; gtCLASS[cas] = true
+  local uas, cas = unit:GetClass(), LaserLib.GetClass(1, 1)
+  -- Delete temporary order infor and register unit
+  unit.meOrderInfo = nil; gtCLASS[uas] = true
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
     if(unit.WireRemove) then function unit:OnRemove() self:WireRemove() end end
     if(unit.WireRestored) then function unit:OnRestore() self:WireRestored() end end
   else -- Do client configuration finalizer
-    language.Add(cas, unit.Information)
+    language.Add(uas, unit.Information)
+    if(uas ~= cas) then -- Setup the same kill icon
+      killicon.AddAlias(uas, cas)
+    end
   end
-  -- General shared configurations
+  ------ GENERAL FRAME MANAGER ------
+  if(SERVER) then
+    if(LaserLib.IsSource(unit)) then
+      --[[
+       * Extract the parameters needed to create a beam
+       * Takes the values tom the argument and updated source
+       * beam  > Dominant laser beam reference being extracted
+       * color > Beam color for override. Not mandatory
+      ]]
+      function unit:SetDominant(beam, color)
+        local src = beam:GetSource()
+        -- We set the same non-addable properties
+        if(not LaserLib.IsSource(src)) then return self end
+        -- The most powerful source (biggest damage/width)
+        self:SetStopSound(src:GetStopSound())
+        self:SetKillSound(src:GetKillSound())
+        self:SetStartSound(src:GetStartSound())
+        self:SetForceCenter(src:GetForceCenter())
+        self:SetBeamMaterial(src:GetBeamMaterial())
+        self:SetDissolveType(src:GetDissolveType())
+        self:SetEndingEffect(src:GetEndingEffect())
+        self:SetReflectRatio(src:GetReflectRatio())
+        self:SetRefractRatio(src:GetRefractRatio())
+        self:SetNonOverMater(src:GetNonOverMater())
+        self:SetBeamColorRGBA(color or beam:GetColorRGBA(true))
+
+        self:WireWrite("Dominant", src)
+        LaserLib.SetPlayer(self, (src.ply or src.player))
+
+        return self
+      end
+    end
+  end
   --[[
    * Effects draw handling decides whenever
    * the current tick has to draw the effects
@@ -680,6 +720,211 @@ function LaserLib.OnFinish(unit)
         end; return false -- The entity does not persists in itself
       else return false end
     else return false end
+  end
+  ------ HIT REPORTS MANAGER ------
+  --[[
+   * Removes hit reports from the list
+   * rovr > When remove overhead is provided deletes
+            all entries with larger index
+   * Data is stored in notation: self.hitReports[ID]
+  ]]
+  function unit:SetHitReportMax(rovr)
+    if(self.hitReports) then
+      local rep, idx = self.hitReports
+      if(rovr) then -- Overhead mode
+        local rovr = tonumber(rovr) or 0
+        idx, rep.Size = (rovr + 1), rovr
+      else idx, rep.Size = 1, 0 end
+      -- Wipe selected items
+      while(rep[idx]) do
+        rep[idx] = nil
+        idx = idx + 1
+      end
+    end; return self
+  end
+
+  --[[
+   * Checks whenever the entity `ent` beam report hits us `self`
+   * self > Target entity to be checked
+   * ent  > Reporter entity to be checked
+   * idx  > Forced index to check for hit report. Not mandatory
+   * bri  > Search from idx as start hit report index. Not mandatory
+   * Data is stored in notation: self.hitReports[ID]
+  ]]
+  function unit:GetHitSourceID(ent, idx, bri)
+    if(not LaserLib.IsUnit(ent)) then return nil end -- Invalid
+    if(ent == self) then return nil end -- Cannot be source to itself
+    if(not self.hitSources[ent]) then return nil end -- Not source
+    if(not ent:GetOn()) then return nil end -- Unit is not powered on
+    local rep = ent.hitReports -- Retrieve and localize hit reports
+    if(not rep) then return nil end -- No hit reports. Exit at once
+    if(idx and not bri) then -- Retrieve the report requested by ID
+      local beam, trace = ent:GetHitReport(idx) -- Retrieve beam report
+      if(trace and trace.Hit and self == trace.Entity) then return idx end
+    else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
+      for cnt = anc, rep.Size do local beam, trace = ent:GetHitReport(cnt)
+        if(trace and trace.Hit and self == trace.Entity) then return cnt end
+      end -- The hit report list is scanned and no reports are found hitting us `self`
+    end; return nil -- Tell requestor we did not find anything that hits us `self`
+  end
+
+  --[[
+   * Registers a trace hit report under the specified index
+   * trace > Trace result structure to register
+   * beam  > Beam structure to register
+  ]]
+  function unit:SetHitReport(beam, trace)
+    if(not self.hitReports) then self.hitReports = {Size = 0} end
+    local rep, idx = self.hitReports, beam.BmIdenty
+    if(idx >= rep.Size) then rep.Size = idx end
+    if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
+    rep["BM"] = beam; rep["TR"] = trace; return self
+  end
+
+  --[[
+   * Retrieves hit report trace and beam under specified index
+   * index > Hit report index to read ( defaults to 1 )
+  ]]
+  function unit:GetHitReport(index)
+    if(not index) then return end
+    if(not self.hitReports) then return end
+    local rep = self.hitReports[index]
+    if(not rep) then return end
+    return rep["BM"], rep["TR"]
+  end
+
+  --[[
+   * Processes the sources table for a given entity
+   * using a custom local scope function routine.
+   * Runs a dedicated routine to define how the
+   * source `ent` affects our `self` behavior.
+   * self > Entity base item that is being issued
+   * ent  > Entity hit reports getting checked
+   * proc > Scope function per-beam handler. Arguments:
+   *      > entity > Hit report active source
+   *      > index  > Hit report active index
+   *      > trace  > Hit report active trace
+   *      > beam   > Hit report active beam
+   * each > Scope function per-source handler. Arguments:
+   *      > entity > Hit report active source
+   *      > index  > Hit report active index
+   * apre > Action taken for pre-processing
+   *      > entity > Source entity
+   * post > Action taken for post-processing
+   *      > entity > Source entity
+   * Returns flag indicating presence of hit reports
+  ]]
+  function unit:ProcessReports(ent, proc, each, apre, post)
+    if(not LaserLib.IsValid(ent)) then return false end
+    if(apre) then local suc, err = pcall(apre, self, ent)
+      if(not suc) then self:Remove(); error(err); return false end
+    end -- When whe have dedicated methor to apply on each source
+    local idx = self:GetHitSourceID(ent)
+    if(idx) then local siz = ent.hitReports.Size
+      if(each) then local suc, err = pcall(each, self, ent, idx)
+        if(not suc) then self:Remove(); error(err); return false end
+      end -- When whe have dedicated method to apply on each source
+      if(proc) then -- Trigger the beam processing routine
+        while(idx and idx <= siz) do -- First index always hits when present
+          local beam, trace = ent:GetHitReport(idx) -- When the report hits us
+          local suc, err = pcall(proc, self, ent, idx, beam, trace) -- Call process
+          if(not suc) then self:Remove(); error(err); return false end
+          idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
+        end -- When whe have dedicated method to apply on each source
+      end -- Trigger the post-processing routine
+      if(post) then local suc, err = pcall(post, self, ent)
+        if(not suc) then self:Remove(); error(err); return false end
+      end; return true -- At least one report is processed for the current entity
+    end; return false -- The entity hit reports do not hit us `self`
+  end
+
+  --[[
+   * Processes the sources table for all entities
+   * using a custom local scope function routine.
+   * Runs the dedicated routines to define how the
+   * sources `ent` affect our `self` behavior.
+   * Automatically removes the non related reports
+   * self > Entity base item that is being issued
+   * proc > Scope function to process. Arguments:
+   *      > entity > Hit report active entity
+   *      > index  > Hit report active index
+   *      > trace  > Hit report active trace
+   *      > beam   > Hit report active beam
+   * Process how `ent` hit reports affects us `self`. Remove when no hits
+  ]]
+  function unit:ProcessSources(proc, each, apre, post)
+    local proc, each = (proc or self.EveryBeam ), (each or self.EverySource)
+    local apre, post = (apre or self.PreProcess), (post or self.PostProcess)
+    if(not self.hitSources) then return false end
+    for ent, hit in pairs(self.hitSources) do -- For all rgistered source entities
+      if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
+        if(not self:ProcessReports(ent, proc, each, apre, post)) then -- Procesed sources
+          self.hitSources[ent] = nil -- Remove the netity from the list
+        end -- Check when there is any hit report that is processed correctly
+      else self.hitSources[ent] = nil end -- Delete the entity when force skipped
+    end; return true -- There are hit reports and all are processed correctly
+  end
+  ------ INTERNAL ARRAY MANGER ------
+  --[[
+   * Initializes array definitions and createsa a list
+   * that is derived from the string arguments.
+   * This will create arays in notation `self.hit%NAME`
+   * Pass `false` as name to skip the wire output
+  ]]
+  function unit:InitArrays(...)
+    local arg = {...}
+    local num = #arg
+    if(num <= 0) then return self end
+    self.hitSetup = {Size = num}
+    for idx = 1, num do local nam = arg[idx]
+      self.hitSetup[idx] = {Name = nam, Data = {}}
+    end; return self
+  end
+  --[[
+   * Clears the output arrays according to the hit size
+   * Removes the residual elements from wire ouputs
+   * Desidned to be called at the end of sources process
+  ]]
+  function unit:UpdateArrays()
+    local set = self.hitSetup
+    if(not set) then return self end
+    local idx = (tonumber(self.hitSize) or 0) + 1
+    for cnt = 1, set.Size do local arr = set[cnt]
+      if(arr and arr.Data) then LaserLib.Clear(arr.Data, idx) end
+    end; set.Save = nil -- Clear the last top enntity
+    return self -- Use coding effective API
+  end
+  --[[
+   * Registers the argument values in the setup arrays
+   * The argument order must be the same as initialization
+   * The first array must always hold valid source entities
+  ]]
+  function unit:SetArrays(...)
+    local set = self.hitSetup
+    if(not set) then return self end
+    local arg, idx = {...}, self.hitSize
+    if(set.Save == arg[1]) then return self end
+    if(not set.Save) then set.Save = arg[1] end
+    idx = (tonumber(idx) or 0) + 1
+    for cnt = 1, set.Size do
+      set[cnt].Data[idx] = arg[cnt]
+    end; self.hitSize = idx
+    return self
+  end
+  --[[
+   * Triggers all the dedicated arrays in one call
+  ]]
+  function unit:WireArrays()
+    if(CLIENT) then return self end
+    local set = self.hitSetup
+    if(not set) then return self end
+    local idx = (tonumber(self.hitSize) or 0)
+    self:WireWrite("Count", idx)
+    for cnt = 1, set.Size do -- Copy values to arrays
+      local nam = set[cnt].Name
+      local arr = (idx > 0 and set[cnt].Data or nil)
+      if(nam) then self:WireWrite(nam, arr) end
+    end; return self
   end
 end
 
@@ -1409,10 +1654,9 @@ if(SERVER) then
   AddCSLuaFile("autorun/laserlib.lua")
   AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
   AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
-  AddCSLuaFile(LaserLib.GetTool().."/report_manager.lua")
-  AddCSLuaFile(LaserLib.GetTool().."/array_manager.lua")
 
   DATA.DMGI = DamageInfo() -- Create a server-side damage information class
+  DATA.BURN = "player/general/flesh_burn.wav" -- Burn sound for player safety
 
   -- https://wiki.facepunch.com/gmod/Global.DamageInfo
   function LaserLib.TakeDamage(victim, damage, attacker, laser)
@@ -1436,6 +1680,31 @@ if(SERVER) then
     return ent
   end
 
+  function LaserLib.DoDissolve(torch)
+    if(not LaserLib.IsValid(torch)) then return end
+    torch:Fire("Dissolve", torch.Target, 0)
+    torch:Fire("Kill", "", 0.1)
+  end
+
+  function LaserLib.DoSound(target, noise)
+    if(not LaserLib.IsValid(target)) then return end
+    if(noise ~= nil and (target:Health() > 0 or target:IsPlayer())) then
+      sound.Play(noise, target:GetPos())
+      target:EmitSound(Sound(noise))
+    end
+  end
+
+  function LaserLib.DoBurn(target, origin, direct)
+    if(not DATA.SAFEBEAM:GetBool()) then return end
+    if(not LaserLib.IsValid(target)) then return end
+    local idx = target:StartLoopingSound(Sound(DATA.BURN))
+    local obb = target:LocalToWorld(target:OBBCenter())
+    local pbb = LaserLib.ProjectRay(obb, origin, direct)
+          obb:Sub(pbb); obb:Normalize(); obb:Mul(100)
+    target:SetVelocity(obb)
+    timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
+  end
+
   function LaserLib.DoDamage(target, origin , normal  , direct  ,
                              damage, force  , attacker, dissolve,
                              noise , fcenter, laser)
@@ -1447,16 +1716,28 @@ if(SERVER) then
         else -- Keep force separate from damage inflicting
           phys:ApplyForceOffset(direct * force, origin)
         end -- This is the way laser can be used as forcer
+
+        if(target:IsPlayer()) then -- Portal beam safety
+          LaserLib.DoBurn(target, origin, direct)
+        end
       end -- Do not apply force on laser units
     end
 
     if(laser.isDamage) then
       if(target:IsVehicle()) then
         local driver = target:GetDriver()
-        -- Take damage doesn't work on player inside a vehicle.
-        if(LaserLib.IsValid(driver)) then
-          target = driver; target:Kill()
-        end -- We must kill the driver!
+        if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
+          if(driver:Health() <= damage) then -- We must kill the driver!
+            local torch = LaserLib.GetTorch(laser, driver:GetPos(), attacker, dissolve)
+            if(not LaserLib.IsValid(torch)) then driver:Kill(); return end
+            LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
+            local doll = driver:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
+            if(not LaserLib.IsValid(doll)) then return end
+            doll:SetName(torch.Target) -- Thanks to Nevec for the player ragdoll idea
+            LaserLib.DoDissolve(torch) -- Allowing us to dissolve him the cleanest way
+            LaserLib.DoSound(driver, noise)
+          end
+        end
       end
 
       if(target:GetClass() == "shield") then
@@ -1468,33 +1749,22 @@ if(SERVER) then
       if(target:Health() <= damage) then
         if(target:IsNPC() or target:IsPlayer()) then
           local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
-          if(LaserLib.IsValid(torch)) then
-            if(target:IsPlayer()) then
-              LaserLib.TakeDamage(target, damage, attacker, laser)
-
-              local doll = target:GetRagdollEntity()
-              -- We need to kill the player first to get his ragdoll.
-              if(not LaserLib.IsValid(doll)) then return end
-              -- Thanks to Nevec for the player ragdoll idea, allowing us to dissolve him the cleanest way.
-              doll:SetName(torch.Target)
-            else
-              target:SetName(torch.Target)
-
-              local swep = target:GetActiveWeapon()
-              if(LaserLib.IsValid(swep)) then
-                swep:SetName(torch.Target)
-              end
-            end
-
-            torch:Fire("Dissolve", torch.Target, 0)
-            torch:Fire("Kill", "", 0.1)
+          if(not LaserLib.IsValid(torch)) then target:Kill(); return end
+          if(target:IsPlayer()) then
+            LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
+            local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
+            if(not LaserLib.IsValid(doll)) then target:Kill(); return end -- Nevec for the player ragdoll idea
+            doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
+          else
+            target:SetName(torch.Target)
+            local swep = target:GetActiveWeapon()
+            if(LaserLib.IsValid(swep)) then
+              swep:SetName(torch.Target)
+            else target:Kill(); return end
           end
+          LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
         end
-
-        if(noise ~= nil and (target:Health() > 0 or target:IsPlayer())) then
-          sound.Play(noise, target:GetPos())
-          target:EmitSound(Sound(noise))
-        end
+        LaserLib.DoSound(target, noise) -- Play sound for breakable props
       end
 
       LaserLib.TakeDamage(target, damage, attacker, laser)
@@ -1547,17 +1817,6 @@ if(SERVER) then
     return laser
   end
 
-end
-
-if(CLIENT) then
-  -- Retrieve the string of the base class
-  local sac = LaserLib.GetClass(1, 1)
-  -- Setup kill icon for the base laser
-  killicon.Add(sac, "vgui/entities/gmod_laser_killicon", LaserLib.GetColor("WHITE"))
-  -- Setup the same kill icon across other units
-  for idx = 2, #gtCLASS do
-    killicon.AddAlias(sac.."_"..LaserLib.GetClass(idx, 2), sac)
-  end
 end
 
 --[[
