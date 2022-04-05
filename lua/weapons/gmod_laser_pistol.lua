@@ -254,6 +254,7 @@ function SWEP:ServerBeam()
       local ksnd = self:GetKillSound()
 
       LaserLib.DoDamage(trace.Entity,
+                        self,
                         trace.HitPos,
                         trace.Normal,
                         beam.VrDirect,
@@ -262,8 +263,7 @@ function SWEP:ServerBeam()
                         user,
                         LaserLib.GetDissolveID(dtyp),
                         ksnd,
-                        fcen,
-                        self)
+                        fcen)
     end
   end
 end

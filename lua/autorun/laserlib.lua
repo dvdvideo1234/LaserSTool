@@ -1705,9 +1705,9 @@ if(SERVER) then
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
   end
 
-  function LaserLib.DoDamage(target, origin , normal  , direct  ,
-                             damage, force  , attacker, dissolve,
-                             noise , fcenter, laser)
+  function LaserLib.DoDamage(target  , laser , origin , normal  ,
+                             direct  , damage, force  , attacker,
+                             dissolve, noise , fcenter)
     local phys = target:GetPhysicsObject()
     if(not LaserLib.IsUnit(target)) then
       if(force and LaserLib.IsValid(phys)) then
