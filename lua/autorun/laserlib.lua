@@ -34,7 +34,7 @@ DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger 
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.DRWBMSPD = CreateConVar("laseremitter_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
-DATA.SAFEBEAM = CreateConVar("laseremitter_safebeam", 1, DATA.FGSRVCN, "Controls beam safety where player is pushed aside", 0, 1)
+DATA.SAFEBEAM = CreateConVar("laseremitter_safebeam", 0, DATA.FGSRVCN, "Controls beam safety where player is pushed aside", 0, 1)
 
 DATA.GRAT = 1.61803398875    -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"   -- Tool name for internal use
@@ -603,21 +603,23 @@ function LaserLib.SetPrimary(ent, nov)
     ent:EditableSetIntCombo("ReflectRatio", "Material", comxbool)
     ent:EditableSetIntCombo("RefractRatio", "Material", comxbool)
   else
-    ent:EditableSetBool  ("ForceCenter" , "General")
-    ent:EditableSetBool  ("ReflectRatio", "Material")
-    ent:EditableSetBool  ("RefractRatio", "Material")
+    ent:EditableSetBool("ForceCenter" , "General")
+    ent:EditableSetBool("ReflectRatio", "Material")
+    ent:EditableSetBool("RefractRatio", "Material")
   end
-  ent:EditableSetBool  ("InPowerOn"   , "Internals")
-  ent:EditableSetFloat ("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  ent:EditableSetFloat ("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  ent:EditableSetFloat ("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  ent:EditableSetFloat ("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  ent:EditableSetBool ("InPowerOn"   , "Internals")
+  ent:EditableSetFloat("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
+  ent:EditableSetFloat("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
+  ent:EditableSetFloat("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
+  ent:EditableSetFloat("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
   ent:EditableSetStringCombo("InBeamMaterial", "Internals", material)
   if(nov) then
     ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool)
+    ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool)
     ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool)
   else
     ent:EditableSetBool("InNonOverMater", "Internals")
+    ent:EditableSetBool("InBeamSafety"  , "Internals")
     ent:EditableSetBool("EndingEffect"  , "Visuals")
   end
   ent:EditableSetVectorColor("BeamColor", "Visuals")
@@ -650,7 +652,7 @@ function LaserLib.Configure(unit)
     if(LaserLib.IsSource(unit)) then
       --[[
        * Extract the parameters needed to create a beam
-       * Takes the values tom the argument and updated source
+       * Takes the values from the argument and updated source
        * beam  > Dominant laser beam reference being extracted
        * color > Beam color for override. Not mandatory
       ]]
@@ -662,6 +664,7 @@ function LaserLib.Configure(unit)
         self:SetStopSound(src:GetStopSound())
         self:SetKillSound(src:GetKillSound())
         self:SetStartSound(src:GetStartSound())
+        self:SetBeamSafety(src:GetBeamSafety())
         self:SetForceCenter(src:GetForceCenter())
         self:SetBeamMaterial(src:GetBeamMaterial())
         self:SetDissolveType(src:GetDissolveType())
@@ -670,10 +673,11 @@ function LaserLib.Configure(unit)
         self:SetRefractRatio(src:GetRefractRatio())
         self:SetNonOverMater(src:GetNonOverMater())
         self:SetBeamColorRGBA(color or beam:GetColorRGBA(true))
-
+        -- Write down the dominant
         self:WireWrite("Dominant", src)
+        -- Update the player for kill krediting
         LaserLib.SetPlayer(self, (src.ply or src.player))
-
+        -- Use coding effective API
         return self
       end
     end
@@ -1694,8 +1698,10 @@ if(SERVER) then
     end
   end
 
-  function LaserLib.DoBurn(target, origin, direct)
-    if(not DATA.SAFEBEAM:GetBool()) then return end
+  function LaserLib.DoBurn(target, origin, direct, safety)
+    if(not safety) then -- We have a local beam safety
+      if(not DATA.SAFEBEAM:GetBool()) then return end
+    end -- Player wants a deadly beam so use global setting
     if(not LaserLib.IsValid(target)) then return end
     local idx = target:StartLoopingSound(Sound(DATA.BURN))
     local obb = target:LocalToWorld(target:OBBCenter())
@@ -1705,12 +1711,12 @@ if(SERVER) then
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
   end
 
-  function LaserLib.DoDamage(target  , laser , origin , normal  ,
-                             direct  , damage, force  , attacker,
-                             dissolve, noise , fcenter)
+  function LaserLib.DoDamage(target  , laser , attacker, origin ,
+                             normal  , direct, damage  , force  ,
+                             dissolve, noise , fcenter , safety)
     local phys = target:GetPhysicsObject()
     if(not LaserLib.IsUnit(target)) then
-      if(force and LaserLib.IsValid(phys)) then
+      if(force and force > 0 and LaserLib.IsValid(phys)) then
         if(fcenter) then -- Force relative to mass center
           phys:ApplyForceCenter(direct * force)
         else -- Keep force separate from damage inflicting
@@ -1718,7 +1724,7 @@ if(SERVER) then
         end -- This is the way laser can be used as forcer
 
         if(target:IsPlayer()) then -- Portal beam safety
-          LaserLib.DoBurn(target, origin, direct)
+          LaserLib.DoBurn(target, origin, direct, safety)
         end
       end -- Do not apply force on laser units
     end
@@ -1776,7 +1782,7 @@ if(SERVER) then
                         damage     , material    , dissolveType, startSound ,
                         stopSound  , killSound   , runToggle   , startOn    ,
                         pushForce  , endingEffect, reflectRate , refractRate,
-                        forceCenter, frozen      , enOverMater , rayColor )
+                        forceCenter, frozen      , enOverMater , enSafeBeam , rayColor )
 
     local unit = LaserLib.GetTool()
     if(not LaserLib.IsValid(user)) then return end
@@ -1795,10 +1801,10 @@ if(SERVER) then
     laser:SetModel(Model(model))
     laser:Spawn()
     laser:SetCreator(user)
-    laser:Setup(width       , length     , damage     , material    ,
-                dissolveType, startSound , stopSound  , killSound   ,
-                runToggle   , startOn    , pushForce  , endingEffect, trandata,
-                reflectRate , refractRate, forceCenter, enOverMater , rayColor, false)
+    laser:Setup(width      , length      , damage    , material   , dissolveType,
+                startSound , stopSound   , killSound , runToggle  , startOn     ,
+                pushForce  , endingEffect, trandata  , reflectRate, refractRate ,
+                forceCenter, enOverMater , enSafeBeam, rayColor   , false)
 
     local phys = laser:GetPhysicsObject()
     if(LaserLib.IsValid(phys)) then

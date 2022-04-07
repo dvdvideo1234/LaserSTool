@@ -67,8 +67,8 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".forcecenter", "When prop push force is present enable to force the center instead")
   language.Add("tool."..gsTool..".pushforce_con", "Push props:")
   language.Add("tool."..gsTool..".pushforce", "Seutp the laser beam to push props")
-  language.Add("tool."..gsTool..".endingeffect_con", "Enable ending effect")
-  language.Add("tool."..gsTool..".endingeffect", "Allow showing ending effects on beam hit")
+  language.Add("tool."..gsTool..".endingeffect_con", "Enable ending effects")
+  language.Add("tool."..gsTool..".endingeffect", "Allows showing ending effects on beam hit")
   language.Add("tool."..gsTool..".surfweld_con", "Weld to surface")
   language.Add("tool."..gsTool..".surfweld", "Welds the laser to the trace surface")
   language.Add("tool."..gsTool..".nocollide_con", "No-collide to surface")
@@ -83,6 +83,8 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".refractrate", "Refract the amount of power according to the medium material type")
   language.Add("tool."..gsTool..".enonvermater_con", "Use base entity material")
   language.Add("tool."..gsTool..".enonvermater", "Utilize the first material from the list. Otherwise use material type")
+  language.Add("tool."..gsTool..".ensafebeam_con", "Enable emiter safety")
+  language.Add("tool."..gsTool..".ensafebeam", "Allows player and beam interaction from the portal series")
   language.Add("tool."..gsTool..".openmaterial", "Manager for: ")
   language.Add("tool."..gsTool..".openmaterial_cmat", "Copy material")
   language.Add("tool."..gsTool..".openmaterial_cset", "Copy settings")
@@ -175,6 +177,14 @@ if(SERVER) then
   duplicator.RegisterEntityModifier("laseremitter_properties",
     function(ply, ent, dupe) LaserLib.SetMaterial(ent, dupe.Material) end)
 
+  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New     ,
+    --[[  ply  ]]  "pos"         , "ang"         , "model"      ,
+    "tranData"   , "key"         , "width"       , "length"     ,
+    "damage"     , "material"    , "dissolveType", "startSound" ,
+    "stopSound"  , "killSound"   , "runToggle"   , "startOn"    ,
+    "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
+    "forceCenter", "frozen"      , "enOverMater" , "enSafeBeam" , "rayColor")
+
   CreateConVar("sbox_max"..gsTool.."s", 20)
 end
 
@@ -211,6 +221,7 @@ TOOL.ClientConVar =
   [ "reflectused"  ] = LaserLib.DataReflect(),
   [ "refractused"  ] = LaserLib.DataRefract(),
   [ "enonvermater" ] = 1,
+  [ "ensafebeam"   ] = 0,
   [ "forcecenter"  ] = 0,
   [ "portalexit"   ] = 0,
   [ "rayassist"    ] = 25,
@@ -291,14 +302,15 @@ function TOOL:LeftClick(trace)
   local refractrate  = (self:GetClientNumber("refractrate", 0) ~= 0)
   local endingeffect = (self:GetClientNumber("endingeffect", 0) ~= 0)
   local forcecenter  = (self:GetClientNumber("forcecenter", 0) ~= 0)
+  local ensafebeam   = (self:GetClientNumber("ensafebeam", 0) ~= 0)
   local enonvermater = (self:GetClientNumber("enonvermater", 0) ~= 0)
 
   if(LaserLib.IsValid(ent) and ent:GetClass() == gsLaseremCls) then
     LaserLib.Notify(ply, "Paste settings !", "UNDO")
-    ent:Setup(width       , length     , damage     , material    ,
-              dissolvetype, startsound , stopsound  , killsound   ,
-              toggle      , starton    , pushforce  , endingeffect, trandata,
-              reflectrate , refractrate, forcecenter, enonvermater, raycolor, true)
+    ent:Setup(width      , length      , damage    , material   , dissolvetype,
+              startsound , stopsound   , killsound , toggle     , starton     ,
+              pushforce  , endingeffect, trandata  , reflectrate, refractrate ,
+              forcecenter, enonvermater, ensafebeam, raycolor   , true)
     return true
   elseif(LaserLib.IsValid(ent) and ent:GetClass() == gsLaserptCls) then
     local idx = self:GetClientInfo("portalexit"); ent:SetEntityExitID(idx)
@@ -311,7 +323,7 @@ function TOOL:LeftClick(trace)
                              damage     , material    , dissolvetype, startsound  ,
                              stopsound  , killsound   , toggle      , starton     ,
                              pushforce  , endingeffect, reflectrate , refractrate ,
-                             forcecenter, frozen      , enonvermater, raycolor)
+                             forcecenter, frozen      , enonvermater, ensafebeam  , raycolor)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
@@ -352,6 +364,7 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(ply, "width"       , ent:GetBeamWidth())
       LaserLib.ConCommand(ply, "length"      , ent:GetBeamLength())
       LaserLib.ConCommand(ply, "damage"      , ent:GetBeamDamage())
+      LaserLib.ConCommand(ply, "ensafebeam"  , ent:GetBeamSafety())
       LaserLib.ConCommand(ply, "material"    , ent:GetBeamMaterial())
       LaserLib.ConCommand(ply, "dissolvetype", ent:GetDissolveType())
       LaserLib.ConCommand(ply, "startsound"  , ent:GetStartSound())
@@ -436,16 +449,6 @@ function TOOL:Reload(trace)
       end
     end; return true
   end; return false
-end
-
-if(SERVER) then
-  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New     ,
-    --[[  ply  ]]  "pos"         , "ang"         , "model"      ,
-    "tranData"   , "key"         , "width"       , "length"     ,
-    "damage"     , "material"    , "dissolveType", "startSound" ,
-    "stopSound"  , "killSound"   , "runToggle"   , "startOn"    ,
-    "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
-    "forceCenter", "frozen"      , "enOverMater" , "rayColor")
 end
 
 function TOOL:UpdateGhostLaserEmitter(ent, ply)
@@ -595,4 +598,6 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".forcecenter"))
   pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".enonvermater_con"), gsTool.."_enonvermater")
   pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".enonvermater"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".ensafebeam_con"), gsTool.."_ensafebeam")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".ensafebeam"))
 end

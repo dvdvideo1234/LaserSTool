@@ -32,7 +32,8 @@ function ENT:Initialize()
     {"Length", "NORMAL", "Updates the beam length"},
     {"Width" , "NORMAL", "Updates the beam width" },
     {"Damage", "NORMAL", "Updates the beam damage"},
-    {"Force" , "NORMAL", "Updates the beam force" }
+    {"Force" , "NORMAL", "Updates the beam force" },
+    {"Safety", "NORMAL", "Returns the beam safety"}
   ):WireCreateOutputs(
     {"On"    , "NORMAL", "Laser entity status"    },
     {"Hit"   , "NORMAL", "Laser entity hit"       },
@@ -41,6 +42,7 @@ function ENT:Initialize()
     {"Width" , "NORMAL", "Returns the beam width" },
     {"Damage", "NORMAL", "Returns the beam damage"},
     {"Force" , "NORMAL", "Returns the beam force" },
+    {"Safety", "NORMAL", "Returns the beam safety"},
     {"Target", "ENTITY", "Laser entity target"    },
     {"Entity", "ENTITY", "Laser entity itself"    }
   )
@@ -92,12 +94,13 @@ function ENT:SpawnFunction(user, trace)
   local forcecenter  = (user:GetInfoNum(prefix.."forcecenter", 0) ~= 0)
   local endingeffect = (user:GetInfoNum(prefix.."endingeffect", 0) ~= 0)
   local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
+  local ensafebeam   = (user:GetInfoNum(prefix.."ensafebeam", 0) ~= 0)
   local laser        = LaserLib.New(user       , trace.HitPos, angspawn    , model       ,
                                     trandata   , key         , width       , length      ,
                                     damage     , material    , dissolvetype, startsound  ,
                                     stopsound  , killsound   , toggle      , starton     ,
                                     pushforce  , endingeffect, reflectrate , refractrate ,
-                                    forcecenter, frozen      , enovermater , raycolor)
+                                    forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
   if(LaserLib.IsValid(laser)) then
     LaserLib.SetProperties(laser, "metal")
     LaserLib.ApplySpawn(laser, trace, trandata)
@@ -120,15 +123,16 @@ function ENT:DoDamage(beam, trace)
         local dtyp = sors:GetDissolveType()
         LaserLib.DoDamage(trent,
                           self,
+                          (user or sors:GetCreator()),
                           trace.HitPos,
                           trace.Normal,
                           beam.VrDirect,
                           beam.NvDamage,
                           beam.NvForce,
-                          (user or sors:GetCreator()),
                           LaserLib.GetDissolveID(dtyp),
                           sors:GetKillSound(),
-                          sors:GetForceCenter())
+                          sors:GetForceCenter(),
+                          sors:GetBeamSafety())
       end
     end
   end

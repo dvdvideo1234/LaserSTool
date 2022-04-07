@@ -67,9 +67,11 @@ function ENT:GetHitPower(normal, beam, trace, bmln)
   return (dott > (1 - dotm)), dotv
 end
 
---[[ ----------------------
-  Width
----------------------- ]]
+--[[
+ * Width. How wide does the beam appear when drawn
+ * This is different than the trace width itself
+ * This is often use for back-trace width when refracting
+]]
 function ENT:SetBeamWidth(num)
   local width = math.max(num, 0)
   self:SetInBeamWidth(width)
@@ -90,9 +92,9 @@ function ENT:GetBeamWidth()
   end
 end
 
---[[ ----------------------
-   Length
----------------------- ]]
+--[[
+ * Length. The total laser beam lenght to be traced
+]]
 function ENT:SetBeamLength(num)
   local length = math.abs(num)
   self:SetInBeamLength(length)
@@ -113,9 +115,9 @@ function ENT:GetBeamLength()
   end
 end
 
---[[ ----------------------
-  Damage
----------------------- ]]
+--[[
+ * Damage. How much damage does the laser do per tick
+]]
 function ENT:SetBeamDamage(num)
   local damage = math.max(num, 0)
   self:SetInBeamDamage(damage)
@@ -136,32 +138,57 @@ function ENT:GetBeamDamage()
   end
 end
 
---[[ ----------------------
-  Material
----------------------- ]]
+--[[
+ * Safety. Makes the beam acts like in the
+ * portal series towards all players
+]]
+function ENT:SetBeamSafety(bool)
+  local safe = tobool(bool)
+  self:SetInBeamSafety(safe)
+  return self
+end
+
+function ENT:GetBeamSafety()
+  if(SERVER) then
+    local safe = self:WireRead("Safety", true)
+    if(safe ~= nil) then safe = tobool(safe)
+    else safe = self:GetInBeamSafety() end
+    self:SetNWBool("GetInBeamSafety", safe)
+    self:WireWrite("Safety", (safe and 1 or 0))
+    return safe
+  else
+    local safe = self:GetInBeamSafety()
+    return self:GetNWFloat("GetInBeamSafety", safe)
+  end
+end
+
+--[[
+ * Material. The actual material used drawing the beam
+ * When `true` is passed will return a material object
+]]
 function ENT:SetBeamMaterial(mat)
   self:SetInBeamMaterial(mat)
   return self
 end
 
 function ENT:GetBeamMaterial(bool)
-  local mac = self.roMaterial
   local mat = self:GetInBeamMaterial()
-  if(bool) then
-    if(mac) then
-      if(mac:GetName() ~= mat) then
-        mac = Material(mat)
-      end
-    else mac = Material(mat) end
-    self.roMaterial = mac; return mac
-  else
+  if(bool) then -- Material object requested
+    local mac = self.roMaterial
+    if(mac) then -- Material object. Compare materials
+      if(mac:GetName() ~= mat) then -- Different mats
+        mac = Material(mat) -- Update reference
+      end -- Material object is cached and updated
+    else mac = Material(mat) end -- Missing. Populate
+    self.roMaterial = mac; return mac -- Return mat object
+  else -- Material object is not issued. Return the string
     return mat
   end
 end
 
---[[ ----------------------
-          Sounds
----------------------- ]]
+--[[
+ * Sounds. Control the sounds the beam makes in varios conditions
+]]
 function ENT:SetStartSound(snd)
   local snd = tostring(snd or "")
   if(self.startSound ~= snd) then
@@ -201,9 +228,9 @@ function ENT:GetKillSound()
   return self.killSound
 end
 
---[[ ----------------------
-  Makes sounds
----------------------- ]]
+--[[
+ * Makes laser to produce the actual sounds
+]]
 function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
@@ -219,9 +246,9 @@ function ENT:DoSound(state)
   end; return self
 end
 
---[[ ----------------------
-  On/Off
----------------------- ]]
+--[[
+ * On/Off. Toggle shitch. Every unit must have one
+]]
 function ENT:SetOn(bool)
   local state = tobool(bool)
   self:SetInPowerOn(state)
@@ -243,9 +270,9 @@ function ENT:GetOn()
   end
 end
 
---[[ ----------------------
-      Prop pushing
----------------------- ]]
+--[[
+ * Forece. Used for prop pushing when positive.
+]]
 function ENT:SetBeamForce(num)
   local force = math.max(num, 0)
   self:SetInBeamForce(force)
@@ -266,9 +293,9 @@ function ENT:GetBeamForce()
   end
 end
 
---[[ ----------------------
-      Handling color setup and conversion
----------------------- ]]
+--[[
+ * Handling color setup and conversion
+]]
 function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
   local m = LaserLib.GetData("CLMX")
   local v, a = Vector(), m
@@ -300,9 +327,9 @@ function ENT:GetBeamColorRGBA(bcol)
   end
 end
 
---[[ ----------------------
-  Beam uses the original mateial override
----------------------- ]]
+--[[
+ * Beam uses the original mateial override
+]]
 function ENT:SetNonOverMater(bool)
   local over = tobool(bool)
   self:SetInNonOverMater(over)
@@ -337,10 +364,10 @@ function ENT:DoBeam(org, dir, idx)
   return beam, trace
 end
 
-function ENT:Setup(width       , length     , damage     , material    ,
-                   dissolveType, startSound , stopSound  , killSound   ,
-                   runToggle   , startOn    , pushForce  , endingEffect, tranData,
-                   reflectRate , refractRate, forceCenter, enOverMater , rayColor, update)
+function ENT:Setup(width      , length      , damage    , material   , dissolveType,
+                   startSound , stopSound   , killSound , runToggle  , startOn     ,
+                   pushForce  , endingEffect, tranData  , reflectRate, refractRate ,
+                   forceCenter, enOverMater , enSafeBeam, rayColor   , update)
   self:SetBeamWidth(width)
   self:SetBeamLength(length)
   self:SetBeamDamage(damage)
@@ -357,6 +384,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
   self:SetReflectRatio(reflectRate)
   self:SetRefractRatio(refractRate)
   self:SetNonOverMater(enOverMater)
+  self:SetBeamSafety(enSafeBeam)
 
   if(not update) then
     self:SetBeamTransform(tranData)
@@ -384,6 +412,7 @@ function ENT:Setup(width       , length     , damage     , material    ,
     refractRate  = refractRate,
     forceCenter  = forceCenter,
     enOverMater  = enOverMater,
+    enSafeBeam   = enSafeBeam,
     tranData     = tranData,
     rayColor     = {r, g, b, a}
   })

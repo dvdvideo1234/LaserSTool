@@ -110,9 +110,9 @@ end
 
 function SWEP:GetBeamMaterial(bool)
   local user = self:GetOwner()
-  local matc = self.roMaterial
   local matr = user:GetInfo(gsPref.."material")
   if(bool) then
+    local matc = self.roMaterial
     if(matc) then
       if(matc:GetName() ~= matr) then
         matc = Material(matr)
@@ -255,12 +255,12 @@ function SWEP:ServerBeam()
 
       LaserLib.DoDamage(trace.Entity,
                         self,
+                        user,
                         trace.HitPos,
                         trace.Normal,
                         beam.VrDirect,
                         beam.NvDamage,
                         beam.NvForce,
-                        user,
                         LaserLib.GetDissolveID(dtyp),
                         ksnd,
                         fcen)
