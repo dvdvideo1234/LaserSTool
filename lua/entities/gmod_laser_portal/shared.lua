@@ -27,7 +27,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool("ReflectExitDir", "General") -- Reflect the exit ray direction
   self:EditableSetBool("DrawTransfer", "General") -- Draw transfer overlay entity
   self:EditableSetStringGeneric("EntityExitID", "General", true)
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 -- Override the beam transormation

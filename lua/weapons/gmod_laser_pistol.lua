@@ -30,7 +30,7 @@ SWEP.Secondary.ClipSize     = -1
 SWEP.Secondary.DefaultClip  = -1
 SWEP.Secondary.Automatic    = false
 SWEP.Secondary.Ammo         = "none"
-SWEP.AccurateCrosshair      = false
+SWEP.AccurateCrosshair      = true
 
 local gsTool = LaserLib.GetTool()
 local gsPref = gsTool.."_"
@@ -59,16 +59,12 @@ function SWEP:Setup()
         self.VM = mod
         self.VA = idx
       end
-
-      if(not killicon.Exists(cass)) then
-        killicon.AddAlias(cass, LaserLib.GetClass(1, 1))
-      end
     end
     self.WA = self:LookupAttachment("muzzle")
     self.MO, self.MD = Vector(), Vector()
   end
 
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 function SWEP:Initialize()
@@ -114,9 +110,9 @@ end
 
 function SWEP:GetBeamMaterial(bool)
   local user = self:GetOwner()
-  local matc = self.roMaterial
   local matr = user:GetInfo(gsPref.."material")
   if(bool) then
+    local matc = self.roMaterial
     if(matc) then
       if(matc:GetName() ~= matr) then
         matc = Material(matr)
@@ -146,31 +142,6 @@ function SWEP:GetBeamColorRGBA(bcol)
   else -- The user requests four numbers instead
     return r, g, b, a
   end
-end
-
---[[
- * Registers a trace hit report under the specified index
- * trace > Trace result structure to register
- * beam  > Beam class register being registered
-]]
-function SWEP:SetHitReport(beam, trace)
-  if(not self.hitReports) then self.hitReports = {Size = 0} end
-  local rep, idx = self.hitReports, beam.BmIdenty
-  if(idx >= rep.Size) then rep.Size = idx end
-  if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
-  rep["BM"] = beam; rep["TR"] = trace; return self
-end
-
---[[
- * Retrieves hit report trace and beam by specified index
- * index > Hit report index to read ( defaults to 1 )
-]]
-function SWEP:GetHitReport(index)
-  if(not index) then return end
-  if(not self.hitReports) then return end
-  local rep = self.hitReports[index]
-  if(not rep) then return end
-  return rep["BM"], rep["TR"]
 end
 
 function SWEP:GetStopSound()
@@ -225,6 +196,10 @@ function SWEP:GetBeamForce()
   return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
 end
 
+function SWEP:GetBeamSafety()
+  return (self:GetOwner():GetInfoNum(gsPref.."ensafebeam", 0) ~= 0)
+end
+
 function SWEP:GetBeamOrigin()
   local user = self:GetOwner()
   local vorg = user:GetCurrentViewOffset()
@@ -276,23 +251,20 @@ function SWEP:ServerBeam()
        LaserLib.IsValid(trace.Entity) and not
        LaserLib.IsUnit(trace.Entity))
     then
-      local user = self:GetOwner()
-      local fcen = self:GetForceCenter()
       local dtyp = self:GetDissolveType()
-      local ssnd = self:GetStopSound()
-      local ksnd = self:GetKillSound()
 
       LaserLib.DoDamage(trace.Entity,
+                        self,
+                        self:GetOwner(),
                         trace.HitPos,
                         trace.Normal,
                         beam.VrDirect,
                         beam.NvDamage,
                         beam.NvForce,
-                        user,
                         LaserLib.GetDissolveID(dtyp),
-                        ksnd,
-                        fcen,
-                        self)
+                        self:GetKillSound(),
+                        self:GetForceCenter(),
+                        self:GetBeamSafety())
     end
   end
 end

@@ -9,6 +9,11 @@ local REFLECT = LaserLib.DataReflect(KEYA)
 local REFRACT = LaserLib.DataRefract(KEYA) --
 local gtBoolToNum = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
+local function getBool(arg)
+  if(arg == nil) then return 0 end
+  return gtBoolToNum[arg]
+end
+
 local function getReport(ent, idx, typ)
   if(not LaserLib.IsUnit(ent)) then return nil end
   local rep = ent.hitReports; if(not rep) then return nil end
@@ -21,15 +26,13 @@ end
 
 local function getReportKey(ent, idx, typ, key)
   local rep = getReport(ent, idx, typ)
-  if(not rep) then return nil end -- No reports
-  rep = rep[key] -- Report is present so grab it
-  if(not rep) then return nil end -- Missing key
-  return rep -- Return indexed hit report value
+  if(not rep) then return nil end; rep = rep[key]
+  if(not rep) then return nil end; return rep
 end
 
 local function getSource(ent)
-  if(not LaserLib.IsPrimary(ent)) then return nil end
-  return ent -- Entity is actual source
+  local src = LaserLib.IsSource(ent)
+  return (src and ent or nil)
 end
 
 __e2setcost(1)
@@ -57,7 +60,7 @@ __e2setcost(1)
 e2function number entity:laserGetForceCenter()
   local ent = getSource(this)
   if(not ent) then return 0 end
-  return gtBoolToNum[this:GetForceCenter()]
+  return getBool(this:GetForceCenter())
 end
 
 __e2setcost(1)
@@ -85,28 +88,28 @@ __e2setcost(1)
 e2function number entity:laserGetEndingEffect()
   local ent = getSource(this)
   if(not ent) then return 0 end
-  return gtBoolToNum[this:GetEndingEffect()]
+  return getBool(this:GetEndingEffect())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetReflectRatio()
   local ent = getSource(this)
   if(not ent) then return 0 end
-  return gtBoolToNum[this:GetReflectRatio()]
+  return getBool(this:GetReflectRatio())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetRefractRatio()
   local ent = getSource(this)
   if(not ent) then return 0 end
-  return gtBoolToNum[this:GetRefractRatio()]
+  return getBool(this:GetRefractRatio())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetNonOverMater()
   local ent = getSource(this)
   if(not ent) then return 0 end
-  return gtBoolToNum[this:GetNonOverMater()]
+  return getBool(this:GetNonOverMater())
 end
 
 __e2setcost(1)
@@ -151,6 +154,33 @@ e2function number entity:laserGetBeamForce()
   local ent = getSource(this)
   if(not ent) then return 0 end
   return this:GetBeamForce()
+end
+
+__e2setcost(1)
+e2function number entity:laserGetBeamSafety()
+  local ent = getSource(this)
+  if(not ent) then return 0 end
+  return getBool(this:GetBeamSafety())
+end
+
+__e2setcost(1)
+e2function number entity:laserIsUnit()
+  return getBool(LaserLib.IsUnit(this))
+end
+
+__e2setcost(1)
+e2function number entity:laserIsBeam()
+  return getBool(LaserLib.IsBeam(this))
+end
+
+__e2setcost(1)
+e2function number entity:laserIsPrimary()
+  return getBool(LaserLib.IsPrimary(this))
+end
+
+__e2setcost(1)
+e2function number entity:laserIsSource()
+  return getBool(LaserLib.IsSource(this))
 end
 
 __e2setcost(1)
@@ -227,13 +257,13 @@ end
 __e2setcost(1)
 e2function number entity:laserGetDataIsReflect(number idx)
   local ext = getReportKey(this, idx, "BM", "BrReflec")
-  if(ext == nil) then return 0 end; return gtBoolToNum[ext]
+  if(ext == nil) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataIsRefract(number idx)
   local ext = getReportKey(this, idx, "BM", "BrRefrac")
-  if(ext == nil) then return 0 end; return gtBoolToNum[ext]
+  if(ext == nil) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -274,7 +304,7 @@ e2function number entity:laserGetDataPointIsDraw(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end
   local set = ext[cnt]; if(not set) then return 0 end
-  return gtBoolToNum[set[5]]
+  return getBool(set[5])
 end
 
 __e2setcost(1)
@@ -286,7 +316,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceAllSolid(number idx)
   local ext = getReportKey(this, idx, "TR", "AllSolid")
-  if(not ext) then return 0 end; return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -322,7 +352,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHit(number idx)
   local ext = getReportKey(this, idx, "TR", "Hit")
-  if(not ext) then return 0 end; return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -341,13 +371,13 @@ __e2setcost(1)
 e2function number entity:laserGetTraceHitNoDraw(number idx)
   local ext = getReportKey(this, idx, "TR", "HitNoDraw")
   if(not ext) then return 0 end
-  return gtBoolToNum[ext]
+  return getBool(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNonWorld(number idx)
   local ext = getReportKey(this, idx, "TR", "HitNonWorld")
-  if(not ext) then return 0 end; return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -367,7 +397,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitSky(number idx)
   local ext = getReportKey(this, idx, "TR", "HitSky")
-  if(not ext) then return 0 end; return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -379,7 +409,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitWorld(number idx)
   local ext = getReportKey(this, idx, "TR", "HitWorld")
-  if(not ext) then return 0 end; return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -405,7 +435,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceStartSolid(number idx)
   local ext = getReportKey(this, idx, "TR", "StartSolid")
-  if(not ext) then return 0 end; return gtBoolToNum[ext]
+  if(not ext) then return 0 end; return getBool(ext)
 end
 
 __e2setcost(1)
@@ -488,4 +518,9 @@ end
 __e2setcost(1)
 e2function number laserGetBeamIsPower(width, damage)
   return (LaserLib.IsPower(width, damage) and 1 or 0)
+end
+
+__e2setcost(1)
+e2function number laserGetDissolveID(string type)
+  return LaserLib.GetDissolveID(type)
 end

@@ -19,12 +19,11 @@ ENT.RenderGroup    = RENDERGROUP_BOTH
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
-include(LaserLib.GetTool().."/report_manager.lua")
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
   self.hitSources = {}
 end
 

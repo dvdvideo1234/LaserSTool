@@ -21,7 +21,7 @@ function ENT:SetupDataTables()
   self:EditableSetVector("UpwardLocal"  , "General")
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorSplit","Visuals")
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 -- Override the beam transormation
@@ -140,6 +140,21 @@ function ENT:BeamColorSplit(idx)
     r, g, b = LaserLib.GetColorID(idx, r, g, b)
     LaserLib.SetExColorRGBA(r, g, b, a)
   end; return self
+end
+
+--[[
+ * Safety. Makes the beam acts like in the
+ * portal series towards all players
+]]
+function ENT:SetBeamSafety(bool)
+  local safe = tobool(bool)
+  self:SetInBeamSafety(safe)
+  self:WireWrite("Safety", (safe and 1 or 0))
+  return self
+end
+
+function ENT:GetBeamSafety()
+  return self:GetInBeamSafety()
 end
 
 function ENT:DoBeam(org, dir, idx)

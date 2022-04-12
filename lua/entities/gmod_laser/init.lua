@@ -32,7 +32,8 @@ function ENT:Initialize()
     {"Length", "NORMAL", "Updates the beam length"},
     {"Width" , "NORMAL", "Updates the beam width" },
     {"Damage", "NORMAL", "Updates the beam damage"},
-    {"Force" , "NORMAL", "Updates the beam force" }
+    {"Force" , "NORMAL", "Updates the beam force" },
+    {"Safety", "NORMAL", "Returns the beam safety"}
   ):WireCreateOutputs(
     {"On"    , "NORMAL", "Laser entity status"    },
     {"Hit"   , "NORMAL", "Laser entity hit"       },
@@ -41,6 +42,7 @@ function ENT:Initialize()
     {"Width" , "NORMAL", "Returns the beam width" },
     {"Damage", "NORMAL", "Returns the beam damage"},
     {"Force" , "NORMAL", "Returns the beam force" },
+    {"Safety", "NORMAL", "Returns the beam safety"},
     {"Target", "ENTITY", "Laser entity target"    },
     {"Entity", "ENTITY", "Laser entity itself"    }
   )
@@ -92,12 +94,13 @@ function ENT:SpawnFunction(user, trace)
   local forcecenter  = (user:GetInfoNum(prefix.."forcecenter", 0) ~= 0)
   local endingeffect = (user:GetInfoNum(prefix.."endingeffect", 0) ~= 0)
   local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
+  local ensafebeam   = (user:GetInfoNum(prefix.."ensafebeam", 0) ~= 0)
   local laser        = LaserLib.New(user       , trace.HitPos, angspawn    , model       ,
                                     trandata   , key         , width       , length      ,
                                     damage     , material    , dissolvetype, startsound  ,
                                     stopsound  , killsound   , toggle      , starton     ,
                                     pushforce  , endingeffect, reflectrate , refractrate ,
-                                    forcecenter, frozen      , enovermater , raycolor)
+                                    forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
   if(LaserLib.IsValid(laser)) then
     LaserLib.SetProperties(laser, "metal")
     LaserLib.ApplySpawn(laser, trace, trandata)
@@ -118,49 +121,22 @@ function ENT:DoDamage(beam, trace)
         local sors = beam:GetSource()
         local user = (self.ply or self.player)
         local dtyp = sors:GetDissolveType()
+
         LaserLib.DoDamage(trent,
+                          self,
+                          (user or sors:GetCreator()),
                           trace.HitPos,
                           trace.Normal,
                           beam.VrDirect,
                           beam.NvDamage,
                           beam.NvForce,
-                          (user or sors:GetCreator()),
                           LaserLib.GetDissolveID(dtyp),
                           sors:GetKillSound(),
                           sors:GetForceCenter(),
-                          self)
+                          sors:GetBeamSafety())
       end
     end
   end
-
-  return self
-end
-
---[[
- * Extract the parameters needed to create a beam
- * Takes the values tom the argument and updated source
- * beam  > Dominant laser beam reference being extracted
- * color > Beam color for override. Not mandatory
-]]
-function ENT:SetDominant(beam, color)
-  local src = beam:GetSource()
-  -- We set the same non-addable properties
-  if(not LaserLib.IsPrimary(src)) then return self end
-  -- The most powerful source (biggest damage/width)
-  self:SetStopSound(src:GetStopSound())
-  self:SetKillSound(src:GetKillSound())
-  self:SetStartSound(src:GetStartSound())
-  self:SetForceCenter(src:GetForceCenter())
-  self:SetBeamMaterial(src:GetBeamMaterial())
-  self:SetDissolveType(src:GetDissolveType())
-  self:SetEndingEffect(src:GetEndingEffect())
-  self:SetReflectRatio(src:GetReflectRatio())
-  self:SetRefractRatio(src:GetRefractRatio())
-  self:SetNonOverMater(src:GetNonOverMater())
-  self:SetBeamColorRGBA(color or beam:GetColorRGBA(true))
-
-  self:WireWrite("Dominant", src)
-  LaserLib.SetPlayer(self, (src.ply or src.player))
 
   return self
 end

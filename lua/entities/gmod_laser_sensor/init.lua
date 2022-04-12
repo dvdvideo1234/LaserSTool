@@ -65,6 +65,7 @@ function ENT:Initialize()
   self:SetReflectRatio(0)
   self:SetRefractRatio(0)
   self:SetForceCenter(0)
+  self:SetInBeamSafety(0)
   self:SetInNonOverMater(0)
   self:SetBeamColorRGBA(255,255,255,255)
 
@@ -173,16 +174,18 @@ function ENT:UpdateSources()
           local mrefrac = self:GetRefractRatio()
           local mdistyp = self:GetDissolveType()
           local mendeff = self:GetEndingEffect()
-          local mmatera = self:SetBeamMaterial()
-          local movrmat = self:GetNonOverMater()
+          local mmatera = self:GetBeamMaterial()
+          local mbmsafe = self:GetInBeamSafety()
+          local movrmat = self:GetInNonOverMater()
           local mcomcor, mcoe = self:GetCheckBeamColor()
           -- Dominant configurations ( booleans have true/false )
-          local dfcentr = domsrc:GetForceCenter() and 2 or 1
+          local dfcentr = domsrc:GetForceCenter()  and 2 or 1
           local dreflec = domsrc:GetReflectRatio() and 2 or 1
           local drefrac = domsrc:GetRefractRatio() and 2 or 1
           local ddistyp = domsrc:GetDissolveType()
           local dendeff = domsrc:GetEndingEffect() and 2 or 1
-          local dmatera = domsrc:SetBeamMaterial()
+          local dmatera = domsrc:GetBeamMaterial()
+          local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
           local dovrmat = domsrc:GetNonOverMater() and 2 or 1
           if(mcomcor) then -- Dominant beam color compare enabled
             local margin = LaserLib.GetData("CTOL")
@@ -198,6 +201,7 @@ function ENT:UpdateSources()
              (mreflec == 0  or (mreflec ~= 0  and mreflec == dreflec)) and
              (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
              (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
+             (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
              (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
           ) then -- Dominant beam is like sensor beam
             self:SetOn(true)

@@ -31,6 +31,7 @@ function ENT:Initialize()
     {"Length"  , "NORMAL", "Concentrator length width"   },
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
+    {"Safety"  , "NORMAL", "Concentrator beam safety"    },
     {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },
@@ -54,10 +55,11 @@ function ENT:Initialize()
   self:SetStartSound("")
   self:SetBeamMaterial("")
   self:SetDissolveType("")
+  self:SetBeamSafety(false)
+  self:SetForceCenter(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)
   self:SetRefractRatio(false)
-  self:SetForceCenter(false)
   self:SetNonOverMater(false)
   self:SetBeamColorMerge(false)
   self:SetBeamColorRGBA(255,255,255,255)

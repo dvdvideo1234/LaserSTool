@@ -23,7 +23,7 @@ function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
   self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
-  LaserLib.OnFinish(self)
+  LaserLib.Configure(self)
 end
 
 function ENT:RegisterSource(ent)
