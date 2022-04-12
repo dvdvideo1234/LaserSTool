@@ -66,6 +66,28 @@ function ENT:WireError(sM)
 end
 
 --[[
+ * Used to check if a given input exists
+ * sN > Port name must be string
+]]
+function ENT:WireIsInput(sN)
+  if(not WireLib) then return nil end
+  if(sN == nil) then self:WireError("Name missing"); return nil end
+  local tP, sP = self["Inputs"], tostring(sN); tP = (tP and tP[sP] or nil)
+  return (tP ~= nil)
+end
+
+--[[
+ * Used to check if a given input exists
+ * sN > Port name must be string
+]]
+function ENT:WireIsOutput(sN)
+  if(not WireLib) then return nil end
+  if(sN == nil) then self:WireError("Name missing"); return nil end
+  local tP, sP = self["Outputs"], tostring(sN); tP = (tP and tP[sP] or nil)
+  return (tP ~= nil)
+end
+
+--[[
  * Used to index a wite port and return its content
  * sT > Port key `Input` or `Output`
  * sN > Port name must be string

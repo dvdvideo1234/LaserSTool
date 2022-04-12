@@ -202,7 +202,7 @@ function ENT:UpdateSources()
              (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
              (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
              (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
-             (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat)
+             (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
           ) then -- Dominant beam is like sensor beam
             self:SetOn(true)
           else -- Dominant beam is not like sensor beam

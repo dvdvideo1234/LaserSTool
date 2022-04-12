@@ -142,6 +142,21 @@ function ENT:BeamColorSplit(idx)
   end; return self
 end
 
+--[[
+ * Safety. Makes the beam acts like in the
+ * portal series towards all players
+]]
+function ENT:SetBeamSafety(bool)
+  local safe = tobool(bool)
+  self:SetInBeamSafety(safe)
+  self:WireWrite("Safety", (safe and 1 or 0))
+  return self
+end
+
+function ENT:GetBeamSafety()
+  return self:GetInBeamSafety()
+end
+
 function ENT:DoBeam(org, dir, idx)
   local count  = self:GetBeamCount()
   local origin = self:GetBeamOrigin(org)

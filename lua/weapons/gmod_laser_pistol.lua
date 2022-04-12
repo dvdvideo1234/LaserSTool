@@ -196,6 +196,10 @@ function SWEP:GetBeamForce()
   return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
 end
 
+function SWEP:GetBeamSafety()
+  return (self:GetOwner():GetInfoNum(gsPref.."ensafebeam", 0) ~= 0)
+end
+
 function SWEP:GetBeamOrigin()
   local user = self:GetOwner()
   local vorg = user:GetCurrentViewOffset()
@@ -247,23 +251,20 @@ function SWEP:ServerBeam()
        LaserLib.IsValid(trace.Entity) and not
        LaserLib.IsUnit(trace.Entity))
     then
-      local user = self:GetOwner()
-      local fcen = self:GetForceCenter()
       local dtyp = self:GetDissolveType()
-      local ssnd = self:GetStopSound()
-      local ksnd = self:GetKillSound()
 
       LaserLib.DoDamage(trace.Entity,
                         self,
-                        user,
+                        self:GetOwner(),
                         trace.HitPos,
                         trace.Normal,
                         beam.VrDirect,
                         beam.NvDamage,
                         beam.NvForce,
                         LaserLib.GetDissolveID(dtyp),
-                        ksnd,
-                        fcen)
+                        self:GetKillSound(),
+                        self:GetForceCenter(),
+                        self:GetBeamSafety())
     end
   end
 end

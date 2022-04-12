@@ -25,6 +25,7 @@ function ENT:Initialize()
     {"Length"  , "NORMAL", "Splitter length width"   },
     {"Damage"  , "NORMAL", "Splitter damage width"   },
     {"Force"   , "NORMAL", "Splitter force amount"   },
+    {"Safety"  , "NORMAL", "Splitter beam safety"    },
     {"Entity"  , "ENTITY", "Splitter entity itself"  },
     {"Dominant", "ENTITY", "Splitter dominant entity"}
   )
@@ -48,12 +49,13 @@ function ENT:Initialize()
   self:SetStartSound("")
   self:SetBeamMaterial("")
   self:SetDissolveType("")
-  self:SetBeamReplicate(false)
+  self:SetBeamSafety(false)
+  self:SetForceCenter(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)
   self:SetRefractRatio(false)
-  self:SetForceCenter(false)
   self:SetNonOverMater(false)
+  self:SetBeamReplicate(false)
   self:SetBeamColorSplit(false)
   self:SetBeamColorRGBA(255,255,255,255)
 

@@ -121,6 +121,7 @@ function ENT:DoDamage(beam, trace)
         local sors = beam:GetSource()
         local user = (self.ply or self.player)
         local dtyp = sors:GetDissolveType()
+
         LaserLib.DoDamage(trent,
                           self,
                           (user or sors:GetCreator()),

@@ -1,6 +1,7 @@
 -- Wiremod dedicated entity method to retrieve information from laser sources
 E2Helper.Descriptions["laserGetBeamDamage(e:)"]             = "Returns the laser source beam damage"
 E2Helper.Descriptions["laserGetBeamForce(e:)"]              = "Returns the laser source beam force"
+E2Helper.Descriptions["laserGetBeamSafety(e:)"]             = "Returns the laser source beam safety"
 E2Helper.Descriptions["laserGetBeamLength(e:)"]             = "Returns the laser source beam length"
 E2Helper.Descriptions["laserGetBeamMaterial(e:)"]           = "Returns the laser source beam material"
 E2Helper.Descriptions["laserGetBeamPower(e:)"]              = "Returns the laser source beam power"
@@ -16,6 +17,10 @@ E2Helper.Descriptions["laserGetReflectRatio(e:)"]           = "Returns the laser
 E2Helper.Descriptions["laserGetRefractRatio(e:)"]           = "Returns the laser source refraction ratio flag"
 E2Helper.Descriptions["laserGetStartSound(e:)"]             = "Returns the laser source start sound"
 E2Helper.Descriptions["laserGetStopSound(e:)"]              = "Returns the laser source stop sound"
+E2Helper.Descriptions["laserIsPrimary(e:)"]                 = "Returns true when entity has primary laser methods"
+E2Helper.Descriptions["laserIsSource(e:)"]                  = "Returns true when entity is an actual laser source"
+E2Helper.Descriptions["laserIsUnit(e:)"]                    = "Returns true when entity is registered as unit"
+E2Helper.Descriptions["laserIsBeam(e:)"]                    = "Returns true when entity can produce output beams"
 -- Wiremod dedicated entity method to retrieve beam information from hit reports
 E2Helper.Descriptions["laserGetDataBounceMax(e:n)"]         = "Returns the maximum allowed laser beam bounces"
 E2Helper.Descriptions["laserGetDataBounceRest(e:n)"]        = "Returns the remaining laser beam bounces"
@@ -62,7 +67,7 @@ E2Helper.Descriptions["laserGetTraceSurfaceFlags(e:n)"]     = "Returns the last 
 E2Helper.Descriptions["laserGetTraceDispFlags(e:n)"]        = "Returns the last trace hit surface displacement flag enums"
 E2Helper.Descriptions["laserGetTraceContents(e:n)"]         = "Returns the last trace hit surface contents enums"
 -- Other helper functions for database reflection and refraction
-E2Helper.Descriptions["laserGetBeamPower(nn)"]              = "Returns the calcuated power by external width and damage"
+E2Helper.Descriptions["laserGetBeamPower(nn)"]              = "Returns the calculated power by external width and damage"
 E2Helper.Descriptions["laserGetBeamIsPower(nn)"]            = "Returns the flag indicating the power enabled threshold"
 E2Helper.Descriptions["laserGetRefractDataIndex(s)"]        = "Returns the refract index database entry"
 E2Helper.Descriptions["laserGetRefractDataRatio(s)"]        = "Returns the refract ratio database entry"
@@ -73,3 +78,4 @@ E2Helper.Descriptions["laserGetReflectBeam(vv)"]            = "Returns the refle
 E2Helper.Descriptions["laserGetRefractBeam(vvnn)"]          = "Returns the refracted vector by external incident, normal and medium indices"
 E2Helper.Descriptions["laserGetRefractIsNext()"]            = "Returns a flag indicating the beam exits the medium after being refracted"
 E2Helper.Descriptions["laserGetRefractIsSame()"]            = "Returns a flag indicating the same refraction indices arguments are present"
+E2Helper.Descriptions["laserGetDissolveID(s)"]              = "Converts dissolve type entry to the corresponding ID"

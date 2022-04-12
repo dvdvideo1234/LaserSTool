@@ -83,7 +83,7 @@ if(CLIENT) then
   language.Add("tool."..gsTool..".refractrate", "Refract the amount of power according to the medium material type")
   language.Add("tool."..gsTool..".enonvermater_con", "Use base entity material")
   language.Add("tool."..gsTool..".enonvermater", "Utilize the first material from the list. Otherwise use material type")
-  language.Add("tool."..gsTool..".ensafebeam_con", "Enable emiter safety")
+  language.Add("tool."..gsTool..".ensafebeam_con", "Enable emiter beam safety")
   language.Add("tool."..gsTool..".ensafebeam", "Allows player and beam interaction from the portal series")
   language.Add("tool."..gsTool..".openmaterial", "Manager for: ")
   language.Add("tool."..gsTool..".openmaterial_cmat", "Copy material")

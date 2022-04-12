@@ -34,7 +34,7 @@ DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger 
 DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.DRWBMSPD = CreateConVar("laseremitter_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
-DATA.SAFEBEAM = CreateConVar("laseremitter_safebeam", 0, DATA.FGSRVCN, "Controls beam safety where player is pushed aside", 0, 1)
+DATA.VESFBEAM = CreateConVar("laseremitter_vesfbeam", 150, DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 
 DATA.GRAT = 1.61803398875    -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"   -- Tool name for internal use
@@ -283,14 +283,14 @@ local gtTRACE = {
 
 if(CLIENT) then
   DATA.COSV = math.cos(math.rad(75))
-  DATA.ICON = "vgui/entities/gmod_laser_killicon"
+  DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
   DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, gtCOLOR["WHITE"]) end
   gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
   gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
-  killicon.Add(gtCLASS[1][1], DATA.ICON, gtCOLOR["WHITE"])
+  killicon.Add(gtCLASS[1][1], DATA.KILL, gtCOLOR["WHITE"])
 end
 
 -- Callbacks for console variables
@@ -1699,14 +1699,14 @@ if(SERVER) then
   end
 
   function LaserLib.DoBurn(target, origin, direct, safety)
-    if(not safety) then -- We have a local beam safety
-      if(not DATA.SAFEBEAM:GetBool()) then return end
-    end -- Player wants a deadly beam so use global setting
+    if(not safety) then return end -- Beam safety skipped
     if(not LaserLib.IsValid(target)) then return end
+    local smu = DATA.VESFBEAM:GetFloat()
+    if(smu <= 0) then return end -- General setting
     local idx = target:StartLoopingSound(Sound(DATA.BURN))
     local obb = target:LocalToWorld(target:OBBCenter())
     local pbb = LaserLib.ProjectRay(obb, origin, direct)
-          obb:Sub(pbb); obb:Normalize(); obb:Mul(100)
+          obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
     target:SetVelocity(obb)
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
   end
@@ -1722,11 +1722,10 @@ if(SERVER) then
         else -- Keep force separate from damage inflicting
           phys:ApplyForceOffset(direct * force, origin)
         end -- This is the way laser can be used as forcer
-
-        if(target:IsPlayer()) then -- Portal beam safety
-          LaserLib.DoBurn(target, origin, direct, safety)
-        end
       end -- Do not apply force on laser units
+      if(target:IsPlayer()) then -- Portal beam safety
+        LaserLib.DoBurn(target, origin, direct, safety)
+      end -- Target is not unit. Check emiter safety
     end
 
     if(laser.isDamage) then
