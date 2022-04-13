@@ -1,18 +1,28 @@
 E2Lib.RegisterExtension("laserbeam", true,
-  "Lets E2 chips utilize entity finction form the laser sources.",
-  "Provides a dedicated API that can extract beam information from laser entities."
+  "Allows E2 chips utilize entity functions form the laser sources and addon.",
+  "Provides a dedicated API that can extract beam information from laser entities and database."
 )
 
-local RNEXT, RSAME = false, false
-local KEYA = LaserLib.GetData("KEYA")
-local REFLECT = LaserLib.DataReflect(KEYA)
-local REFRACT = LaserLib.DataRefract(KEYA) --
+local RNEXT, RSAME = false, false -- These store the current status for medium refraction
+local KEYA = LaserLib.GetData("KEYA") -- Retrieve the active key indexing select all
+local REFLECT = LaserLib.DataReflect(KEYA) -- Retrieve all reflection database entries
+local REFRACT = LaserLib.DataRefract(KEYA) -- Retrieve all refraction database entries
 local WIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
+--[[
+ * Converts eny value to wiremod dedicated booleans
+ * src > source value to be converted
+]]
 local function toBoolWire(src)
   return WIRECNV[tobool(src)]
 end
 
+--[[
+ * Returns the specified laser hit report entry under the requested index
+ * ent > Entity to search for hit reports
+ * idx > Hit report requested index entry to search for
+ * typ > Hit report requested data structure. Either `BM` or `TR`
+]]
 local function getReport(ent, idx, typ)
   if(not LaserLib.IsUnit(ent)) then return nil end
   local rep = ent.hitReports; if(not rep) then return nil end
@@ -23,12 +33,23 @@ local function getReport(ent, idx, typ)
   return rep -- Return the indexed hit report type
 end
 
+--[[
+ * Returns the specified laser hit report entry member value under the requested index
+ * ent > Entity to search for hit reports
+ * idx > Hit report requested index entry to search for
+ * typ > Hit report requested data structure. Either `BM` or `TR`
+ * key > Hit report requested data structure member name
+]]
 local function getReportKey(ent, idx, typ, key)
   local rep = getReport(ent, idx, typ)
   if(not rep) then return nil end; rep = rep[key]
   if(not rep) then return nil end; return rep
 end
 
+--[[
+ * Returns the argument when classified as source. Otherwise `nil`
+ * ent > Entity to be checked for being a source
+]]
 local function getSource(ent)
   local src = LaserLib.IsSource(ent)
   return (src and ent or nil)
