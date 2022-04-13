@@ -7,11 +7,10 @@ local RNEXT, RSAME = false, false
 local KEYA = LaserLib.GetData("KEYA")
 local REFLECT = LaserLib.DataReflect(KEYA)
 local REFRACT = LaserLib.DataRefract(KEYA) --
-local gtBoolToNum = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
+local WIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
-local function getBool(arg)
-  if(arg == nil) then return 0 end
-  return gtBoolToNum[arg]
+local function toBoolWire(src)
+  return WIRECNV[tobool(src)]
 end
 
 local function getReport(ent, idx, typ)
@@ -37,150 +36,150 @@ end
 
 __e2setcost(1)
 e2function string entity:laserGetStopSound()
-  local ent = getSource(this)
-  if(not ent) then return "" end
-  return this:GetStopSound()
+  local src = getSource(this)
+  if(not src) then return "" end
+  return src:GetStopSound()
 end
 
 __e2setcost(1)
 e2function string entity:laserGetKillSound()
-  local ent = getSource(this)
-  if(not ent) then return "" end
-  return this:GetKillSound()
+  local src = getSource(this)
+  if(not src) then return "" end
+  return src:GetKillSound()
 end
 
 __e2setcost(1)
 e2function string entity:laserGetStartSound()
-  local ent = getSource(this)
-  if(not ent) then return "" end
-  return this:GetStartSound()
+  local src = getSource(this)
+  if(not src) then return "" end
+  return src:GetStartSound()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetForceCenter()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return getBool(this:GetForceCenter())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBoolWire(src:GetForceCenter())
 end
 
 __e2setcost(1)
 e2function string entity:laserGetBeamMaterial()
-  local ent = getSource(this)
-  if(not ent) then return "" end
-  return this:GetBeamMaterial()
+  local src = getSource(this)
+  if(not src) then return "" end
+  return src:GetBeamMaterial()
 end
 
 __e2setcost(1)
 e2function string entity:laserGetDissolveType()
-  local ent = getSource(this)
-  if(not ent) then return "" end
-  return this:GetDissolveType()
+  local src = getSource(this)
+  if(not src) then return "" end
+  return src:GetDissolveType()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDissolveTypeID()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return LaserLib.GetDissolveID(this:GetDissolveType())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return LaserLib.GetDissolveID(src:GetDissolveType())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetEndingEffect()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return getBool(this:GetEndingEffect())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBoolWire(src:GetEndingEffect())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetReflectRatio()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return getBool(this:GetReflectRatio())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBoolWire(src:GetReflectRatio())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetRefractRatio()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return getBool(this:GetRefractRatio())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBoolWire(src:GetRefractRatio())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetNonOverMater()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return getBool(this:GetNonOverMater())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBoolWire(src:GetNonOverMater())
 end
 
 __e2setcost(1)
 e2function entity entity:laserGetPlayer()
-  local ent = getSource(this)
-  if(not ent) then return nil end
-  return (this.ply or this.player)
+  local src = getSource(this)
+  if(not src) then return nil end
+  return (src.ply or src.player)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamPower()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  local width  = this:GetBeamWidth()
-  local damage = this:GetBeamDamage()
+  local src = getSource(this)
+  if(not src) then return 0 end
+  local width  = src:GetBeamWidth()
+  local damage = src:GetBeamDamage()
   return LaserLib.GetPower(width, damage)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamLength()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return this:GetBeamLength()
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return src:GetBeamLength()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamWidth()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return this:GetBeamWidth()
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return src:GetBeamWidth()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamDamage()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return this:GetBeamDamage()
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return src:GetBeamDamage()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamForce()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return this:GetBeamForce()
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return src:GetBeamForce()
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamSafety()
-  local ent = getSource(this)
-  if(not ent) then return 0 end
-  return getBool(this:GetBeamSafety())
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBoolWire(src:GetBeamSafety())
 end
 
 __e2setcost(1)
 e2function number entity:laserIsUnit()
-  return getBool(LaserLib.IsUnit(this))
+  return toBoolWire(LaserLib.IsUnit(this))
 end
 
 __e2setcost(1)
 e2function number entity:laserIsBeam()
-  return getBool(LaserLib.IsBeam(this))
+  return toBoolWire(LaserLib.IsBeam(this))
 end
 
 __e2setcost(1)
 e2function number entity:laserIsPrimary()
-  return getBool(LaserLib.IsPrimary(this))
+  return toBoolWire(LaserLib.IsPrimary(this))
 end
 
 __e2setcost(1)
 e2function number entity:laserIsSource()
-  return getBool(LaserLib.IsSource(this))
+  return toBoolWire(LaserLib.IsSource(this))
 end
 
 __e2setcost(1)
@@ -257,13 +256,13 @@ end
 __e2setcost(1)
 e2function number entity:laserGetDataIsReflect(number idx)
   local ext = getReportKey(this, idx, "BM", "BrReflec")
-  if(ext == nil) then return 0 end; return getBool(ext)
+  if(ext == nil) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataIsRefract(number idx)
   local ext = getReportKey(this, idx, "BM", "BrRefrac")
-  if(ext == nil) then return 0 end; return getBool(ext)
+  if(ext == nil) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
@@ -278,33 +277,29 @@ end
 __e2setcost(1)
 e2function number entity:laserGetDataPointWidth(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
-  if(not ext) then return 0 end
-  local set = ext[cnt]; if(not set) then return 0 end
-  return set[2]
+  if(not ext) then return 0 end; local set = ext[cnt]
+  if(not set) then return 0 end; return set[2]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointDamage(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
-  if(not ext) then return 0 end
-  local set = ext[cnt]; if(not set) then return 0 end
-  return set[3]
+  if(not ext) then return 0 end; local set = ext[cnt]
+  if(not set) then return 0 end; return set[3]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointForce(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
-  if(not ext) then return 0 end
-  local set = ext[cnt]; if(not set) then return 0 end
-  return set[4]
+  if(not ext) then return 0 end local set = ext[cnt]
+  if(not set) then return 0 end; return set[4]
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointIsDraw(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
-  if(not ext) then return 0 end
-  local set = ext[cnt]; if(not set) then return 0 end
-  return getBool(set[5])
+  if(not ext) then return 0 end; local set = ext[cnt]
+  if(not set) then return 0 end; return toBoolWire(set[5])
 end
 
 __e2setcost(1)
@@ -316,7 +311,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceAllSolid(number idx)
   local ext = getReportKey(this, idx, "TR", "AllSolid")
-  if(not ext) then return 0 end; return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
@@ -334,7 +329,7 @@ end
 __e2setcost(1)
 e2function entity entity:laserGetTraceEntity(number idx)
   local ext = getReportKey(this, idx, "TR", "Entity")
-  return LaserLib.IsValid(ext) and ext or nil
+  return (LaserLib.IsValid(ext) and ext or nil)
 end
 
 __e2setcost(1)
@@ -352,7 +347,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHit(number idx)
   local ext = getReportKey(this, idx, "TR", "Hit")
-  if(not ext) then return 0 end; return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
@@ -370,14 +365,13 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNoDraw(number idx)
   local ext = getReportKey(this, idx, "TR", "HitNoDraw")
-  if(not ext) then return 0 end
-  return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNonWorld(number idx)
   local ext = getReportKey(this, idx, "TR", "HitNonWorld")
-  if(not ext) then return 0 end; return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
@@ -397,7 +391,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitSky(number idx)
   local ext = getReportKey(this, idx, "TR", "HitSky")
-  if(not ext) then return 0 end; return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
@@ -409,7 +403,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitWorld(number idx)
   local ext = getReportKey(this, idx, "TR", "HitWorld")
-  if(not ext) then return 0 end; return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)
@@ -435,7 +429,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceStartSolid(number idx)
   local ext = getReportKey(this, idx, "TR", "StartSolid")
-  if(not ext) then return 0 end; return getBool(ext)
+  if(not ext) then return 0 end; return toBoolWire(ext)
 end
 
 __e2setcost(1)

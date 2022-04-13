@@ -33,7 +33,7 @@ function ENT:Initialize()
     {"Width" , "NORMAL", "Updates the beam width" },
     {"Damage", "NORMAL", "Updates the beam damage"},
     {"Force" , "NORMAL", "Updates the beam force" },
-    {"Safety", "NORMAL", "Returns the beam safety"}
+    {"Safety", "NORMAL", "Updates the beam safety"}
   ):WireCreateOutputs(
     {"On"    , "NORMAL", "Laser entity status"    },
     {"Hit"   , "NORMAL", "Laser entity hit"       },

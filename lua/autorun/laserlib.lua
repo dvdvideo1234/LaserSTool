@@ -586,8 +586,8 @@ end
 
 --[[
  * Allocates entity data tables and adds entity to `LaserLib.IsPrimary`
- * ent > Entity to register as primary laser source
- * nov > Enable initializing empty value
+ * ent > Entity to initialize as primary laser source. Usually dominants
+ * nov > Enable initializing empty value. Used for sensors and configuration
 ]]
 function LaserLib.SetPrimary(ent, nov)
   if(not LaserLib.IsValid(ent)) then return end
