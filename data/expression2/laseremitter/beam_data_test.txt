@@ -1,27 +1,33 @@
 @name Beam data tester
-@inputs Source:entity
+@inputs
 @outputs [A B C]:array
-@persist
-@trigger
+@persist Src:entity
+@trigger none
+
+if(first() || dupefinished())
+{
+    runOnTick(1)
+    Src = entity():isConstrainedTo(1)
+}
 
 P = 1
 
-A[1, vector] = Source:laserGetDataOrigin(1)
-A[2, vector] = Source:laserGetDataDirect(1)
-A[3, number] = Source:laserGetDataLength(1)
-A[4, number] = Source:laserGetDataDamage(1)
-A[5, number] = Source:laserGetDataWidth(1)
-A[6, number] = Source:laserGetDataForce(1)
-B[1, number] = Source:laserGetDataRange(1)
-B[2, entity] = Source:laserGetDataSource(1)
-B[3, number] = Source:laserGetDataIsReflect(1)
-B[4, number] = Source:laserGetDataIsRefract(1)
-B[5, number] = Source:laserGetDataBounceMax(1)
-B[6, number] = Source:laserGetDataBounceRest(1)
-B[7, number] = Source:laserGetDataLengthRest(1)
-C[1, vector] = Source:laserGetDataPointNode(1,P)
-C[2, number] = Source:laserGetDataPointWidth(1,P)
-C[3, number] = Source:laserGetDataPointDamage(1,P)
-C[4, number] = Source:laserGetDataPointForce(1,P)
-C[5, number] = Source:laserGetDataPointIsDraw(1,P)
-C[6, number] = Source:laserGetDataPointSize(1)
+A[1, vector] = Src:laserGetDataOrigin(1)
+A[2, vector] = Src:laserGetDataDirect(1)
+A[3, number] = Src:laserGetDataLength(1)
+A[4, number] = Src:laserGetDataDamage(1)
+A[5, number] = Src:laserGetDataWidth(1)
+A[6, number] = Src:laserGetDataForce(1)
+B[1, number] = Src:laserGetDataRange(1)
+B[2, entity] = Src:laserGetDataSource(1)
+B[3, number] = Src:laserGetDataIsReflect(1)
+B[4, number] = Src:laserGetDataIsRefract(1)
+B[5, number] = Src:laserGetDataBounceMax(1)
+B[6, number] = Src:laserGetDataBounceRest(1)
+B[7, number] = Src:laserGetDataLengthRest(1)
+C[1, vector] = Src:laserGetDataPointNode(1,P)
+C[2, number] = Src:laserGetDataPointWidth(1,P)
+C[3, number] = Src:laserGetDataPointDamage(1,P)
+C[4, number] = Src:laserGetDataPointForce(1,P)
+C[5, number] = Src:laserGetDataPointIsDraw(1,P)
+C[6, number] = Src:laserGetDataPointSize(1)

@@ -2,7 +2,7 @@
 @inputs Source:entity
 @outputs [A B]:array
 @persist
-@trigger all
+@trigger none
 
 RF = "chrome"
 RR = "glass"
@@ -14,5 +14,6 @@ A[4, number] = laserGetRefractDataRatio(RR)
 A[5, string] = laserGetRefractDataKey(RR)
 B[1, number] = laserGetBeamPower(1,1)
 B[2, number] = laserGetBeamIsPower(1,1)
-
-
+B[2, number] = laserGetBeamIsPower(1,1)
+B[3, number] = laserGetRefractAngleRad(1, 1.333)
+B[4, number] = laserGetRefractAngleDeg(1, 1.333)

@@ -1,34 +1,35 @@
 @name Beam trace tester
-@inputs Source:entity
+@inputs
 @outputs [A B C]:array
-@persist
-@trigger
+@persist Src:entity
+@trigger none
 
-A[1, number] = Source:laserGetTraceAllSolid(1)
-A[2, number] = Source:laserGetTraceContents(1)
-A[3, number] = Source:laserGetTraceDispFlags(1)
-A[4, entity] = Source:laserGetTraceEntity(1)
-A[5, number] = Source:laserGetTraceFraction(1)
-A[6, number] = Source:laserGetTraceFractionLS(1)
-B[1, number] = Source:laserGetTraceHit(1)
-B[2, number] = Source:laserGetTraceHitBox(1)
-B[3, number] = Source:laserGetTraceHitGroup(1)
-B[4, number] = Source:laserGetTraceHitNoDraw(1)
-B[5, number] = Source:laserGetTraceHitNonWorld(1)
-B[6, vector] = Source:laserGetTraceHitNormal(1)
-B[7, vector] = Source:laserGetTraceHitPos(1)
-C[1, number] = Source:laserGetTraceHitSky(1)
-C[2, string] = Source:laserGetTraceHitTexture(1)
-C[3, number] = Source:laserGetTraceHitWorld(1)
-C[4, vector] = Source:laserGetTraceNormal(1)
-C[5, number] = Source:laserGetTracePhysicsBone(1)
-C[6, vector] = Source:laserGetTraceStartPos(1)
-C[7, number] = Source:laserGetTraceStartSolid(1)
-C[8, number] = Source:laserGetTraceSurfaceFlags(1)
-C[9, number] = Source:laserGetTraceSurfacePropsID(1)
-C[10, string] = Source:laserGetTraceSurfacePropsName(1)
+if(first() || dupefinished())
+{
+    runOnTick(1)
+    Src = entity():isConstrainedTo(1)
+}
 
-
-
-
-
+A[1, number] = Src:laserGetTraceAllSolid(1)
+A[2, number] = Src:laserGetTraceContents(1)
+A[3, number] = Src:laserGetTraceDispFlags(1)
+A[4, entity] = Src:laserGetTraceEntity(1)
+A[5, number] = Src:laserGetTraceFraction(1)
+A[6, number] = Src:laserGetTraceFractionLS(1)
+B[1, number] = Src:laserGetTraceHit(1)
+B[2, number] = Src:laserGetTraceHitBox(1)
+B[3, number] = Src:laserGetTraceHitGroup(1)
+B[4, number] = Src:laserGetTraceHitNoDraw(1)
+B[5, number] = Src:laserGetTraceHitNonWorld(1)
+B[6, vector] = Src:laserGetTraceHitNormal(1)
+B[7, vector] = Src:laserGetTraceHitPos(1)
+C[1, number] = Src:laserGetTraceHitSky(1)
+C[2, string] = Src:laserGetTraceHitTexture(1)
+C[3, number] = Src:laserGetTraceHitWorld(1)
+C[4, vector] = Src:laserGetTraceNormal(1)
+C[5, number] = Src:laserGetTracePhysicsBone(1)
+C[6, vector] = Src:laserGetTraceStartPos(1)
+C[7, number] = Src:laserGetTraceStartSolid(1)
+C[8, number] = Src:laserGetTraceSurfaceFlags(1)
+C[9, number] = Src:laserGetTraceSurfacePropsID(1)
+C[10, string] = Src:laserGetTraceSurfacePropsName(1)

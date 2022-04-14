@@ -2241,7 +2241,7 @@ end
  *    [3] > Node beam current damage automatic (number)
  *    [4] > Node beam current force automatic (number)
  *    [5] > Whenever to draw or not beam line (boolean)
- *    [6] > Color updated by various filters (boolean)
+ *    [6] > Color updated by various filters (color)
 ]]
 function mtBeam:RegisterNode(origin, nbulen, bedraw)
   local info = self.TvPoints -- Local reference to stack

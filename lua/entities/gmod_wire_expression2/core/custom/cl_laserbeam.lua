@@ -79,3 +79,5 @@ E2Helper.Descriptions["laserGetRefractBeam(vvnn)"]          = "Returns the refra
 E2Helper.Descriptions["laserGetRefractIsNext()"]            = "Returns a flag indicating the beam exits the medium after being refracted"
 E2Helper.Descriptions["laserGetRefractIsSame()"]            = "Returns a flag indicating the same refraction indices arguments are present"
 E2Helper.Descriptions["laserGetDissolveID(s)"]              = "Converts dissolve type entry to the corresponding ID"
+E2Helper.Descriptions["laserGetRefractAngleRad(nn)"]        = "Returns the refract interface border angle between two mediums in radians"
+E2Helper.Descriptions["laserGetRefractAngleDeg(nn)"]        = "Returns the refract interface border angle between two mediums in degrees"

@@ -1,5 +1,5 @@
 @name Laser Power Feedback
-@inputs Start
+@inputs Start Test:wirelink
 @outputs OW OD OF PW PD PF
 @persist Src:entity RW RD RF OW OD OF
 @trigger none

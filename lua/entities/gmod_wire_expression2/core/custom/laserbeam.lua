@@ -10,11 +10,19 @@ local REFRACT = LaserLib.DataRefract(KEYA) -- Retrieve all refraction database e
 local WIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
 --[[
- * Converts eny value to wiremod dedicated booleans
+ * Converts any value to wiremod dedicated booleans
  * src > source value to be converted
 ]]
 local function toBoolWire(src)
   return WIRECNV[tobool(src)]
+end
+
+--[[
+ * Converts any value to wiremod dedicated number
+ * src > source value to be converted
+]]
+local function toNumberWire(src)
+  return (tonumber(src) or 0)
 end
 
 --[[
@@ -226,44 +234,37 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetDataDamage(number idx)
-  local ext = getReportKey(this, idx, "BM", "NvDamage")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "NvDamage"))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataWidth(number idx)
-  local ext = getReportKey(this, idx, "BM", "NvWidth")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "NvWidth"))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataForce(number idx)
-  local ext = getReportKey(this, idx, "BM", "NvForce")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "NvForce"))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataBounceMax(number idx)
-  local ext = getReportKey(this, idx, "BM", "MxBounce")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "MxBounce"))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataBounceRest(number idx)
-  local ext = getReportKey(this, idx, "BM", "NvBounce")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "NvBounce"))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataRange(number idx)
-  local ext = getReportKey(this, idx, "BM", "RaLength")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "RaLength"))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataLengthRest(number idx)
-  local ext = getReportKey(this, idx, "BM", "NvLength")
-  return (ext and ext or 0)
+  return toNumberWire(getReportKey(this, idx, "BM", "NvLength"))
 end
 
 __e2setcost(1)
@@ -271,7 +272,7 @@ e2function entity entity:laserGetDataSource(number idx)
   local beam = getReport(this, idx, "BM")
   if(not beam) then return nil end
   local src = beam:GetSource()
-  return LaserLib.IsValid(src) and src or nil
+  return (LaserLib.IsValid(src) and src or nil)
 end
 
 __e2setcost(1)
@@ -289,10 +290,8 @@ end
 __e2setcost(1)
 e2function vector entity:laserGetDataPointNode(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
-  if(not ext) then return {0,0,0} end
-  local set = ext[cnt]; if(not set) then return {0,0,0} end
-  if(cnt <= 0 or cnt > ext.Size) then return {0,0,0} end
-  return {set[1][1], set[1][2], set[1][3]}
+  if(not ext) then return {0,0,0} end; local set = ext[cnt]
+  if(not set) then return {0,0,0} end; return {set[1][1], set[1][2], set[1][3]}
 end
 
 __e2setcost(1)
@@ -526,12 +525,12 @@ e2function number laserGetRefractIsSame()
 end
 
 __e2setcost(1)
-e2function number laserGetBeamPower(width, damage)
+e2function number laserGetBeamPower(number width, number damage)
   return LaserLib.GetPower(width, damage)
 end
 
 __e2setcost(1)
-e2function number laserGetBeamIsPower(width, damage)
+e2function number laserGetBeamIsPower(number width, number damage)
   return (LaserLib.IsPower(width, damage) and 1 or 0)
 end
 
@@ -539,3 +538,14 @@ __e2setcost(1)
 e2function number laserGetDissolveID(string type)
   return LaserLib.GetDissolveID(type)
 end
+
+__e2setcost(1)
+e2function number laserGetRefractAngleRad(number source, number destin)
+  return LaserLib.GetRefractAngle(source, destin, false)
+end
+
+__e2setcost(1)
+e2function number laserGetRefractAngleDeg(number source, number destin)
+  return LaserLib.GetRefractAngle(source, destin, true)
+end
+
