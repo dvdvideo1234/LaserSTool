@@ -57,6 +57,7 @@ DATA.TRWU = 50000            -- The distance to trace for finding water surface
 DATA.CNLN = 1000             -- Cone slope length for cone section search
 DATA.NTIF = {}               -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"       -- Utilized to print vector in proper manner
+DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.BBONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.BLENG = 0               -- External forced beam length used in the current request
