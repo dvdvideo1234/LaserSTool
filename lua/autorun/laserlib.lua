@@ -35,6 +35,7 @@ DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How lon
 DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.DRWBMSPD = CreateConVar("laseremitter_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
 DATA.VESFBEAM = CreateConVar("laseremitter_vesfbeam", 150, DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.NRASSIST = CreateConVar("laseremitter_nrassist", 1000, DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 
 DATA.GRAT = 1.61803398875    -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"   -- Tool name for internal use
@@ -54,9 +55,8 @@ DATA.ERAD = 1.12             -- Entity refract coefficient for back trace origin
 DATA.TRWD = 0.27             -- Beam back trace width when refracting
 DATA.WLMR = 10000            -- World vectors to be correctly converted to local
 DATA.TRWU = 50000            -- The distance to trace for finding water surface
-DATA.CNLN = 1000             -- Cone slope length for cone section search
-DATA.NTIF = {}               -- User notification configuration type
 DATA.FMVA = "%f,%f,%f"       -- Utilized to print vector in proper manner
+DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.BBONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.BLENG = 0               -- External forced beam length used in the current request
@@ -66,13 +66,13 @@ DATA.KEYD = "#"              -- The default key in a collection point to take wh
 DATA.KEYA = "*"              -- The all key in a collection point to return the all in set
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
+DATA.VTEMP = Vector()        -- Global library temporary storage vector
 DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
+DATA.KPHYP = DATA.TOOL.."_physprop" -- Key used to registed physical properties
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
-DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
-DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 
 local gtTCUST = {
   "Forward", "Right", "Up",
@@ -269,7 +269,7 @@ local gtMATYPE = {
 }
 
 local gtTRACE = {
-  ["noDetour"]   = true, -- Mee's Seamless-Portals. Disable detour
+  ["noDetour"]   = true, -- Mee's Seamless-Portals. Backwards compatibility
   start          = Vector(),
   endpos         = Vector(),
   filter         = nil,
@@ -282,7 +282,6 @@ local gtTRACE = {
 }
 
 if(CLIENT) then
-  DATA.COSV = math.cos(math.rad(75))
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
@@ -291,6 +290,10 @@ if(CLIENT) then
   gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
   killicon.Add(gtCLASS[1][1], DATA.KILL, gtCOLOR["WHITE"])
+else
+  DATA.NTIF = {} -- User notification configuration type
+  DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
+  DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 end
 
 -- Callbacks for console variables
@@ -364,7 +367,11 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
     gtTRACE.mins:SetUnpacked(-m, -m, -m)
     gtTRACE.maxs:SetUnpacked( m,  m,  m)
   else
-    gtTRACE.funct = util.TraceLine
+    if(SeamlessPortals) then -- Mee's Seamless-Portals
+      gtTRACE.funct = SeamlessPortals.TraceLine
+    else -- Seamless portals are not installed
+      gtTRACE.funct = util.TraceLine
+    end -- Use the original no detour trace line
   end
   if(mask ~= nil) then
     gtTRACE.mask = mask
@@ -727,7 +734,16 @@ function LaserLib.Configure(unit)
   end
   ------ HIT REPORTS MANAGER ------
   --[[
-   * Removes hit reports from the list
+   * Returns hit report stack size
+  ]]
+  function unit:GetHitReportMax()
+    local rep = self.hitReports
+    if(not rep) then return 0 end
+    return rep.Size or 0
+  end
+
+  --[[
+   * Removes hit reports from the list according to new size
    * rovr > When remove overhead is provided deletes
             all entries with larger index
    * Data is stored in notation: self.hitReports[ID]
@@ -975,6 +991,14 @@ function LaserLib.GetTransformUnit(ent)
   return vor, vdr
 end
 
+--[[
+ * Draws OBB projected iteraction for a single ray
+ * vbb > Bounding box center being drawn
+ * org > Origin ray start position vector
+ * dir > Direction ray beam aiming vector (normalized)
+ * nar > Treshhold to compare the dostance OBB to projection
+ * rev > Reverse the drawing colors when available
+]]
 function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   if(SERVER) then return end -- Server can go out now
   if(not (org and dir)) then return end
@@ -1004,31 +1028,65 @@ function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   end
 end
 
+function LaserLib.DrawAssistReports(vbb, erp, nar, rev)
+  if(SERVER) then return end -- Server can go out now
+  if(not LaserLib.IsValid(erp)) then return end
+  for idx = 1, erp.hitReports.Size do
+    local beam = erp:GetHitReport(idx)
+    if(beam) then local tvp = beam.TvPoints
+      for idp = 2, tvp.Size do
+        local org, nxt = tvp[idp - 1], tvp[idp - 0]
+        local dir = (nxt[1] - org[1]); dir:Normalize()
+        LaserLib.DrawAssistOBB(vbb, org[1], dir, nar, rev)
+      end
+    end
+  end
+end
+
 function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   if(SERVER) then return end -- Server can go out now
   if(ray <= 0) then return end -- Ray assist disabled
-  local ncst = math.Clamp(ray, 0, DATA.MAXRAYAS:GetFloat())^2
-  local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
+  local vndr = DATA.VTEMP -- Cube size
+  local mray = DATA.MAXRAYAS:GetFloat()
+  local nasr = DATA.NRASSIST:GetFloat()
+  vndr.x, vndr.y, vndr.z = nasr, nasr, nasr
+  local vmax = Vector(org); vmax:Add(vndr)
+  local vmin = Vector(org); vmin:Sub(vndr)
+  local ncst = math.Clamp(ray, 0, mray)^2
+  local teun = ents.FindInBox(vmin, vmax)
   for idx = 1, #teun do local ent = teun[idx]
-    if(tre ~= ent and LaserLib.IsUnit(ent)) then
+    if(LaserLib.IsValid(ent) and
+      LaserLib.IsUnit(ent) and tre ~= ent)
+    then -- Move targets to the trace entity beam
       local vbb = ent:LocalToWorld(ent:OBBCenter())
-      LaserLib.DrawAssistOBB(vbb, org, dir, ncst)
-    end -- Aim laser beam at the receiver entity
+      local rep = (tre and tre.hitReports or nil)
+      if(rep and rep.Size and rep.Size > 0) then
+        LaserLib.DrawAssistReports(vbb, tre, ncst)
+      else
+        LaserLib.DrawAssistOBB(vbb, org, dir, ncst)
+      end
+    end
   end
   if(tre and ply) then
     local vbb = tre:LocalToWorld(tre:OBBCenter())
     local org, dir = ply:EyePos(), ply:GetAimVector()
-    local teun = ents.FindInCone(org, dir, DATA.CNLN, DATA.COSV)
+    local teun = ents.FindInBox(vmin, vmax)
     for idx = 1, #teun do
       local ent = teun[idx]
       local ecs = ent:GetClass()
       if(tre ~= ent and not
          ecs ~= "gmod_laser" and
+         LaserLib.IsValid(ent) and
          ecs:find("gmod_laser", 1, true))
-      then
-        local org, dir = LaserLib.GetTransformUnit(ent)
-        LaserLib.DrawAssistOBB(vbb, org, dir, ncst, true)
-      end -- Move receiver entity on the laser beam
+      then -- Move trace entity to the targets beam
+        local rep = (ent and ent.hitReports or nil)
+        if(rep and rep.Size and rep.Size > 0) then
+          LaserLib.DrawAssistReports(vbb, ent, ncst, true)
+        else
+          local org, dir = LaserLib.GetTransformUnit(ent)
+          LaserLib.DrawAssistOBB(vbb, org, dir, ncst, true)
+        end
+      end
     end
   end
 end
@@ -1506,9 +1564,8 @@ function LaserLib.SetProperties(ent, mat)
   local phy = ent:GetPhysicsObject()
   if(not LaserLib.IsValid(phy)) then return end
   local tab = {Material = tostring(mat or "")}
-  local key = "laseremitter_properties"
   construct.SetPhysProp(nil, ent, 0, phy, tab)
-  duplicator.StoreEntityModifier(ent, key, tab)
+  duplicator.StoreEntityModifier(ent, DATA.KPHYP, tab)
 end
 
 --[[
@@ -1815,6 +1872,9 @@ if(SERVER) then
 
     -- Setup the laser kill crediting
     LaserLib.SetPlayer(laser, user)
+
+    -- Apply proper laser emiter material
+    LaserLib.SetProperties(laser, "metal")
 
     -- These do not change when laser is updated
     table.Merge(laser:GetTable(), {key = key, frozen = frozen})

@@ -327,7 +327,6 @@ function TOOL:LeftClick(trace)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
-  LaserLib.SetProperties(laser, "metal")
   LaserLib.ApplySpawn(laser, trace, self:GetTransform())
 
   local we, nc = LaserLib.Weld(laser, trace, surfweld, nocollide, forcelimit)
@@ -479,11 +478,15 @@ function TOOL:GetSurface(ent)
   local row = LaserLib.DataReflect(mat)
   if(row) then return "{"..table.concat(row, "|").."} "..mat
   else row = LaserLib.DataRefract(mat)
-    if(row) then return "{"..table.concat(row, "|").."} "..mat end
+    if(row) then
+      local fnm = "["..LaserLib.GetData("FNUH").."]"
+      local ang = LaserLib.GetRefractAngle(row[1], 1, true)
+      return fnm:format(ang).."{"..table.concat(row, "|").."} "..mat
+    end
   end
 end
 
-function TOOL:DrawHUD(a,b,c)
+function TOOL:DrawHUD()
   local ply = LocalPlayer()
   local tr = ply:GetEyeTrace()
   if(not (tr and tr.Hit)) then return end

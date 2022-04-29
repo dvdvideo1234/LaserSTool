@@ -102,7 +102,7 @@ function ENT:SpawnFunction(user, trace)
                                     pushforce  , endingeffect, reflectrate , refractrate ,
                                     forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
   if(LaserLib.IsValid(laser)) then
-    LaserLib.SetProperties(laser, "metal")
+
     LaserLib.ApplySpawn(laser, trace, trandata)
 
     user:AddCount(tool.."s", laser)
