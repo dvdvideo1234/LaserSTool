@@ -327,7 +327,6 @@ function TOOL:LeftClick(trace)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
-  LaserLib.SetProperties(laser, "metal")
   LaserLib.ApplySpawn(laser, trace, self:GetTransform())
 
   local we, nc = LaserLib.Weld(laser, trace, surfweld, nocollide, forcelimit)
