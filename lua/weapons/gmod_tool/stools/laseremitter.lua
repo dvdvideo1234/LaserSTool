@@ -24,6 +24,7 @@ if(CLIENT) then
       local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
       if(tre:GetClass():find("gmod_laser", 1, true)) then -- For all laser units
         local vor, vdr = LaserLib.GetTransformUnit(tre) -- Read unit transform
+        vor, vdr = (vor or tr.HitPos), (vdr or tr.HitNormal) -- Failsafe rays
         LaserLib.DrawAssist(vor, vdr, ray, tre, ply) -- Convert to world-space
       end
     end)

@@ -11,8 +11,11 @@ function ENT:Initialize()
   self:PhysicsInit(SOLID_VPHYSICS)
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
-  self:WireCreateOutputs(
-    {"Entity", "ENTITY", "Reflector entity itself" }
+  self:WireCreateInputs(
+    {"Ratio" , "NORMAL", "Reflector absorbtion ratio"}
+  ):WireCreateOutputs(
+    {"Ratio" , "NORMAL", "Reflector absorbtion ratio"},
+    {"Entity", "ENTITY", "Reflector entity itself"   }
   )
 
   local phys = self:GetPhysicsObject()

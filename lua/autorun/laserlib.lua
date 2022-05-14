@@ -109,7 +109,7 @@ local gtCLASS = {
   -- [3] Extension for variable name indices. Populate this when model control variable is different
   {"gmod_laser"          , nil        , nil      }, -- Laser entity class `PriarySource`
   {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeam`
-  {"prop_physics"        , "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
+  {"gmod_laser_reflector", "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
   {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `EveryBeam`
   {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `DoBeam`
   {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `EveryBeam`
@@ -1070,14 +1070,11 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   if(tre and ply) then
     local vbb = tre:LocalToWorld(tre:OBBCenter())
     local org, dir = ply:EyePos(), ply:GetAimVector()
-    local teun = ents.FindInBox(vmin, vmax)
     for idx = 1, #teun do
       local ent = teun[idx]
       local ecs = ent:GetClass()
-      if(tre ~= ent and not
-         ecs ~= "gmod_laser" and
-         LaserLib.IsValid(ent) and
-         ecs:find("gmod_laser", 1, true))
+      if(tre ~= ent and not ecs ~= "gmod_laser" and
+         LaserLib.IsValid(ent) and ecs:find("gmod_laser", 1, true))
       then -- Move trace entity to the targets beam
         local rep = (ent and ent.hitReports or nil)
         if(rep and rep.Size and rep.Size > 0) then
@@ -1764,7 +1761,7 @@ if(SERVER) then
     local obb = target:LocalToWorld(target:OBBCenter())
     local pbb = LaserLib.ProjectRay(obb, origin, direct)
           obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
-    target:SetVelocity(obb)
+          obb.z = 0; target:SetVelocity(obb)
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
   end
 
@@ -3055,6 +3052,20 @@ local gtACTORS = {
       node[1]:Set(trace.HitPos) -- We are not portal update node
       node[5] = true            -- We are not portal enable drawing
     end
+  end,
+  ["gmod_laser_reflector"] = function(beam, trace)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local mat = beam:GetMaterialID(trace)
+    local reflect = GetMaterialEntry(mat, gtREFLECT)
+    if(not reflect) then return end
+    local ent = trace.Entity; beam.IsTrace = true
+    local rat = ent:GetReflectRatio()
+    local urt = ((rat > 0) and rat or reflect[1])
+    local node = beam:SetPowerRatio(urt) -- May absorb
+    beam.VrDirect:Set(LaserLib.GetReflected(beam.VrDirect, trace.HitNormal))
+    beam.VrOrigin:Set(trace.HitPos)
+    node[1]:Set(trace.HitPos) -- We are not portal update node
+    node[5] = true            -- We are not portal enable drawing
   end
 }
 
@@ -3126,7 +3137,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     bIsValid, sTrClass = beam:ActorTarget(target)
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      if(bIsValid) then -- Target is valis and it is a actor
+      if(bIsValid) then -- Target is valid and it is a actor
         if(sTrClass and gtACTORS[sTrClass]) then
           beam:RegisterNode(trace.HitPos, trace.LengthNR, false)
         else -- The trace entity target is not special actor case
