@@ -1,6 +1,7 @@
 include("shared.lua")
 
-function ENT:Draw()
-  self:DrawModel()
-  self:DrawShadow(false)
+function ENT:Initialize()
+end
+
+function ENT:Think()
 end

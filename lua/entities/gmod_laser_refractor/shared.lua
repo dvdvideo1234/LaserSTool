@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
-ENT.PrintName      = "Dimmer"
+ENT.PrintName      = "Refractor"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
@@ -19,40 +19,48 @@ include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
-  self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
-  self:EditableSetBool  ("BeamReplicate", "General")
-  self:EditableSetBool  ("LinearMapping", "General")
+  self:EditableSetBool("NumerousSurface", "General")
+  self:EditableSetFloat("InRefractIndex", "General", -10, 10)
+  self:EditableSetFloat("InRefractRatio", "General",   0,  1)
   LaserLib.Configure(self)
 end
 
--- Override the beam transormation
-function ENT:SetBeamTransform()
-  local normal = Vector(0,0,1) -- Local surface direction
-  self:SetNormalLocal(normal)
-  return self
-end
-
-function ENT:GetHitNormal()
+function ENT:GetRefractIndex()
   if(SERVER) then
-    local normal = self:WireRead("Normal", true)
-    if(normal) then normal:Normalize() else
-      normal = self:GetNormalLocal()
-    end -- Make sure length is one unit
-    self:SetNWVector("GetNormalLocal", normal)
-    self:WireWrite("Normal", normal)
-    return normal
+    local index = self:WireRead("Index", true)
+    if(not index) then index = self:GetInRefractIndex() end
+    self:SetNWFloat("GetInRefractIndex", index)
+    self:WireWrite("Index", index)
+    return index
   else
-    local normal = self:GetNormalLocal()
-    return self:GetNWFloat("GetNormalLocal", normal)
+    local index = self:GetInRefractIndex()
+    return self:GetNWFloat("GetInRefractIndex", index)
   end
 end
 
-function ENT:GetHitPower(normal, beam, trace, bmln)
-  local norm = Vector(normal)
-        norm:Rotate(self:GetAngles())
-  local dotm = LaserLib.GetData("DOTM")
-  local dotv = math.abs(norm:Dot(beam.VrDirect))
-  if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
-  local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - dotm)), dotv
+function ENT:SetRefractIndex(index)
+  local index = math.Clamp(tonumber(index) or 0, 0, 1)
+  self:SetInRefractIndex(index)
+  self:WireWrite("Index", index)
+  return self
+end
+
+function ENT:GetRefractRatio()
+  if(SERVER) then
+    local ratio = self:WireRead("Ratio", true)
+    if(not ratio) then ratio = self:GetInRefractRatio() end
+    self:SetNWFloat("GetInRefractRatio", ratio)
+    self:WireWrite("Ratio", ratio)
+    return ratio
+  else
+    local ratio = self:GetInRefractRatio()
+    return self:GetNWFloat("GetInRefractRatio", ratio)
+  end
+end
+
+function ENT:SetRefractRatio(ratio)
+  local ratio = math.Clamp(tonumber(ratio) or 0, 0, 1)
+  self:SetInRefractRatio(ratio)
+  self:WireWrite("Ratio", ratio)
+  return self
 end

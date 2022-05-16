@@ -18,6 +18,7 @@ DATA.MFORCELM = CreateConVar("laseremitter_maxforclim", 25000, DATA.FGSRVCN, "Ma
 DATA.MAXRAYAS = CreateConVar("laseremitter_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
 DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
 DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
+DATA.MREFRACT = CreateConVar("laseremitter_mrefract", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the refractor model")
 DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
 DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the divider model")
 DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Controls the sensor model")
@@ -104,6 +105,7 @@ local gtCLASS = {
   ["gmod_laser_sensor"    ] = true, -- This is present for hot reload. You must register yours separately
   ["gmod_laser_splitter"  ] = true, -- This is present for hot reload. You must register yours separately
   ["gmod_laser_splitterm" ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_refractor" ] = true, -- This is present for hot reload. You must register yours separately
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
   -- [2] Extension for folder name indices. Stores which folder are entity specific files located
   -- [3] Extension for variable name indices. Populate this when model control variable is different
@@ -117,7 +119,8 @@ local gtCLASS = {
   {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `EveryBeam`
   {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
   {"gmod_laser_parallel" , "parallel" , "paralel"}, -- Laser beam parallel `DoBeam`
-  {"gmod_laser_filter"   , "filter"   , nil      }  -- Laser beam filter `DoBeam`
+  {"gmod_laser_filter"   , "filter"   , nil      }, -- Laser beam filter `DoBeam`
+  {"gmod_laser_refractor", "refractor", "refract"}  -- Laser beam refractor `DoBeam`
 }
 
 local gtMODEL = { -- Model used by the entities menu
@@ -131,7 +134,8 @@ local gtMODEL = { -- Model used by the entities menu
   DATA.MSPLITRM:GetString(),
   DATA.MPORTAL:GetString() , -- Portal: Well... Portals being entities
   DATA.MPARALEL:GetString(),
-  DATA.MFILTER:GetString()
+  DATA.MFILTER:GetString() ,
+  DATA.MREFRACT:GetString()
 }
 
 local gtMATERIAL = {
@@ -145,7 +149,8 @@ local gtMATERIAL = {
   "models/dog/eyeglass"                ,
   "models/props_combine/com_shield001a",
   "models/dog/eyeglass"                ,
-  "models/props_combine/citadel_cable"
+  "models/props_combine/citadel_cable" ,
+  "models/dog/eyeglass"
 }
 
 local gtCOLOR = {
@@ -3090,13 +3095,10 @@ end
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index, stage)
   -- Parameter validation check. Allocate only when these conditions are present
   if(not LaserLib.IsValid(entity)) then return end -- Source entity must be valid
-  -- Create a laser beam object and validate the current ray spawn parameters
-  local beam = Beam(origin, direct, width, damage, length, force) -- Create beam class
+  -- Create a laser beam object and validate the currently passed ray spawn parameters
+  local beam = Beam(origin, direct, width, damage, length, force) -- Creates beam class
   if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
-  local bIsValid  = false -- Stores whenever the trace is valid entity or not
-  local sTrMaters = "" -- This stores the current extracted material as string
-  local sTrClass  = nil -- This stores the class of the current trace entity
   local trace, tr, target = {}, {} -- Configure and target and shared trace reference
   -- Reports dedicated values that are being used by other entities and processes
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
@@ -3134,7 +3136,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       end
     end
     -- Check current target for being a valid specific actor
-    bIsValid, sTrClass = beam:ActorTarget(target)
+    -- Stores whenever the trace is valid entity or not and the class
+    local bIsValid, sTrClass = beam:ActorTarget(target)
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(bIsValid) then -- Target is valid and it is a actor
@@ -3198,7 +3201,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
-            sTrMaters = beam:GetMaterialID(trace)
+            local sTrMaters = beam:GetMaterialID(trace) -- Current extracted material as string
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, gtREFLECT)
             if(reflect and not beam.StRfract) then -- Just call reflection and get done with it..
@@ -3291,7 +3294,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
-            sTrMaters = beam:GetMaterialID(trace)
+            local sTrMaters = beam:GetMaterialID(trace) -- Current extracted material as string
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(sTrMaters, gtREFLECT)
             if(reflect and not beam.StRfract) then

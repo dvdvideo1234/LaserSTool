@@ -12,16 +12,18 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Ratio" , "NORMAL", "Reflector absorbtion ratio"}
+    {"Ratio" , "NORMAL", "Reflector surface ratio"}
   ):WireCreateOutputs(
-    {"Ratio" , "NORMAL", "Reflector absorbtion ratio"},
-    {"Entity", "ENTITY", "Reflector entity itself"   }
+    {"Ratio" , "NORMAL", "Reflector surface ratio"},
+    {"Entity", "ENTITY", "Reflector entity itself"}
   )
 
   local phys = self:GetPhysicsObject()
   if(LaserLib.IsValid(phys)) then
     phys:Wake(); phys:SetMass(50)
   end -- Apply decent mass
+
+  self:SetInReflectRatio(0)
 
   -- Setup default configuration
   self:WireWrite("Entity", self)
