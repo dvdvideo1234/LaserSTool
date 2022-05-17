@@ -2064,6 +2064,19 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
+ * Returns the desired nore information
+ * index > Node index to be used. Defaults to node size
+]]
+function mtBeam:GetNode(index)
+  local tno = self.TvPoints
+  if(index) then
+    return tno[index]
+  else
+    return tno[tno.Size]
+  end
+end
+
+--[[
  * Checks when water base medium is not activated
 ]]
 function mtBeam:IsAir()
@@ -2464,14 +2477,14 @@ end
 
 --[[
  * Requests a beam reflection
- * reflect > Reflection info structure
- * trace   > The current trace result
+ * ratio > Reflection ratio value
+ * trace > The current trace result
 ]]
-function mtBeam:Reflect(reflect, trace)
+function mtBeam:Reflect(ratio, trace)
   self.VrDirect:Set(LaserLib.GetReflected(self.VrDirect, trace.HitNormal))
   self.VrOrigin:Set(trace.HitPos)
   self.NvLength = self.NvLength - self.NvLength * trace.Fraction
-  if(self.BrReflec) then self:SetPowerRatio(reflect[1]) end
+  if(self.BrReflec) then self:SetPowerRatio(ratio) end
   return self -- Coding effective API
 end
 
@@ -2714,6 +2727,35 @@ function mtBeam:UpdateSource(trace)
 end
 
 --[[
+ * This calculates the primary refraction info when we change boundary
+ * index > Refraction index for the new medium boundaty
+ * trace > Trace result structure of the current trace beam
+]]
+function mtBeam:GetBoundaryEntity(index, trace)
+  local bnex, bsam, vdir -- Refraction entity direction and reflection
+  -- Call refraction cases and prepare to trace-back
+  if(self.StRfract) then -- Bounces were decremented so move it up
+    if(self:IsFirst()) then
+      vdir, bnex = Vector(self.VrDirect), true -- Node starts inside solid
+    else -- When two props are stuck save the middle boundary and traverse
+      -- When the traverse mediums is different and node is not inside a laser
+      if(self:IsMemory(index, trace.HitPos)) then
+        vdir, bnex, bsam = LaserLib.GetRefracted(self.VrDirect,
+                       self.TrMedium.M[3], self.TrMedium.M[1][1], index)
+        -- Do not waste game ticks to refract the same refraction ratio
+      else -- When there is no medium refractive index traverse change
+        vdir, bsam = Vector(self.VrDirect), true -- Keep the last beam direction
+      end -- Finish start-refraction for current iteration
+    end -- Marking the fraction being zero and refracting from the last entity
+    self.StRfract = false -- Make sure to disable the flag again
+  else -- Otherwise do a normal water-entity-air refraction
+    vdir, bnex, bsam = LaserLib.GetRefracted(self.VrDirect,
+                   trace.HitNormal, self.TrMedium.S[1][1], index)
+  end
+  return bnex, bsam, vdir
+end
+
+--[[
  * This traps the beam by following the trace
  * You can mark trace view points as visible
  * sours > Override for laser unit entity `self`
@@ -2883,7 +2925,7 @@ local gtACTORS = {
     -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
     ent:SetNWInt("laseremitter_portal", out:EntIndex())
-    local inf = beam.TvPoints; inf[inf.Size][5] = true
+    local node = beam:GetNode(); node[5] = true
     local dir, pos = beam.VrDirect, trace.HitPos
     local mav, vsm = GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)
@@ -2914,7 +2956,7 @@ local gtACTORS = {
     local ent = trace.Entity
     local out = ent:ExitPortal()
     if(not LaserLib.IsValid(out)) then return end
-    local inf = beam.TvPoints; inf[inf.Size][5] = true
+    local node = beam:GetNode(); node[5] = true
     local osz, esz = out:GetExitSize(), ent:GetExitSize()
     local szx = (osz.x / esz.x)
     local szy = (osz.y / esz.y)
@@ -3063,12 +3105,40 @@ local gtACTORS = {
     local mat = beam:GetMaterialID(trace)
     local reflect = GetMaterialEntry(mat, gtREFLECT)
     if(not reflect) then return end
+    local node = beam:GetNode()
     local ent = trace.Entity; beam.IsTrace = true
-    local rat = ent:GetReflectRatio()
-    local urt = ((rat > 0) and rat or reflect[1])
-    local node = beam:SetPowerRatio(urt) -- May absorb
+    if(beam.BrReflec) then -- May absorb
+      local ratio = ent:GetReflectRatio()
+      beam:SetPowerRatio((ratio > 0) and ratio or reflect[1])
+    end
     beam.VrDirect:Set(LaserLib.GetReflected(beam.VrDirect, trace.HitNormal))
     beam.VrOrigin:Set(trace.HitPos)
+    node[1]:Set(trace.HitPos) -- We are not portal update node
+    node[5] = true            -- We are not portal enable drawing
+  end,
+  ["gmod_laser_refractor"] = function(beam, trace)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local mat = beam:GetMaterialID(trace) -- Current extracted material as string
+    local refract, key = GetMaterialEntry(mat, gtREFRACT)
+    if(not refract) then return end
+    local node = beam:GetNode()
+    local ent = trace.Entity; beam.IsTrace = true
+    local idx = ent:GetRefractIndex(); idx = (idx > 0) and idx or refract[1]
+    local rat = ent:GetRefractRatio(); rat = (rat > 0) and rat or refract[2]
+    local bnex, bsam, vdir = beam:GetBoundaryEntity(idx, trace)
+    if(ent:GetIsSurfaceMode()) then
+      beam:Redirect(trace.HitPos, vdir) -- Redirect the beam on the surface
+      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the entity
+    else -- Refraction done using multiple surfaces
+      if(bnex or bsam) then -- We have to change mediums
+        local refcopy = table.Copy(refract)
+              refcopy[1] = idx; refcopy[2] = rat
+        beam:SetRefractEntity(trace.HitPos, vdir, ent, refcopy, key)
+      else -- Redirect the beam with the reflected ray
+        beam:Redirect(trace.HitPos, vdir)
+      end
+    end -- Apply refraction ratio. Entity may absorb the power
+    if(beam.BrReflec) then beam:SetPowerRatio(rat) end
     node[1]:Set(trace.HitPos) -- We are not portal update node
     node[5] = true            -- We are not portal enable drawing
   end
@@ -3105,7 +3175,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
   beam.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
   beam.BmRecstg = (math.max(tonumber(stage) or 0, 0) + 1) -- Beam recursion depth for units that use it
-  beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Use one if not provided
+  beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Defaults to one if not provided
 
   beam:SourceFilter(entity)
   beam:RegisterNode(origin)
@@ -3137,11 +3207,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     end
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
-    local bIsValid, sTrClass = beam:ActorTarget(target)
+    local ok, act = beam:ActorTarget(target)
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      if(bIsValid) then -- Target is valid and it is a actor
-        if(sTrClass and gtACTORS[sTrClass]) then
+      if(ok) then -- Target is valid and it is a actor
+        if(act and gtACTORS[act]) then
           beam:RegisterNode(trace.HitPos, trace.LengthNR, false)
         else -- The trace entity target is not special actor case
           beam:RegisterNode(trace.HitPos, trace.LengthNR)
@@ -3163,7 +3233,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     -- When we are still tracing and hit something that is not specific unit
     if(beam.IsTrace and trace.Hit) then
       -- Register a hit so reduce bounces count
-      if(bIsValid) then
+      if(ok) then
         if(beam.IsRfract) then
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
@@ -3195,45 +3265,27 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
           end
         else -- Put special cases here
-          if(sTrClass and gtACTORS[sTrClass]) then
-            local suc, err = pcall(gtACTORS[sTrClass], beam, trace)
+          if(act and gtACTORS[act]) then
+            local suc, err = pcall(gtACTORS[act], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
-            local sTrMaters = beam:GetMaterialID(trace) -- Current extracted material as string
+            local mat = beam:GetMaterialID(trace) -- Current extracted material as string
             beam.IsTrace  = true -- Still tracing the beam
-            local reflect = GetMaterialEntry(sTrMaters, gtREFLECT)
+            local reflect = GetMaterialEntry(mat, gtREFLECT)
             if(reflect and not beam.StRfract) then -- Just call reflection and get done with it..
-              beam:Reflect(reflect, trace) -- Call reflection method
+              beam:Reflect(reflect[1], trace) -- Call reflection method
             else
-              local refract, key = GetMaterialEntry(sTrMaters, gtREFRACT)
+              local refract, key = GetMaterialEntry(mat, gtREFRACT)
               if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
                   beam.NvLength = beam.NvLength - beam.NvLength * trace.Fraction
                   -- Calculated refraction ray. Reflect when not possible
-                  local bnex, bsam, vdir -- Refraction entity direction and reflection
-                  -- Call refraction cases and prepare to trace-back
-                  if(beam.StRfract) then -- Bounces were decremented so move it up
-                    if(beam:IsFirst()) then
-                      vdir, bnex = Vector(beam.VrDirect), true -- Primary node starts inside solid
-                    else -- When two props are stuck save the middle boundary and traverse
-                      -- When the traverse mediums is different and node is not inside a laser
-                      if(beam:IsMemory(refract[1], trace.HitPos)) then
-                        vdir, bnex, bsam = LaserLib.GetRefracted(beam.VrDirect,
-                                       beam.TrMedium.M[3], beam.TrMedium.M[1][1], refract[1])
-                        -- Do not waste game ticks to refract the same refraction ratio
-                      else -- When there is no medium refractive index traverse change
-                        vdir, bsam = Vector(beam.VrDirect), true -- Keep the last beam direction
-                      end -- Finish start-refraction for current iteration
-                    end -- Marking the fraction being zero and refracting from the last entity
-                    beam.StRfract = false -- Make sure to disable the flag again
-                  else -- Otherwise do a normal water-entity-air refraction
-                    vdir, bnex, bsam = LaserLib.GetRefracted(beam.VrDirect,
-                                   trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
-                  end
+                  local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
+                  -- Check refraction medium boundary and perform according actions
                   if(bnex or bsam) then -- We have to change mediums
                     beam:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
                   else -- Redirect the beam with the reflected ray
@@ -3288,19 +3340,19 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end -- Apply power ratio when requested
           if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
         else
-          if(sTrClass and gtACTORS[sTrClass]) then
-            local suc, err = pcall(gtACTORS[sTrClass], beam, trace)
+          if(act and gtACTORS[act]) then
+            local suc, err = pcall(gtACTORS[act], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
-            local sTrMaters = beam:GetMaterialID(trace) -- Current extracted material as string
+            local mat = beam:GetMaterialID(trace) -- Current extracted material as string
             beam.IsTrace  = true -- Still tracing the beam
-            local reflect = GetMaterialEntry(sTrMaters, gtREFLECT)
+            local reflect = GetMaterialEntry(mat, gtREFLECT)
             if(reflect and not beam.StRfract) then
-              beam:Reflect(reflect, trace) -- Call reflection method
+              beam:Reflect(reflect[1], trace) -- Call reflection method
             else
-              local refract, key = GetMaterialEntry(sTrMaters, gtREFRACT)
+              local refract, key = GetMaterialEntry(mat, gtREFRACT)
               if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
