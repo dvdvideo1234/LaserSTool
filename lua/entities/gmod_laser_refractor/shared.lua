@@ -19,7 +19,8 @@ include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
-  self:EditableSetBool("IsSurfaceMode", "General")
+  self:EditableSetBool ("ZeroIndexMode" , "General")
+  self:EditableSetBool ("HitSurfaceMode", "General")
   self:EditableSetFloat("InRefractIndex", "General", -10, 10)
   self:EditableSetFloat("InRefractRatio", "General",   0,  1)
   LaserLib.Configure(self)
@@ -63,4 +64,14 @@ function ENT:SetRefractRatio(ratio)
   self:SetInRefractRatio(ratio)
   self:WireWrite("Ratio", ratio)
   return self
+end
+
+function ENT:GetRefractInfo(refract)
+  local cpy = table.Copy(refract)
+  local idx = self:GetRefractIndex()
+  local rat = self:GetRefractRatio()
+  if(self:GetZeroIndexMode()) then cpy[1] = idx
+  else cpy[1] = ((idx ~= 0) and idx or refract[1]) end
+  cpy[2], cpy[3] = ((rat > 0) and rat or refract[2]), nil
+  return cpy
 end

@@ -2345,9 +2345,10 @@ end
  * rate   > The ratio to apply on the last node
 ]]
 function mtBeam:SetPowerRatio(rate)
-  local size = self.TvPoints.Size
-  local node = self.TvPoints[size]
-  if(rate) then -- There is sanity with adjusting the stuff
+  local info = self.TvPoints -- Localize stack
+  local size = info.Size     -- Read stack size
+  local node = info[size]    -- Index top element
+  if(rate and size > 0) then -- There is sanity with adjusting
     self.NvDamage = rate * self.NvDamage
     self.NvForce  = rate * self.NvForce
     self.NvWidth  = rate * self.NvWidth
@@ -2448,6 +2449,7 @@ end
  * Samples the medium ahead in given direction
  * This aims to hit a solids of the map or entities
  * On success will return the refraction surface entry
+ * Must update custom special case `gmod_laser_refractor`
  * origin > Refraction medium boundary origin
  * direct > Refraction medium boundary surface direct
  * trace  > Trace structure to store the result
@@ -2457,7 +2459,17 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
     filter, MASK_SOLID, COLLISION_GROUP_NONE, false, 0, trace)
   if(not (tr or tr.Hit)) then return nil end -- Nothing traces
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
-  return GetMaterialEntry(self:GetMaterialID(tr), gtREFRACT)
+  local ent, mat = tr.Entity, self:GetMaterialID(tr)
+  if(LaserLib.IsValid(ent)) then
+    if(ent:GetClass() == "gmod_laser_refractor") then
+      local refract, key = GetMaterialEntry(mat, gtREFRACT)
+      return ent:GetRefractInfo(refract), key -- Return the initial key
+    else
+      return GetMaterialEntry(mat, gtREFRACT)
+    end
+  else
+    return GetMaterialEntry(mat, gtREFRACT)
+  end
 end
 
 --[[
@@ -3121,24 +3133,20 @@ local gtACTORS = {
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
     local refract, key = GetMaterialEntry(mat, gtREFRACT)
     if(not refract) then return end
-    local node = beam:GetNode()
     local ent = trace.Entity; beam.IsTrace = true
-    local idx = ent:GetRefractIndex(); idx = (idx > 0) and idx or refract[1]
-    local rat = ent:GetRefractRatio(); rat = (rat > 0) and rat or refract[2]
-    local bnex, bsam, vdir = beam:GetBoundaryEntity(idx, trace)
-    if(ent:GetIsSurfaceMode()) then
+    local node, rcpy = beam:GetNode(), ent:GetRefractInfo(refract)
+    local bnex, bsam, vdir = beam:GetBoundaryEntity(rcpy[1], trace)
+    if(ent:GetHitSurfaceMode()) then
       beam:Redirect(trace.HitPos, vdir) -- Redirect the beam on the surface
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the entity
     else -- Refraction done using multiple surfaces
       if(bnex or bsam) then -- We have to change mediums
-        local refcopy = table.Copy(refract)
-              refcopy[1] = idx; refcopy[2] = rat
         beam:SetRefractEntity(trace.HitPos, vdir, ent, refcopy, key)
       else -- Redirect the beam with the reflected ray
         beam:Redirect(trace.HitPos, vdir)
       end
     end -- Apply refraction ratio. Entity may absorb the power
-    if(beam.BrReflec) then beam:SetPowerRatio(rat) end
+    if(beam.BrReflec) then beam:SetPowerRatio(rcpy[2]) end
     node[1]:Set(trace.HitPos) -- We are not portal update node
     node[5] = true            -- We are not portal enable drawing
   end
