@@ -3141,7 +3141,7 @@ local gtACTORS = {
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the entity
     else -- Refraction done using multiple surfaces
       if(bnex or bsam) then -- We have to change mediums
-        beam:SetRefractEntity(trace.HitPos, vdir, ent, refcopy, key)
+        beam:SetRefractEntity(trace.HitPos, vdir, ent, rcpy, key)
       else -- Redirect the beam with the reflected ray
         beam:Redirect(trace.HitPos, vdir)
       end
