@@ -501,9 +501,9 @@ function TOOL:DrawHUD()
   local ply = LocalPlayer()
   local tr = ply:GetEyeTrace()
   if(not (tr and tr.Hit)) then return end
+  local txt = self:GetSurface(tr.Entity)
   local ray = self:GetClientNumber("rayassist", 0)
   LaserLib.DrawAssist(tr.HitPos, tr.HitNormal, ray)
-  local txt = self:GetSurface(tr.Entity)
   LaserLib.DrawTextHUD(txt)
 end
 

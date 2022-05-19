@@ -287,7 +287,7 @@ local gtTRACE = {
 }
 
 if(CLIENT) then
-  DATA.TXAH = TEXT_ALIGN_CENTER
+  DATA.TAHD = TEXT_ALIGN_CENTER
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
@@ -302,7 +302,7 @@ else
   DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 end
 
--- Callbacks for console variables
+-- Callbacks for model console variables
 for idx = 2, #gtCLASS do
   local vset = gtCLASS[idx]
   local vidx = (vset[3] or vset[2])
@@ -647,7 +647,7 @@ end
 ]]
 function LaserLib.Configure(unit)
   if(not LaserLib.IsValid(unit)) then return end
-  local uas, cas = unit:GetClass(), gtCLASS[1][1]
+  local uas, cas = unit:GetClass(), LaserLib.GetClass(1, 1)
   -- Delete temporary order infor and register unit
   unit.meOrderInfo = nil; gtCLASS[uas] = true
   -- Instance specific configuration
@@ -1008,7 +1008,8 @@ end
 function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   if(SERVER) then return end -- Server can go out now
   if(not (org and dir)) then return end
-  local ctr, csr = gtCOLOR["GREEN"], gtCOLOR["YELLOW"]
+  local ctr = LaserLib.GetColor("GREEN")
+  local csr = LaserLib.GetColor("YELLOW")
   local vrs, mar, amr = LaserLib.ProjectRay(vbb, org, dir)
   if(rev and mar < 0) then return end
   local so, sv = vbb:ToScreen(), vrs:ToScreen()
@@ -1099,10 +1100,12 @@ end
  * txt > The thex being drawn at the bottom of the screen
 ]]
 function LaserLib.DrawTextHUD(txt)
+  if(SERVER) then return end
   if(not txt) then return end
+  local arn = DATA.TAHD
   local rat = LaserLib.GetData("GRAT")
-  local blk = gtCOLOR["BLACK"]
-  local bkg = gtCOLOR["BACKGND"]
+  local blk = LaserLib.GetColor("BLACK")
+  local bkg = LaserLib.GetColor("BACKGND")
   local w = surface.ScreenWidth()
   local h = surface.ScreenHeight()
   local sx, sy = (w / rat), (h / (15 * rat))
@@ -1111,13 +1114,13 @@ function LaserLib.DrawTextHUD(txt)
   local tx = px + (sx / 2)
   local ty = py + (sy / 2)
   draw.RoundedBox(16, px, py, sx, sy, bkg)
-  draw.SimpleText(txt, "LaserHUD", tx, ty, blk, DATA.TXAH, DATA.TXAH)
+  draw.SimpleText(txt, "LaserHUD", tx, ty, blk, arn, arn)
 end
 
 -- Draw a position on the screen
 function LaserLib.DrawPoint(pos, col, idx, msg)
   if(SERVER) then return end
-  local crw = gtCOLOR[col or "YELLOW"]
+  local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 0.5, 25, 25, crw)
   if(idx or msg) then
@@ -1127,8 +1130,8 @@ function LaserLib.DrawPoint(pos, col, idx, msg)
     if(msg) then txt = txt..tostring(msg) end
     local ang = LocalPlayer():EyeAngles()
     ang:RotateAroundAxis(ang:Up(), 180)
-    local cbk = gtCOLOR["BLACK"]
-    local cbg = gtCOLOR["BACKGR"]
+    local cbk = LaserLib.GetColor("BLACK")
+    local cbg = LaserLib.GetColor("BACKGR")
     ang:RotateAroundAxis(ang:Up(), 90)
     ang:RotateAroundAxis(ang:Forward(), 90)
     cam.Start3D2D(pos, ang, 0.16)
@@ -1144,7 +1147,7 @@ end
 function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   if(SERVER) then return end
   local ven = pos + (dir * (tonumber(mag) or 1))
-  local crw = gtCOLOR[col or "YELLOW"]
+  local crw = LaserLib.GetColor(col or "YELLOW")
   render.SetColorMaterial()
   render.DrawSphere(pos, 0.5, 25, 25, crw)
   render.DrawLine(pos, ven, crw, false)
@@ -1154,8 +1157,8 @@ function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
       if(msg) then txt = txt..": " end end
     if(msg) then txt = txt..tostring(msg) end
     local ang = dir:AngleEx(DATA.VDRUP)
-    local cbk = gtCOLOR["BLACK"]
-    local cbg = gtCOLOR["BACKGR"]
+    local cbk = LaserLib.GetColor("BLACK")
+    local cbg = LaserLib.GetColor("BACKGR")
     ang:RotateAroundAxis(ang:Up(), 90)
     ang:RotateAroundAxis(ang:Forward(), 90)
     cam.Start3D2D(pos, ang, 0.16)
@@ -1550,48 +1553,6 @@ function LaserLib.GetColor(idx)
 end
 
 --[[
- * Translates indices to color keys for RGB
- * Generally used to split colors into separate beams
- * idx > Index of the beam being split to components
- * mr  > Red component of the picked color channel
-         Can also be a color object then `mb` is missed
- * mg  > Green component of the picked color channel
-         Can also be a flag for new color if mr is object
- * mb  > Blue component of the picked color channel
-]]
-function LaserLib.GetColorID(idx, mr, mg, mb)
-  if(not (idx and idx > 0)) then return end
-  local idc = ((idx - 1) % 3) + 1 -- Index component
-  local key = gtCOLID[idc] -- Key color component
-  if(istable(mr)) then local cov = mr[key]
-    if(mg) then local c = Color(0,0,0,mr.a); c[key] = cov; return c
-    else mr.r, mr.g, mr.b = 0, 0, 0; mr[key] = cov; return mr end
-  else
-    local r = ((key == "r") and mr or 0) -- Split red   [1]
-    local g = ((key == "g") and mg or 0) -- Split green [2]
-    local b = ((key == "b") and mb or 0) -- Split blue  [3]
-    return r, g, b -- Return the picked component
-  end
-end
-
-function LaserLib.SetMaterial(ent, mat)
-  if(not LaserLib.IsValid(ent)) then return end
-  local tab = {MaterialOverride = tostring(mat or "")}
-  local key = "laseremitter_material"
-  ent:SetMaterial(tab.MaterialOverride)
-  duplicator.StoreEntityModifier(ent, key, tab)
-end
-
-function LaserLib.SetProperties(ent, mat)
-  if(not LaserLib.IsValid(ent)) then return end
-  local phy = ent:GetPhysicsObject()
-  if(not LaserLib.IsValid(phy)) then return end
-  local tab = {Material = tostring(mat or "")}
-  construct.SetPhysProp(nil, ent, 0, phy, tab)
-  duplicator.StoreEntityModifier(ent, DATA.KPHYP, tab)
-end
-
---[[
  * Checks when the entity has interactive material
  * Cashes the request issued for index material
  * mat > Direct material to check for. Missing uses `ent`
@@ -1653,6 +1614,58 @@ function LaserLib.GetBeamOrigin(base, direct)
   local kmulv = math.abs(obdir:Dot(vbeam))
         vbeam:Mul(kmulv / 2); obcen:Add(vbeam)
   return obcen, kmulv
+end
+
+--[[
+ * Translates indices to color keys for RGB
+ * Generally used to split colors into separate beams
+ * idx > Index of the beam being split to components
+ * mr  > Red component of the picked color channel
+         Can also be a color object then `mb` is missed
+ * mg  > Green component of the picked color channel
+         Can also be a flag for new color if mr is object
+ * mb  > Blue component of the picked color channel
+]]
+function LaserLib.GetColorID(idx, mr, mg, mb)
+  if(not (idx and idx > 0)) then return end
+  local idc = ((idx - 1) % 3) + 1 -- Index component
+  local key = gtCOLID[idc] -- Key color component
+  if(istable(mr)) then local cov = mr[key]
+    if(mg) then local c = Color(0,0,0,mr.a); c[key] = cov; return c
+    else mr.r, mr.g, mr.b = 0, 0, 0; mr[key] = cov; return mr end
+  else
+    local r = ((key == "r") and mr or 0) -- Split red   [1]
+    local g = ((key == "g") and mg or 0) -- Split green [2]
+    local b = ((key == "b") and mb or 0) -- Split blue  [3]
+    return r, g, b -- Return the picked component
+  end
+end
+
+--[[
+ * Apply material on an entity
+ * ent > Entity to modify
+ * mat > Overrive meterial to apply
+]]
+function LaserLib.SetMaterial(ent, mat)
+  if(not LaserLib.IsValid(ent)) then return end
+  local tab = {MaterialOverride = tostring(mat or "")}
+  local key = "laseremitter_material"
+  ent:SetMaterial(tab.MaterialOverride)
+  duplicator.StoreEntityModifier(ent, key, tab)
+end
+
+--[[
+ * Apply physical properties on an entity
+ * ent > Entity to modify
+ * mat > Phisical properties to apply
+]]
+function LaserLib.SetProperties(ent, mat)
+  if(not LaserLib.IsValid(ent)) then return end
+  local phy = ent:GetPhysicsObject()
+  if(not LaserLib.IsValid(phy)) then return end
+  local tab = {Material = tostring(mat or "")}
+  construct.SetPhysProp(nil, ent, 0, phy, tab)
+  duplicator.StoreEntityModifier(ent, DATA.KPHYP, tab)
 end
 
 --[[
@@ -1868,7 +1881,7 @@ if(SERVER) then
     if(not user:IsPlayer()) then return end
     if(not user:CheckLimit(unit.."s")) then return end
 
-    local laser = ents.Create(gtCLASS[1][1])
+    local laser = ents.Create(LaserLib.GetClass(1, 1))
     if(not (LaserLib.IsValid(laser))) then return end
 
     laser:SetCollisionGroup(COLLISION_GROUP_NONE)
@@ -2479,7 +2492,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
   if(LaserLib.IsValid(ent)) then
-    if(ent:GetClass() == gtCLASS[12][1]) then
+    if(ent:GetClass() == LaserLib.GetClass(12, 1) then
       local refract, key = GetMaterialEntry(mat, gtREFRACT)
       return ent:GetRefractInfo(refract), key -- Return the initial key
     else
