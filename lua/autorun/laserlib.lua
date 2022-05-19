@@ -1102,7 +1102,7 @@ end
 function LaserLib.DrawTextHUD(txt)
   if(SERVER) then return end
   if(not txt) then return end
-  local arn = DATA.TAHD
+  local arn = LaserLib.GetData("TAHD")
   local rat = LaserLib.GetData("GRAT")
   local blk = LaserLib.GetColor("BLACK")
   local bkg = LaserLib.GetColor("BACKGND")
@@ -1111,8 +1111,7 @@ function LaserLib.DrawTextHUD(txt)
   local sx, sy = (w / rat), (h / (15 * rat))
   local px = (w / 2) - (sx / 2)
   local py = h - sy - (rat - 1) * sy
-  local tx = px + (sx / 2)
-  local ty = py + (sy / 2)
+  local tx, ty = (px + (sx / 2)), (py + (sy / 2))
   draw.RoundedBox(16, px, py, sx, sy, bkg)
   draw.SimpleText(txt, "LaserHUD", tx, ty, blk, arn, arn)
 end
