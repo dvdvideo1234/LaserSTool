@@ -2034,6 +2034,13 @@ local function Beam(origin, direct, width, damage, length, force)
   if(self.VrDirect:LengthSqr() > 0) then self.VrDirect:Normalize() else return end
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
   self.TrMedium = {} -- Contains information for the mediums being traversed
+  -- Trace data node points notation row for a given node ID
+  --   [1] > Node location in 3D space position (vector)
+  --   [2] > Node beam current width automatic (number)
+  --   [3] > Node beam current damage automatic (number)
+  --   [4] > Node beam current force automatic (number)
+  --   [5] > Whenever to draw or not beam line (boolean)
+  --   [6] > Color updated by various filters (color)
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   -- This will apply the external configuration during the beam creation
   if(DATA.BBONC > 0) then self.MxBounce = DATA.BBONC; DATA.BBONC = 0 -- External count
@@ -2193,7 +2200,7 @@ end
  * origin > Beam exit position
  * direct > Beam exit direction
 ]]
-function mtBeam:SetMediumDestn(medium)
+function mtBeam:SetMediumDestn(medium, key)
   if(key) then
     self.TrMedium.D[1] = medium -- Apply medium info
     self.TrMedium.D[2] = key    -- Apply medium key
@@ -2303,20 +2310,13 @@ function mtBeam:SetTraceWidth(trace, length)
 end
 
 --[[
- * Beam traverses from medium [1] to medium [2]
+ * Registers a node when beam traverses from medium [1] to medium [2]
  * origin > The node position to be registered
  * nbulen > Update the length according to the new node
  *          Positive number when provided else internal length
  *          Pass true boolean to update the node with distance
  * bedraw > Enable draw beam node on the CLIENT
  *          Use this for portals when skip gap is needed
- *   info > Trace data points row for a given node ID
- *    [1] > Node location in 3D space position (vector)
- *    [2] > Node beam current width automatic (number)
- *    [3] > Node beam current damage automatic (number)
- *    [4] > Node beam current force automatic (number)
- *    [5] > Whenever to draw or not beam line (boolean)
- *    [6] > Color updated by various filters (color)
 ]]
 function mtBeam:RegisterNode(origin, nbulen, bedraw)
   local info = self.TvPoints -- Local reference to stack
@@ -2388,10 +2388,7 @@ end
 ]]
 function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
   -- Register desination medium and raise calculate refraction flag
-  if(refract and key) then
-    self.TrMedium.D[1] = refract -- First element is always structure
-    self.TrMedium.D[2] = tostring(key or "") -- Second element is always the index found
-  else self:SetMediumDestn(refract) end -- Otherwise refract contains the whole thing
+  self:SetMediumDestn(refract, key)
   -- Get the trace ready to check the other side and point and register the location
   self.DmRfract = (2 * target:BoundingRadius())
   self.VrDirect:Set(direct)
@@ -2592,13 +2589,11 @@ end
  * Setups the class for world and water refraction
 ]]
 function mtBeam:SetRefractWorld(trace, refract, key)
-  if(refract and key) then
-    self.TrMedium.D[1] = refract -- First element is always structure
-    self.TrMedium.D[2] = tostring(key or "") -- Second element is always the index found
-  else self:SetMediumDestn(refract) end -- Otherwise refract contains the whole thing
+  -- Register desination medium and raise calculate refraction flag
+  self:SetMediumDestn(refract, key)
   -- Subtract traced length from total length because we have hit something
   self.NvLength = self.NvLength - self.NvLength * trace.Fraction
-  self.TrRfract = self.NvLength -- Remaining in refract mode
+  self.TrRfract = self.NvLength -- Remaining length in refract mode
   -- Separate control for water and non-water
   if(self:IsAir()) then -- There is no water plane registered
     self.IsRfract = true -- Beam is inside another non water solid
@@ -2937,7 +2932,6 @@ local gtACTORS = {
     -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end -- No linked pair
     ent:SetNWInt("laseremitter_portal", out:EntIndex())
-    local node = beam:GetNode(); node[5] = true
     local dir, pos = beam.VrDirect, trace.HitPos
     local mav, vsm = GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)
@@ -2959,8 +2953,6 @@ local gtACTORS = {
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
-      node[1]:Set(trace.HitPos) -- We are not portal update position
-      node[5] = true            -- We are not portal enable drawing
     end
   end,
   ["seamless_portal"] = function(beam, trace)
@@ -2968,7 +2960,6 @@ local gtACTORS = {
     local ent = trace.Entity
     local out = ent:ExitPortal()
     if(not LaserLib.IsValid(out)) then return end
-    local node = beam:GetNode(); node[5] = true
     local osz, esz = out:GetExitSize(), ent:GetExitSize()
     local szx = (osz.x / esz.x)
     local szy = (osz.y / esz.y)
@@ -3015,8 +3006,7 @@ local gtACTORS = {
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, beam, trace)
     if(trace and trace.Hit and beam and bdot) then
-      local info = beam.TvPoints -- Read current node stack
-      local node = info[info.Size] -- Extract nodes stack size
+      local node = beam:GetNode() -- Extract last node
       local sc = beam:GetColorRGBA(true)
       local ec = ent:GetBeamColorRGBA(true)
       local matc = ent:GetInBeamMaterial()
@@ -3045,8 +3035,6 @@ local gtACTORS = {
         end
         beam.VrOrigin:Set(trace.HitPos)
         beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
-        node[1]:Set(trace.HitPos) -- We are not portal update position
-        node[5] = true            -- We are not portal enable drawing
         beam.IsTrace = true -- Beam hits correct surface. Continue
       else -- The beam did not fell victim to direct draw filtering
         local width, damage, force, length
@@ -3090,8 +3078,6 @@ local gtACTORS = {
         beam.NvForce   = force ; node[4] = force
         beam.VrOrigin:Set(trace.HitPos)
         beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
-        node[1]:Set(trace.HitPos) -- We are not portal update position
-        node[5] = true            -- We are not portal enable drawing
         beam.IsTrace = true -- Beam hits correct surface. Continue
       end
     end
@@ -3108,8 +3094,6 @@ local gtACTORS = {
       beam.VrOrigin:Set(trace.HitPos)
       beam.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the parallel
-      node[1]:Set(trace.HitPos) -- We are not portal update node
-      node[5] = true            -- We are not portal enable drawing
     end
   end,
   ["gmod_laser_reflector"] = function(beam, trace)
@@ -3117,7 +3101,6 @@ local gtACTORS = {
     local mat = beam:GetMaterialID(trace)
     local reflect = GetMaterialEntry(mat, gtREFLECT)
     if(not reflect) then return end
-    local node = beam:GetNode()
     local ent = trace.Entity; beam.IsTrace = true
     if(beam.BrReflec) then -- May absorb
       local ratio = ent:GetReflectRatio()
@@ -3125,8 +3108,6 @@ local gtACTORS = {
     end
     beam.VrDirect:Set(LaserLib.GetReflected(beam.VrDirect, trace.HitNormal))
     beam.VrOrigin:Set(trace.HitPos)
-    node[1]:Set(trace.HitPos) -- We are not portal update node
-    node[5] = true            -- We are not portal enable drawing
   end,
   ["gmod_laser_refractor"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
@@ -3134,21 +3115,19 @@ local gtACTORS = {
     local refract, key = GetMaterialEntry(mat, gtREFRACT)
     if(not refract) then return end
     local ent = trace.Entity; beam.IsTrace = true
-    local node, rcpy = beam:GetNode(), ent:GetRefractInfo(refract)
-    local bnex, bsam, vdir = beam:GetBoundaryEntity(rcpy[1], trace)
+    local refcopy = ent:GetRefractInfo(refract)
+    local bnex, bsam, vdir = beam:GetBoundaryEntity(refcopy[1], trace)
     if(ent:GetHitSurfaceMode()) then
       beam:Redirect(trace.HitPos, vdir) -- Redirect the beam on the surface
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the entity
     else -- Refraction done using multiple surfaces
       if(bnex or bsam) then -- We have to change mediums
-        beam:SetRefractEntity(trace.HitPos, vdir, ent, rcpy, key)
+        beam:SetRefractEntity(trace.HitPos, vdir, ent, refcopy, key)
       else -- Redirect the beam with the reflected ray
         beam:Redirect(trace.HitPos, vdir)
       end
     end -- Apply refraction ratio. Entity may absorb the power
-    if(beam.BrReflec) then beam:SetPowerRatio(rcpy[2]) end
-    node[1]:Set(trace.HitPos) -- We are not portal update node
-    node[5] = true            -- We are not portal enable drawing
+    if(beam.BrReflec) then beam:SetPowerRatio(refcopy[2]) end
   end
 }
 
@@ -3220,10 +3199,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(ok) then -- Target is valid and it is a actor
         if(act and gtACTORS[act]) then
-          beam:RegisterNode(trace.HitPos, trace.LengthNR, false)
-        else -- The trace entity target is not special actor case
           beam:RegisterNode(trace.HitPos, trace.LengthNR)
-        end
+        end -- The trace entity target is special actor case
       else -- The trace has hit invalid entity or world
         if(trace.FractionLeftSolid > 0) then
           local mar = trace.LengthLS -- Use the left solid value
