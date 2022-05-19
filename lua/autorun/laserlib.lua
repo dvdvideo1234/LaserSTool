@@ -287,6 +287,7 @@ local gtTRACE = {
 }
 
 if(CLIENT) then
+  DATA.TXAH = TEXT_ALIGN_CENTER
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
@@ -646,7 +647,7 @@ end
 ]]
 function LaserLib.Configure(unit)
   if(not LaserLib.IsValid(unit)) then return end
-  local uas, cas = unit:GetClass(), LaserLib.GetClass(1, 1)
+  local uas, cas = unit:GetClass(), gtCLASS[1][1]
   -- Delete temporary order infor and register unit
   unit.meOrderInfo = nil; gtCLASS[uas] = true
   -- Instance specific configuration
@@ -1007,8 +1008,7 @@ end
 function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   if(SERVER) then return end -- Server can go out now
   if(not (org and dir)) then return end
-  local csr = LaserLib.GetColor("YELLOW")
-  local ctr = LaserLib.GetColor("GREEN")
+  local ctr, csr = gtCOLOR["GREEN"], gtCOLOR["YELLOW"]
   local vrs, mar, amr = LaserLib.ProjectRay(vbb, org, dir)
   if(rev and mar < 0) then return end
   local so, sv = vbb:ToScreen(), vrs:ToScreen()
@@ -1093,10 +1093,31 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   end
 end
 
+--[[
+ * Draws the HUD on the tool screen that is the bottom
+ * line information for reflection surfaces and refraction mediums
+ * txt > The thex being drawn at the bottom of the screen
+]]
+function LaserLib.DrawTextHUD(txt)
+  if(not txt) then return end
+  local rat = LaserLib.GetData("GRAT")
+  local blk = gtCOLOR["BLACK"]
+  local bkg = gtCOLOR["BACKGND"]
+  local w = surface.ScreenWidth()
+  local h = surface.ScreenHeight()
+  local sx, sy = (w / rat), (h / (15 * rat))
+  local px = (w / 2) - (sx / 2)
+  local py = h - sy - (rat - 1) * sy
+  local tx = px + (sx / 2)
+  local ty = py + (sy / 2)
+  draw.RoundedBox(16, px, py, sx, sy, bkg)
+  draw.SimpleText(txt, "LaserHUD", tx, ty, blk, DATA.TXAH, DATA.TXAH)
+end
+
 -- Draw a position on the screen
 function LaserLib.DrawPoint(pos, col, idx, msg)
   if(SERVER) then return end
-  local crw = LaserLib.GetColor(col or "YELLOW")
+  local crw = gtCOLOR[col or "YELLOW"]
   render.SetColorMaterial()
   render.DrawSphere(pos, 0.5, 25, 25, crw)
   if(idx or msg) then
@@ -1106,8 +1127,8 @@ function LaserLib.DrawPoint(pos, col, idx, msg)
     if(msg) then txt = txt..tostring(msg) end
     local ang = LocalPlayer():EyeAngles()
     ang:RotateAroundAxis(ang:Up(), 180)
-    local cbk = LaserLib.GetColor("BLACK")
-    local cbg = LaserLib.GetColor("BACKGR")
+    local cbk = gtCOLOR["BLACK"]
+    local cbg = gtCOLOR["BACKGR"]
     ang:RotateAroundAxis(ang:Up(), 90)
     ang:RotateAroundAxis(ang:Forward(), 90)
     cam.Start3D2D(pos, ang, 0.16)
@@ -1123,7 +1144,7 @@ end
 function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   if(SERVER) then return end
   local ven = pos + (dir * (tonumber(mag) or 1))
-  local crw = LaserLib.GetColor(col or "YELLOW")
+  local crw = gtCOLOR[col or "YELLOW"]
   render.SetColorMaterial()
   render.DrawSphere(pos, 0.5, 25, 25, crw)
   render.DrawLine(pos, ven, crw, false)
@@ -1133,8 +1154,8 @@ function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
       if(msg) then txt = txt..": " end end
     if(msg) then txt = txt..tostring(msg) end
     local ang = dir:AngleEx(DATA.VDRUP)
-    local cbk = LaserLib.GetColor("BLACK")
-    local cbg = LaserLib.GetColor("BACKGR")
+    local cbk = gtCOLOR["BLACK"]
+    local cbg = gtCOLOR["BACKGR"]
     ang:RotateAroundAxis(ang:Up(), 90)
     ang:RotateAroundAxis(ang:Forward(), 90)
     cam.Start3D2D(pos, ang, 0.16)
@@ -1847,7 +1868,7 @@ if(SERVER) then
     if(not user:IsPlayer()) then return end
     if(not user:CheckLimit(unit.."s")) then return end
 
-    local laser = ents.Create(LaserLib.GetClass(1, 1))
+    local laser = ents.Create(gtCLASS[1][1])
     if(not (LaserLib.IsValid(laser))) then return end
 
     laser:SetCollisionGroup(COLLISION_GROUP_NONE)
@@ -2458,7 +2479,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
   if(LaserLib.IsValid(ent)) then
-    if(ent:GetClass() == "gmod_laser_refractor") then
+    if(ent:GetClass() == gtCLASS[12][1]) then
       local refract, key = GetMaterialEntry(mat, gtREFRACT)
       return ent:GetRefractInfo(refract), key -- Return the initial key
     else
