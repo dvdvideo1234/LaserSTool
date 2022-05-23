@@ -2335,8 +2335,8 @@ function mtBeam:SetTraceWidth(trace, length)
     vtm:Mul(-DATA.TRDG * self.BmTracew); trace.HitPos:Add(vtm)
   end -- At this point we know exactly how long will the trace be
   -- In this case the value of node register length is calculated
-  trace.LengthBS = length -- Actual beam requested length
-  trace.LengthFR = length * trace.Fraction -- Length fraction
+  trace.LengthBS = length -- Actual trace beam user requested length
+  trace.LengthFR = length * trace.Fraction -- Length fraction in units
   trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
   trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
   return trace
@@ -2491,7 +2491,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
   if(LaserLib.IsValid(ent)) then
-    if(ent:GetClass() == LaserLib.GetClass(12, 1) then
+    if(ent:GetClass() == LaserLib.GetClass(12, 1)) then
       local refract, key = GetMaterialEntry(mat, gtREFRACT)
       return ent:GetRefractInfo(refract), key -- Return the initial key
     else
@@ -2905,6 +2905,7 @@ local gtACTORS = {
     local eff, out = src.isEffect, ent.Target
     if(out == ent) then return end -- We need to go somewhere
     if(not LaserLib.IsValid(out)) then return end
+    local node = beam:GetNode(); node[5] = false -- Skip node
     -- Leave networking to CAP. Invalid target. Stop
     local pot, dit = ent:GetTeleportedVector(pob, dir)
     if(SERVER and ent:IsOpen() and eff) then -- Library effect flag
@@ -2925,6 +2926,7 @@ local gtACTORS = {
     if(idx <= 0) then return end -- No output ID chosen
     local out = ent:GetActiveExit(idx) -- Validate output entity
     if(not out) then return end -- No output ID. Missing entity
+    local node = beam:GetNode(); node[5] = false -- Skip node
     local nrm = ent:GetNormalLocal() -- Read current normal
     local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
     local mir = ent:GetMirrorExitPos()
@@ -2993,7 +2995,8 @@ local gtACTORS = {
     local ent = trace.Entity
     local out = ent:ExitPortal()
     if(not LaserLib.IsValid(out)) then return end
-    local osz, esz = out:GetExitSize(), ent:GetExitSize()
+    local esz = ent:GetExitSize()
+    local osz = out:GetExitSize()
     local szx = (osz.x / esz.x)
     local szy = (osz.y / esz.y)
     local szz = (osz.z / esz.z)
@@ -3088,10 +3091,10 @@ local gtACTORS = {
             if(not LaserLib.IsPower(width, damage)) then return end
             force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
             length = (el > 0) and math.Clamp(bl, 0, el) or bl
-            node[6].r = math.Clamp(sc.r, 0, ec.r)
-            node[6].g = math.Clamp(sc.g, 0, ec.g)
-            node[6].b = math.Clamp(sc.b, 0, ec.b)
-            node[6].a = math.Clamp(sc.a, 0, ec.a)
+            node[6].r = (ec.r > 0) and math.Clamp(sc.r, 0, ec.r) or sc.r
+            node[6].g = (ec.g > 0) and math.Clamp(sc.g, 0, ec.g) or sc.g
+            node[6].b = (ec.b > 0) and math.Clamp(sc.b, 0, ec.b) or sc.b
+            node[6].a = (ec.a > 0) and math.Clamp(sc.a, 0, ec.a) or sc.a
           else
             width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
             damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
@@ -3231,9 +3234,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
       if(ok) then -- Target is valid and it is a actor
-        if(act and gtACTORS[act]) then
-          beam:RegisterNode(trace.HitPos, trace.LengthNR)
-        end -- The trace entity target is special actor case
+        -- Disable drawing is updated for specific actor request
+        beam:RegisterNode(trace.HitPos, trace.LengthNR)
+        -- The trace entity target is special actor case or not
       else -- The trace has hit invalid entity or world
         if(trace.FractionLeftSolid > 0) then
           local mar = trace.LengthLS -- Use the left solid value
