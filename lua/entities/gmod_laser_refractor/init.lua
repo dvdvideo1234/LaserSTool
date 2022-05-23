@@ -3,8 +3,8 @@ AddCSLuaFile("shared.lua")
 
 include("shared.lua")
 
-resource.AddFile("models/madjawa/laser_reflector.mdl")
-resource.AddFile("materials/vgui/entities/gmod_laser_reflector.vmt")
+resource.AddFile("models/madjawa/laser_refractor.mdl")
+resource.AddFile("materials/vgui/entities/gmod_laser_refractor.vmt")
 
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
@@ -12,10 +12,12 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Ratio" , "NORMAL", "Reflector surface ratio"}
+    {"Index" , "NORMAL", "Refractor medium index" },
+    {"Ratio" , "NORMAL", "Refractor medium ratio" }
   ):WireCreateOutputs(
-    {"Ratio" , "NORMAL", "Reflector surface ratio"},
-    {"Entity", "ENTITY", "Reflector entity itself"}
+    {"Index" , "NORMAL", "Refractor medium index" },
+    {"Ratio" , "NORMAL", "Refractor medium ratio" },
+    {"Entity", "ENTITY", "Refractor entity itself"}
   )
 
   local phys = self:GetPhysicsObject()
@@ -23,7 +25,13 @@ function ENT:Initialize()
     phys:Wake(); phys:SetMass(50)
   end -- Apply decent mass
 
-  self:SetInReflectRatio(0)
+  -- Default use the surface material
+  self:SetInRefractIndex(0)
+  self:SetInRefractRatio(0)
+
+  -- Default uses only one refractive surface
+  self:SetZeroIndexMode(true)
+  self:SetHitSurfaceMode(true)
 
   -- Setup default configuration
   self:WireWrite("Entity", self)
@@ -33,16 +41,16 @@ function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(3, 1))
+  local ent = ents.Create(LaserLib.GetClass(12, 1))
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(3))
+    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(12))
     LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
     ent:SetAngles(ang)
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    ent:SetModel(LaserLib.GetModel(3))
+    ent:SetModel(LaserLib.GetModel(12))
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()

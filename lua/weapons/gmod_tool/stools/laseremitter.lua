@@ -2,6 +2,8 @@ local gsTool = LaserLib.GetTool()
 local gsNoAV = LaserLib.GetData("NOAV")
 local gsLaseremCls = LaserLib.GetClass(1, 1)
 local gsLaserptCls = LaserLib.GetClass(9, 1)
+local gsLaserelCls = LaserLib.GetClass(3, 1)
+local gsLasererCls = LaserLib.GetClass(12, 1)
 
 if(CLIENT) then
 
@@ -24,6 +26,7 @@ if(CLIENT) then
       local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
       if(tre:GetClass():find("gmod_laser", 1, true)) then -- For all laser units
         local vor, vdr = LaserLib.GetTransformUnit(tre) -- Read unit transform
+        vor, vdr = (vor or tr.HitPos), (vdr or tr.HitNormal) -- Failsafe rays
         LaserLib.DrawAssist(vor, vdr, ray, tre, ply) -- Convert to world-space
       end
     end)
@@ -474,11 +477,19 @@ end
 
 function TOOL:GetSurface(ent)
   if(not LaserLib.IsValid(ent)) then return end
+  local ces = ent:GetClass()
   local mat = ent:GetMaterial()
   local row = LaserLib.DataReflect(mat)
-  if(row) then return "{"..table.concat(row, "|").."} "..mat
+  if(row) then
+    if(ces == gsLaserelCls) then
+      row = {ent:GetReflectRatio()}
+    end
+    return "{"..table.concat(row, "|").."} "..mat
   else row = LaserLib.DataRefract(mat)
     if(row) then
+      if(ces == gsLasererCls) then
+        row = ent:GetRefractInfo(row)
+      end
       local fnm = "["..LaserLib.GetData("FNUH").."]"
       local ang = LaserLib.GetRefractAngle(row[1], 1, true)
       return fnm:format(ang).."{"..table.concat(row, "|").."} "..mat
@@ -490,23 +501,10 @@ function TOOL:DrawHUD()
   local ply = LocalPlayer()
   local tr = ply:GetEyeTrace()
   if(not (tr and tr.Hit)) then return end
+  local txt = self:GetSurface(tr.Entity)
   local ray = self:GetClientNumber("rayassist", 0)
   LaserLib.DrawAssist(tr.HitPos, tr.HitNormal, ray)
-  local rat = LaserLib.GetData("GRAT")
-  local txt = self:GetSurface(tr.Entity)
-  if(not txt) then return end
-  local alg = TEXT_ALIGN_CENTER
-  local blk = LaserLib.GetColor("BLACK")
-  local bkg = LaserLib.GetColor("BACKGND")
-  local w = surface.ScreenWidth()
-  local h = surface.ScreenHeight()
-  local sx, sy = (w / rat), (h / (15 * rat))
-  local px = (w / 2) - (sx / 2)
-  local py = h - sy - (rat - 1) * sy
-  local tx = px + (sx / 2)
-  local ty = py + (sy / 2)
-  draw.RoundedBox(16, px, py, sx, sy, bkg)
-  draw.SimpleText(txt, "LaserHUD", tx, ty, blk, alg, alg)
+  LaserLib.DrawTextHUD(txt)
 end
 
 function TOOL:Think()
