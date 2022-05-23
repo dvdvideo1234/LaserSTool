@@ -575,7 +575,7 @@ end
 ]]
 function LaserLib.IsBeam(ent)
   if(LaserLib.IsValid(ent)) then
-    return (ent.DoBeam != nil)
+    return (ent.DoBeam ~= nil)
   else return false end
 end
 
@@ -593,7 +593,7 @@ end
 ]]
 function LaserLib.IsSource(ent)
   if(LaserLib.IsValid(ent)) then
-    return (ent.DoBeam != nil and ent.GetDissolveType ~= nil)
+    return (ent.DoBeam ~= nil and ent.GetDissolveType ~= nil)
   else return false end
 end
 
@@ -2522,7 +2522,7 @@ end
  * ratio > Reflection ratio value
  * trace > The current trace result
 ]]
-function mtBeam:Reflect(ratio, trace)
+function mtBeam:Reflect(trace, ratio)
   self.VrDirect:Set(LaserLib.GetReflected(self.VrDirect, trace.HitNormal))
   self.VrOrigin:Set(trace.HitPos)
   self.NvLength = self.NvLength - self.NvLength * trace.Fraction
@@ -3296,7 +3296,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, gtREFLECT)
             if(reflect and not beam.StRfract) then -- Just call reflection and get done with it..
-              beam:Reflect(reflect[1], trace) -- Call reflection method
+              beam:Reflect(trace, reflect[1]) -- Call reflection method
             else
               local refract, key = GetMaterialEntry(mat, gtREFRACT)
               if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
@@ -3371,7 +3371,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, gtREFLECT)
             if(reflect and not beam.StRfract) then
-              beam:Reflect(reflect[1], trace) -- Call reflection method
+              beam:Reflect(trace, reflect[1]) -- Call reflection method
             else
               local refract, key = GetMaterialEntry(mat, gtREFRACT)
               if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
