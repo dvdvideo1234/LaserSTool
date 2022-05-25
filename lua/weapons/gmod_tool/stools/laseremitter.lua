@@ -489,6 +489,8 @@ function TOOL:GetSurface(ent)
     if(row) then
       if(ces == gsLasererCls) then
         row = ent:GetRefractInfo(row)
+        row[1] = math.Round(row[1], 3)
+        row[2] = math.Round(row[2], 3)
       end
       local fnm = "["..LaserLib.GetData("FNUH").."]"
       local ang = LaserLib.GetRefractAngle(row[1], 1, true)

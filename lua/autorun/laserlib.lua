@@ -72,6 +72,7 @@ DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
+DATA.NWPID = "laseremitter_portal" -- General key storing laser portal entity networking
 DATA.KPHYP = DATA.TOOL.."_physprop" -- Key used to registed physical properties
 DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 
@@ -150,7 +151,7 @@ local gtMATERIAL = {
   "models/props_combine/com_shield001a",
   "models/dog/eyeglass"                ,
   "models/props_combine/citadel_cable" ,
-  "models/dog/eyeglass"
+  "models/props_combine/health_charger_glass"
 }
 
 local gtCOLOR = {
@@ -274,7 +275,6 @@ local gtMATYPE = {
 }
 
 local gtTRACE = {
-  ["noDetour"]   = true, -- Mee's Seamless-Portals. Backwards compatibility
   start          = Vector(),
   endpos         = Vector(),
   filter         = nil,
@@ -1960,14 +1960,6 @@ end
  * normal > Surface normal vector. Usually portal:GetForward()
  * Returns the output beam ray margin transition
 ]]
---[[
-    local pos, dir = trace.HitPos, beam.VrDirect
-    local eps, mav = ent:GetPos(), Vector(dir)
-    local fwd, wvc = ent:GetForward(), Vector(pos); wvc:Sub(eps)
-    local mar = math.abs(wvc:Dot(fwd)) -- Project entrance vector
-    local vsm = mar / math.cos(math.asin(fwd:Cross(dir):Length()))
-    vsm = 2 * vsm; mav:Set(dir); mav:Mul(vsm); mav:Add(pos)
-]]
 local function GetMarginPortal(entity, origin, direct, normal)
   local normal = (normal or entity:GetForward())
   local pos, mav = entity:GetPos(), Vector(direct)
@@ -2117,6 +2109,24 @@ function mtBeam:GetNode(index)
 end
 
 --[[
+ * Passes some of the dedicated distance
+]]
+function mtBeam:Pass(trace)
+  -- We have to register that the beam has passed trough a medium
+  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
+  return self -- Coding effective API
+end
+
+--[[
+ * Issues a finish command to the traced laser beam
+]]
+function mtBeam:Bounce()
+  -- We are neither hitting something nor still tracing or hit dedicated entity
+  self.NvBounce = self.NvBounce - 1 -- Refresh medium pass trough information
+  return self -- Coding effective API
+end
+
+--[[
  * Checks when water base medium is not activated
 ]]
 function mtBeam:IsAir()
@@ -2129,15 +2139,6 @@ end
 ]]
 function mtBeam:ClearWater()
   self.__water.N:Zero()
-  return self -- Coding effective API
-end
-
---[[
- * Issues a finish command to the traced laser beam
-]]
-function mtBeam:Bounce()
-  -- We are neither hitting something nor still tracing or hit dedicated entity
-  self.NvBounce = self.NvBounce - 1 -- Refresh medium pass trough information
   return self -- Coding effective API
 end
 
@@ -2162,11 +2163,13 @@ end
 --[[
  * Issues a finish command to the traced laser beam
  * trace > Trace structure of the current iteration
+ * bpass > Boolean (forced). Disable passing request
 ]]
-function mtBeam:Finish(trace)
+function mtBeam:Finish(trace, bpass)
+  local bpass = (bpass or bpass == nil) and true or false -- Passing
   self.IsTrace = false -- Make sure to exit not to do performance hit
-  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
-  return self -- Coding effective API
+  if(bpass) then return self:Pass(trace) end -- Coding effective API
+  return self -- Coding effective API when register passing is disabled
 end
 
 --[[
@@ -2524,8 +2527,7 @@ end
 ]]
 function mtBeam:Reflect(trace, ratio)
   self.VrDirect:Set(LaserLib.GetReflected(self.VrDirect, trace.HitNormal))
-  self.VrOrigin:Set(trace.HitPos)
-  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
+  self.VrOrigin:Set(trace.HitPos); self:Pass(trace)
   if(self.BrReflec) then self:SetPowerRatio(ratio) end
   return self -- Coding effective API
 end
@@ -2625,7 +2627,6 @@ function mtBeam:SetRefractWorld(trace, refract, key)
   -- Register desination medium and raise calculate refraction flag
   self:SetMediumDestn(refract, key)
   -- Subtract traced length from total length because we have hit something
-  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
   self.TrRfract = self.NvLength -- Remaining length in refract mode
   -- Separate control for water and non-water
   if(self:IsAir()) then -- There is no water plane registered
@@ -2962,11 +2963,16 @@ local gtACTORS = {
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src, out = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
-    if(SERVER) then out = ent:FindOpenPair() -- Retrieve open pair
-    else out = Entity(ent:GetNWInt("laseremitter_portal", 0)) end
+    if(SERVER) then
+      out = ent:FindOpenPair() -- Retrieve open pair
+      if(LaserLib.IsValid(out)) then
+        ent:SetNWInt(DATA.NWPID, out:EntIndex())
+      else ent:SetNWInt(DATA.NWPID, 0); return end -- No linked pair
+    else
+      out = Entity(ent:GetNWInt(DATA.NWPID, 0))
+      if(not LaserLib.IsValid(out)) then return end -- No linked pair
+    end
     -- Assume that output portal will have the same surface offset
-    if(not LaserLib.IsValid(out)) then return end -- No linked pair
-    ent:SetNWInt("laseremitter_portal", out:EntIndex())
     local dir, pos = beam.VrDirect, trace.HitPos
     local mav, vsm = GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)
@@ -3133,17 +3139,13 @@ local gtACTORS = {
     end
   end,
   ["gmod_laser_reflector"] = function(beam, trace)
-    beam:Finish(trace) -- Assume that beam stops traversing
+    beam:Finish(trace, false) -- Disable passing. Stops traversing
     local mat = beam:GetMaterialID(trace)
     local reflect = GetMaterialEntry(mat, gtREFLECT)
-    if(not reflect) then return end
+    if(not reflect) then return end -- No reflective surface. Exit
     local ent = trace.Entity; beam.IsTrace = true
-    if(beam.BrReflec) then -- May absorb
-      local ratio = ent:GetReflectRatio()
-      beam:SetPowerRatio((ratio > 0) and ratio or reflect[1])
-    end
-    beam.VrDirect:Set(LaserLib.GetReflected(beam.VrDirect, trace.HitNormal))
-    beam.VrOrigin:Set(trace.HitPos)
+    local rat = ent:GetReflectRatio() -- Read reflection ratio from entity
+    beam:Reflect(trace, (rat > 0) and rat or reflect[1]) -- Call reflection method
   end,
   ["gmod_laser_refractor"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
@@ -3303,7 +3305,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
-                  beam.NvLength = beam.NvLength - beam.NvLength * trace.Fraction
+                  beam:Pass(trace) -- Register beam passing to the new surface
                   -- Calculated refraction ray. Reflect when not possible
                   local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
                   -- Check refraction medium boundary and perform according actions
@@ -3377,6 +3379,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
+                  -- Subtract traced length from total length
+                  beam:Pass(trace) -- Register beam passing to the new surface
                   -- Calculated refraction ray. Reflect when not possible
                   if(beam.StRfract) then -- Laser is within the map water submerged
                     beam:SetWater(refract[3] or key, tr)
@@ -3388,7 +3392,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                                          trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
                     beam:SetWater(refract[3] or key, trace)
                     beam:Redirect(trace.HitPos, vdir)
-                  end -- Need to make the traversed destination the new source
+                  end
+                  -- Need to make the traversed destination the new source
                   beam:SetRefractWorld(trace, refract, key)
                   -- Apply power ratio when requested
                   if(usrfre) then beam:SetPowerRatio(refract[2]) end
