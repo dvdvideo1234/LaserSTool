@@ -458,13 +458,38 @@ end
  * tab > Reference to a table of row tables
  * key > The key to be extracted (not mandatory)
 ]]
-function LaserLib.Extract(tab, key)
+function LaserLib.ExtractVas(tab, key)
   if(not tab) then return tab end
   if(not key) then return tab end
   local set = {} -- Allocate
   for k, v in pairs(tab) do
     set[k] = v[key] -- Populate values
   end; return set -- Key-value pairs
+end
+
+--[[
+ * Extracts table icons from 2D set specified key
+ * tab > Reference to a table of row tables
+ * key > The key to be extracted (not mandatory)
+ * dir > Enable direct table mapping
+]]
+function LaserLib.ExtractIco(tab, key)
+  if(not tab) then return end
+  if(not key) then return end
+  if(istable(key)) then
+    for k, v in pairs(key) do
+      key[k] = LaserLib.GetIcon(v)
+    end; return key
+  else
+    if(key:sub(1, 1) == "#") then
+      return LaserLib.GetIcon(key:sub(2, -1))
+    else
+      local set = {} -- Allocate
+      for k, v in pairs(tab) do -- Populate values
+        set[k] = LaserLib.GetIcon(v[key])
+      end; return set -- Key-value pairs
+    end -- Update vco with key table or string
+  end
 end
 
 --[[
@@ -611,10 +636,10 @@ function LaserLib.SetPrimary(ent, nov)
   ent:EditableSetVector("DirectLocal" , "General")
   if(nov) then
     material["Empty"] = ""
-    dissolve["Empty"] = {name = "", icon = "delete"}
-    ent:EditableSetIntCombo("ForceCenter" , "General" , comxbool)
-    ent:EditableSetIntCombo("ReflectRatio", "Material", comxbool)
-    ent:EditableSetIntCombo("RefractRatio", "Material", comxbool)
+    dissolve["Empty"] = {name = "", icon = "stop"}
+    ent:EditableSetIntCombo("ForceCenter" , "General" , comxbool, "name", "icon")
+    ent:EditableSetIntCombo("ReflectRatio", "Material", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("RefractRatio", "Material", comxbool, "name", "icon")
   else
     ent:EditableSetBool("ForceCenter" , "General")
     ent:EditableSetBool("ReflectRatio", "Material")
@@ -625,11 +650,13 @@ function LaserLib.SetPrimary(ent, nov)
   ent:EditableSetFloat("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
   ent:EditableSetFloat("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
   ent:EditableSetFloat("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  ent:EditableSetStringCombo("InBeamMaterial", "Internals", material)
+  local maticons = table.Copy(material)
+  for k, v in pairs(maticons) do maticons[k] = ((k == "Empty") and "stop" or "picture_edit") end
+  ent:EditableSetStringCombo("InBeamMaterial", "Internals", material, nil, maticons)
   if(nov) then
-    ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool)
-    ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool)
-    ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool)
+    ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool, "name", "icon")
   else
     ent:EditableSetBool("InNonOverMater", "Internals")
     ent:EditableSetBool("InBeamSafety"  , "Internals")
@@ -637,7 +664,7 @@ function LaserLib.SetPrimary(ent, nov)
   end
   ent:EditableSetVectorColor("BeamColor", "Visuals")
   ent:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
-  ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name")
+  ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name", "icon")
 end
 
 --[[
@@ -3449,9 +3476,9 @@ function LaserLib.SetupComboBools()
   if(SERVER) then return end
 
   table.Empty(list.GetForEdit("LaserEmitterComboBools"))
-  list.Set("LaserEmitterComboBools", "Empty", 0)
-  list.Set("LaserEmitterComboBools", "False", 1)
-  list.Set("LaserEmitterComboBools", "True" , 2)
+  list.Set("LaserEmitterComboBools", "Empty", {name = 0, icon = "stop" })
+  list.Set("LaserEmitterComboBools", "False", {name = 1, icon = "cross"})
+  list.Set("LaserEmitterComboBools", "True" , {name = 2, icon = "tick" })
 end
 
 function LaserLib.SetupMaterials()

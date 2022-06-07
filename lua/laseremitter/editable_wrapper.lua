@@ -46,8 +46,9 @@ function ENT:EditableSetFloat(name, catg, min, max)
   }}); return self
 end
 
-function ENT:EditableSetFloatCombo(name, catg, vals, key)
-  local set = LaserLib.Extract(vals, key) -- Use provided
+function ENT:EditableSetFloatCombo(name, catg, vals, key, ico, sek)
+  local vas = LaserLib.ExtractVas(vals, key) -- Use provided
+  local vco = LaserLib.ExtractIco(vals, ico)
   local typ, ord, id = LaserLib.GetOrderID(self, "Float")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
@@ -55,7 +56,9 @@ function ENT:EditableSetFloatCombo(name, catg, vals, key)
       category = catg,
       order    = ord,
       type     = "Combo",
-      values   = set
+      select   = sek,
+      icons    = vco,
+      values   = vas
   }}); return self
 end
 
@@ -72,8 +75,9 @@ function ENT:EditableSetInt(name, catg, min, max)
   }}); return self
 end
 
-function ENT:EditableSetIntCombo(name, catg, vals, key)
-  local set = LaserLib.Extract(vals, key) -- Use provided
+function ENT:EditableSetIntCombo(name, catg, vals, key, ico, sek)
+  local vas = LaserLib.ExtractVas(vals, key) -- Use provided
+  local vco = LaserLib.ExtractIco(vals, ico)
   local typ, ord, id = LaserLib.GetOrderID(self, "Int")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
@@ -81,7 +85,9 @@ function ENT:EditableSetIntCombo(name, catg, vals, key)
       category = catg,
       order    = ord,
       type     = "Combo",
-      values   = set
+      select   = sek,
+      icons    = vco,
+      values   = vas
   }}); return self
 end
 
@@ -97,8 +103,9 @@ function ENT:EditableSetStringGeneric(name, catg, enter)
   }}); return self
 end
 
-function ENT:EditableSetStringCombo(name, catg, vals, key)
-  local set = LaserLib.Extract(vals, key) -- Use provided
+function ENT:EditableSetStringCombo(name, catg, vals, key, ico, sek)
+  local vas = LaserLib.ExtractVas(vals, key) -- Use provided
+  local vco = LaserLib.ExtractIco(vals, ico)
   local typ, ord, id = LaserLib.GetOrderID(self, "String")
   self:NetworkVar(typ, id, name, {
     KeyName = name:lower(),
@@ -106,6 +113,8 @@ function ENT:EditableSetStringCombo(name, catg, vals, key)
       category = catg,
       order    = ord,
       type     = "Combo",
-      values   = set
+      select   = sek,
+      icons    = vco,
+      values   = vas
   }}); return self
 end
