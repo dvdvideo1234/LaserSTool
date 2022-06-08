@@ -17,7 +17,8 @@ function ENT:SetupDataTables()
   self.DoBeam = nil -- Recieve beams only
   LaserLib.SetPrimary(self, true)
   self:EditableSetBool("CheckBeamColor", "Visuals")
-  self:EditableSetBool("CheckDominant", "General")
+  self:EditableSetBool("CheckDominant" , "General")
+  self:EditableSetBool("PassBeamTrough", "General")
   LaserLib.Configure(self)
 end
 
