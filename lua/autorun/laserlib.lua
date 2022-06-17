@@ -3192,22 +3192,22 @@ local gtACTORS = {
         beam:Redirect(trace.HitPos, vdir)
       end
     end -- Apply refraction ratio. Entity may absorb the power
-    if(beam.BrReflec) then beam:SetPowerRatio(refcopy[2]) end
-  end
-  --[[ Implement multiple sensor pass trough as in portal
+    if(beam.BrRefrac) then beam:SetPowerRatio(refcopy[2]) end
+  end,
   ["gmod_laser_sensor"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, beam:GetSource()
+    local ent = trace.Entity
     if(not ent:GetPassBeamTrough()) then return end
-    if(ent.RegisterSource) then ent:RegisterSource(src); print("S", src) end
     beam.IsTrace = true
-    beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the sensor
+    beam.TeFilter, beam.TrFActor = ent, true
   end
-  ]]
 }
 
 function LaserLib.SetActor(ent, func)
-  if(not LaserLib.IsValid(ent)) then return end
+  if(not LaserLib.IsValid(ent)) then
+    error("Entity mismatch: "..tostring(ent)) end
+  local ty = type(func); if(ty ~= "function") then
+    error("Actor mismatch: ".. ty) end
   gtACTORS[ent:GetClass()] = func
 end
 
