@@ -105,8 +105,8 @@ function ENT:GetBeamForce()
 end
 
 function ENT:SetBeamCount(num)
-  local count = math.floor(math.Clamp(num, 0, 10))
-  self:SetInBeamCount(count)
+  local cnt = math.floor(math.max(num, 0))
+  self:SetInBeamCount(cnt)
   return self
 end
 
@@ -115,8 +115,8 @@ function ENT:GetBeamCount()
 end
 
 function ENT:SetBeamLeanX(num)
-  local count = math.Clamp(num, 0, 1)
-  self:SetInBeamLeanX(count)
+  local x = math.Clamp(num, 0, 1)
+  self:SetInBeamLeanX(x)
   return self
 end
 
@@ -125,8 +125,8 @@ function ENT:GetBeamLeanX()
 end
 
 function ENT:SetBeamLeanY(num)
-  local count = math.Clamp(num, 0, 1)
-  self:SetInBeamLeanY(count)
+  local y = math.Clamp(num, 0, 1)
+  self:SetInBeamLeanY(y)
   return self
 end
 

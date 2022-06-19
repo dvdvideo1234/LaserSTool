@@ -13,6 +13,13 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
+function ENT:UpdateInternals()
+  self.hitSize = 0 -- Add sources in array
+  self.crHdx = 0 -- Current bean index
+  self.crCount = self:GetBeamCount()
+  return self
+end
+
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"   , "General") -- Used as forward
   self:EditableSetVector("UpwardLocal"   , "General")
@@ -53,8 +60,8 @@ function ENT:UpdateVectors()
 end
 
 function ENT:SetBeamCount(num)
-  local count = math.floor(math.Clamp(num, 0, 10))
-  self:SetInBeamCount(count)
+  local cnt = math.floor(math.max(num, 0))
+  self:SetInBeamCount(cnt)
   return self
 end
 
@@ -63,8 +70,8 @@ function ENT:GetBeamCount()
 end
 
 function ENT:SetBeamLeanX(num)
-  local count = math.Clamp(num, 0, 1)
-  self:SetInBeamLeanX(count)
+  local x = math.Clamp(num, 0, 1)
+  self:SetInBeamLeanX(x)
   return self
 end
 
@@ -73,8 +80,8 @@ function ENT:GetBeamLeanX()
 end
 
 function ENT:SetBeamLeanY(num)
-  local count = math.Clamp(num, 0, 1)
-  self:SetInBeamLeanY(count)
+  local y = math.Clamp(num, 0, 1)
+  self:SetInBeamLeanY(y)
   return self
 end
 
@@ -83,7 +90,6 @@ function ENT:GetBeamLeanY()
 end
 
 function ENT:InitSources()
-  self.hitSize = 0
   if(SERVER) then
     self.hitSources = {} -- Sources in notation `[ent] = true`
     self:InitArrays("Array")
@@ -130,8 +136,6 @@ function ENT:IsHitNormal(trace)
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
 end
 
-local hdx, count
-
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
@@ -139,9 +143,9 @@ function ENT:EveryBeam(entity, index, beam, trace)
           upwrd:Rotate(self:GetAngles())
     local bsdir = Vector(trace.HitNormal)
     local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
-    local angle = bsdir:AngleEx(upwrd)
     local mrdotm = math.abs(beam.VrDirect:Dot(bsdir))
     local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
+    local angle, count = bsdir:AngleEx(upwrd), self.crCount
     if(count > 1) then
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
@@ -149,38 +153,37 @@ function ENT:EveryBeam(entity, index, beam, trace)
       for idx = 1, count do
         local newdr = marby * angle:Up(); newdr:Add(marbx * angle:Forward())
         if(CLIENT) then
-          hdx = hdx + 1; self:DrawBeam(entity, bmorg, newdr, beam, mrdotv, hdx)
+          self:DrawBeam(entity, bmorg, newdr, beam, mrdotv)
         else
-          hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, newdr, beam, mrdotv, hdx))
+          self:DoDamage(self:DoBeam(entity, bmorg, newdr, beam, mrdotv))
         end
         angle:RotateAroundAxis(bsdir, mnang)
       end
     else
       if(CLIENT) then
-        hdx = hdx + 1; self:DrawBeam(entity, bmorg, bsdir, beam, mrdotv, hdx)
+        self:DrawBeam(entity, bmorg, bsdir, beam, mrdotv)
       else
-        hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, bmorg, bsdir, beam, mrdotv, hdx))
+        self:DoDamage(self:DoBeam(entity, bmorg, bsdir, beam, mrdotv))
       end
     end
   end -- Sources are located in the table hash part
 end
 
 function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
-  hdx, count = 0, self:GetBeamCount()
+  self:UpdateInternals()
 
-  if(count > 0) then
+  if(self.crCount > 0) then
     self:ProcessSources()
   end
 
-  self:SetHitReportMax(hdx)
+  self:SetHitReportMax(self.crHdx)
 
   return self:UpdateArrays()
 end
 
 function ENT:BeamColorSplit(idx, bmex)
   if(self:GetBeamColorSplit()) then
-    local cnt = (idx % self:GetBeamCount() + 1)
+    local cnt = (idx % self.crCount + 1)
     local r, g, b, a = bmex:GetColorRGBA()
     r, g, b = LaserLib.GetColorID(cnt, r, g, b)
     LaserLib.SetExColorRGBA(r, g, b, a)
@@ -194,21 +197,20 @@ end
  * dir  > Beam trace direction
  * bmex > Source trace beam class
  * vdot > Dot product with surface normal
- * idx  > Index to store the result
 ]]
-function ENT:DoBeam(ent, org, dir, bmex, vdot, idx)
+function ENT:DoBeam(ent, org, dir, bmex, vdot)
+  self.crHdx = self.crHdx + 1
   LaserLib.SetExSources(ent, bmex:GetSource())
   LaserLib.SetExLength(bmex:GetLength())
   local length = bmex.NvLength
   local usrfle = bmex.BrReflec
   local usrfre = bmex.BrRefrac
   local noverm = bmex.BmNoover
-  local count  = self:GetBeamCount()
-  local todiv  = (self:GetBeamReplicate() and 1 or (count / vdot))
+  local todiv  = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
   local damage = (bmex.NvDamage / todiv)
   local force  = (bmex.NvForce  / todiv)
   local width  = LaserLib.GetWidth((bmex.NvWidth / todiv))
-  local beam, trace = LaserLib.DoBeam(self:BeamColorSplit(idx, bmex),
+  local beam, trace = LaserLib.DoBeam(self:BeamColorSplit(self.crHdx, bmex),
                                       org,
                                       dir,
                                       length,
@@ -218,6 +220,6 @@ function ENT:DoBeam(ent, org, dir, bmex, vdot, idx)
                                       usrfle,
                                       usrfre,
                                       noverm,
-                                      idx)
+                                      self.crHdx)
   return beam, trace
 end

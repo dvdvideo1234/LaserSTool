@@ -4,6 +4,13 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_splitter.vmt")
 
+function ENT:UpdateInternals()
+  self.crOpower = nil
+  self.crDoment = nil
+  self.crDobeam = nil
+  return self
+end
+
 function ENT:RegisterSource(ent)
   if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
@@ -92,37 +99,34 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local opower, doment, dobeam
-
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)
-    if(not opower or npower > opower) then
-      opower, dobeam, doment = npower, beam, entity
+    if(not self.crOpower or npower > self.crOpower) then
+      self.crOpower, self.crDobeam, self.crDoment = npower, beam, entity
     end
   end
 end
 
 function ENT:UpdateSources()
-  opower, dobeam, doment = nil, nil, nil
-
+  self:UpdateInternals()
   self:ProcessSources()
 
   local count = self:GetBeamCount()
-  if(dobeam and count > 0) then -- Dominant result hit
-    self:SetBeamForce(dobeam.NvForce)
-    self:SetBeamWidth(dobeam.NvWidth)
-    self:SetBeamDamage(dobeam.NvDamage)
-    if(self:IsInfinite(doment)) then
-      self:SetBeamLength(dobeam.BmLength)
+  if(self.crDobeam and count > 0) then -- Dominant result hit
+    self:SetBeamForce(self.crDobeam.NvForce)
+    self:SetBeamWidth(self.crDobeam.NvWidth)
+    self:SetBeamDamage(self.crDobeam.NvDamage)
+    if(self:IsInfinite(self.crDoment)) then
+      self:SetBeamLength(self.crDobeam.BmLength)
     else -- When not looping use the remaining
-      self:SetBeamLength(dobeam.NvLength)
+      self:SetBeamLength(self.crDobeam.NvLength)
     end -- Apply length based on looping
     -- Transfer visuals from the dominant
-    self:SetDominant(dobeam)
+    self:SetDominant(self.crDobeam)
     -- Send the dominant entity
-    return dobeam:GetSource()
+    return self.crDobeam:GetSource()
   else
     self:SetBeamForce(0)
     self:SetBeamWidth(0)

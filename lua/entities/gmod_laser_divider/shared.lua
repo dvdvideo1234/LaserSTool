@@ -13,6 +13,12 @@ ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 
+function ENT:UpdateInternals()
+  self.hitSize = 0 -- Add sources in array
+  self.crHdx = 0 -- Current bean index
+  return self
+end
+
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
@@ -33,7 +39,6 @@ function ENT:SetBeamTransform()
 end
 
 function ENT:InitSources()
-  self.hitSize = 0
   if(SERVER) then
     self.hitSources = {} -- Sources in notation `[ent] = true`
     self:InitArrays("Array")
@@ -81,27 +86,24 @@ function ENT:IsHitNormal(trace)
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
 end
 
-local hdx = 0
-
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
     local ref = LaserLib.GetReflected(beam.VrDirect, trace.HitNormal)
     if(CLIENT) then
-      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, ref, beam, hdx)
-      hdx = hdx + 1; self:DrawBeam(entity, trace.HitPos, beam.VrDirect, beam, hdx)
+      self:DrawBeam(entity, trace.HitPos, ref, beam)
+      self:DrawBeam(entity, trace.HitPos, beam.VrDirect, beam)
     else
-      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, beam, hdx))
-      hdx = hdx + 1; self:DoDamage(self:DoBeam(entity, trace.HitPos, beam.VrDirect, beam, hdx))
+      self:DoDamage(self:DoBeam(entity, trace.HitPos, ref, beam))
+      self:DoDamage(self:DoBeam(entity, trace.HitPos, beam.VrDirect, beam))
     end
   end -- Sources are located in the table hash part
 end
 
 function ENT:UpdateSources()
-  hdx = 0; self.hitSize = 0 -- Add sources in array
-
+  self:UpdateInternals() -- Add sources in array
   self:ProcessSources()
-  self:SetHitReportMax(hdx)
+  self:SetHitReportMax(self.crHdx)
 
   return self:UpdateArrays()
 end
@@ -112,9 +114,9 @@ end
  * org  > Beam origin location
  * dir  > Beam trace direction
  * bmex > Source trace beam class
- * idx  > Index to store the result
 ]]
-function ENT:DoBeam(ent, org, dir, bmex, idx)
+function ENT:DoBeam(ent, org, dir, bmex)
+  self.crHdx = self.crHdx + 1
   LaserLib.SetExSources(ent, bmex:GetSource())
   LaserLib.SetExLength(bmex:GetLength())
   local length = bmex.NvLength
@@ -135,6 +137,6 @@ function ENT:DoBeam(ent, org, dir, bmex, idx)
                                       usrfle,
                                       usrfre,
                                       noverm,
-                                      idx)
+                                      self.crHdx)
   return beam, trace
 end

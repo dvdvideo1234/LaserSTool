@@ -6,13 +6,38 @@ resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
 local CLMX = LaserLib.GetData("CLMX")
 
+function ENT:UpdateInternals(init)
+  if(init) then
+    self.hitSize = 0
+    self.crXlength, self.crBpower = nil, nil
+    self.crXforce , self.crXwidth, self.crXdamage = nil, nil, nil
+    self.crOpower , self.crNpower, self.crForce   = nil, nil, nil
+    self.crWidth  , self.crLength, self.crDamage  = nil, nil, nil
+    self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
+    self.crDomcor = Color(0,0,0,0)
+    self.crXomcor = Color(0,0,0,0)
+  else
+    self.hitSize = 0 -- Add sources in array
+    self.crXlength, self.crBpower = 0, false
+    self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
+    self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
+    self.crWidth  , self.crLength, self.crDamage  = 0  , 0  , 0
+    self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
+    self.crDomcor.r, self.crDomcor.g = 0, 0
+    self.crDomcor.b, self.crDomcor.a = 0, 0
+    self.crXomcor.r, self.crXomcor.g = 0, 0
+    self.crXomcor.b, self.crXomcor.a = 0, 0
+  end
+  return self
+end
+
 function ENT:RegisterSource(ent)
   if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
 end
 
 function ENT:InitSources()
-  self.hitSize = 0     -- Amount of sources to have
+  self:UpdateInternals(true) -- Amount of sources to have
   self.hitSources = {} -- Sources in notation `[ent] = true`
   self:InitArrays("Array")
   return self
@@ -94,61 +119,53 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local xlength, bpower
-local xforce , xwidth, xdamage
-local opower , npower, force
-local width  , length, damage
-local doment , dobeam, ncolor
-local domcor = Color(0,0,0,0)
-local xomcor = Color(0,0,0,0)
-
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
-    if(mrg) then ncolor = beam:GetColorRGBA(true) end
-    npower = LaserLib.GetPower(beam.NvWidth,
+    if(mrg) then self.crNcolor = beam:GetColorRGBA(true) end
+    self.crNpower = LaserLib.GetPower(beam.NvWidth,
                                beam.NvDamage)
     if(not self:IsInfinite(entity)) then
-      bpower = (bpower or true)
-      force = force + beam.NvForce
-      width = width + beam.NvWidth
-      length = length + beam.NvLength
-      damage = damage + beam.NvDamage
+      self.crBpower = (self.crBpower or true)
+      self.crForce = self.crForce + beam.NvForce
+      self.crWidth = self.crWidth + beam.NvWidth
+      self.crLength = self.crLength + beam.NvLength
+      self.crDamage = self.crDamage + beam.NvDamage
       if(mrg) then
-        domcor.r = domcor.r + ncolor.r
-        domcor.g = domcor.g + ncolor.g
-        domcor.b = domcor.b + ncolor.b
-        domcor.a = math.max(domcor.a, ncolor.a)
+        self.crDomcor.r = self.crDomcor.r + self.crNcolor.r
+        self.crDomcor.g = self.crDomcor.g + self.crNcolor.g
+        self.crDomcor.b = self.crDomcor.b + self.crNcolor.b
+        self.crDomcor.a = math.max(self.crDomcor.a, self.crNcolor.a)
       end
     else
-      if(doment ~= entity) then
-        xforce = beam.NvForce
-        xwidth = beam.NvWidth
-        xdamage = beam.NvDamage
-        xlength = beam:GetLength()
+      if(self.crDoment ~= entity) then
+        self.crXforce = beam.NvForce
+        self.crXwidth = beam.NvWidth
+        self.crXdamage = beam.NvDamage
+        self.crXlength = beam:GetLength()
         if(mrg) then
-          xomcor.r = ncolor.r
-          xomcor.g = ncolor.g
-          xomcor.b = ncolor.b
-          xomcor.a = math.max(xomcor.a, ncolor.a)
+          self.crXomcor.r = self.crNcolor.r
+          self.crXomcor.g = self.crNcolor.g
+          self.crXomcor.b = self.crNcolor.b
+          self.crXomcor.a = math.max(self.crXomcor.a, self.crNcolor.a)
         end
       else
-        xforce = xforce + beam.NvForce
-        xwidth = xwidth + beam.NvWidth
-        xdamage = xdamage + beam.NvDamage
+        self.crXforce = self.crXforce + beam.NvForce
+        self.crXwidth = self.crXwidth + beam.NvWidth
+        self.crXdamage = self.crXdamage + beam.NvDamage
         if(mrg) then
-          xomcor.r = xomcor.r + ncolor.r
-          xomcor.g = xomcor.g + ncolor.g
-          xomcor.b = xomcor.b + ncolor.b
-          xomcor.a = math.max(xomcor.a, ncolor.a)
+          self.crXomcor.r = self.crXomcor.r + self.crNcolor.r
+          self.crXomcor.g = self.crXomcor.g + self.crNcolor.g
+          self.crXomcor.b = self.crXomcor.b + self.crNcolor.b
+          self.crXomcor.a = math.max(self.crXomcor.a, self.crNcolor.a)
         end
       end
     end
-    if(not opower or npower > opower) then
-      opower = npower
-      doment = entity
-      dobeam = beam
+    if(not self.crOpower or self.crNpower > self.crOpower) then
+      self.crOpower = self.crNpower
+      self.crDoment = entity
+      self.crDobeam = beam
     end
   end
 end
@@ -168,37 +185,28 @@ function ENT:DominantColor(beam, cov)
 end
 
 function ENT:UpdateSources()
-  self.hitSize = 0 -- Add sources in array
-  domcor.r, domcor.g = 0, 0
-  domcor.b, domcor.a = 0, 0
-  xomcor.r, xomcor.g = 0, 0
-  xomcor.b, xomcor.a = 0, 0
-  doment , dobeam = nil, nil
-  npower , bpower , opower, ncolor  = 0, false
-  xlength, xforce , xwidth, xdamage = 0, 0, 0, 0
-  force  , width  , length, damage  = 0, 0, 0, 0
-
+  self:UpdateInternals()
   self:ProcessSources()
 
   if(self.hitSize > 0) then
     if(self:GetBeamColorMerge()) then
-      if(bpower) then -- No infinite
-        self:DominantColor(dobeam, domcor)
+      if(self.crBpower) then -- No infinite
+        self:DominantColor(self.crDobeam, self.crDomcor)
       else -- Utilize the loop color
-        self:DominantColor(dobeam, xomcor)
+        self:DominantColor(self.crDobeam, self.crXomcor)
       end -- Use regular dominant
-    else self:SetDominant(dobeam) end
+    else self:SetDominant(self.crDobeam) end
 
-    if(bpower) then -- Sum settings
-      self:SetBeamForce(force)
-      self:SetBeamWidth(width)
-      self:SetBeamLength(length)
-      self:SetBeamDamage(damage)
+    if(self.crBpower) then -- Sum settings
+      self:SetBeamForce(self.crForce)
+      self:SetBeamWidth(self.crWidth)
+      self:SetBeamLength(self.crLength)
+      self:SetBeamDamage(self.crDamage)
     else -- Inside an active entity loop
-      self:SetBeamForce(xforce)
-      self:SetBeamWidth(xwidth)
-      self:SetBeamDamage(xdamage)
-      self:SetBeamLength(xlength)
+      self:SetBeamForce(self.crXforce)
+      self:SetBeamWidth(self.crXwidth)
+      self:SetBeamDamage(self.crXdamage)
+      self:SetBeamLength(self.crXlength)
     end
   else
     self:SetBeamForce(0)

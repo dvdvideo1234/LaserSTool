@@ -9,8 +9,26 @@ function ENT:RegisterSource(ent)
   self.hitSources[ent] = true; return self
 end
 
+function ENT:UpdateInternals(init)
+  if(init) then
+    self.hitSize = 0
+    self.crNormh , self.crDomsrc = nil, nil
+    self.crOpower, self.crNpower, self.crForce  = 0, 0, 0
+    self.crWidth , self.crLength, self.crDamage = 0, 0, 0
+    self.crOrigin, self.crDirect = Vector(), Vector()
+  else
+    self.hitSize = 0
+    self.crOrigin:SetUnpacked(0,0,0)
+    self.crDirect:SetUnpacked(0,0,0)
+    self.crNormh , self.crDomsrc = false, nil
+    self.crWidth , self.crLength, self.crDamage = 0, 0, 0
+    self.crNpower, self.crForce , self.crOpower = 0, 0, nil
+  end
+  return self
+end
+
 function ENT:InitSources()
-  self.hitSize = 0     -- Amount of sources to have
+  self:UpdateInternals(true) -- Initialize sensor internals
   self.hitSources = {} -- Sources in notation `[ent] = true`
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
@@ -102,45 +120,34 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-local normh , domsrc
-local opower, npower, force  = 0, 0, 0
-local width , length, damage = 0, 0, 0
-local origin, direct = Vector(), Vector()
-
 function ENT:EveryBeam(entity, index, beam, trace)
   local norm = self:GetUnitDirection()
   local bdot, mdot = self:GetHitPower(norm, beam, trace)
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
-      npower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
-      width  = width  + beam.NvWidth
-      damage = damage + beam.NvDamage
-      force  = force  + beam.NvForce
-      if(not opower or npower > opower) then
-        normh  = true
-        opower = npower
-        domsrc = beam:GetSource()
-        length = beam.NvLength
-        origin:Set(beam.VrOrigin)
-        direct:Set(beam.VrDirect)
+      self.crNpower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
+      self.crWidth  = self.crWidth  + beam.NvWidth
+      self.crDamage = self.crDamage + beam.NvDamage
+      self.crForce  = self.crForce  + beam.NvForce
+      if(not self.crOpower or self.crNpower > self.crOpower) then
+        self.crNormh  = true
+        self.crOpower = self.crNpower
+        self.crDomsrc = beam:GetSource()
+        self.crLength = beam.NvLength
+        self.crOrigin:Set(beam.VrOrigin)
+        self.crDirect:Set(beam.VrDirect)
       end
     end
   end -- Sources are located in the table hash part
 end
 
 function ENT:UpdateSources()
-  origin:SetUnpacked(0,0,0)
-  direct:SetUnpacked(0,0,0)
-  normh , domsrc = false, nil
-  width , length, damage = 0, 0, 0
-  npower, force , opower = 0, 0, nil
-
-  self.hitSize = 0
-
+  self:UpdateInternals()
   self:ProcessSources()
 
   if(self.hitSize > 0) then
+    local domsrc = self.crDomsrc
     if(LaserLib.IsValid(domsrc)) then
       -- Read sensor configuration
       local mforce  = self:GetBeamForce()
@@ -152,24 +159,24 @@ function ENT:UpdateSources()
       local zorigin, como = morigin:IsZero(), false
       local zdirect, comd = mdirect:IsZero(), false
       if(not zorigin) then -- Check if origin is present
-        como = (morigin:Distance(origin) >= mlength)
+        como = (morigin:Distance(self.crOrigin) >= mlength)
       end -- No need to calculate square root when zero
-      if(not zdirect) then comd = normh end
+      if(not zdirect) then comd = self.crNormh end
       -- Thrigger the wire inputs
-      self:WireWrite("Width" , width)
-      self:WireWrite("Length", length)
-      self:WireWrite("Damage", damage)
-      self:WireWrite("Force" , force)
-      self:WireWrite("Origin", origin)
-      self:WireWrite("Direct", direct)
+      self:WireWrite("Width" , self.crWidth)
+      self:WireWrite("Length", self.crLength)
+      self:WireWrite("Damage", self.crDamage)
+      self:WireWrite("Force" , self.crForce)
+      self:WireWrite("Origin", self.crOrigin)
+      self:WireWrite("Direct", self.crDirect)
       self:WireWrite("Dominant", domsrc)
       -- Check whenever sensor has to turn on
       if((zorigin or (not zorigin and como)) and
          (zdirect or (not zdirect and comd)) and
-         (mforce  == 0 or (mforce  > 0 and force  >= mforce)) and
-         (mwidth  == 0 or (mwidth  > 0 and width  >= mwidth)) and
-         (mlength == 0 or (mlength > 0 and length >= mlength)) and
-         (mdamage == 0 or (mdamage > 0 and damage >= mdamage))) then
+         (mforce  == 0 or (mforce  > 0 and self.crForce  >= mforce)) and
+         (mwidth  == 0 or (mwidth  > 0 and self.crWidth  >= mwidth)) and
+         (mlength == 0 or (mlength > 0 and self.crLength >= mlength)) and
+         (mdamage == 0 or (mdamage > 0 and self.crDamage >= mdamage))) then
         if(self:GetCheckDominant()) then -- Compare dominant
           -- Sensor configurations
           local mfcentr = self:GetForceCenter()
@@ -219,23 +226,23 @@ function ENT:UpdateSources()
       end
     else
       self:SetOn(false)
-      self:WireWrite("Width" , width)
-      self:WireWrite("Length", length)
-      self:WireWrite("Damage", damage)
-      self:WireWrite("Force" , force)
-      self:WireWrite("Origin", origin)
-      self:WireWrite("Direct", direct)
-      self:WireWrite("Dominant", domsrc)
+      self:WireWrite("Width" , self.crWidth)
+      self:WireWrite("Length", self.crLength)
+      self:WireWrite("Damage", self.crDamage)
+      self:WireWrite("Force" , self.crForce)
+      self:WireWrite("Origin", self.crOrigin)
+      self:WireWrite("Direct", self.crDirect)
+      self:WireWrite("Dominant")
     end
   else
     self:SetOn(false)
-    self:WireWrite("Width" , width)
-    self:WireWrite("Length", length)
-    self:WireWrite("Damage", damage)
-    self:WireWrite("Force" , force)
-    self:WireWrite("Origin", origin)
-    self:WireWrite("Direct", direct)
-    self:WireWrite("Dominant", domsrc)
+    self:WireWrite("Width" , self.crWidth)
+    self:WireWrite("Length", self.crLength)
+    self:WireWrite("Damage", self.crDamage)
+    self:WireWrite("Force" , self.crForce)
+    self:WireWrite("Origin", self.crOrigin)
+    self:WireWrite("Direct", self.crDirect)
+    self:WireWrite("Dominant")
   end
 
   return self:UpdateArrays()
