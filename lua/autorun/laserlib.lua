@@ -3198,6 +3198,19 @@ local gtACTORS = {
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not ent:GetPassBeamTrough()) then return end
+    if(SERVER) then
+      local srb = beam:GetSource()
+      local src = ent.pssSources
+      if(src[srb]) then
+        print(SysTime(), srb)
+        ent.pssReset = true
+        table.Empty(src)
+      end
+      ent.hitSize = ent.hitSize + 1
+      ent:EveryBeam(srb, ent.hitSize, beam, trace)
+      ent:UpdateDominant():UpdateOn()
+      src[srb] = true
+    end
     beam.IsTrace = true
     beam.TeFilter, beam.TrFActor = ent, true
   end
