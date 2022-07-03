@@ -9,41 +9,29 @@ function ENT:RegisterSource(ent)
   self.hitSources[ent] = true; return self
 end
 
-function ENT:UpdateInternals(init)
-  if(init) then
-    self.hitSize = 0
-    self.crNormh , self.crDomsrc = nil, nil
-    self.crOpower, self.crNpower, self.crForce  = 0, 0, 0
-    self.crWidth , self.crLength, self.crDamage = 0, 0, 0
-    self.crOrigin, self.crDirect = Vector(), Vector()
-  else
-    if(self:GetPassBeamTrough() and self.pssReset) then
-      print(SysTime(), "reset")
-      self.pssReset = false
-      self.hitSize = 0
-      self.crOrigin:SetUnpacked(0,0,0)
-      self.crDirect:SetUnpacked(0,0,0)
-      self.crNormh , self.crDomsrc = false, nil
-      self.crWidth , self.crLength, self.crDamage = 0, 0, 0
-      self.crNpower, self.crForce , self.crOpower = 0, 0, nil
-    else
-      self.hitSize = 0
-      self.crOrigin:SetUnpacked(0,0,0)
-      self.crDirect:SetUnpacked(0,0,0)
-      self.crNormh , self.crDomsrc = false, nil
-      self.crWidth , self.crLength, self.crDamage = 0, 0, 0
-      self.crNpower, self.crForce , self.crOpower = 0, 0, nil
-    end
-  end
+function ENT:ResetInternals()
+  self.hitSize = 0
+  self.crOrigin:SetUnpacked(0,0,0)
+  self.crDirect:SetUnpacked(0,0,0)
+  self.crNormh , self.crDomsrc = false, nil
+  self.crWidth , self.crLength, self.crDamage = 0, 0, 0
+  self.crNpower, self.crForce , self.crOpower = 0, 0, nil
+
+  return self
+end
+
+function ENT:UpdateInternals()
+  self.crOrigin = Vector()
+  self.crDirect = Vector()
+  self:ResetInternals()
 
   return self
 end
 
 function ENT:InitSources()
-  self:UpdateInternals(true) -- Initialize sensor internals
+  self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {} -- Beam sources in notation `[ent] = true`
-  self.pssReset   = false -- Beam sources in notation `[ent] = true`
+  self.pssSources = {} -- Beam pass sources in notation `[ent] = true`
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -269,7 +257,7 @@ function ENT:UpdateOn()
 end
 
 function ENT:UpdateSources()
-  self:UpdateInternals()
+  self:ResetInternals()
   self:ProcessSources()
 
   if(self.hitSize > 0) then
@@ -282,9 +270,11 @@ function ENT:UpdateSources()
 end
 
 function ENT:Think()
-  self:UpdateSources()
-  self:UpdateOn()
-  self:WireArrays()
+  if(not self:GetPassBeamTrough()) then
+    self:UpdateSources()
+    self:UpdateOn()
+    self:WireArrays()
+  end
 
   self:NextThink(CurTime())
 
