@@ -9,27 +9,29 @@ function ENT:RegisterSource(ent)
   self.hitSources[ent] = true; return self
 end
 
-function ENT:UpdateInternals(init)
-  if(init) then
-    self.hitSize = 0
-    self.crNormh , self.crDomsrc = nil, nil
-    self.crOpower, self.crNpower, self.crForce  = 0, 0, 0
-    self.crWidth , self.crLength, self.crDamage = 0, 0, 0
-    self.crOrigin, self.crDirect = Vector(), Vector()
-  else
-    self.hitSize = 0
-    self.crOrigin:SetUnpacked(0,0,0)
-    self.crDirect:SetUnpacked(0,0,0)
-    self.crNormh , self.crDomsrc = false, nil
-    self.crWidth , self.crLength, self.crDamage = 0, 0, 0
-    self.crNpower, self.crForce , self.crOpower = 0, 0, nil
-  end
+function ENT:ResetInternals()
+  self.hitSize = 0
+  self.crOrigin:SetUnpacked(0,0,0)
+  self.crDirect:SetUnpacked(0,0,0)
+  self.crNormh , self.crDomsrc = false, nil
+  self.crWidth , self.crLength, self.crDamage = 0, 0, 0
+  self.crNpower, self.crForce , self.crOpower = 0, 0, nil
+
+  return self
+end
+
+function ENT:UpdateInternals()
+  self.crOrigin = Vector()
+  self.crDirect = Vector()
+  self:ResetInternals()
+
   return self
 end
 
 function ENT:InitSources()
-  self:UpdateInternals(true) -- Initialize sensor internals
-  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self:UpdateInternals() -- Initialize sensor internals
+  self.hitSources = {} -- Entity sources in notation `[ent] = true`
+  self.pssSources = {} -- Beam pass sources in notation `[ent] = true`
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -142,122 +144,137 @@ function ENT:EveryBeam(entity, index, beam, trace)
   end -- Sources are located in the table hash part
 end
 
-function ENT:UpdateSources()
-  self:UpdateInternals()
-  self:ProcessSources()
+function ENT:UpdateOutputs(dom, bon)
+  self:WireWrite("Width" , self.crWidth)
+  self:WireWrite("Length", self.crLength)
+  self:WireWrite("Damage", self.crDamage)
+  self:WireWrite("Force" , self.crForce)
+  self:WireWrite("Origin", self.crOrigin)
+  self:WireWrite("Direct", self.crDirect)
 
-  if(self.hitSize > 0) then
-    local domsrc = self.crDomsrc
-    if(LaserLib.IsValid(domsrc)) then
-      -- Read sensor configuration
-      local mforce  = self:GetBeamForce()
-      local mwidth  = self:GetBeamWidth()
-      local morigin = self:GetUnitOrigin()
-      local mdirect = self:GetUnitDirection()
-      local mlength = self:GetBeamLength()
-      local mdamage = self:GetBeamDamage()
-      local zorigin, como = morigin:IsZero(), false
-      local zdirect, comd = mdirect:IsZero(), false
-      if(not zorigin) then -- Check if origin is present
-        como = (morigin:Distance(self.crOrigin) >= mlength)
-      end -- No need to calculate square root when zero
-      if(not zdirect) then comd = self.crNormh end
-      -- Thrigger the wire inputs
-      self:WireWrite("Width" , self.crWidth)
-      self:WireWrite("Length", self.crLength)
-      self:WireWrite("Damage", self.crDamage)
-      self:WireWrite("Force" , self.crForce)
-      self:WireWrite("Origin", self.crOrigin)
-      self:WireWrite("Direct", self.crDirect)
-      self:WireWrite("Dominant", domsrc)
-      -- Check whenever sensor has to turn on
-      if((zorigin or (not zorigin and como)) and
-         (zdirect or (not zdirect and comd)) and
-         (mforce  == 0 or (mforce  > 0 and self.crForce  >= mforce)) and
-         (mwidth  == 0 or (mwidth  > 0 and self.crWidth  >= mwidth)) and
-         (mlength == 0 or (mlength > 0 and self.crLength >= mlength)) and
-         (mdamage == 0 or (mdamage > 0 and self.crDamage >= mdamage))) then
-        if(self:GetCheckDominant()) then -- Compare dominant
-          -- Sensor configurations
-          local mfcentr = self:GetForceCenter()
-          local mreflec = self:GetReflectRatio()
-          local mrefrac = self:GetRefractRatio()
-          local mdistyp = self:GetDissolveType()
-          local mendeff = self:GetEndingEffect()
-          local mmatera = self:GetBeamMaterial()
-          local mbmsafe = self:GetInBeamSafety()
-          local movrmat = self:GetInNonOverMater()
-          local mcomcor, mcoe = self:GetCheckBeamColor()
-          -- Dominant configurations ( booleans have true/false )
-          local dfcentr = domsrc:GetForceCenter()  and 2 or 1
-          local dreflec = domsrc:GetReflectRatio() and 2 or 1
-          local drefrac = domsrc:GetRefractRatio() and 2 or 1
-          local ddistyp = domsrc:GetDissolveType()
-          local dendeff = domsrc:GetEndingEffect() and 2 or 1
-          local dmatera = domsrc:GetBeamMaterial()
-          local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
-          local dovrmat = domsrc:GetNonOverMater() and 2 or 1
-          if(mcomcor) then -- Dominant beam color compare enabled
-            local margin = LaserLib.GetData("CTOL")
-            local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
-            local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
-            mcoe = (mv:IsEqualTol(dv, margin) and (math.abs(ma - da) < margin))
-          end
-          -- Compare the internal congiguration and trigger sensor
-          if((not mcomcor   or (mcomcor       and mcoe)) and
-             (mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
-             (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp)) and
-             (mfcentr == 0  or (mfcentr ~= 0  and mfcentr == dfcentr)) and
-             (mreflec == 0  or (mreflec ~= 0  and mreflec == dreflec)) and
-             (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
-             (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
-             (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
-             (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
-          ) then -- Dominant beam is like sensor beam
-            self:SetOn(true)
-          else -- Dominant beam is not like sensor beam
-            self:SetOn(false)
-          end
-        else -- Dominant comparison is not enabled
-          self:SetOn(true)
-        end
-      else -- Cannot match main beam components
-        self:SetOn(false)
-      end
-    else
-      self:SetOn(false)
-      self:WireWrite("Width" , self.crWidth)
-      self:WireWrite("Length", self.crLength)
-      self:WireWrite("Damage", self.crDamage)
-      self:WireWrite("Force" , self.crForce)
-      self:WireWrite("Origin", self.crOrigin)
-      self:WireWrite("Direct", self.crDirect)
-      self:WireWrite("Dominant")
-    end
+  if(dom ~= nil) then
+    self:WireWrite("Dominant", dom)
   else
-    self:SetOn(false)
-    self:WireWrite("Width" , self.crWidth)
-    self:WireWrite("Length", self.crLength)
-    self:WireWrite("Damage", self.crDamage)
-    self:WireWrite("Force" , self.crForce)
-    self:WireWrite("Origin", self.crOrigin)
-    self:WireWrite("Direct", self.crDirect)
     self:WireWrite("Dominant")
   end
 
-  return self:UpdateArrays()
+  if(bon ~= nil) then
+    self:SetOn(tobool(bon))
+  else
+    self:SetOn(false)
+  end
+
+  return self
 end
 
-function ENT:Think()
-  self:UpdateSources()
+function ENT:UpdateDominant(dom)
+  local domsrc = (dom or self.crDomsrc)
+  if(LaserLib.IsValid(domsrc)) then
+    -- Read sensor configuration
+    local mforce  = self:GetBeamForce()
+    local mwidth  = self:GetBeamWidth()
+    local morigin = self:GetUnitOrigin()
+    local mdirect = self:GetUnitDirection()
+    local mlength = self:GetBeamLength()
+    local mdamage = self:GetBeamDamage()
+    local zorigin, como = morigin:IsZero(), false
+    local zdirect, comd = mdirect:IsZero(), false
+    if(not zorigin) then -- Check if origin is present
+      como = (morigin:Distance(self.crOrigin) >= mlength)
+    end -- No need to calculate square root when zero
+    if(not zdirect) then comd = self.crNormh end
+    -- Thrigger the wire inputs
+    self:UpdateOutputs(domsrc)
+    -- Check whenever sensor has to turn on
+    if((zorigin or (not zorigin and como)) and
+       (zdirect or (not zdirect and comd)) and
+       (mforce  == 0 or (mforce  > 0 and self.crForce  >= mforce)) and
+       (mwidth  == 0 or (mwidth  > 0 and self.crWidth  >= mwidth)) and
+       (mlength == 0 or (mlength > 0 and self.crLength >= mlength)) and
+       (mdamage == 0 or (mdamage > 0 and self.crDamage >= mdamage))) then
+      if(self:GetCheckDominant()) then -- Compare dominant
+        -- Sensor configurations
+        local mfcentr = self:GetForceCenter()
+        local mreflec = self:GetReflectRatio()
+        local mrefrac = self:GetRefractRatio()
+        local mdistyp = self:GetDissolveType()
+        local mendeff = self:GetEndingEffect()
+        local mmatera = self:GetBeamMaterial()
+        local mbmsafe = self:GetInBeamSafety()
+        local movrmat = self:GetInNonOverMater()
+        local mcomcor, mcoe = self:GetCheckBeamColor()
+        -- Dominant configurations ( booleans have true/false )
+        local dfcentr = domsrc:GetForceCenter()  and 2 or 1
+        local dreflec = domsrc:GetReflectRatio() and 2 or 1
+        local drefrac = domsrc:GetRefractRatio() and 2 or 1
+        local ddistyp = domsrc:GetDissolveType()
+        local dendeff = domsrc:GetEndingEffect() and 2 or 1
+        local dmatera = domsrc:GetBeamMaterial()
+        local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
+        local dovrmat = domsrc:GetNonOverMater() and 2 or 1
+        if(mcomcor) then -- Dominant beam color compare enabled
+          local margin = LaserLib.GetData("CTOL")
+          local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
+          local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
+          mcoe = (mv:IsEqualTol(dv, margin) and (math.abs(ma - da) < margin))
+        end
+        -- Compare the internal congiguration and trigger sensor
+        if((not mcomcor   or (mcomcor       and mcoe)) and
+           (mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
+           (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp)) and
+           (mfcentr == 0  or (mfcentr ~= 0  and mfcentr == dfcentr)) and
+           (mreflec == 0  or (mreflec ~= 0  and mreflec == dreflec)) and
+           (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
+           (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
+           (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
+           (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
+        ) then -- Dominant beam is like sensor beam
+          self:SetOn(true)
+        else -- Dominant beam is not like sensor beam
+          self:SetOn(false)
+        end
+      else -- Dominant comparison is not enabled
+        self:SetOn(true)
+      end
+    else -- Cannot match main beam components
+      self:SetOn(false)
+    end
+  else
+    self:UpdateOutputs()
+  end
 
+  return self
+end
+
+function ENT:UpdateOn()
   if(self:GetOn()) then
     self:WireWrite("On", 1)
   else
     self:WireWrite("On", 0)
   end
 
-  self:WireArrays()
+  return self
+end
+
+function ENT:UpdateSources()
+  self:ResetInternals()
+  self:ProcessSources()
+
+  if(self.hitSize > 0) then
+    self:UpdateDominant()
+  else
+    self:UpdateOutputs()
+  end
+
+  return self:UpdateArrays()
+end
+
+function ENT:Think()
+  if(not self:GetPassBeamTrough()) then
+    self:UpdateSources()
+    self:UpdateOn()
+    self:WireArrays()
+  end
 
   self:NextThink(CurTime())
 

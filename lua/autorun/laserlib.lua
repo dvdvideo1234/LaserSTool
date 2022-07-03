@@ -1848,7 +1848,35 @@ if(SERVER) then
     end
 
     if(laser.isDamage) then
-      if(target:IsVehicle()) then
+
+      if(target:GetClass() == "shield") then
+        local damage = math.Clamp(damage / 2500 * 3, 0, 4)
+        target:Hit(laser, origin, damage, -1 * normal)
+        return -- We stop here because we hit a shield!
+      end
+
+      if(target:IsPlayer()) then
+        if(target:Health() <= damage) then
+          local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
+          if(not LaserLib.IsValid(torch)) then target:Kill(); return end
+          LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
+          local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
+          if(not LaserLib.IsValid(doll)) then target:Kill(); return end -- Nevec for the player ragdoll idea
+          doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
+          LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
+          LaserLib.DoSound(target, noise) -- Play sound for breakable props
+        end
+      elseif(target:IsNPC()) then
+        if(target:Health() <= damage) then
+          local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
+          if(not LaserLib.IsValid(torch)) then target:Remove(); return end
+          target:SetName(torch.Target) -- The NPC does not have kill method
+          local swep = target:GetActiveWeapon()
+          if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
+          LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
+          LaserLib.DoSound(target, noise) -- Play sound for breakable props
+        end
+      elseif(target:IsVehicle()) then
         local driver = target:GetDriver()
         if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
           if(driver:Health() <= damage) then -- We must kill the driver!
@@ -1862,33 +1890,6 @@ if(SERVER) then
             LaserLib.DoSound(driver, noise)
           end
         end
-      end
-
-      if(target:GetClass() == "shield") then
-        local damage = math.Clamp(damage / 2500 * 3, 0, 4)
-        target:Hit(laser, origin, damage, -1 * normal)
-        return -- We stop here because we hit a shield!
-      end
-
-      if(target:Health() <= damage) then
-        if(target:IsNPC() or target:IsPlayer()) then
-          local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
-          if(not LaserLib.IsValid(torch)) then target:Kill(); return end
-          if(target:IsPlayer()) then
-            LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
-            local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
-            if(not LaserLib.IsValid(doll)) then target:Kill(); return end -- Nevec for the player ragdoll idea
-            doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
-          else
-            target:SetName(torch.Target)
-            local swep = target:GetActiveWeapon()
-            if(LaserLib.IsValid(swep)) then
-              swep:SetName(torch.Target)
-            else target:Kill(); return end
-          end
-          LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
-        end
-        LaserLib.DoSound(target, noise) -- Play sound for breakable props
       end
 
       LaserLib.TakeDamage(target, damage, attacker, laser)
@@ -3198,6 +3199,20 @@ local gtACTORS = {
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not ent:GetPassBeamTrough()) then return end
+    if(SERVER) then
+      local srb = beam:GetSource()
+      local src = ent.pssSources
+      if(src[srb]) then
+        table.Empty(src)
+        ent:UpdateDominant()
+        ent:UpdateOn()
+        ent:WireArrays()
+        ent:ResetInternals()
+      end
+      ent.hitSize = ent.hitSize + 1
+      ent:EveryBeam(srb, ent.hitSize, beam, trace)
+      src[srb] = true
+    end
     beam.IsTrace = true
     beam.TeFilter, beam.TrFActor = ent, true
   end
