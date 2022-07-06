@@ -40,23 +40,32 @@ function ENT:DrawBeam()
   self:DrawEndingEffect(beam, trace)
 end
 
+function ENT:DrawBeamOn()
+  local width = self:GetBeamWidth()
+        width = LaserLib.GetWidth(width)
+  local length = self:GetBeamLength()
+  if(width > 0 and length > 0) then
+    self:UpdateFlags()
+    self:DrawBeam()
+  end
+end
+
+function ENT:DrawBeamOff()
+  local color = LaserLib.GetColor("YELLOW")
+  local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
+  local origin = self:GetBeamOrigin()
+  local direct = self:GetBeamDirection()
+        direct:Mul(lndir); direct:Add(origin)
+  render.DrawLine(origin, direct, color)
+end
+
 function ENT:Draw()
   self:DrawModel()
   self:DrawShadow(false)
+
   if(self:GetOn()) then
-    local width = self:GetBeamWidth()
-          width = LaserLib.GetWidth(width)
-    local length = self:GetBeamLength()
-    if(width > 0 and length > 0) then
-      self:UpdateFlags()
-      self:DrawBeam()
-    end
+    self:DrawBeamOn()
   else
-    local color = LaserLib.GetColor("YELLOW")
-    local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
-    local origin = self:GetBeamOrigin()
-    local direct = self:GetBeamDirection()
-          direct:Mul(lndir); direct:Add(origin)
-    render.DrawLine(origin, direct, color)
+    self:DrawBeamOff()
   end
 end

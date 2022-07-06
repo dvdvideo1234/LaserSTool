@@ -16,21 +16,6 @@ if(CLIENT) then
     {name = "reload_use", icon = "gui/r.png"  , icon2 = "gui/e.png"},
   }
 
-  hook.Add("PostDrawHUD", gsTool.."_grab_draw", -- Physgun draw beam assist
-    function() -- Handles drawing the assist when user holds laser unit
-      local ply = LocalPlayer(); if(not LaserLib.IsValid(ply)) then return end
-      local ray = ply:GetInfoNum(gsTool.."_rayassist", 0); if(ray <= 0) then return end
-      local wgn = ply:GetActiveWeapon(); if(not LaserLib.IsValid(wgn)) then return end
-      if(wgn:GetClass() ~= "weapon_physgun") then return end -- Not holding physgun
-      local tr = ply:GetEyeTrace(); if(not (tr and tr.Hit)) then return end
-      local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
-      if(tre:GetClass():find("gmod_laser", 1, true)) then -- For all laser units
-        local vor, vdr = LaserLib.GetTransformUnit(tre) -- Read unit transform
-        vor, vdr = (vor or tr.HitPos), (vdr or tr.HitNormal) -- Failsafe rays
-        LaserLib.DrawAssist(vor, vdr, ray, tre, ply) -- Convert to world-space
-      end
-    end)
-
   language.Add("tool."..gsTool..".name", "Laser Spawner")
   language.Add("tool."..gsTool..".desc", "Spawns very dangerous lasers!")
   language.Add("tool."..gsTool..".0", "Do not look into the beam source with the remaining eye!")

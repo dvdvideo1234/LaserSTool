@@ -2,42 +2,6 @@ LaserLib = LaserLib or {} -- Initialize the global variable of the library
 
 local DATA = {}
 
--- Server controlled flags for console variables
-DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
--- Independently controlled flags for console variables
-DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
-
--- Library internal variables for limits and realtime tweaks
-DATA.MXSPLTBC = CreateConVar("laseremitter_maxspltbc", 16, DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
-DATA.MXBMWIDT = CreateConVar("laseremitter_maxbmwidt", 30, DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
-DATA.MXBMDAMG = CreateConVar("laseremitter_maxbmdamg", 5000, DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
-DATA.MXBMFORC = CreateConVar("laseremitter_maxbmforc", 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
-DATA.MXBMLENG = CreateConVar("laseremitter_maxbmleng", 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
-DATA.MBOUNCES = CreateConVar("laseremitter_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
-DATA.MFORCELM = CreateConVar("laseremitter_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
-DATA.MAXRAYAS = CreateConVar("laseremitter_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
-DATA.MCRYSTAL = CreateConVar("laseremitter_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
-DATA.MREFLECT = CreateConVar("laseremitter_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
-DATA.MREFRACT = CreateConVar("laseremitter_mrefract", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the refractor model")
-DATA.MSPLITER = CreateConVar("laseremitter_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
-DATA.MDIVIDER = CreateConVar("laseremitter_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the divider model")
-DATA.MSENSOR  = CreateConVar("laseremitter_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Controls the sensor model")
-DATA.MDIMMER  = CreateConVar("laseremitter_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the dimmer model")
-DATA.MPORTAL  = CreateConVar("laseremitter_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the portal model")
-DATA.MSPLITRM = CreateConVar("laseremitter_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the splitter multy model")
-DATA.MPARALEL = CreateConVar("laseremitter_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the paralleller multy model")
-DATA.MFILTER  = CreateConVar("laseremitter_mfilter" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the filter model")
-DATA.NSPLITER = CreateConVar("laseremitter_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
-DATA.XSPLITER = CreateConVar("laseremitter_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
-DATA.YSPLITER = CreateConVar("laseremitter_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
-DATA.EFFECTDT = CreateConVar("laseremitter_effectdt", 0.15, DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
-DATA.ENSOUNDS = CreateConVar("laseremitter_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
-DATA.LNDIRACT = CreateConVar("laseremitter_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
-DATA.DAMAGEDT = CreateConVar("laseremitter_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
-DATA.DRWBMSPD = CreateConVar("laseremitter_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
-DATA.VESFBEAM = CreateConVar("laseremitter_vesfbeam", 150, DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
-DATA.NRASSIST = CreateConVar("laseremitter_nrassist", 1000, DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
-
 DATA.GRAT = 1.61803398875    -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"   -- Tool name for internal use
 DATA.ICON = "icon16/%s.png"  -- Format to convert icons
@@ -63,8 +27,8 @@ DATA.BBONC = 0               -- External forced beam max bounces. Resets on ever
 DATA.BLENG = 0               -- External forced beam length used in the current request
 DATA.BESRC = nil             -- External forced entity source for the beam update
 DATA.BCOLR = nil             -- External forced beam color used in the current request
-DATA.KEYD = "#"              -- The default key in a collection point to take when not found
-DATA.KEYA = "*"              -- The all key in a collection point to return the all in set
+DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
+DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
 DATA.VTEMP = Vector()        -- Global library temporary storage vector
@@ -72,9 +36,45 @@ DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
-DATA.NWPID = "laseremitter_portal" -- General key storing laser portal entity networking
+DATA.NWPID = DATA.TOOL.."_portal" -- General key storing laser portal entity networking
 DATA.KPHYP = DATA.TOOL.."_physprop" -- Key used to registed physical properties
-DATA.TRDG = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
+DATA.TRDG  = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
+
+-- Server controlled flags for console variables
+DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
+-- Independently controlled flags for console variables
+DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
+
+-- Library internal variables for limits and realtime tweaks
+DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc", 16, DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
+DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt", 30, DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
+DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg", 5000, DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
+DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc", 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
+DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng", 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
+DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
+DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
+DATA.MCRYSTAL = CreateConVar(DATA.TOOL.."_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
+DATA.MREFLECT = CreateConVar(DATA.TOOL.."_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
+DATA.MREFRACT = CreateConVar(DATA.TOOL.."_mrefract", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the refractor model")
+DATA.MSPLITER = CreateConVar(DATA.TOOL.."_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
+DATA.MDIVIDER = CreateConVar(DATA.TOOL.."_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the divider model")
+DATA.MSENSOR  = CreateConVar(DATA.TOOL.."_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Controls the sensor model")
+DATA.MDIMMER  = CreateConVar(DATA.TOOL.."_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the dimmer model")
+DATA.MPORTAL  = CreateConVar(DATA.TOOL.."_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the portal model")
+DATA.MSPLITRM = CreateConVar(DATA.TOOL.."_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the splitter multy model")
+DATA.MPARALEL = CreateConVar(DATA.TOOL.."_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the paralleller multy model")
+DATA.MFILTER  = CreateConVar(DATA.TOOL.."_mfilter" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the filter model")
+DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
+DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
+DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
+DATA.EFFECTDT = CreateConVar(DATA.TOOL.."_effectdt", 0.15, DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
+DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
+DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
+DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
+DATA.DRWBMSPD = CreateConVar(DATA.TOOL.."_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
+DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam", 150, DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist", 1000, DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 
 local gtTCUST = {
   "Forward", "Right", "Up",
@@ -286,6 +286,8 @@ local gtTRACE = {
   output         = nil
 }
 
+local gtBEAMDRAW = {}
+
 if(CLIENT) then
   DATA.TAHD = TEXT_ALIGN_CENTER
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
@@ -301,6 +303,11 @@ else
   DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
   DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 end
+
+-- Clear hook for hot reload. Makes sure that hoops are relevant and fresh
+for key, set in pairs(hook.GetTable()) do for idx, fnc in pairs(set) do
+  if(tostring(idx):find(DATA.TOOL, 1, true)) then hook.Remove(key, idx) end
+end end -- Deleates all entries from previos hot reload. Updates last hooks
 
 -- Callbacks for model console variables
 for idx = 2, #gtCLASS do
@@ -2124,6 +2131,27 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
+ * Registers the benm to be drawn in the dedicated `drawbeam` routine
+ * Arguments are the same as beam:Draw(...). Submits beams for drawing
+ * This is equivalent to a push operation with beams as keys
+]]
+function mtBeam:SetDraw(sours, imatr, color)
+  local arg = {sours, imatr, color}
+  gtBEAMDRAW[self] = arg; return self
+end
+
+--[[
+ * Returns the arguments the beam was submitted for drawing with
+ * This is equvalent to a pop operation with a beams as keys
+ * rem > Force remove the beam entry from the queue
+]]
+function mtBeam:GetDraw(rem)
+  local arg = gtBEAMDRAW[self]
+  if(rem) then gtBEAMDRAW[self] = nil end
+  return arg
+end
+
+--[[
  * Returns the desired nore information
  * index > Node index to be used. Defaults to node size
 ]]
@@ -3709,4 +3737,29 @@ function LaserLib.SetupSoundEffects()
   end
 
   table.Empty(list.GetForEdit("LaserSounds"))
+end
+
+if(CLIENT) then
+  -- https://wiki.facepunch.com/gmod/3D_Rendering_Hooks
+  hook.Add("PreDrawEffects", DATA.TOOL.."_drawbeam", function()
+    for beam, args in pairs(gtBEAMDRAW) do
+      beam:Draw(args[1], args[2], args[3])
+      gtBEAMDRAW[beam] = nil
+    end
+  end)
+
+  hook.Add("PostDrawHUD", DATA.TOOL.."_grab_draw", -- Physgun draw beam assist
+    function() -- Handles drawing the assist when user holds laser unit
+      local ply = LocalPlayer(); if(not LaserLib.IsValid(ply)) then return end
+      local ray = ply:GetInfoNum(DATA.TOOL.."_rayassist", 0); if(ray <= 0) then return end
+      local wgn = ply:GetActiveWeapon(); if(not LaserLib.IsValid(wgn)) then return end
+      if(wgn:GetClass() ~= "weapon_physgun") then return end -- Not holding physgun
+      local tr = ply:GetEyeTrace(); if(not (tr and tr.Hit)) then return end
+      local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
+      if(tre:GetClass():find("gmod_laser", 1, true)) then -- For all laser units
+        local vor, vdr = LaserLib.GetTransformUnit(tre) -- Read unit transform
+        vor, vdr = (vor or tr.HitPos), (vdr or tr.HitNormal) -- Failsafe rays
+        LaserLib.DrawAssist(vor, vdr, ray, tre, ply) -- Convert to world-space
+      end
+  end)
 end
