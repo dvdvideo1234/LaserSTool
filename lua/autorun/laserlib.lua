@@ -37,7 +37,8 @@ DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Pos
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.NWPID = DATA.TOOL.."_portal" -- General key storing laser portal entity networking
-DATA.KPHYP = DATA.TOOL.."_physprop" -- Key used to registed physical properties
+DATA.PHKEY = DATA.TOOL.."_physprop" -- Key used to register physical properties modifier
+DATA.MTKEY = DATA.TOOL.."_material" -- Key used to register dupe material modifier
 DATA.TRDG  = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 
 -- Server controlled flags for console variables
@@ -195,7 +196,7 @@ local gtREFLECT = { -- Reflection descriptor
   ["**studio**"]                         = false, -- Disable empty prop materials
   ["cubemap"]                            = {0.999, "cubemap"},
   ["reflect"]                            = {0.999, "reflect"},
-  ["mirror"]                             = {0.999, "mirror"},
+  ["mirror"]                             = {0.999, "mirror" },
   ["chrome"]                             = {0.955, "chrome" },
   ["shiny"]                              = {0.854, "shiny"  },
   ["white"]                              = {0.342, "white"  },
@@ -368,10 +369,11 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   gtTRACE.start:Set(origin)
   gtTRACE.endpos:Set(direct)
   gtTRACE.endpos:Normalize()
-  if(not (length and length > 0)) then
-    length = direct:Length()
-  end -- Use proper length even if missing
-  gtTRACE.endpos:Mul(length)
+  if(length and length > 0) then
+    gtTRACE.endpos:Mul(length)
+  else -- Use proper length even if missing
+    gtTRACE.endpos:Mul(direct:Length())
+  end -- Utilize direction length when not provided
   gtTRACE.endpos:Add(origin)
   gtTRACE.filter = filter
   if(width ~= nil and width > 0) then
@@ -1285,23 +1287,37 @@ function LaserLib.SetMaterialPaintOver(pnMat, pnImg)
 end
 
 --[[
+ * Stores the sidebar value so it can be later utilized
+ * pnMat > Reference to side materials frame list
+ * sort  > Structure to update bar position
+]]
+function LaserLib.UpdateVBar(pnMat, sort)
+  if(SERVER) then return end
+  local pnBar = pnMat.List.VBar
+  if(not IsValid(pnBar)) then return end
+  pnBar.Dragging = false
+  pnBar.DraggingCanvas = nil
+  pnBar:MouseCapture(false)
+  pnBar.btnGrip.Depressed = false
+  sort.Mpos = pnBar:GetScroll()
+  return sort.Mpos
+end
+
+--[[
  * Triggers save request for the material select
  * scroll bar and reads it on the next panel open
  * Animates the slider to the last remembered position
+ * pnMat > Reference to side materials frame list
+ * sort  > Structure to update bar position
 ]]
 function LaserLib.SetMaterialScroll(pnMat, sort)
   if(SERVER) then return end
   local pnBar = pnMat.List.VBar
-  if(pnBar) then
-    function pnBar:OnMouseReleased()
-      self.Dragging = false
-      self.DraggingCanvas = nil
-      self:MouseCapture(false)
-      self.btnGrip.Depressed = false
-      sort.Mpos = self:GetScroll()
-    end
-    pnBar:AnimateTo(sort.Mpos, 0.05)
-  end
+  if(not IsValid(pnBar)) then return end
+  function pnBar:OnMouseReleased()
+    LaserLib.UpdateVBar(pnMat, sort)
+  end -- Release mouse on the mar to accept
+  pnBar:AnimateTo(sort.Mpos, 0.05)
 end
 
 --[[
@@ -1324,11 +1340,13 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
       local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
       pnMat:AddMaterial(sInf, sKey); iC = iC + 1; pnImg = tCont[iC]
       function pnImg:DoClick()
+        LaserLib.UpdateVBar(pnMat, sort)
         LaserLib.SetMaterialPaintOver(pnMat, self)
         LaserLib.ConCommand(nil, sort.Sors, sKey)
         pnFrame:SetTitle(sort.Name.." > "..sInf)
       end
       function pnImg:DoRightClick()
+        LaserLib.UpdateVBar(pnMat, sort)
         local pnMenu = DermaMenu(false, pnFrame)
         if(not IsValid(pnMenu)) then return end
         pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
@@ -1682,9 +1700,8 @@ end
 function LaserLib.SetMaterial(ent, mat)
   if(not LaserLib.IsValid(ent)) then return end
   local tab = {MaterialOverride = tostring(mat or "")}
-  local key = "laseremitter_material"
   ent:SetMaterial(tab.MaterialOverride)
-  duplicator.StoreEntityModifier(ent, key, tab)
+  duplicator.StoreEntityModifier(ent, DATA.MTKEY, tab)
 end
 
 --[[
@@ -1698,7 +1715,7 @@ function LaserLib.SetProperties(ent, mat)
   if(not LaserLib.IsValid(phy)) then return end
   local tab = {Material = tostring(mat or "")}
   construct.SetPhysProp(nil, ent, 0, phy, tab)
-  duplicator.StoreEntityModifier(ent, DATA.KPHYP, tab)
+  duplicator.StoreEntityModifier(ent, DATA.PHKEY, tab)
 end
 
 --[[
