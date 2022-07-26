@@ -70,7 +70,7 @@ DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter", 2, DATA.FGSRVCN, "Controls 
 DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
 DATA.EFFECTDT = CreateConVar(DATA.TOOL.."_effectdt", 0.15, DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
-DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirector sounds")
+DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirecton sounds")
 DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.DRWBMSPD = CreateConVar(DATA.TOOL.."_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
@@ -286,8 +286,6 @@ local gtTRACE = {
   maxs           = Vector(),
   output         = nil
 }
-
-local gtBEAMDRAW = {}
 
 if(CLIENT) then
   DATA.TAHD = TEXT_ALIGN_CENTER
@@ -2148,27 +2146,6 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
- * Registers the benm to be drawn in the dedicated `drawbeam` routine
- * Arguments are the same as beam:Draw(...). Submits beams for drawing
- * This is equivalent to a push operation with beams as keys
-]]
-function mtBeam:SetDraw(sours, imatr, color)
-  local arg = {sours, imatr, color}
-  gtBEAMDRAW[self] = arg; return self
-end
-
---[[
- * Returns the arguments the beam was submitted for drawing with
- * This is equvalent to a pop operation with a beams as keys
- * rem > Force remove the beam entry from the queue
-]]
-function mtBeam:GetDraw(rem)
-  local arg = gtBEAMDRAW[self]
-  if(rem) then gtBEAMDRAW[self] = nil end
-  return arg
-end
-
---[[
  * Returns the desired nore information
  * index > Node index to be used. Defaults to node size
 ]]
@@ -2880,9 +2857,11 @@ function mtBeam:Draw(sours, imatr, color)
   if(SERVER) then return self end
   local tvpnt = self.TvPoints
   -- Check node availability
+  if(not tvpnt) then return self end
   if(not tvpnt[1]) then return self end
-  if(not tvpnt.Size) then return self end
-  if(tvpnt.Size <= 0) then return self end
+  local szv = tvpnt.Size -- Vertex size
+  if(not szv) then return self end
+  if(szv <= 0) then return self end
   -- Update rendering boundaries
   local sours = (sours or self.BmSource)
   local ushit = LocalPlayer():GetEyeTrace().HitPos
@@ -2901,7 +2880,7 @@ function mtBeam:Draw(sours, imatr, color)
   local cup = (color or self.BmColor)
   local spd = DATA.DRWBMSPD:GetFloat()
   -- Draw the beam sequentially being faster
-  for idx = 2, tvpnt.Size do
+  for idx = 2, szv do
     local org = tvpnt[idx - 1]
     local new = tvpnt[idx - 0]
     local ntx, otx = new[1], org[1] -- Read origin
@@ -3758,13 +3737,6 @@ end
 
 if(CLIENT) then
   -- https://wiki.facepunch.com/gmod/3D_Rendering_Hooks
-  hook.Add("PreDrawEffects", DATA.TOOL.."_drawbeam", function()
-    for beam, args in pairs(gtBEAMDRAW) do
-      beam:Draw(args[1], args[2], args[3])
-      gtBEAMDRAW[beam] = nil
-    end
-  end)
-
   hook.Add("PostDrawHUD", DATA.TOOL.."_grab_draw", -- Physgun draw beam assist
     function() -- Handles drawing the assist when user holds laser unit
       local ply = LocalPlayer(); if(not LaserLib.IsValid(ply)) then return end

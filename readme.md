@@ -32,7 +32,7 @@ version anymore. This was the only way I could support the things I needed the m
 3. [Refract][ref-refract-pic] beam traces via hit surface material override
 4. Calculate [full internal reflection][ref-total-reflect] according to [medium boundary][ref-boundary]
 5. Code base and updates in tone with [Garry's mod 13][ref-gmod-link]
-6. Supports [wire][ref-wire] and every element supports advanced duplicator 1 and 2
+6. Supports [wire][ref-wire] and every element supports advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
 7. [Wire inputs][ref-wire] override internals when connected
 8. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
 9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
@@ -81,3 +81,5 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-git-pr]: https://github.com/dvdvideo1234/LaserSTool/pulls
 [ref-ws-publish]: https://github.com/dvdvideo1234/LaserSTool/blob/main/workshop_publish.bat
 [ref-exp-irl]: https://www.grammarly.com/blog/irl-meaning/
+[ref-adv-dupe1]: https://github.com/wiremod/advduplicator
+[ref-adv-dupe2]: https://github.com/wiremod/advdupe2

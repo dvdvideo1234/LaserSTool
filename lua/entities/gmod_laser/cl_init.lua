@@ -40,32 +40,33 @@ function ENT:DrawBeam()
   self:DrawEndingEffect(beam, trace)
 end
 
-function ENT:DrawBeamOn()
-  local width = self:GetBeamWidth()
-        width = LaserLib.GetWidth(width)
-  local length = self:GetBeamLength()
-  if(width > 0 and length > 0) then
-    self:UpdateFlags()
-    self:DrawBeam()
-  end
-end
-
-function ENT:DrawBeamOff()
-  local color = LaserLib.GetColor("YELLOW")
-  local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
-  local origin = self:GetBeamOrigin()
-  local direct = self:GetBeamDirection()
-        direct:Mul(lndir); direct:Add(origin)
-  render.DrawLine(origin, direct, color)
-end
-
 function ENT:Draw()
   self:DrawModel()
   self:DrawShadow(false)
 
   if(self:GetOn()) then
-    self:DrawBeamOn()
+    local width = self:GetBeamWidth()
+          width = LaserLib.GetWidth(width)
+    local length = self:GetBeamLength()
+    if(width > 0 and length > 0) then
+      self:UpdateFlags()
+      self:DrawBeam()
+    end
   else
-    self:DrawBeamOff()
+    local color = LaserLib.GetColor("YELLOW")
+    local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
+    local origin = self:GetBeamOrigin()
+    local direct = self:GetBeamDirection()
+          direct:Mul(lndir); direct:Add(origin)
+    render.DrawLine(origin, direct, color)
   end
+end
+
+--[[
+ * The think method is not needed in general
+ * but it is defined empty because otherwise
+ * the draw method will not get called when
+ * the player is not looking at the entity
+]]
+function ENT:Think()
 end
