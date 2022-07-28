@@ -36,9 +36,10 @@ DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
-DATA.NWPID = DATA.TOOL.."_portal" -- General key storing laser portal entity networking
-DATA.PHKEY = DATA.TOOL.."_physprop" -- Key used to register physical properties modifier
-DATA.MTKEY = DATA.TOOL.."_material" -- Key used to register dupe material modifier
+DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissilver target with entity index
+DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
+DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
+DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDG  = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 
 -- Server controlled flags for console variables
@@ -1841,22 +1842,23 @@ if(SERVER) then
   end
 
   -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
-  function LaserLib.GetTorch(base, position, attacker, disstype)
-    local ent = ents.Create("env_entity_dissolver")
-    if(not LaserLib.IsValid(ent)) then return nil end
-    ent.Target = "laserdissolve"..base:EntIndex()
-    ent:SetKeyValue("dissolvetype", disstype)
-    ent:SetKeyValue("magnitude", 0)
-    ent:SetPos(position)
-    ent:SetPhysicsAttacker(attacker)
-    ent:Spawn()
-    return ent
+  function LaserLib.NewDissolver(base, position, attacker, disstype)
+    local torch = ents.Create("env_entity_dissolver")
+    if(not LaserLib.IsValid(torch)) then return nil end
+    torch.Target = DATA.DISID:format(base:EntIndex())
+    torch:SetKeyValue("dissolvetype", disstype)
+    torch:SetKeyValue("magnitude", 0)
+    torch:SetPos(position)
+    torch:SetPhysicsAttacker(attacker)
+    torch:Spawn()
+    return torch
   end
 
   function LaserLib.DoDissolve(torch)
     if(not LaserLib.IsValid(torch)) then return end
     torch:Fire("Dissolve", torch.Target, 0)
     torch:Fire("Kill", "", 0.1)
+    torch:Remove()
   end
 
   function LaserLib.DoSound(target, noise)
@@ -1909,38 +1911,38 @@ if(SERVER) then
       else
         if(target:IsPlayer()) then
           if(target:Health() <= damage) then
-            local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
+            local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
             if(not LaserLib.IsValid(torch)) then target:Kill(); return end
             LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE) -- Do damage to generate the ragdoll
             local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
             if(not LaserLib.IsValid(doll)) then target:Kill(); return end -- Nevec for the player ragdoll idea
             doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
-            LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
             LaserLib.DoSound(target, noise) -- Play sound for breakable props
+            LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
           end
         elseif(target:IsNPC()) then
           if(target:Health() <= damage) then
-            local torch = LaserLib.GetTorch(laser, target:GetPos(), attacker, dissolve)
+            local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
             if(not LaserLib.IsValid(torch)) then target:Remove(); return end
             LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE) -- Do damage to generate the ragdoll
             target:SetName(torch.Target) -- The NPC does not have kill method
             local swep = target:GetActiveWeapon()
             if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
-            LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
             LaserLib.DoSound(target, noise) -- Play sound for breakable props
+            LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
           end
         elseif(target:IsVehicle()) then
           local driver = target:GetDriver()
           if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
             if(driver:Health() <= damage) then -- We must kill the driver!
-              local torch = LaserLib.GetTorch(laser, driver:GetPos(), attacker, dissolve)
+              local torch = LaserLib.NewDissolver(laser, driver:GetPos(), attacker, dissolve)
               if(not LaserLib.IsValid(torch)) then driver:Kill(); return end
               LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE) -- Do damage to generate the ragdoll
               local doll = driver:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
               if(not LaserLib.IsValid(doll)) then driver:Kill(); return end
               doll:SetName(torch.Target) -- Thanks to Nevec for the player ragdoll idea
+              LaserLib.DoSound(driver, noise) -- Dissolver only for player and NPC
               LaserLib.DoDissolve(torch) -- Allowing us to dissolve him the cleanest way
-              LaserLib.DoSound(driver, noise)
             end
           end
         end
@@ -1950,17 +1952,16 @@ if(SERVER) then
     end
   end
 
-  function LaserLib.New(user       , pos         , ang         , model      ,
-                        trandata   , key         , width       , length     ,
-                        damage     , material    , dissolveType, startSound ,
-                        stopSound  , killSound   , runToggle   , startOn    ,
-                        pushForce  , endingEffect, reflectRate , refractRate,
-                        forceCenter, frozen      , enOverMater , enSafeBeam , rayColor )
+  function LaserLib.NewLaser(user       , pos         , ang         , model      ,
+                             trandata   , key         , width       , length     ,
+                             damage     , material    , dissolveType, startSound ,
+                             stopSound  , killSound   , runToggle   , startOn    ,
+                             pushForce  , endingEffect, reflectRate , refractRate,
+                             forceCenter, frozen      , enOverMater , enSafeBeam , rayColor )
 
-    local unit = LaserLib.GetTool()
     if(not LaserLib.IsValid(user)) then return end
     if(not user:IsPlayer()) then return end
-    if(not user:CheckLimit(unit.."s")) then return end
+    if(not user:CheckLimit(DATA.TOOL.."s")) then return end
 
     local laser = ents.Create(LaserLib.GetClass(1, 1))
     if(not (LaserLib.IsValid(laser))) then return end

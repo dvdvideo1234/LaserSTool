@@ -58,7 +58,7 @@ end
 --[[
  * Spawns the laser via the etities tab under laser category
  * Returning with no entity is intentional becaues undo is duplicated
- * https://github.com/Facepunch/garrysmod/blob/master/garrysmod/gamemodes/sandbox/gamemode/commands.lua#L803
+ * https://github.com/Facepunch/garrysmod/blob/master/garrysmod/gamemodes/sandbox/gamemode/commands.lua#L828
 ]]
 function ENT:SpawnFunction(user, trace)
   if(not trace.Hit) then return end
@@ -95,12 +95,12 @@ function ENT:SpawnFunction(user, trace)
   local endingeffect = (user:GetInfoNum(prefix.."endingeffect", 0) ~= 0)
   local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
   local ensafebeam   = (user:GetInfoNum(prefix.."ensafebeam", 0) ~= 0)
-  local laser        = LaserLib.New(user       , trace.HitPos, angspawn    , model       ,
-                                    trandata   , key         , width       , length      ,
-                                    damage     , material    , dissolvetype, startsound  ,
-                                    stopsound  , killsound   , toggle      , starton     ,
-                                    pushforce  , endingeffect, reflectrate , refractrate ,
-                                    forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
+  local laser        = LaserLib.NewLaser(user       , trace.HitPos, angspawn    , model       ,
+                                        trandata   , key         , width       , length      ,
+                                        damage     , material    , dissolvetype, startsound  ,
+                                        stopsound  , killsound   , toggle      , starton     ,
+                                        pushforce  , endingeffect, reflectrate , refractrate ,
+                                        forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
   if(LaserLib.IsValid(laser)) then
 
     LaserLib.ApplySpawn(laser, trace, trandata)

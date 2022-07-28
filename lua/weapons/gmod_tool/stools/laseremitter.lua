@@ -165,7 +165,7 @@ if(SERVER) then
   duplicator.RegisterEntityModifier("laseremitter_properties",
     function(ply, ent, dupe) LaserLib.SetMaterial(ent, dupe.Material) end)
 
-  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.New     ,
+  duplicator.RegisterEntityClass(gsLaseremCls, LaserLib.NewLaser,
     --[[  ply  ]]  "pos"         , "ang"         , "model"      ,
     "tranData"   , "key"         , "width"       , "length"     ,
     "damage"     , "material"    , "dissolveType", "startSound" ,
@@ -306,12 +306,12 @@ function TOOL:LeftClick(trace)
     return true
   end
 
-  local laser = LaserLib.New(ply        , pos         , ang         , model       ,
-                             trandata   , key         , width       , length      ,
-                             damage     , material    , dissolvetype, startsound  ,
-                             stopsound  , killsound   , toggle      , starton     ,
-                             pushforce  , endingeffect, reflectrate , refractrate ,
-                             forcecenter, frozen      , enonvermater, ensafebeam  , raycolor)
+  local laser = LaserLib.NewLaser(ply        , pos         , ang         , model       ,
+                                  trandata   , key         , width       , length      ,
+                                  damage     , material    , dissolvetype, startsound  ,
+                                  stopsound  , killsound   , toggle      , starton     ,
+                                  pushforce  , endingeffect, reflectrate , refractrate ,
+                                  forcecenter, frozen      , enonvermater, ensafebeam  , raycolor)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
