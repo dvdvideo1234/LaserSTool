@@ -2237,7 +2237,8 @@ end
  * Clears the water surface normal
 ]]
 function mtBeam:ClearWater()
-  self.__water.N:Zero()
+  local wat = self.__water
+  wat.N:Zero() -- Clear water flag
   return self -- Coding effective API
 end
 
@@ -2681,7 +2682,8 @@ function mtBeam:RefractWaterAir()
   local vdir, bnex = LaserLib.GetRefracted(self.VrDirect, vtm,
                        mtBeam.W[1][1], mtBeam.A[1][1])
   if(bnex) then
-    wat.N:Zero() -- Set water normal flag to zero
+    self.NvMask = MASK_ALL -- We change the medium to air
+    self:ClearWater() -- Set water normal flag to zero
     self:SetMediumSours(mtBeam.A) -- Switch to air medium
     self:Redirect(vwa, vdir, true) -- Redirect and reset laser beam
   else -- Redirect the beam in case of going out reset medium
@@ -2697,7 +2699,7 @@ end
  * reftype > Indication that this is found in the water
  * trace   > Trace result structure output being used
 ]]
-function mtBeam:SetWater(reftype, trace)
+function mtBeam:SetSurfaceWorld(reftype, trace)
   local wat = self.__water
   if(self.StRfract) then
     if(reftype and wat.K[reftype] and self:IsAir()) then
@@ -2707,14 +2709,14 @@ function mtBeam:SetWater(reftype, trace)
       wat.P:Mul(DATA.TRWU * trace.FractionLeftSolid)
       wat.P:Add(self.VrOrigin)
     else -- Refract type is not water so reset the configuration
-      wat.N:Zero() -- Clear the water normal vector
+      self:ClearWater() -- Clear the water indicator normal vector
     end -- Water refraction configuration is done
   else -- Refract type not water then setup
     if(reftype and wat.K[reftype] and self:IsAir()) then
       wat.P:Set(trace.HitPos) -- Memorize the plane position
       wat.N:Set(trace.HitNormal) -- Memorize the plane normal
     else -- Refract type is not water so reset the configuration
-      wat.N:Zero() -- Clear the water normal vector
+      self:ClearWater() -- Clear the water indicator normal vector
     end -- Water refraction configuration is done
   end; return self -- Coding effective API
 end
@@ -3336,7 +3338,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     -- Check medium contents to know what to do whenbeam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
-      if(trace.HitWorld and trace.StartSolid and beam.NvMask == MASK_ALL) then
+      if(trace.StartSolid) then -- The laser source is located on transperent map medium
         local con = GetContentsID(trace.Contents) -- Beam starts inside map solid
         if(con) then -- Content ID has been found. Apply refract content
           beam:SetRefractContent(con, trace) -- Switch medium via content
@@ -3507,14 +3509,14 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   beam:Pass(trace) -- Register beam passing to the new surface
                   -- Calculated refraction ray. Reflect when not possible
                   if(beam.StRfract) then -- Laser is within the map water submerged
-                    beam:SetWater(refract[3] or key, tr)
+                    beam:SetSurfaceWorld(refract[3] or key, tr)
                     beam:Redirect(trace.HitPos) -- Keep the same direction and initial origin
                     beam.StRfract = false -- Lower the flag so no performance hit is present
                   else -- Beam comes from the air and hits the water. Store water plane and refract
                     -- Get the trace ready to check the other side and point and register the location
                     local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                          trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
-                    beam:SetWater(refract[3] or key, trace)
+                    beam:SetSurfaceWorld(refract[3] or key, trace)
                     beam:Redirect(trace.HitPos, vdir)
                   end
                   -- Need to make the traversed destination the new source
