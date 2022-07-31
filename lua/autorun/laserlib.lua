@@ -229,6 +229,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [1] = "air"  , -- Air enumerator index
   [2] = "glass", -- Glass enumerator index
   [3] = "water", -- Water enumerator index
+  [4] = "translucent", -- Translucent stuff
   -- Used for prop updates and checks
   [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
   -- User for general class control
@@ -241,6 +242,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["air"]                                       = {1.000, 1.000, "air"  }, -- Air refraction index
   ["glass"]                                     = {1.521, 0.999, "glass"}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955, "water"}, -- Water refraction index
+  ["translucent"]                               = {1.437, 0.575, "translucent"}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
@@ -275,6 +277,12 @@ local gtMATYPE = {
   [MAT_GLASS      ] = "glass",
   [MAT_WARPSHIELD ] = "glass"
 }
+
+local gtCONTENTS = { -- Start-refract transperent contents
+  {CONTENTS_WINDOW     , 2}, -- REFRACT loop index [2]: glass
+  {CONTENTS_WATER      , 3}, -- REFRACT loop index [3]: water
+  {CONTENTS_TRANSLUCENT, 4}  -- REFRACT loop index [4]: translucent
+}; gtCONTENTS.Size = #gtCONTENTS -- Store initial table size
 
 local gtTRACE = {
   start          = Vector(),
@@ -1602,6 +1610,14 @@ function LaserLib.GetColor(idx)
   return GetCollectionData(idx, gtCOLOR)
 end
 
+local function GetContentsID(cont)
+  for idx = 1, gtCONTENTS.Size do -- Check contents
+    local set = gtCONTENTS[idx] -- Index content set
+    local con, cdx = set[1], set[2] -- Index entry
+    if(bit.band(cont, con) == con) then return cdx end
+  end; return nil -- The contents did not get matched to entry
+end
+
 --[[
  * Checks when the entity has interactive material
  * Cashes the request issued for index material
@@ -2019,14 +2035,14 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   if(not LaserLib.IsValid(exit)) then return origin, direct end
   local pos, dir = Vector(origin), Vector(direct)
   pos:Set(base:WorldToLocal(pos)); dir:Mul(DATA.WLMR)
-  if(forigin) then local ok, err = pcall(forigin, pos)
-    if(not ok) then error("Origin error: "..err) end
+  if(forigin) then local suc, err = pcall(forigin, pos)
+    if(not suc) then error("Origin error: "..err) end
   else pos.x, pos.y = -pos.x, -pos.y end
   pos:Set(exit:LocalToWorld(pos))
   dir:Add(base:GetPos())
   dir:Set(base:WorldToLocal(dir))
-  if(fdirect) then local ok, err = pcall(fdirect, dir)
-    if(not ok) then error("Direct error: "..err) end
+  if(fdirect) then local suc, err = pcall(fdirect, dir)
+    if(not suc) then error("Direct error: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
   dir:Rotate(exit:GetAngles()); dir:Div(DATA.WLMR)
   return pos, dir
@@ -2425,7 +2441,7 @@ function mtBeam:SetTraceWidth(trace, length)
   trace.LengthFR = length * trace.Fraction -- Length fraction in units
   trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
   trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
-  return trace
+  return trace, trace.Entity
 end
 
 --[[
@@ -2620,7 +2636,7 @@ end
  * Updates the actor exit flag when found
  * target > The entity being the target
 ]]
-function mtBeam:ActorTarget(target)
+function mtBeam:GetActorID(target)
   -- If filter was a special actor and the clear flag is enabled
   -- Make sure to reset the filter if needed to enter actor again
   if(self.TrFActor) then -- Custom filter clear has been requested
@@ -2628,8 +2644,8 @@ function mtBeam:ActorTarget(target)
     self.TrFActor = false -- Lower the flag so it does not enter
   end -- Filter is present and we have request to clear the value
   -- Validate trace target and extract its class if available
-  local ok, key = LaserLib.IsValid(target), nil -- Validate target
-  if(ok) then key = target:GetClass() end; return ok, key
+  local suc, cas = LaserLib.IsValid(target), nil -- Validate target
+  if(suc) then cas = target:GetClass() end; return suc, cas
 end
 
 --[[
@@ -3308,43 +3324,42 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
   beam.BmNoover = tobool(noverm) -- Beam no override material flag. Try to extract original material
-  beam.BmRecstg = (math.max(tonumber(stage) or 0, 0) + 1) -- Beam recursion depth for units that use it
   beam.BmIdenty = math.max(tonumber(index) or 1, 1) -- Beam hit report index. Defaults to one if not provided
+  beam.BmRecstg = (math.max(tonumber(stage) or 0, 0) + 1) -- Beam recursion depth for units that use it
 
   beam:SourceFilter(entity)
   beam:RegisterNode(origin)
 
   repeat
     -- Run the trace using the defined conditional parameters
-    trace = beam:Trace(trace); target = trace.Entity
-
-    -- Initial start so the beam separates from the laser
-    if(beam:IsFirst()) then
-      beam.TeFilter = nil
-
+    trace, target = beam:Trace(trace) -- Sample one trace and read contents
+    -- Check medium contents to know what to do whenbeam starts inside map solid
+    if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
+      beam.TeFilter = nil -- The trace starts inside solid, switch content medium
       if(trace.HitWorld and trace.StartSolid and beam.NvMask == MASK_ALL) then
-        -- Beam starts inside map solid and source must be changed
-        if(bit.band(trace.Contents, CONTENTS_WATER) > 0) then
-          beam:SetRefractContent(3, trace)
-        elseif(bit.band(trace.Contents, CONTENTS_WINDOW) > 0) then
-          beam:SetRefractContent(2, trace)
-        end
-      end
+        local con = GetContentsID(trace.Contents) -- Beam starts inside map solid
+        if(con) then -- Content ID has been found. Apply refract content
+          beam:SetRefractContent(con, trace) -- Switch medium via content
+        else -- Content ID was not found. Try using position vector contents
+          local con = GetContentsID(util.PointContents(origin)) -- Origin contents
+          if(con) then beam:SetRefractContent(con, trace) end -- Update contents
+        end  -- Switch medium via content. When not located meduim is unchanged
+      end -- Resample the trace result and update hit status via contents
     else
       if(not beam:IsAir() and not beam.IsRfract) then
         if(not beam:IsWater(trace.HitPos)) then
           beam:RefractWaterAir() -- Water to air specifics
           -- Update the trace reference with the new beam
-          trace = beam:Trace(trace); target = trace.Entity
+          trace, target = beam:Trace(trace)
         end
       end
     end
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
-    local ok, act = beam:ActorTarget(target)
+    local suc, cas = beam:GetActorID(target)
     -- Actor flag and specific filter are now reset when present
     if(trace.Fraction > 0) then -- Ignore registering zero length traces
-      if(ok) then -- Target is valid and it is a actor
+      if(suc) then -- Target is valid and it is an actor
         -- Disable drawing is updated for specific actor request
         beam:RegisterNode(trace.HitPos, trace.LengthNR)
         -- The trace entity target is special actor case or not
@@ -3365,7 +3380,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     -- When we are still tracing and hit something that is not specific unit
     if(beam.IsTrace and trace.Hit) then
       -- Register a hit so reduce bounces count
-      if(ok) then
+      if(suc) then
         if(beam.IsRfract) then
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
@@ -3397,8 +3412,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
           end
         else -- Put special cases here
-          if(act and gtACTORS[act]) then
-            local suc, err = pcall(gtACTORS[act], beam, trace)
+          if(cas and gtACTORS[cas]) then
+            local suc, err = pcall(gtACTORS[cas], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
@@ -3472,8 +3487,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end -- Apply power ratio when requested
           if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
         else
-          if(act and gtACTORS[act]) then
-            local suc, err = pcall(gtACTORS[act], beam, trace)
+          if(cas and gtACTORS[cas]) then
+            local suc, err = pcall(gtACTORS[cas], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
@@ -3575,19 +3590,29 @@ function LaserLib.SetupMaterials()
   language.Add("laser.ropematerial.redlaser" , "Rope Red Laser"    )
   language.Add("laser.ropematerial.blue_elec", "Rope Blue Electric")
   language.Add("laser.effects.redlaser1"     , "Red Laser Effect"  )
-  language.Add("laser.effects.bluelaser1"    , "Blue Laser Effect"  )
+  language.Add("laser.effects.bluelaser1"    , "Blue Laser Effect" )
+  language.Add("laser.effects.redshader"     , "Red Shader"        )
+  language.Add("laser.effects.whiteshader"   , "White Shader"      )
+  language.Add("laser.effects.shield"        , "Combine Shield"    )
+  language.Add("laser.effects.shield"        , "Wireframe"         )
+  language.Add("laser.effects.predator"      , "Predator"          )
 
   table.Empty(list.GetForEdit("LaserEmitterMaterials"))
-  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , "cable/cable"                   )
-  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , "cable/cable2"                  )
-  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , "models/effects/splodearc_sheet")
-  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , "models/props_lab/warp_sheet"   )
-  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , "cable/crystal_beam1"           )
-  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , "cable/redlaser"                )
-  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", "cable/blue_elec"               )
-  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , "models/alyx/emptool_glow"      )
-  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , "effects/redlaser1"             )
-  list.Set("LaserEmitterMaterials", "#laser.effects.bluelaser1"    , "effects/bluelaser1"            )
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , "cable/cable"                        )
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , "cable/cable2"                       )
+  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , "models/effects/splodearc_sheet"     )
+  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , "models/props_lab/warp_sheet"        )
+  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , "cable/crystal_beam1"                )
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , "cable/redlaser"                     )
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", "cable/blue_elec"                    )
+  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , "models/alyx/emptool_glow"           )
+  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , "effects/redlaser1"                  )
+  list.Set("LaserEmitterMaterials", "#laser.effects.bluelaser1"    , "effects/bluelaser1"                 )
+  list.Set("LaserEmitterMaterials", "#laser.effects.redshader"     , "models/shadertest/shader4"          )
+  list.Set("LaserEmitterMaterials", "#laser.effects.whiteshader"   , "models/shadertest/shader3"          )
+  list.Set("LaserEmitterMaterials", "#laser.effects.shield"        , "models/props_combine/com_shield001a")
+  list.Set("LaserEmitterMaterials", "#laser.effects.shield"        , "models/wireframe"                   )
+  list.Set("LaserEmitterMaterials", "#laser.effects.predator"      , "models/shadertest/predator"         )
 
   list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , "cable/xbeam"                   )
   list.Set("LaserEmitterMaterials", "#ropematerial.physbeam"       , "cable/physbeam"                )
