@@ -5,7 +5,10 @@
 ### Description
 This is the `LaserSTool` I've originally ported to [Garry's mod 13][ref-gmod-link]
 since then, I am constantly improving it. My goal is making it behave as similar to a
-real [laser beam][ref-laser-beam].
+real [laser beam][ref-laser-beam]. The repository contains [MadJawa][ref-author-org]'s
+original SVN, but drastically changed to include a lot of added features, better user
+experience and improved beam physics behavior accuracy. This is by far the most bug
+free laser addon that is up to date and with active development.
 
 ### Brief history
 The original creator and huge credit goes to one and only [MadJawa][ref-author-org].

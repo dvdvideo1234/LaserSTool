@@ -96,11 +96,11 @@ function ENT:SpawnFunction(user, trace)
   local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
   local ensafebeam   = (user:GetInfoNum(prefix.."ensafebeam", 0) ~= 0)
   local laser        = LaserLib.NewLaser(user       , trace.HitPos, angspawn    , model       ,
-                                        trandata   , key         , width       , length      ,
-                                        damage     , material    , dissolvetype, startsound  ,
-                                        stopsound  , killsound   , toggle      , starton     ,
-                                        pushforce  , endingeffect, reflectrate , refractrate ,
-                                        forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
+                                         trandata   , key         , width       , length      ,
+                                         damage     , material    , dissolvetype, startsound  ,
+                                         stopsound  , killsound   , toggle      , starton     ,
+                                         pushforce  , endingeffect, reflectrate , refractrate ,
+                                         forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
   if(LaserLib.IsValid(laser)) then
 
     LaserLib.ApplySpawn(laser, trace, trandata)
