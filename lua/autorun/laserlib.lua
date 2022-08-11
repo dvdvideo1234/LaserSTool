@@ -3356,6 +3356,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         end
       end
     end
+
+    local s = tostring(trace.FractionLeftSolid)
+    local a = tostring(beam.NvMask)
+    LaserLib.DrawPoint(trace.HitPos, nil, beam.NvBounce, a.."/"..s)
+    if(target and target:IsValid() and beam.NvBounce > 1) then
+      local mx = target:LocalToWorld(target:OBBMaxs())
+      LaserLib.DrawPoint(mx, "RED", beam.NvBounce)
+      print("x", beam.NvBounce, bit.band(util.PointContents(target:GetPos()), CONTENTS_WATER))
+    end
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
     local suc, cas = beam:GetActorID(target)
