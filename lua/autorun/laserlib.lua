@@ -2247,11 +2247,26 @@ end
 
 --[[
  * Updates the water plane
+ * trace > Trace structure wuth fraction left solid
+ * setup > Flag indicating exit in water
+ * orig  > Direct data copy to water surface origin
+ * norm  > Direct data copy to water surface normal
 ]]
-function mtBeam:SetWaterPlane(pos, nrm, mwa)
-  local wat = self.__water
-  wat.P:Set(pos) -- Water plane position
-  wat.N:Set(nrm or DATA.VDRUP) -- Water normal
+function mtBeam:SetWaterRay(trace, setup, orig, norm)
+  local wat, wpos = self.__water
+  if(setup ~= nil) then
+    wat.W = tobool(setup)
+  else
+    if(not wat.W) then return self end
+    wpos = DATA.VTEMP
+    wpos:Set(self.VrDirect)
+    wpos:Normalize()
+    wpos:Mul(trace.LengthLS)
+    wpos:Add(self.VrOrigin)
+    wat.W = false  -- Reset exit medium to water
+    wat.P:Set(orig or wpos) -- Water plane position
+    wat.N:Set(norm or DATA.VDRUP) -- Water plane normal
+  end
   return self -- Coding effective API
 end
 
@@ -2637,7 +2652,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
     if(ent:GetClass() == LaserLib.GetClass(12, 1)) then
       local refract, key = GetMaterialEntry(mat, gtREFRACT)
       return ent:GetRefractInfo(refract), key -- Return the initial key
-    else
+    else -- TODO: Test refractor with non-refractive material
       return GetMaterialEntry(mat, gtREFRACT)
     end
   else
@@ -2727,6 +2742,7 @@ function mtBeam:RefractWaterAir()
     self:SetMediumSours(mtBeam.A) -- Switch to air medium
     self:Redirect(vwa, vdir, true) -- Redirect and reset laser beam
   else -- Redirect the beam in case of going out reset medium
+    self.NvMask = MASK_SOLID -- We stay in the water and hit stuff
     self:Redirect(vwa, vdir) -- Redirect only reset laser beam
   end -- Apply power ratio when requested
   if(self.BrRefrac) then self:SetPowerRatio(mtBeam.W[1][2]) end
@@ -3374,10 +3390,24 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
 
   repeat
 
-    LaserLib.DrawVector(beam.VrOrigin, beam.VrDirect, 5, "BLUE", beam.NvBounce)
+    if(beam.NvBounce == 21) then
+     -- beam.NvMask = MASK_SOLID
+    end
+
+    LaserLib.DrawVector(beam.VrOrigin, beam.VrDirect, 5, "YELLOW", beam.NvBounce, (beam.NvMask == MASK_ALL))
+
+
 
     -- Run the trace using the defined conditional parameters
     trace, target = beam:Trace(trace) -- Sample one trace and read contents
+
+    if(beam.NvBounce == 21) then
+      LaserLib.Call(2, function()
+        print(beam.NvBounce, "-----------")
+        PrintTable(trace)
+      end)
+    end
+
     -- Check medium contents to know what to do whenbeam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
@@ -3391,20 +3421,22 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         end  -- Switch medium via content. When not located meduim is unchanged
       end -- Resample the trace result and update hit status via contents
     else
+      beam:SetWaterRay(trace)
+
+      print("sss", beam.NvBounce, beam:IsWater(beam.VrOrigin), beam:IsWater(trace.HitPos))
+
       if(not beam:IsAir() and not beam.IsRfract) then
-        if(not beam:IsWater(trace.HitPos)) then
+        -- We have water plane defined and we are not refracting
+        -- Must check the initial trace start and hit point
+        if(beam:IsWater(beam.VrOrigin) and not beam:IsWater(trace.HitPos)) then
           beam:RefractWaterAir() -- Water to air specifics
           -- Update the trace reference with the new beam
           trace, target = beam:Trace(trace)
+          print("xx", beam.NvBounce)
+        else
+
         end
       end
-    end
-
-    if(beam.NvBounce == 21) then
-      LaserLib.Call(2, function()
-        print(beam.NvBounce, "-----------")
-        PrintTable(trace)
-      end)
     end
 
     -- Check current target for being a valid specific actor
@@ -3439,22 +3471,19 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
           if(beam:IsAir() and not IsWater(trace.HitPos)) then -- Update the source accordingly
-            beam:GetWater().W = false
+            beam:SetWaterRay(nil, false)
             beam:SetMediumSours(mtBeam.A) -- Contents is not water and plane is missing
           elseif(beam:IsWater(trace.HitPos) or IsWater(trace.HitPos)) then
-            beam:GetWater().W = true
+            beam:SetWaterRay(nil, true) -- Raise the water ray calculation to next trace
             beam:SetMediumSours(mtBeam.W) -- Contents are present or plane is available
           else -- Otherwise default the meduim to airs for enity in water
-            beam:GetWater().W = false
+            beam:SetWaterRay(nil, false)
             beam:SetMediumSours(mtBeam.A) -- Contents is not water and plane is missing
           end -- Negate the normal so it must point inwards before refraction
           LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
           -- Make sure to pick the correct refract exit medium for current node
           if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target, tr)) then
             -- Refract the hell out of this requested beam with entity destination
-
-            --print("D", beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
-
             local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bnex) then -- When the beam gets out of the medium
@@ -3465,20 +3494,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 -- Last position chached flag is outside of the water
                 if(not beam:IsAir()) then beam:ClearWater() end
               elseif(beam:IsWater() == nil) then -- Plane undevined
-                if(beam:GetWater().W) then -- Medium sorce is water
-                  print(entity) -- TODO: Add water plane update here
-                end
+                -- The library does not know where the water plane is
               end -- Reset the normal. We are out of the water now
-
               beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
-
-              print(">>", beam.NvBounce, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
-
-              LaserLib.DrawVector(trace.HitPos, trace.HitNormal, 5, nil, beam.NvBounce)
             else -- Get the trace ready to check the other side and register the location
               beam:SetTraceNext(trace.HitPos, vdir)
             end -- Apply power ratio when requested
-            beam:GetWater().W = false
             if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
           end
         else -- Put special cases here
