@@ -47,7 +47,7 @@ function ENT:EditableSetFloat(name, catg, min, max)
 end
 
 function ENT:EditableSetFloatCombo(name, catg, vals, key, ico, sek)
-  local vas = LaserLib.ExtractVas(vals, key) -- Use provided
+  local vas = LaserLib.ExtractCon(vals, key) -- Use provided
   local vco = LaserLib.ExtractIco(vals, ico)
   local typ, ord, id = LaserLib.GetOrderID(self, "Float")
   self:NetworkVar(typ, id, name, {
@@ -76,7 +76,7 @@ function ENT:EditableSetInt(name, catg, min, max)
 end
 
 function ENT:EditableSetIntCombo(name, catg, vals, key, ico, sek)
-  local vas = LaserLib.ExtractVas(vals, key) -- Use provided
+  local vas = LaserLib.ExtractCon(vals, key) -- Use provided
   local vco = LaserLib.ExtractIco(vals, ico)
   local typ, ord, id = LaserLib.GetOrderID(self, "Int")
   self:NetworkVar(typ, id, name, {
@@ -104,7 +104,7 @@ function ENT:EditableSetStringGeneric(name, catg, enter)
 end
 
 function ENT:EditableSetStringCombo(name, catg, vals, key, ico, sek)
-  local vas = LaserLib.ExtractVas(vals, key) -- Use provided
+  local vas = LaserLib.ExtractCon(vals, key) -- Use provided
   local vco = LaserLib.ExtractIco(vals, ico)
   local typ, ord, id = LaserLib.GetOrderID(self, "String")
   self:NetworkVar(typ, id, name, {

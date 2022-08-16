@@ -186,9 +186,9 @@ local gtREFLECT = { -- Reflection descriptor
   [4] = "chrome" , -- Chrome stuff reflect
   [5] = "shiny"  , -- All shiny reflective stuff
   [6] = "white"  , -- All general white paint
-  [7] = "metal"  , -- All shiny metal reflect
+  [7] = "metal"  , -- All shiny metals reflecting
   -- Used for prop updates and checks
-  [DATA.KEYD]                            = "debug/env_cubemap_model",
+  [DATA.KEYD] = "debug/env_cubemap_model",
   -- User for general class control
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the material found at when it is searched in array part
@@ -211,6 +211,11 @@ local gtREFLECT = { -- Reflection descriptor
   ["wtp/chrome_5"]                       = {0.955},
   ["wtp/chrome_6"]                       = {0.955},
   ["wtp/chrome_7"]                       = {0.955},
+  ["wtp/paint_1"]                        = {0.115},
+  ["wtp/paint_2"]                        = {0.055},
+  ["wtp/paint_3"]                        = {0.684},
+  ["wtp/paint_4"]                        = {0.831},
+  ["wtp/paint_5"]                        = {0.107},
   ["phoenix_storms/window"]              = {0.897},
   ["bobsters_trains/chrome"]             = {0.955},
   ["gm_construct/color_room"]            = {0.342}, -- White room in gm_construct
@@ -231,7 +236,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [3] = "water", -- Water enumerator index
   [4] = "translucent", -- Translucent stuff
   -- Used for prop updates and checks
-  [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
+  [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control
   -- [1] : Medium refraction index for the material specified
   -- [2] : Medium refraction rating when the beam goes through reduces its power
@@ -256,9 +261,11 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurities
   ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
   ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
+  ["models/props_lab/tank_glass001"]            = {1.511, 0.654}, -- Red tank glass
   ["models/props_combine/com_shield001a"]       = {1.573, 0.653}, -- Dynamically changing glass
   ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurities
-  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
+  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- Forged glass DirectX 6.0
+  ["models/props_c17/frostedglass_01a"]         = {1.521, 0.853}, -- Forged glass
   ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles no perfect glass
   ["models/props_combine/combine_door01_glass"] = {1.583, 0.341}, -- Bit darker glass
   ["models/props_combine/citadel_cable"]        = {1.583, 0.441}, -- Dark glass
@@ -268,16 +275,26 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; gtREFRACT.Size = #gtREFRACT
 
+--[[
+ * Material configuration to use when override is missing
+ * Acts like a reference key jump for to the REFLECT set
+ * https://wiki.facepunch.com/gmod/Enums/MAT
+]]
 local gtMATYPE = {
-  [MAT_SNOW       ] = "white",
-  [MAT_GRATE      ] = "metal",
-  [MAT_CLIP       ] = "metal",
-  [MAT_METAL      ] = "metal",
-  [MAT_VENT       ] = "metal",
-  [MAT_GLASS      ] = "glass",
-  [MAT_WARPSHIELD ] = "glass"
+  [tostring(MAT_SNOW      )] = "white",
+  [tostring(MAT_GRATE     )] = "metal",
+  [tostring(MAT_CLIP      )] = "metal",
+  [tostring(MAT_METAL     )] = "metal",
+  [tostring(MAT_VENT      )] = "metal",
+  [tostring(MAT_GLASS     )] = "glass",
+  [tostring(MAT_WARPSHIELD)] = "glass"
 }
 
+--[[
+ * General contents table
+ [1]: https://wiki.facepunch.com/gmod/Enums/CONTENTS
+ [2]: The sequential medium search ID from REFRACT
+]]
 local gtCONTENTS = { -- Start-refract transperent contents
   {CONTENTS_WINDOW     , 2}, -- REFRACT loop index [2]: glass
   {CONTENTS_WATER      , 3}, -- REFRACT loop index [3]: water
@@ -347,13 +364,12 @@ end
 ]]
 local function TraceCAP(origin, direct, length, filter)
   if(StarGate ~= nil) then
-    gtTRACE.start:Set(origin)
-    gtTRACE.endpos:Set(direct)
-    gtTRACE.endpos:Normalize()
-    if(not (length and length > 0)) then
-      length = direct:Length()
-    end -- Use proper length even if missing
-    gtTRACE.endpos:Mul(length)
+    gtTRACE.start:Set(origin) -- By default CAP uses origin position ray
+    gtTRACE.endpos:Set(direct) -- By default CAP uses direction ray length
+    if(length and length > 0) then -- Lenght is available. Use it instead
+      gtTRACE.endpos:Normalize() -- Normalize ending position
+      gtTRACE.endpos:Mul(length) -- Scale using the external length
+    end -- The data is ready as the CAP trace accepts it and call the thing
     local tr = StarGate.Trace:New(gtTRACE.start, gtTRACE.endpos, filter)
     if(StarGate.Trace.Entities[tr.Entity]) then return tr end
     -- If CAP specific entity is hit return and override the trace
@@ -470,11 +486,11 @@ function LaserLib.Clear(arr, idx)
 end
 
 --[[
- * Extracts table values from 2D set specified key
+ * Extracts table value content from 2D set specified key
  * tab > Reference to a table of row tables
  * key > The key to be extracted (not mandatory)
 ]]
-function LaserLib.ExtractVas(tab, key)
+function LaserLib.ExtractCon(tab, key)
   if(not tab) then return tab end
   if(not key) then return tab end
   local set = {} -- Allocate
@@ -1610,27 +1626,37 @@ function LaserLib.GetColor(idx)
   return GetCollectionData(idx, gtCOLOR)
 end
 
-local function IsContent(cont, comp)
+function LaserLib.InContent(cont, comp)
   return (bit.band(cont, comp) == comp)
 end
 
-local function IsWater(pos)
-  local wat = CONTENTS_WATER
+function LaserLib.IsContent(pos, comp)
   local con = util.PointContents(pos)
-  return (bit.band(con, wat) == wat)
+  return LaserLib.InContent(con, comp)
 end
 
+function LaserLib.IsContentWater(pos)
+  return LaserLib.IsContent(pos, CONTENTS_WATER)
+end
+
+--[[
+ * This is designed to read cantent ID from a trace
+ * It will compare the trace contents to the medium content
+ * On success will return the content ID to update trace
+ * cont > The trace contents being checked and matched
+]]
 local function GetContentsID(cont)
   for idx = 1, gtCONTENTS.Size do -- Check contents
     local set = gtCONTENTS[idx] -- Index content set
     local con, cdx = set[1], set[2] -- Index entry
-    if(IsContent(cont, con)) then return cdx end
+    if(LaserLib.InContent(cont, con)) then return cdx end
   end; return nil -- The contents did not get matched to entry
 end
 
 --[[
  * Checks when the entity has interactive material
- * Cashes the request issued for index material
+ * Cashes the incoming request for the material index
+ * Used to pick data when reflecting or refracting
  * mat > Direct material to check for. Missing uses `ent`
  * set > The dedicated parameters setting to check
  * Returns: Material entry from the given set
@@ -1638,7 +1664,7 @@ end
 local function GetMaterialEntry(mat, set)
   if(not mat) then return nil end
   if(not set) then return nil end
-  local mat = tostring(mat)-- Pointer to the local surface material
+  local mat = tostring(mat):lower()
   -- Read the first entry from table
   local key, val = mat, set[mat]
   -- Check for overriding with default
@@ -2263,8 +2289,8 @@ end
  * trace > Where to store temporary trace sesult to ignore new table
 ]]
 function mtBeam:SetSurfaceWater(trace)
-  if(IsWater(self.VrOrigin)) then -- Game tells us point is in water
-    if(self:IsWater(self.VrOrigin) == nil) then -- No water plane
+  if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
+    if(self:IsWater(self.VrOrigin) == nil) then -- No water plane defined
       local water, length = self:GetWater(), DATA.TRWU
       local trace = TraceBeam(self.VrOrigin, DATA.VDRUP, length,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
@@ -2623,7 +2649,7 @@ function mtBeam:GetMaterialID(trace)
   if(trace.HitWorld) then
     local mat = trace.HitTexture -- Use trace material type
     if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-      mat = gtMATYPE[trace.MatType] -- Material lookup
+      mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
     end -- **studio**, **displacement**, **empty**
     return mat
   else
@@ -2636,7 +2662,7 @@ function mtBeam:GetMaterialID(trace)
       else -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
         if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-          mat = gtMATYPE[trace.MatType] -- Material lookup
+          mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
         end -- **studio**, **displacement**, **empty**
       end -- Physics object has a single surface type related to model
     end
@@ -2659,16 +2685,16 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
   if(not (tr or tr.Hit)) then return nil end -- Nothing traces
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
+  local refract, key = GetMaterialEntry(mat, gtREFRACT)
   if(LaserLib.IsValid(ent)) then
     if(ent:GetClass() == LaserLib.GetClass(12, 1)) then
-      local refract, key = GetMaterialEntry(mat, gtREFRACT)
       if(not refract) then return nil end
       return ent:GetRefractInfo(refract), key -- Return the initial key
     else -- TODO: Test refractor with non-refractive material
-      return GetMaterialEntry(mat, gtREFRACT)
+      return refract, key
     end
   else
-    return GetMaterialEntry(mat, gtREFRACT)
+    return refract, key
   end
 end
 
@@ -3469,7 +3495,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
-          if(IsWater(trace.HitPos)) then -- Ask the souce engine if water location
+          if(LaserLib.IsContentWater(trace.HitPos)) then -- Ask souce engine for water
             beam:SetMediumSours(mtBeam.W) -- Contents is not water and plane is missing
           else -- Otherwise default the meduim to airs for enity in water
             beam:SetMediumSours(mtBeam.A) -- Contents is not water and plane is missing
