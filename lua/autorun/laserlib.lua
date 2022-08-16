@@ -2324,7 +2324,7 @@ end
  * trace > Where to store temporary trace sesult to ignore new table
 ]]
 function mtBeam:SetSurfaceWater(trace)
-  local org = self:GetWaterOrigin(self.VrOrigin)
+  local org = self:GetWaterOrigin()
   if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
     if(org == nil) then -- No water plane defined. Still in the air
       local water, length = self:GetWater(), DATA.TRWU
@@ -3446,23 +3446,20 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       if(not beam:IsAir() and not beam.IsRfract) then
         -- We have water plane defined and we are not refracting
         -- Must check the initial trace start and hit point
-        local org = beam:GetWaterOrigin(beam.VrOrigin)
-        if(org and org <= 0) then -- We start to trace underwater
-          local dir = beam:GetWaterDirect()
+        local org = beam:GetWaterOrigin()
+        if(org and org <= 0) then -- Beam origin is underwater
+          local dir = beam:GetWaterDirect() -- Compare ray direction
           if(dir and dir > 0) then -- Beam goes out of water
             local org = beam:GetWaterOrigin(trace.HitPos)
             if(org and org <= 0) then -- Ray ends underwater
               beam.NvMask = MASK_SOLID -- Hit solid stuff in water
-              -- Update the trace reference with the new beam
               trace, target = beam:Trace(trace) -- New trace
             else -- Hit position is above the water level
               beam:RefractWaterAir() -- Water to air specifics
-              -- Update the trace reference with the new beam
               trace, target = beam:Trace(trace)
             end -- When the beam is short and ends in the water
           else -- The beam goes deeper and deeper inside the water
             beam.NvMask = MASK_SOLID -- Hit solid stuff in water
-            -- Update the trace reference with the new beam
             trace, target = beam:Trace(trace) -- New trace
           end
         end
