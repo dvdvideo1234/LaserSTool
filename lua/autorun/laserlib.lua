@@ -2279,6 +2279,45 @@ function mtBeam:IsAir()
 end
 
 --[[
+ * Calculates dot product with beam direction and
+ * the water surface and. Use to check when the
+ * beam goes deep or tries to go up and out
+ * Uses beam's direction when the parameter is missing
+ * Returns various conditions for beam ray in water
+ * nil      > Margin unavailable. No water surface
+ * zero     > Ray glides on water surface
+ * positive > Ray goes out of water
+ * negative > Ray goes in the water
+]]
+function mtBeam:GetWaterDirect(dir)
+  local air = self:IsAir()
+  if(air) then return nil end
+  local wat = self:GetWater()
+  return wat.N:Dot(dir or self.VrDirect)
+end
+
+--[[
+ * Checks whenever the given position is located
+ * above or below the water plane defined
+ * pos > World-space position to be checked
+ * Uses beam's origin when the parameter is missing
+ * Returns various conditions for point in water
+ * nil      > Water plane is undefined
+ * zero     > Point is on the water
+ * positive > Point is above water
+ * negative > Point is below water
+]]
+function mtBeam:GetWaterOrigin(pos)
+  local air = self:IsAir()
+  if(air) then return nil end
+  local wat = self:GetWater()
+  local tmp = self.__vtdir
+  tmp:Set(pos or self.VrOrigin)
+  tmp:Sub(wat.P)
+  return tmp:Dot(wat.N)
+end
+
+--[[
  * Updates the water plane in the last iteration of entity refraction
  * Exit point is water and water is not registered. Register
  * Exit point is air and water plane is predent. Clear water
@@ -2300,23 +2339,6 @@ function mtBeam:SetSurfaceWater(trace)
       self.NvMask = MASK_ALL -- Beam in the air must hit everything
     end -- Beam exits in air. The water plane mist be cleared
   end; return self
-end
-
---[[
- * Calculates dot product with beam direction and
- * the water surface and. Use to check when the
- * beam goes deep or tries to go up and out
- * Returns various conditions for beam ray in water
- * nil      > Margin unavailable. No water surface
- * zero     > Ray glides on water surface
- * positive > Ray goes out of water
- * negative > Ray goes in the water
-]]
-function mtBeam:GetWaterDirect()
-  local air = self:IsAir()
-  if(air) then return nil end
-  local wat = self:GetWater()
-  return wat.N:Dot(self.VrDirect)
 end
 
 --[[
@@ -2367,25 +2389,6 @@ function mtBeam:GetNudge(margn)
   local vtm = self.__vtorg
   vtm:Set(self.VrDirect); vtm:Mul(margn)
   vtm:Add(self.VrOrigin); return vtm
-end
-
---[[
- * Checks whenever the given position is located
- * above or below the water plane defined
- * pos > World-space position to be checked
- * Returns various conditions for point in water
- * nil      > Water plane is undefined
- * zero     > Point is on the water
- * positive > Point is above water
- * negative > Point is below water
-]]
-function mtBeam:GetWaterOrigin(pos)
-  local air = self:IsAir()
-  if(air) then return nil end
-  local wat = self:GetWater()
-  local tmp = self.__vtdir
-  tmp:Set(pos); tmp:Sub(wat.P)
-  return tmp:Dot(wat.N)
 end
 
 --[[
