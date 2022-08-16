@@ -186,9 +186,9 @@ local gtREFLECT = { -- Reflection descriptor
   [4] = "chrome" , -- Chrome stuff reflect
   [5] = "shiny"  , -- All shiny reflective stuff
   [6] = "white"  , -- All general white paint
-  [7] = "metal"  , -- All shiny metal reflect
+  [7] = "metal"  , -- All shiny metals reflecting
   -- Used for prop updates and checks
-  [DATA.KEYD]                            = "debug/env_cubemap_model",
+  [DATA.KEYD] = "debug/env_cubemap_model",
   -- User for general class control
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the material found at when it is searched in array part
@@ -211,6 +211,11 @@ local gtREFLECT = { -- Reflection descriptor
   ["wtp/chrome_5"]                       = {0.955},
   ["wtp/chrome_6"]                       = {0.955},
   ["wtp/chrome_7"]                       = {0.955},
+  ["wtp/paint_1"]                        = {0.115},
+  ["wtp/paint_2"]                        = {0.055},
+  ["wtp/paint_3"]                        = {0.684},
+  ["wtp/paint_4"]                        = {0.831},
+  ["wtp/paint_5"]                        = {0.107},
   ["phoenix_storms/window"]              = {0.897},
   ["bobsters_trains/chrome"]             = {0.955},
   ["gm_construct/color_room"]            = {0.342}, -- White room in gm_construct
@@ -231,7 +236,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [3] = "water", -- Water enumerator index
   [4] = "translucent", -- Translucent stuff
   -- Used for prop updates and checks
-  [DATA.KEYD]                                   = "models/props_combine/health_charger_glass",
+  [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control
   -- [1] : Medium refraction index for the material specified
   -- [2] : Medium refraction rating when the beam goes through reduces its power
@@ -256,9 +261,11 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/effects/comball_glow2"]              = {1.536, 0.924}, -- Glass with some impurities
   ["models/airboat/airboat_blur02"]             = {1.647, 0.955}, -- Non pure glass 1
   ["models/props_lab/xencrystal_sheet"]         = {1.555, 0.784}, -- Amber refraction index
+  ["models/props_lab/tank_glass001"]            = {1.511, 0.654}, -- Red tank glass
   ["models/props_combine/com_shield001a"]       = {1.573, 0.653}, -- Dynamically changing glass
   ["models/props_combine/combine_fenceglow"]    = {1.638, 0.924}, -- Glass with decent impurities
-  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- White glass
+  ["models/props_c17/frostedglass_01a_dx60"]    = {1.521, 0.853}, -- Forged glass DirectX 6.0
+  ["models/props_c17/frostedglass_01a"]         = {1.521, 0.853}, -- Forged glass
   ["models/props_combine/health_charger_glass"] = {1.552, 1.000}, -- Resembles no perfect glass
   ["models/props_combine/combine_door01_glass"] = {1.583, 0.341}, -- Bit darker glass
   ["models/props_combine/citadel_cable"]        = {1.583, 0.441}, -- Dark glass
@@ -268,16 +275,26 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; gtREFRACT.Size = #gtREFRACT
 
+--[[
+ * Material configuration to use when override is missing
+ * Acts like a reference key jump for to the REFLECT set
+ * https://wiki.facepunch.com/gmod/Enums/MAT
+]]
 local gtMATYPE = {
-  [MAT_SNOW       ] = "white",
-  [MAT_GRATE      ] = "metal",
-  [MAT_CLIP       ] = "metal",
-  [MAT_METAL      ] = "metal",
-  [MAT_VENT       ] = "metal",
-  [MAT_GLASS      ] = "glass",
-  [MAT_WARPSHIELD ] = "glass"
+  [tostring(MAT_SNOW      )] = "white",
+  [tostring(MAT_GRATE     )] = "metal",
+  [tostring(MAT_CLIP      )] = "metal",
+  [tostring(MAT_METAL     )] = "metal",
+  [tostring(MAT_VENT      )] = "metal",
+  [tostring(MAT_GLASS     )] = "glass",
+  [tostring(MAT_WARPSHIELD)] = "glass"
 }
 
+--[[
+ * General contents table
+ [1]: https://wiki.facepunch.com/gmod/Enums/CONTENTS
+ [2]: The sequential medium search ID from REFRACT
+]]
 local gtCONTENTS = { -- Start-refract transperent contents
   {CONTENTS_WINDOW     , 2}, -- REFRACT loop index [2]: glass
   {CONTENTS_WATER      , 3}, -- REFRACT loop index [3]: water
@@ -347,13 +364,12 @@ end
 ]]
 local function TraceCAP(origin, direct, length, filter)
   if(StarGate ~= nil) then
-    gtTRACE.start:Set(origin)
-    gtTRACE.endpos:Set(direct)
-    gtTRACE.endpos:Normalize()
-    if(not (length and length > 0)) then
-      length = direct:Length()
-    end -- Use proper length even if missing
-    gtTRACE.endpos:Mul(length)
+    gtTRACE.start:Set(origin) -- By default CAP uses origin position ray
+    gtTRACE.endpos:Set(direct) -- By default CAP uses direction ray length
+    if(length and length > 0) then -- Lenght is available. Use it instead
+      gtTRACE.endpos:Normalize() -- Normalize ending position
+      gtTRACE.endpos:Mul(length) -- Scale using the external length
+    end -- The data is ready as the CAP trace accepts it and call the thing
     local tr = StarGate.Trace:New(gtTRACE.start, gtTRACE.endpos, filter)
     if(StarGate.Trace.Entities[tr.Entity]) then return tr end
     -- If CAP specific entity is hit return and override the trace
@@ -470,11 +486,11 @@ function LaserLib.Clear(arr, idx)
 end
 
 --[[
- * Extracts table values from 2D set specified key
+ * Extracts table value content from 2D set specified key
  * tab > Reference to a table of row tables
  * key > The key to be extracted (not mandatory)
 ]]
-function LaserLib.ExtractVas(tab, key)
+function LaserLib.ExtractCon(tab, key)
   if(not tab) then return tab end
   if(not key) then return tab end
   local set = {} -- Allocate
@@ -1610,17 +1626,37 @@ function LaserLib.GetColor(idx)
   return GetCollectionData(idx, gtCOLOR)
 end
 
+function LaserLib.InContent(cont, comp)
+  return (bit.band(cont, comp) == comp)
+end
+
+function LaserLib.IsContent(pos, comp)
+  local con = util.PointContents(pos)
+  return LaserLib.InContent(con, comp)
+end
+
+function LaserLib.IsContentWater(pos)
+  return LaserLib.IsContent(pos, CONTENTS_WATER)
+end
+
+--[[
+ * This is designed to read cantent ID from a trace
+ * It will compare the trace contents to the medium content
+ * On success will return the content ID to update trace
+ * cont > The trace contents being checked and matched
+]]
 local function GetContentsID(cont)
   for idx = 1, gtCONTENTS.Size do -- Check contents
     local set = gtCONTENTS[idx] -- Index content set
     local con, cdx = set[1], set[2] -- Index entry
-    if(bit.band(cont, con) == con) then return cdx end
+    if(LaserLib.InContent(cont, con)) then return cdx end
   end; return nil -- The contents did not get matched to entry
 end
 
 --[[
  * Checks when the entity has interactive material
- * Cashes the request issued for index material
+ * Cashes the incoming request for the material index
+ * Used to pick data when reflecting or refracting
  * mat > Direct material to check for. Missing uses `ent`
  * set > The dedicated parameters setting to check
  * Returns: Material entry from the given set
@@ -1628,7 +1664,7 @@ end
 local function GetMaterialEntry(mat, set)
   if(not mat) then return nil end
   if(not set) then return nil end
-  local mat = tostring(mat)-- Pointer to the local surface material
+  local mat = tostring(mat):lower()
   -- Read the first entry from table
   local key, val = mat, set[mat]
   -- Check for overriding with default
@@ -1816,7 +1852,7 @@ if(SERVER) then
   --[[
    * Function handler for calculating target custom damage
    * These are specific handlers for specific classes
-   * [...] > Arguments are the same as `LaserLib.DoDamage`
+   * Arguments are the same as `LaserLib.DoDamage`
   ]]
   local gtDAMAGE = {
     ["shield"] = function(target  , laser , attacker, origin ,
@@ -2146,8 +2182,6 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__water = {
         P = Vector(), -- Water surface plane position
         N = Vector(), -- Water surface plane normal ( used also for trigger )
-        D = Vector(), -- Water surface plane temporary direction vector
-        M = 0, -- The value of the temporary dot product margin
         K = {["water"] = true} -- Fast water texture hash matching
       }
 local function Beam(origin, direct, width, damage, length, force)
@@ -2195,6 +2229,18 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
+ * Reads a water member
+]]
+function mtBeam:GetWater(key)
+  local wat = self.__water
+  if(key) then
+    return wat[key]
+  else
+    return wat
+  end
+end
+
+--[[
  * Returns the desired nore information
  * index > Node index to be used. Defaults to node size
 ]]
@@ -2229,16 +2275,77 @@ end
  * Checks when water base medium is not activated
 ]]
 function mtBeam:IsAir()
-  local wat = self.__water
-  return wat.N:IsZero()
+  return self:GetWater().N:IsZero()
+end
+
+--[[
+ * Calculates dot product with beam direction and
+ * the water surface and. Use to check when the
+ * beam goes deep or tries to go up and out
+ * Uses beam's direction when the parameter is missing
+ * Returns various conditions for beam ray in water
+ * nil      > Margin unavailable. No water surface
+ * zero     > Ray glides on water surface
+ * positive > Ray goes out of water
+ * negative > Ray goes in the water
+]]
+function mtBeam:GetWaterDirect(dir)
+  local air = self:IsAir()
+  if(air) then return nil end
+  local wat = self:GetWater()
+  return wat.N:Dot(dir or self.VrDirect)
+end
+
+--[[
+ * Checks whenever the given position is located
+ * above or below the water plane defined
+ * pos > World-space position to be checked
+ * Uses beam's origin when the parameter is missing
+ * Returns various conditions for point in water
+ * nil      > Water plane is undefined
+ * zero     > Point is on the water
+ * positive > Point is above water
+ * negative > Point is below water
+]]
+function mtBeam:GetWaterOrigin(pos)
+  local air = self:IsAir()
+  if(air) then return nil end
+  local wat = self:GetWater()
+  local tmp = self.__vtdir
+  tmp:Set(pos or self.VrOrigin)
+  tmp:Sub(wat.P)
+  return tmp:Dot(wat.N)
+end
+
+--[[
+ * Updates the water plane in the last iteration of entity refraction
+ * Exit point is water and water is not registered. Register
+ * Exit point is air and water plane is predent. Clear water
+ * trace > Where to store temporary trace sesult to ignore new table
+]]
+function mtBeam:SetSurfaceWater(trace)
+  local org = self:GetWaterOrigin(self.VrOrigin)
+  if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
+    if(org == nil) then -- No water plane defined. Still in the air
+      local water, length = self:GetWater(), DATA.TRWU
+      local trace = TraceBeam(self.VrOrigin, DATA.VDRUP, length,
+        entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
+      water.P:Set(trace.Normal); water.P:Mul(trace.FractionLeftSolid * length)
+      water.P:Add(self.VrOrigin); water.N:Set(DATA.VDRUP)
+    end
+  else -- Source engine returns that position is not water
+    if(org ~= nil) then -- Water plane is available. Clear it
+      self:ClearWater() -- Clear the water plane. Beam goes out
+      self.NvMask = MASK_ALL -- Beam in the air must hit everything
+    end -- Beam exits in air. The water plane mist be cleared
+  end; return self
 end
 
 --[[
  * Clears the water surface normal
 ]]
 function mtBeam:ClearWater()
-  local wat = self.__water
-  wat.N:Zero() -- Clear water flag
+  self:GetWater().N:Zero() -- Clear water flag
   return self -- Coding effective API
 end
 
@@ -2282,20 +2389,6 @@ function mtBeam:GetNudge(margn)
   local vtm = self.__vtorg
   vtm:Set(self.VrDirect); vtm:Mul(margn)
   vtm:Add(self.VrOrigin); return vtm
-end
-
---[[
- * Checks whenever the given position is located
- * above or below the water plane defined in `__water`
- * pos > World-space position to be checked
-]]
-function mtBeam:IsWater(pos)
-  local wat = self.__water
-  if(not pos) then return wat.F end
-  wat.D:Set(pos); wat.D:Sub(wat.P)
-  wat.M = wat.D:Dot(wat.N)
-  wat.F = (wat.M < 0)
-  return wat.F
 end
 
 --[[
@@ -2557,7 +2650,7 @@ function mtBeam:GetMaterialID(trace)
   if(trace.HitWorld) then
     local mat = trace.HitTexture -- Use trace material type
     if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-      mat = gtMATYPE[trace.MatType] -- Material lookup
+      mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
     end -- **studio**, **displacement**, **empty**
     return mat
   else
@@ -2570,7 +2663,7 @@ function mtBeam:GetMaterialID(trace)
       else -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
         if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
-          mat = gtMATYPE[trace.MatType] -- Material lookup
+          mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
         end -- **studio**, **displacement**, **empty**
       end -- Physics object has a single surface type related to model
     end
@@ -2593,15 +2686,16 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
   if(not (tr or tr.Hit)) then return nil end -- Nothing traces
   if(tr.Fraction > 0) then return nil end -- Has prop air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
+  local refract, key = GetMaterialEntry(mat, gtREFRACT)
   if(LaserLib.IsValid(ent)) then
     if(ent:GetClass() == LaserLib.GetClass(12, 1)) then
-      local refract, key = GetMaterialEntry(mat, gtREFRACT)
+      if(not refract) then return nil end
       return ent:GetRefractInfo(refract), key -- Return the initial key
     else
-      return GetMaterialEntry(mat, gtREFRACT)
+      return refract, key
     end
   else
-    return GetMaterialEntry(mat, gtREFRACT)
+    return refract, key
   end
 end
 
@@ -2673,7 +2767,7 @@ end
 ]]
 function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit outside the water
-  local wat = self.__water -- Local reference indexing water
+  local wat = self:GetWater() -- Local reference indexing water
   local vtm = self.__vtorg; LaserLib.VecNegate(self.VrDirect)
   local vwa = self:IntersectRayPlane(wat.P, wat.N)
   -- Registering the node cannot be done with direct subtraction
@@ -2687,6 +2781,7 @@ function mtBeam:RefractWaterAir()
     self:SetMediumSours(mtBeam.A) -- Switch to air medium
     self:Redirect(vwa, vdir, true) -- Redirect and reset laser beam
   else -- Redirect the beam in case of going out reset medium
+    self.NvMask = MASK_SOLID -- We stay in the water and hit stuff
     self:Redirect(vwa, vdir) -- Redirect only reset laser beam
   end -- Apply power ratio when requested
   if(self.BrRefrac) then self:SetPowerRatio(mtBeam.W[1][2]) end
@@ -2700,7 +2795,7 @@ end
  * trace   > Trace result structure output being used
 ]]
 function mtBeam:SetSurfaceWorld(reftype, trace)
-  local wat = self.__water
+  local wat = self:GetWater()
   if(self.StRfract) then
     if(reftype and wat.K[reftype] and self:IsAir()) then
       local trace = TraceBeam(self.VrOrigin, DATA.VDRUP, DATA.TRWU,
@@ -3349,10 +3444,27 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       end -- Resample the trace result and update hit status via contents
     else
       if(not beam:IsAir() and not beam.IsRfract) then
-        if(not beam:IsWater(trace.HitPos)) then
-          beam:RefractWaterAir() -- Water to air specifics
-          -- Update the trace reference with the new beam
-          trace, target = beam:Trace(trace)
+        -- We have water plane defined and we are not refracting
+        -- Must check the initial trace start and hit point
+        local org = beam:GetWaterOrigin(beam.VrOrigin)
+        if(org and org <= 0) then -- We start to trace underwater
+          local dir = beam:GetWaterDirect()
+          if(dir and dir > 0) then -- Beam goes out of water
+            local org = beam:GetWaterOrigin(trace.HitPos)
+            if(org and org <= 0) then -- Ray ends underwater
+              beam.NvMask = MASK_SOLID -- Hit solid stuff in water
+              -- Update the trace reference with the new beam
+              trace, target = beam:Trace(trace) -- New trace
+            else -- Hit position is above the water level
+              beam:RefractWaterAir() -- Water to air specifics
+              -- Update the trace reference with the new beam
+              trace, target = beam:Trace(trace)
+            end -- When the beam is short and ends in the water
+          else -- The beam goes deeper and deeper inside the water
+            beam.NvMask = MASK_SOLID -- Hit solid stuff in water
+            -- Update the trace reference with the new beam
+            trace, target = beam:Trace(trace) -- New trace
+          end
         end
       end
     end
@@ -3387,14 +3499,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
-          if(beam:IsAir()) then
-            beam:SetMediumSours(mtBeam.A)
-          else -- Water general flag is present
-            if(beam:IsWater(trace.HitPos)) then
-              beam:SetMediumSours(mtBeam.W)
-            else -- Check if point is in or out of the water
-              beam:SetMediumSours(mtBeam.A)
-            end -- Update the source accordingly
+          if(LaserLib.IsContentWater(trace.HitPos)) then -- Ask souce engine for water
+            beam:SetMediumSours(mtBeam.W) -- Contents is not water and plane is missing
+          else -- Otherwise default the meduim to airs for enity in water
+            beam:SetMediumSours(mtBeam.A) -- Contents is not water and plane is missing
           end -- Negate the normal so it must point inwards before refraction
           LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
           -- Make sure to pick the correct refract exit medium for current node
@@ -3404,9 +3512,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bnex) then -- When the beam gets out of the medium
               beam:Redirect(trace.HitPos, vdir, true)
-              if(not beam:IsWater()) then -- Check for zero when water only
-                if(not beam:IsAir()) then beam:ClearWater() end
-              end -- Reset the normal. We are out of the water now
+              beam:SetSurfaceWater(tr) -- Register the water plane
               beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               beam:SetTraceNext(trace.HitPos, vdir)
