@@ -2182,10 +2182,6 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__water = {
         P = Vector(), -- Water surface plane position
         N = Vector(), -- Water surface plane normal ( used also for trigger )
-        D = Vector(), -- Water surface plane temporary direction vector
-        M = 0, -- The value of the temporary dot product margin
-        F = false, -- Default value for the cached point-water flag
-        W = false, -- Indicates that the refraction picked water medum
         K = {["water"] = true} -- Fast water texture hash matching
       }
 local function Beam(origin, direct, width, damage, length, force)
@@ -2289,8 +2285,9 @@ end
  * trace > Where to store temporary trace sesult to ignore new table
 ]]
 function mtBeam:SetSurfaceWater(trace)
+  local org = self:GetWaterOrigin(self.VrOrigin)
   if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
-    if(self:IsWater(self.VrOrigin) == nil) then -- No water plane defined
+    if(org == nil) then -- No water plane defined. Still in the air
       local water, length = self:GetWater(), DATA.TRWU
       local trace = TraceBeam(self.VrOrigin, DATA.VDRUP, length,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
@@ -2298,7 +2295,7 @@ function mtBeam:SetSurfaceWater(trace)
       water.P:Add(self.VrOrigin); water.N:Set(DATA.VDRUP)
     end
   else -- Source engine returns that position is not water
-    if(self:IsWater(self.VrOrigin) ~= nil) then -- Water available
+    if(org ~= nil) then -- Water plane is available. Clear it
       self:ClearWater() -- Clear the water plane. Beam goes out
       self.NvMask = MASK_ALL -- Beam in the air must hit everything
     end -- Beam exits in air. The water plane mist be cleared
@@ -2306,14 +2303,16 @@ function mtBeam:SetSurfaceWater(trace)
 end
 
 --[[
- * Calculates dot product with ray abd water surface
- * Returns dot margin:
- * nil > Margin unavailable. No water surface
- * 0   > Ray glides on water surface
- * 0+  > Ray goes out of water
- * 0-  > Ray goes in the water
+ * Calculates dot product with beam direction and
+ * the water surface and. Use to check when the
+ * beam goes deep or tries to go up and out
+ * Returns various conditions for beam ray in water
+ * nil      > Margin unavailable. No water surface
+ * zero     > Ray glides on water surface
+ * positive > Ray goes out of water
+ * negative > Ray goes in the water
 ]]
-function mtBeam:GetWaterDot()
+function mtBeam:GetWaterDirect()
   local air = self:IsAir()
   if(air) then return nil end
   local wat = self:GetWater()
@@ -2375,19 +2374,18 @@ end
  * above or below the water plane defined
  * pos > World-space position to be checked
  * Returns various conditions for point in water
- * true  > Point is in the water
- * false > Point is out of the water
- * nil   > Water plane is undefined
+ * nil      > Water plane is undefined
+ * zero     > Point is on the water
+ * positive > Point is above water
+ * negative > Point is below water
 ]]
-function mtBeam:IsWater(pos)
+function mtBeam:GetWaterOrigin(pos)
   local air = self:IsAir()
   if(air) then return nil end
   local wat = self:GetWater()
-  if(not pos) then return wat.F end
-  wat.D:Set(pos); wat.D:Sub(wat.P)
-  wat.M = wat.D:Dot(wat.N)
-  wat.F = (wat.M < 0)
-  return wat.F
+  local tmp = self.__vtdir
+  tmp:Set(pos); tmp:Sub(wat.P)
+  return tmp:Dot(wat.N)
 end
 
 --[[
@@ -3445,12 +3443,14 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       if(not beam:IsAir() and not beam.IsRfract) then
         -- We have water plane defined and we are not refracting
         -- Must check the initial trace start and hit point
-        if(beam:IsWater(beam.VrOrigin)) then
-          -- We start to trace underwater
-          local norm = beam:GetWaterDot()
-          if(norm and norm > 0) then -- Ray points rather up
-            if(beam:IsWater(trace.HitPos)) then
+        local org = beam:GetWaterOrigin(beam.VrOrigin)
+        if(org and org <= 0) then -- We start to trace underwater
+          local dir = beam:GetWaterDirect()
+          if(dir and dir > 0) then -- Beam goes out of water
+            local org = beam:GetWaterOrigin(trace.HitPos)
+            if(org and org <= 0) then -- Ray ends underwater
               beam.NvMask = MASK_SOLID -- Hit solid stuff in water
+              -- Update the trace reference with the new beam
               trace, target = beam:Trace(trace) -- New trace
             else -- Hit position is above the water level
               beam:RefractWaterAir() -- Water to air specifics
@@ -3459,6 +3459,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             end -- When the beam is short and ends in the water
           else -- The beam goes deeper and deeper inside the water
             beam.NvMask = MASK_SOLID -- Hit solid stuff in water
+            -- Update the trace reference with the new beam
             trace, target = beam:Trace(trace) -- New trace
           end
         end
