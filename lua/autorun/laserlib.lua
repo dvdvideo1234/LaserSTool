@@ -2691,7 +2691,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
     if(ent:GetClass() == LaserLib.GetClass(12, 1)) then
       if(not refract) then return nil end
       return ent:GetRefractInfo(refract), key -- Return the initial key
-    else -- TODO: Test refractor with non-refractive material
+    else
       return refract, key
     end
   else
