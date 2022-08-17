@@ -234,7 +234,8 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [1] = "air"  , -- Air enumerator index
   [2] = "glass", -- Glass enumerator index
   [3] = "water", -- Water enumerator index
-  [4] = "translucent", -- Translucent stuff
+  [4] = "slime", -- Slime enumerator index
+  [5] = "translucent", -- Translucent stuff
   -- Used for prop updates and checks
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control
@@ -247,6 +248,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["air"]                                       = {1.000, 1.000, "air"  }, -- Air refraction index
   ["glass"]                                     = {1.521, 0.999, "glass"}, -- Ordinary glass
   ["water"]                                     = {1.333, 0.955, "water"}, -- Water refraction index
+  ["slime"]                                     = {1.387, 0.731, "slime"}, -- Slime refraction index
   ["translucent"]                               = {1.437, 0.575, "translucent"}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
@@ -291,14 +293,15 @@ local gtMATYPE = {
 }
 
 --[[
- * General contents table
+ * General contents table providing refract bind ID
  [1]: https://wiki.facepunch.com/gmod/Enums/CONTENTS
  [2]: The sequential medium search ID from REFRACT
 ]]
 local gtCONTENTS = { -- Start-refract transperent contents
   {CONTENTS_WINDOW     , 2}, -- REFRACT loop index [2]: glass
   {CONTENTS_WATER      , 3}, -- REFRACT loop index [3]: water
-  {CONTENTS_TRANSLUCENT, 4}  -- REFRACT loop index [4]: translucent
+  {CONTENTS_SLIME      , 4}, -- REFRACT loop index [4]: slime
+  {CONTENTS_TRANSLUCENT, 5}  -- REFRACT loop index [5]: translucent
 }; gtCONTENTS.Size = #gtCONTENTS -- Store initial table size
 
 local gtTRACE = {
@@ -2502,18 +2505,21 @@ end
 
 --[[
  * Updates the hit texture if the trace contents
- * index > Texture index relative to `gtREFRACT[ID]`
  * trace > Trace structure of the current iteration
+ * mcont > Medium content entry matched to `CONTENTS[ID]`
+ * Returns a flag when the trace is updated
 ]]
-function mtBeam:SetRefractContent(index, trace)
-  local name = gtREFRACT[index]
-  if(not name) then return self end
+function mtBeam:SetRefractContent(trace, mcont)
+  local idx = GetContentsID(mcont or trace.Contents)
+  if(not idx) then return false end
+  local nam = gtREFRACT[idx]
+  if(not nam) then return false end
   trace.Fraction = 0
-  trace.HitTexture = name
-  self.TrMedium.S[2] = name
-  self.TrMedium.S[1] = gtREFRACT[name]
+  trace.HitTexture = nam
+  self.TrMedium.S[2] = nam
+  self.TrMedium.S[1] = gtREFRACT[nam]
   trace.HitPos:Set(self.VrOrigin)
-  return self -- Coding effective API
+  return true -- Trace updated
 end
 
 --[[
@@ -3434,27 +3440,24 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
       if(trace.StartSolid) then -- The laser source is located on transperent map medium
-        local con = GetContentsID(trace.Contents) -- Beam starts inside map solid
-        if(con) then -- Content ID has been found. Apply refract content
-          beam:SetRefractContent(con, trace) -- Switch medium via content
-        else -- Content ID was not found. Try using position vector contents
-          local con = GetContentsID(util.PointContents(origin)) -- Origin contents
-          if(con) then beam:SetRefractContent(con, trace) end -- Update contents
-        end  -- Switch medium via content. When not located meduim is unchanged
+        if(not beam:SetRefractContent(trace)) then -- Switch medium via trace content
+          local ocon = util.PointContents(origin) -- Extract contents from the origin
+          beam:SetRefractContent(trace, ocon) -- Trace contents not matched. Use origin
+        end -- Switch medium via content finished. When not located meduim is unchanged
       end -- Resample the trace result and update hit status via contents
-    else
+    else -- We have water plane defined and we are not refracting
       if(not beam:IsAir() and not beam.IsRfract) then
-        -- We have water plane defined and we are not refracting
         -- Must check the initial trace start and hit point
-        local org = beam:GetWaterOrigin()
+        local org = beam:GetWaterOrigin() -- Read origin location
         if(org and org <= 0) then -- Beam origin is underwater
-          local dir = beam:GetWaterDirect() -- Compare ray direction
-          if(dir and dir > 0) then -- Beam goes out of water
+          local dir = beam:GetWaterDirect() -- Read ray direction
+          if(dir and dir > 0) then -- Beam goes partially upwards
             local org = beam:GetWaterOrigin(trace.HitPos)
             if(org and org <= 0) then -- Ray ends underwater
               beam.NvMask = MASK_SOLID -- Hit solid stuff in water
               trace, target = beam:Trace(trace) -- New trace
             else -- Hit position is above the water level
+              -- TODO: Fix targeting for map out of bounds beams
               beam:RefractWaterAir() -- Water to air specifics
               trace, target = beam:Trace(trace)
             end -- When the beam is short and ends in the water
