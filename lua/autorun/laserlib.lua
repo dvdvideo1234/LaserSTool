@@ -1887,13 +1887,33 @@ if(SERVER) then
     gtDAMAGE[ent:GetClass()] = func
   end
 
+  function LaserLib.Replace(ent, rep)
+    if(not ent) then return false end
+    if(not rep) then return false end
+    if(not ent:IsValid()) then return false end
+    if(not rep:IsValid()) then return false end
+    if(ent:IsNPC()) then return false end
+    if(ent:IsWorld()) then return false end
+    if(ent:IsWeapon()) then return false end
+    if(ent:IsWidget()) then return false end
+    if(ent:IsPlayer()) then return false end
+    if(ent:IsRagdoll()) then return false end
+    if(ent:IsVehicle()) then return false end
+    rep:SetPos(ent:GetPos())
+    rep:SetAngles(ent:GetAngles())
+    rep:SetModel(ent:GetModel())
+    ent:Remove()
+    return true -- Successful replace
+  end
+
   -- https://wiki.facepunch.com/gmod/Global.DamageInfo
   function LaserLib.TakeDamage(victim, damage, attacker, laser, dmtype)
-    DATA.DMGI:SetDamage(damage)
-    DATA.DMGI:SetAttacker(attacker)
-    DATA.DMGI:SetInflictor(laser)
-    DATA.DMGI:SetDamageType(dmtype or DMG_ENERGYBEAM)
-    victim:TakeDamageInfo(DATA.DMGI)
+    local dmg = DATA.DMGI
+    dmg:SetDamage(damage)
+    dmg:SetAttacker(attacker)
+    dmg:SetInflictor(laser)
+    dmg:SetDamageType(dmtype or DMG_ENERGYBEAM)
+    victim:TakeDamageInfo(dmg)
   end
 
   -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
