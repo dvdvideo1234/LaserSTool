@@ -2072,8 +2072,8 @@ end
 local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   if(not LaserLib.IsValid(base)) then return origin, direct end
   if(not LaserLib.IsValid(exit)) then return origin, direct end
-  local pos, dir = Vector(origin), Vector(direct)
-  pos:Set(base:WorldToLocal(pos)); dir:Mul(DATA.WLMR)
+  local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
+  pos:Set(base:WorldToLocal(pos)); dir:Mul(wmr)
   if(forigin) then local suc, err = pcall(forigin, pos)
     if(not suc) then error("Origin error: "..err) end
   else pos.x, pos.y = -pos.x, -pos.y end
@@ -2083,7 +2083,7 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   if(fdirect) then local suc, err = pcall(fdirect, dir)
     if(not suc) then error("Direct error: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
-  dir:Rotate(exit:GetAngles()); dir:Div(DATA.WLMR)
+  dir:Rotate(exit:GetAngles()); dir:Div(wmr)
   return pos, dir
 end
 
@@ -2330,11 +2330,12 @@ function mtBeam:SetSurfaceWater(trace)
   local org = self:GetWaterOrigin()
   if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
     if(org == nil) then -- No water plane defined. Still in the air
-      local water, length = self:GetWater(), DATA.TRWU
-      local trace = TraceBeam(self.VrOrigin, DATA.VDRUP, length,
+      local wat, len, rup = self:GetWater(), DATA.TRWU, DATA.VDRUP
+      local trace = TraceBeam(self.VrOrigin, rup, len,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
-      water.P:Set(trace.Normal); water.P:Mul(trace.FractionLeftSolid * length)
-      water.P:Add(self.VrOrigin); water.N:Set(DATA.VDRUP)
+      wat.P:Set(trace.Normal); wat.P:Mul(trace.FractionLeftSolid * len)
+      wat.P:Add(self.VrOrigin); wat.N:Set(rup) -- Define the water plane
+      self.NvMask = MASK_SOLID -- Start traversng below the water
     end
   else -- Source engine returns that position is not water
     if(org ~= nil) then -- Water plane is available. Clear it
@@ -2804,10 +2805,11 @@ function mtBeam:SetSurfaceWorld(reftype, trace)
   local wat = self:GetWater()
   if(self.StRfract) then
     if(reftype and wat.K[reftype] and self:IsAir()) then
-      local trace = TraceBeam(self.VrOrigin, DATA.VDRUP, DATA.TRWU,
+      local rup, trm = DATA.VDRUP, DATA.TRWU
+      local trace = TraceBeam(self.VrOrigin, rup, trm,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
-      wat.N:Set(DATA.VDRUP); wat.P:Set(DATA.VDRUP)
-      wat.P:Mul(DATA.TRWU * trace.FractionLeftSolid)
+      wat.N:Set(rup); wat.P:Set(rup)
+      wat.P:Mul(trm * trace.FractionLeftSolid)
       wat.P:Add(self.VrOrigin)
     else -- Refract type is not water so reset the configuration
       self:ClearWater() -- Clear the water indicator normal vector
@@ -3136,7 +3138,7 @@ local gtACTORS = {
     local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
     local mir = ent:GetMirrorExitPos()
     local pos, dir = trace.HitPos, beam.VrDirect
-    nps, ndr = GetBeamPortal(ent, out, pos, dir,
+    local nps, ndr = GetBeamPortal(ent, out, pos, dir,
       function(ppos)
         if(mir and bnr) then
           local v, a = ent:ToCustomUCS(ppos)
@@ -3148,9 +3150,9 @@ local gtACTORS = {
       end,
       function(pdir)
         if(ent:GetReflectExitDir()) then
-          local trn = Vector(trace.HitNormal)
-          trn:Mul(DATA.WLMR); trn:Add(ent:GetPos())
-          trn:Set(ent:WorldToLocal(trn)); trn:Div(DATA.WLMR)
+          local trn, wmr = Vector(trace.HitNormal), DATA.WLMR
+          trn:Mul(wmr); trn:Add(ent:GetPos())
+          trn:Set(ent:WorldToLocal(trn)); trn:Div(wmr)
           pdir:Set(LaserLib.GetReflected(pdir, trn))
         else
           local v, a = ent:ToCustomUCS(pdir)
@@ -3165,15 +3167,16 @@ local gtACTORS = {
   end,
   ["prop_portal"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src, out = trace.Entity, beam:GetSource()
+    local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
+    local nwp, out = DATA.NWPID, nil
     if(SERVER) then
       out = ent:FindOpenPair() -- Retrieve open pair
       if(LaserLib.IsValid(out)) then
-        ent:SetNWInt(DATA.NWPID, out:EntIndex())
-      else ent:SetNWInt(DATA.NWPID, 0); return end -- No linked pair
+        ent:SetNWInt(nwp, out:EntIndex())
+      else ent:SetNWInt(nwp, 0); return end -- No linked pair
     else
-      out = Entity(ent:GetNWInt(DATA.NWPID, 0))
+      out = Entity(ent:GetNWInt(nwp, 0))
       if(not LaserLib.IsValid(out)) then return end -- No linked pair
     end
     -- Assume that output portal will have the same surface offset
@@ -3448,22 +3451,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     else -- We have water plane defined and we are not refracting
       if(not beam:IsAir() and not beam.IsRfract) then
         -- Must check the initial trace start and hit point
-        local org = beam:GetWaterOrigin() -- Read origin location
+        local org = beam:GetWaterOrigin() -- Estimate origin
         if(org and org <= 0) then -- Beam origin is underwater
-          local dir = beam:GetWaterDirect() -- Read ray direction
+          local dir = beam:GetWaterDirect() -- Estimate direction
           if(dir and dir > 0) then -- Beam goes partially upwards
             local org = beam:GetWaterOrigin(trace.HitPos)
-            if(org and org <= 0) then -- Ray ends underwater
-              beam.NvMask = MASK_SOLID -- Hit solid stuff in water
-              trace, target = beam:Trace(trace) -- New trace
-            else -- Hit position is above the water level
-              -- TODO: Fix targeting for map out of bounds beams
+            if(org and org > 0) then -- Ray ends out of water
               beam:RefractWaterAir() -- Water to air specifics
               trace, target = beam:Trace(trace)
             end -- When the beam is short and ends in the water
-          else -- The beam goes deeper and deeper inside the water
-            beam.NvMask = MASK_SOLID -- Hit solid stuff in water
-            trace, target = beam:Trace(trace) -- New trace
           end
         end
       end
