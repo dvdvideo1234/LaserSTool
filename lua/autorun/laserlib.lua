@@ -2347,9 +2347,8 @@ end
  * trace > Where to store temporary trace sesult to ignore new table
 ]]
 function mtBeam:SetSurfaceWater(trace)
-  local org = self:GetWaterOrigin()
   if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
-    if(org == nil) then -- No water plane defined. Still in the air
+    if(self:IsAir()) then -- No water plane defined. Traverse to water
       local wat, len, rup = self:GetWater(), DATA.TRWU, DATA.VDRUP
       local trace = TraceBeam(self.VrOrigin, rup, len,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
@@ -2358,7 +2357,7 @@ function mtBeam:SetSurfaceWater(trace)
       self.NvMask = MASK_SOLID -- Start traversng below the water
     end
   else -- Source engine returns that position is not water
-    if(org ~= nil) then -- Water plane is available. Clear it
+    if(not self:IsAir()) then -- Water plane is available. Clear it
       self:ClearWater() -- Clear the water plane. Beam goes out
       self.NvMask = MASK_ALL -- Beam in the air must hit everything
     end -- Beam exits in air. The water plane mist be cleared
