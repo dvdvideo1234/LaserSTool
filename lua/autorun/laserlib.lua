@@ -305,15 +305,15 @@ local gtCONTENTS = { -- Start-refract transperent contents
 }; gtCONTENTS.Size = #gtCONTENTS -- Store initial table size
 
 local gtTRACE = {
+  filter         = nil,
+  output         = nil,
+  ignoreworld    = false,
   start          = Vector(),
   endpos         = Vector(),
-  filter         = nil,
-  mask           = MASK_SOLID,
-  collisiongroup = COLLISION_GROUP_NONE,
-  ignoreworld    = false,
   mins           = Vector(),
   maxs           = Vector(),
-  output         = nil
+  mask           = MASK_SOLID,
+  collisiongroup = COLLISION_GROUP_NONE
 }
 
 if(CLIENT) then
@@ -327,6 +327,11 @@ if(CLIENT) then
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
   killicon.Add(gtCLASS[1][1], DATA.KILL, gtCOLOR["WHITE"])
 else
+  AddCSLuaFile("autorun/laserlib.lua")
+  AddCSLuaFile(DATA.TOOL.."/wire_wrapper.lua")
+  AddCSLuaFile(DATA.TOOL.."/editable_wrapper.lua")
+  DATA.DMGI = DamageInfo() -- Create a server-side damage information class
+  DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
   DATA.NTIF = {} -- User notification configuration type
   DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
   DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
@@ -1869,13 +1874,6 @@ if(SERVER) then
     end
   }
 
-  AddCSLuaFile("autorun/laserlib.lua")
-  AddCSLuaFile(LaserLib.GetTool().."/wire_wrapper.lua")
-  AddCSLuaFile(LaserLib.GetTool().."/editable_wrapper.lua")
-
-  DATA.DMGI = DamageInfo() -- Create a server-side damage information class
-  DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
-
   --[[
    * Registers how a cuntom class handles danage
    * ent  > Entity class as key to be registered
@@ -1892,15 +1890,15 @@ if(SERVER) then
   function LaserLib.SetReplace(ply, idx, new, tre)
     if(ply:KeyDown(IN_USE)) then -- When replacing
       if(tre and tre:IsValid() -- Trace is valid
-        and not tre:IsVehicle() and not tre:IsRagdoll()
-        and not tre:IsPlayer()  and not tre:IsNPC()
-        and not tre:IsWorld()   and not tre:IsWeapon()
-        and not tre:IsWidget()  and not tre:IsDormant()
+         and not tre:IsWorld() and not tre:IsNPC()
+         and not tre:IsPlayer() and not tre:IsWeapon()
+         and not tre:IsWidget() and not tre:IsVehicle()
+         and not tre:IsRagdoll() and not tre:IsDormant()
       ) then -- Use trace positiona angle and nodel
         new:SetPos(tre:GetPos())
         new:SetAngles(tre:GetAngles())
         new:SetModel(tre:GetModel())
-        tre:Remove() -- Remove the trasce
+        tre:Remove() -- Remove the trace
       else
         new:SetModel(LaserLib.GetModel(idx))
       end
