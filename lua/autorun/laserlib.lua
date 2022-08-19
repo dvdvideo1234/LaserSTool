@@ -36,7 +36,7 @@ DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
-DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissilver target with entity index
+DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
 DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
@@ -1479,18 +1479,18 @@ end
 function LaserLib.Weld(laser, trace, weld, noco, flim)
   if(not LaserLib.IsValid(laser)) then return nil end
   local tren, bone = trace.Entity, trace.PhysicsBone
-  local eval = (LaserLib.IsValid(tren) and not tren:IsWorld())
-  local anch, encw, encn = (eval and tren or game.GetWorld())
+  local trva = (LaserLib.IsValid(tren) and not tren:IsWorld())
+  local anch, encw, encn = (trva and tren or game.GetWorld())
   if(weld) then
     local lmax = DATA.MFORCELM:GetFloat()
     local flim = math.Clamp(tonumber(flim) or 0, 0, lmax)
     encw = constraint.Weld(laser, anch, 0, bone, flim)
     if(LaserLib.IsValid(encw)) then
       laser:DeleteOnRemove(encw) -- Remove the weld with the laser
-      if(eval) then anch:DeleteOnRemove(encw) end
+      if(trva) then anch:DeleteOnRemove(encw) end
     end
   end
-  if(noco and eval) then -- Otherwise falls through the ground
+  if(noco and trva) then -- Otherwise falls through the ground
     encn = constraint.NoCollide(laser, anch, 0, bone)
     if(LaserLib.IsValid(encn)) then
       laser:DeleteOnRemove(encn) -- Remove the NC with the laser
@@ -1505,9 +1505,11 @@ end
  * Returns the calculated yaw result angle
 ]]
 function LaserLib.GetAngleSF(ply)
-  local han, tan = (DATA.AMAX[2] / 2), DATA.AMAX[2]
-  local yaw = (ply:GetAimVector():Angle().y + han) % tan
-  local ang = Angle(0, yaw, 0); ang:Normalize(); return ang
+  local amx = DATA.AMAX[2]
+  local avc = ply:GetAimVector()
+  local yaw = (avc:Angle().y + amx / 2) % amx
+  local ang = Angle(0, yaw, 0); ang:Normalize()
+  return ang -- Player spawn angle
 end
 
 --[[
@@ -1792,7 +1794,7 @@ end
  * Projects the OBB onto the ray defined by position and direction
  * base  > Base entity to calculate the snapping for
  * hitp  > The position of the surface to snap the laser on
- * norm  > World normal direction vector defining the snap plane
+ * norm  > World normal direction vector defining the snap surface
  * angle > The model offset beam angling parameterization
 ]]
 function LaserLib.SnapNormal(base, hitp, norm, angle)
@@ -1887,23 +1889,24 @@ if(SERVER) then
     gtDAMAGE[ent:GetClass()] = func
   end
 
-  function LaserLib.Replace(ent, rep)
-    if(not ent) then return false end
-    if(not rep) then return false end
-    if(not ent:IsValid()) then return false end
-    if(not rep:IsValid()) then return false end
-    if(ent:IsNPC()) then return false end
-    if(ent:IsWorld()) then return false end
-    if(ent:IsWeapon()) then return false end
-    if(ent:IsWidget()) then return false end
-    if(ent:IsPlayer()) then return false end
-    if(ent:IsRagdoll()) then return false end
-    if(ent:IsVehicle()) then return false end
-    rep:SetPos(ent:GetPos())
-    rep:SetAngles(ent:GetAngles())
-    rep:SetModel(ent:GetModel())
-    ent:Remove()
-    return true -- Successful replace
+  function LaserLib.SetReplace(ply, idx, new, tre)
+    if(ply:KeyDown(IN_USE)) then -- When replacing
+      if(tre and tre:IsValid() -- Trace is valid
+        and not tre:IsVehicle() and not tre:IsRagdoll()
+        and not tre:IsPlayer()  and not tre:IsNPC()
+        and not tre:IsWorld()   and not tre:IsWeapon()
+        and not tre:IsWidget()  and not tre:IsDormant()
+      ) then -- Use trace positiona angle and nodel
+        new:SetPos(tre:GetPos())
+        new:SetAngles(tre:GetAngles())
+        new:SetModel(tre:GetModel())
+        tre:Remove() -- Remove the trasce
+      else
+        new:SetModel(LaserLib.GetModel(idx))
+      end
+    else
+      new:SetModel(LaserLib.GetModel(idx))
+    end
   end
 
   -- https://wiki.facepunch.com/gmod/Global.DamageInfo
@@ -2203,8 +2206,8 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.W = {gtREFRACT["water"], "water"} -- General water info
       mtBeam.F = function(ent) return (ent == DATA.WORLD) end
       mtBeam.__water = {
-        P = Vector(), -- Water surface plane position
-        N = Vector(), -- Water surface plane normal ( used also for trigger )
+        P = Vector(), -- Water surface surface position
+        N = Vector(), -- Water surface surface normal ( used also for trigger )
         K = {["water"] = true} -- Fast water texture hash matching
       }
 local function Beam(origin, direct, width, damage, length, force)
@@ -2316,16 +2319,18 @@ function mtBeam:GetWaterDirect(dir)
   local air = self:IsAir()
   if(air) then return nil end
   local wat = self:GetWater()
-  return wat.N:Dot(dir or self.VrDirect)
+  local tmp = self.__vtdir
+  tmp:Set(dir or self.VrDirect)
+  return tmp:Dot(wat.N)
 end
 
 --[[
  * Checks whenever the given position is located
- * above or below the water plane defined
+ * above or below the water surface defined
  * pos > World-space position to be checked
  * Uses beam's origin when the parameter is missing
  * Returns various conditions for point in water
- * nil      > Water plane is undefined
+ * nil      > Water surface is undefined
  * zero     > Point is on the water
  * positive > Point is above water
  * negative > Point is below water
@@ -2334,33 +2339,33 @@ function mtBeam:GetWaterOrigin(pos)
   local air = self:IsAir()
   if(air) then return nil end
   local wat = self:GetWater()
-  local tmp = self.__vtdir
+  local tmp = self.__vtorg
   tmp:Set(pos or self.VrOrigin)
   tmp:Sub(wat.P)
   return tmp:Dot(wat.N)
 end
 
 --[[
- * Updates the water plane in the last iteration of entity refraction
+ * Updates the water surface in the last iteration of entity refraction
  * Exit point is water and water is not registered. Register
- * Exit point is air and water plane is predent. Clear water
+ * Exit point is air and water surface is predent. Clear water
  * trace > Where to store temporary trace sesult to ignore new table
 ]]
-function mtBeam:SetSurfaceWater(trace)
+function mtBeam:UpdateWaterSurface(trace)
   if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
-    if(self:IsAir()) then -- No water plane defined. Traverse to water
+    if(self:IsAir()) then -- No water surface defined. Traverse to water
       local wat, len, rup = self:GetWater(), DATA.TRWU, DATA.VDRUP
       local trace = TraceBeam(self.VrOrigin, rup, len,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
       wat.P:Set(trace.Normal); wat.P:Mul(trace.FractionLeftSolid * len)
-      wat.P:Add(self.VrOrigin); wat.N:Set(rup) -- Define the water plane
+      wat.P:Add(self.VrOrigin); wat.N:Set(rup) -- Define the water surface
       self.NvMask = MASK_SOLID -- Start traversng below the water
     end
   else -- Source engine returns that position is not water
-    if(not self:IsAir()) then -- Water plane is available. Clear it
-      self:ClearWater() -- Clear the water plane. Beam goes out
+    if(not self:IsAir()) then -- Water surface is available. Clear it
+      self:ClearWater() -- Clear the water surface. Beam goes out
       self.NvMask = MASK_ALL -- Beam in the air must hit everything
-    end -- Beam exits in air. The water plane mist be cleared
+    end -- Beam exits in air. The water surface mist be cleared
   end; return self
 end
 
@@ -2484,16 +2489,16 @@ function mtBeam:SetMediumMemory(medium, key, normal)
 end
 
 --[[
- * Intersects line (start, end) with a plane (position, normal)
+ * Intersects line (start, end) with a surface (position, normal)
  * This can be called then beam goes out of the water
  * To straight calculate the intersection point
  * this will ensure no overhead traces will be needed.
- * pos > Plane position as vector in 3D space
- * nor > Plane normal as world direction vector
+ * pos > Surface position as vector in 3D space
+ * nor > Surface normal as world direction vector
  * org > Ray start origin position (trace.HitPos)
  * dir > Ray direction world vector (trace.Normal)
 ]]
-function mtBeam:IntersectRayPlane(pos, nor, org, dir)
+function mtBeam:IntersectRaySurface(pos, nor, org, dir)
   local org = (org or self.VrOrigin)
   local dir = (dir or self.VrDirect)
   if(dir:Dot(nor) == 0) then return nil end
@@ -2795,7 +2800,7 @@ function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit outside the water
   local wat = self:GetWater() -- Local reference indexing water
   local vtm = self.__vtorg; LaserLib.VecNegate(self.VrDirect)
-  local vwa = self:IntersectRayPlane(wat.P, wat.N)
+  local vwa = self:IntersectRaySurface(wat.P, wat.N)
   -- Registering the node cannot be done with direct subtraction
   LaserLib.VecNegate(self.VrDirect); self:RegisterNode(vwa, true)
   vtm:Set(wat.N); LaserLib.VecNegate(vtm)
@@ -2835,8 +2840,8 @@ function mtBeam:SetSurfaceWorld(reftype, trace)
     end -- Water refraction configuration is done
   else -- Refract type not water then setup
     if(reftype and wat.K[reftype] and self:IsAir()) then
-      wat.P:Set(trace.HitPos) -- Memorize the plane position
-      wat.N:Set(trace.HitNormal) -- Memorize the plane normal
+      wat.P:Set(trace.HitPos) -- Memorize the surface position
+      wat.N:Set(trace.HitNormal) -- Memorize the surface normal
     else -- Refract type is not water so reset the configuration
       self:ClearWater() -- Clear the water indicator normal vector
     end -- Water refraction configuration is done
@@ -2852,7 +2857,7 @@ function mtBeam:SetRefractWorld(trace, refract, key)
   -- Subtract traced length from total length because we have hit something
   self.TrRfract = self.NvLength -- Remaining length in refract mode
   -- Separate control for water and non-water
-  if(self:IsAir()) then -- There is no water plane registered
+  if(self:IsAir()) then -- There is no water surface registered
     self.IsRfract = true -- Beam is inside another non water solid
     self.NvIWorld = false -- World transparent objects do not need world ignore
     self.NvMask = MASK_ALL -- Beam did not traverse into water
@@ -3467,7 +3472,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           beam:SetRefractContent(trace, ocon) -- Trace contents not matched. Use origin
         end -- Switch medium via content finished. When not located meduim is unchanged
       end -- Resample the trace result and update hit status via contents
-    else -- We have water plane defined and we are not refracting
+    else -- We have water surface defined and we are not refracting
       if(not beam:IsAir() and not beam.IsRfract) then
         -- Must check the initial trace start and hit point
         local org = beam:GetWaterOrigin() -- Estimate origin
@@ -3515,9 +3520,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
           if(LaserLib.IsContentWater(trace.HitPos)) then -- Ask souce engine for water
-            beam:SetMediumSours(mtBeam.W) -- Contents is not water and plane is missing
+            beam:SetMediumSours(mtBeam.W) -- Contents is not water and surface is missing
           else -- Otherwise default the meduim to airs for enity in water
-            beam:SetMediumSours(mtBeam.A) -- Contents is not water and plane is missing
+            beam:SetMediumSours(mtBeam.A) -- Contents is not water and surface is missing
           end -- Negate the normal so it must point inwards before refraction
           LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
           -- Make sure to pick the correct refract exit medium for current node
@@ -3527,7 +3532,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bnex) then -- When the beam gets out of the medium
               beam:Redirect(trace.HitPos, vdir, true)
-              beam:SetSurfaceWater(tr) -- Register the water plane
+              beam:UpdateWaterSurface(tr) -- Update the water surface
               beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               beam:SetTraceNext(trace.HitPos, vdir)
@@ -3633,7 +3638,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                     beam:SetSurfaceWorld(refract[3] or key, tr)
                     beam:Redirect(trace.HitPos) -- Keep the same direction and initial origin
                     beam.StRfract = false -- Lower the flag so no performance hit is present
-                  else -- Beam comes from the air and hits the water. Store water plane and refract
+                  else -- Beam comes from the air and hits the water. Store water surface and refract
                     -- Get the trace ready to check the other side and point and register the location
                     local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                          trace.HitNormal, beam.TrMedium.S[1][1], refract[1])

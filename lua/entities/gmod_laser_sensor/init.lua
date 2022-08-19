@@ -108,10 +108,7 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    if(ply:KeyDown(IN_USE)) then
-      if(not LaserLib.Replace(tr.Entity, ent)) then
-        ent:SetModel(LaserLib.GetModel(6)) end
-    else ent:SetModel(LaserLib.GetModel(6)) end
+    LaserLib.SetReplace(ply, 6, ent, tr.Entity)
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
