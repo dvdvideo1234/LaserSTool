@@ -2200,14 +2200,10 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__index = mtBeam -- If not found in self search here
       mtBeam.__vtorg = Vector() -- Temporary calculation origin vector
       mtBeam.__vtdir = Vector() -- Temporary calculation direct vector
+      mtBeam.__water = {P = Vector(), N = Vector()} -- Water surface storage
       mtBeam.A = {gtREFRACT["air"  ], "air"  } -- General air info
       mtBeam.W = {gtREFRACT["water"], "water"} -- General water info
       mtBeam.F = function(ent) return (ent == DATA.WORLD) end
-      mtBeam.__water = {
-        P = Vector(), -- Water surface surface position
-        N = Vector(), -- Water surface surface normal ( used also for trigger )
-        K = {["water"] = true} -- Fast water texture hash matching
-      }
 local function Beam(origin, direct, width, damage, length, force)
   local self = {}; setmetatable(self, mtBeam)
   self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
@@ -2820,13 +2816,14 @@ end
 --[[
  * Configures and activates the water refraction surface
  * The beam may start in the water or hit it and switch
- * reftype > Indication that this is found in the water
- * trace   > Trace result structure output being used
+ * mtype > Key indication for medium type found in the water
+ * trace > Trace result structure output being used
 ]]
-function mtBeam:SetSurfaceWorld(reftype, trace)
+function mtBeam:SetSurfaceWorld(mtype, trace)
   local wat = self:GetWater()
+  local vae = mtype:find(self.W[2], 1, true)
   if(self.StRfract) then
-    if(reftype and wat.K[reftype] and self:IsAir()) then
+    if(vae and self:IsAir()) then
       local rup, trm = DATA.VDRUP, DATA.TRWU
       local trace = TraceBeam(self.VrOrigin, rup, trm,
         entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
@@ -2837,7 +2834,7 @@ function mtBeam:SetSurfaceWorld(reftype, trace)
       self:ClearWater() -- Clear the water indicator normal vector
     end -- Water refraction configuration is done
   else -- Refract type not water then setup
-    if(reftype and wat.K[reftype] and self:IsAir()) then
+    if(vae and self:IsAir()) then
       wat.P:Set(trace.HitPos) -- Memorize the surface position
       wat.N:Set(trace.HitNormal) -- Memorize the surface normal
     else -- Refract type is not water so reset the configuration
