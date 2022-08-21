@@ -56,7 +56,7 @@ DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng", 25000, DATA.FGSRVCN, "Maxi
 DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
-DATA.MCRYSTAL = CreateConVar(DATA.TOOL.."_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
+-- DATA.MCRYSTAL = CreateConVar(DATA.TOOL.."_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
 DATA.MREFLECT = CreateConVar(DATA.TOOL.."_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
 DATA.MREFRACT = CreateConVar(DATA.TOOL.."_mrefract", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the refractor model")
 DATA.MSPLITER = CreateConVar(DATA.TOOL.."_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
@@ -112,8 +112,8 @@ local gtCLASS = {
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
   -- [2] Extension for folder name indices. Stores which folder are entity specific files located
   -- [3] Extension for variable name indices. Populate this when model control variable is different
-  {"gmod_laser"          , nil        , nil      }, -- Laser entity class `PriarySource`
-  {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeam`
+  {"gmod_laser"          , nil        , nil      }, -- Laser entity class `DoBeam`
+  {}, -- {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeam`
   {"gmod_laser_reflector", "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
   {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `EveryBeam`
   {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `DoBeam`
@@ -128,7 +128,7 @@ local gtCLASS = {
 
 local gtMODEL = { -- Model used by the entities menu
   "", -- Laser model is changed via laser tool. Variable is not needed.
-  DATA.MCRYSTAL:GetString(), -- Portal cube: models/props/reflection_cube.mdl
+  "", -- DATA.MCRYSTAL:GetString(), -- Portal cube: models/props/reflection_cube.mdl
   DATA.MREFLECT:GetString(),
   DATA.MSPLITER:GetString(),
   DATA.MDIVIDER:GetString(),
@@ -143,7 +143,7 @@ local gtMODEL = { -- Model used by the entities menu
 
 local gtMATERIAL = {
   "", -- Laser material is changed with the model
-  "models/dog/eyeglass"                ,
+  "", -- "models/dog/eyeglass"                ,
   "debug/env_cubemap_model"            ,
   "models/dog/eyeglass"                ,
   "models/dog/eyeglass"                ,
@@ -155,6 +155,54 @@ local gtMATERIAL = {
   "models/props_combine/citadel_cable" ,
   "models/props_combine/health_charger_glass"
 }
+
+--[[
+ * Register unit configuration index as unit ID
+ * unit > Unit entity class source folder `ENT.Folder`
+ * mdef > Default convar model value
+ * vdef > Default convar material value
+ * conv > When provided used for convar prefix
+]]
+function LaserLib.SetClass(unit, mdef, vdef, conv)
+  -- Is index is provided populate model and create convars
+  local indx = (tonumber(unit.UnitClassID) or 0); if(indx <= 1) then
+    error("Class index invalid: "..tostring(unit.UnitClassID)) end
+  local usrc = tostring(unit.Folder or ""); if(usrc == "") then
+    error("Class name invalid: "..tostring(unit.Folder)) end
+  local vset = gtCLASS[indx] -- Attempt to index class info
+  if(not vset or (vset and not vset[1])) then -- Empty table
+    local ucas = usrc:match("gmod_laser.+$", 1) -- Unit directory class
+    local udrr = ucas:gsub("gmod_laser%A+", "") -- Unit directory suffix
+    -- Allocate calss configuration. Make it accessible to the library
+    local vset = {ucas, udrr, conv}; gtCLASS[indx] = vset -- Index variable name
+    local vidx = tostring(vset[3] or vset[2]) -- Extract variable suffix
+    -- Configure arrays and corresponding console variables
+    local vaum, vauv = ("m"..vidx:lower()), ("v"..vidx:lower())
+    local varm = CreateConVar(DATA.TOOL.."_"..vaum, tostring(mdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." model")
+    local varv = CreateConVar(DATA.TOOL.."_"..vauv, tostring(vdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." material")
+    DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
+    -- Configure model visual
+    local vanm = varm:GetName()
+    cvars.RemoveChangeCallback(vanm, vanm)
+    cvars.AddChangeCallback(vanm, function(name, o, n)
+      local m = tostring(n):Trim()
+      if(m:sub(1,1) == DATA.KEYD) then
+        gtMODEL[indx] = varm:GetDefault()
+        varm:SetString(gtMODEL[indx])
+      else gtMODEL[indx] = m end
+    end, vanm); gtMODEL[indx] = varm:GetString():lower()
+    -- Configure material visual
+    local vanv = varv:GetName()
+    cvars.RemoveChangeCallback(vanv, vanv)
+    cvars.AddChangeCallback(vanv, function(name, o, n)
+      local v = tostring(n):Trim()
+      if(v:sub(1,1) == DATA.KEYD) then
+        gtMATERIAL[indx] = varv:GetDefault()
+        varv:SetString(gtMATERIAL[indx])
+      else gtMATERIAL[indx] = v end
+    end, vanv); gtMATERIAL[indx] = varv:GetString():lower()
+  end
+end
 
 local gtCOLOR = {
   [DATA.KEYD] = "BLACK",
@@ -337,6 +385,7 @@ else
   DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 end
 
+--[[
 -- Clear hook for hot reload. Makes sure that hoops are relevant and fresh
 for key, set in pairs(hook.GetTable()) do for idx, fnc in pairs(set) do
   if(tostring(idx):find(DATA.TOOL, 1, true)) then hook.Remove(key, idx) end
@@ -360,6 +409,7 @@ for idx = 2, #gtCLASS do
     end,
   varn)
 end
+]]
 
 --[[
  * Performs CAP dedicated traces. Will return result
@@ -544,6 +594,24 @@ function LaserLib.IsValid(arg)
 end
 
 --[[
+ * Validates entity and checks for something else
+ * arg > Entity object to be checked
+]]
+function LaserLib.IsOther(arg)
+  if(not LaserLib.IsValid(arg)) then return false end
+  if(tre:IsNPC()) then return false end
+  if(tre:IsWorld()) then return false end
+  if(tre:IsPlayer()) then return false end
+  if(tre:IsWeapon()) then return false end
+  if(tre:IsWidget()) then return false end
+  if(tre:IsVehicle()) then return false end
+  if(tre:IsRagdoll()) then return false end
+  if(tre:IsDormant()) then return false end
+  return false
+end
+
+
+--[[
  * This setups the beam kill crediting
  * Updates the kill credit player for specific entity
  * To obtain the creator player use `ent:GetCreator()`
@@ -715,7 +783,8 @@ end
 function LaserLib.Configure(unit)
   if(not LaserLib.IsValid(unit)) then return end
   local uas, cas = unit:GetClass(), LaserLib.GetClass(1, 1)
-  -- Delete temporary order infor and register unit
+  if(not uas:find(cas)) then error("Invalid unit: "..uas) end
+  -- Delete temporary order info and register unit
   unit.meOrderInfo = nil; gtCLASS[uas] = true
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
@@ -1887,23 +1956,27 @@ if(SERVER) then
     gtDAMAGE[ent:GetClass()] = func
   end
 
-  function LaserLib.SetReplace(ply, idx, new, tre)
+  --[[
+   * Configures visuals material and model for a unit
+   * ply > Entity class unit owner or the player
+   * ent > The actual entity class unit spawned
+   * tr  > Reference to trace result structure
+  ]]
+  function LaserLib.SetVisuals(ply, ent, tr)
+    local tre, idx = tr.Entity, ent.UnitClassID
     if(ply:KeyDown(IN_USE)) then -- When replacing
-      if(tre and tre:IsValid() -- Trace is valid
-         and not tre:IsWorld() and not tre:IsNPC()
-         and not tre:IsPlayer() and not tre:IsWeapon()
-         and not tre:IsWidget() and not tre:IsVehicle()
-         and not tre:IsRagdoll() and not tre:IsDormant()
-      ) then -- Use trace positiona angle and nodel
-        new:SetPos(tre:GetPos())
-        new:SetAngles(tre:GetAngles())
-        new:SetModel(tre:GetModel())
-        tre:Remove() -- Remove the trace
+      if(LaserLib.IsOther(tre)) then -- Use trace positiona angle and nodel
+        ent:SetPos(tre:GetPos())
+        ent:SetAngles(tre:GetAngles())
+        ent:SetModel(tre:GetModel()); tre:Remove()
+        LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
       else
-        new:SetModel(LaserLib.GetModel(idx))
+        ent:SetModel(LaserLib.GetModel(idx))
+        LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
       end
     else
-      new:SetModel(LaserLib.GetModel(idx))
+      ent:SetModel(LaserLib.GetModel(idx))
+      LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
     end
   end
 
@@ -2344,9 +2417,10 @@ end
  * Exit point is water and water is not registered. Register
  * Exit point is air and water surface is predent. Clear water
  * trace > Where to store temporary trace sesult to ignore new table
+ * water > Flag indicating that point is inside the water
 ]]
-function mtBeam:UpdateWaterSurface(trace)
-  if(LaserLib.IsContentWater(self.VrOrigin)) then -- Source point in water
+function mtBeam:UpdateWaterSurface(trace, water)
+  if(water) then -- Source point remains in the water
     if(self:IsAir()) then -- No water surface defined. Traverse to water
       local wat, len, rup = self:GetWater(), DATA.TRWU, DATA.VDRUP
       local trace = TraceBeam(self.VrOrigin, rup, len,
@@ -3511,10 +3585,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       -- Register a hit so reduce bounces count
       if(suc) then
         if(beam.IsRfract) then
+          -- Check when bounce position is inside the water
+          local water = LaserLib.IsContentWater(trace.HitPos)
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
-          if(LaserLib.IsContentWater(trace.HitPos)) then -- Ask souce engine for water
+          if(water) then -- Ask souce engine for water position origin
             beam:SetMediumSours(mtBeam.W) -- Contents is not water and surface is missing
           else -- Otherwise default the meduim to airs for enity in water
             beam:SetMediumSours(mtBeam.A) -- Contents is not water and surface is missing
@@ -3527,7 +3603,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bnex) then -- When the beam gets out of the medium
               beam:Redirect(trace.HitPos, vdir, true)
-              beam:UpdateWaterSurface(tr) -- Update the water surface
+              beam:UpdateWaterSurface(tr, water) -- Update the water surface
               beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               beam:SetTraceNext(trace.HitPos, vdir)
