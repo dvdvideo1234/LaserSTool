@@ -12,6 +12,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 8
 
 function ENT:UpdateInternals()
   self.hitSize = 0 -- Add sources in array
@@ -30,6 +31,9 @@ function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
   self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
+  LaserLib.SetClass(self,
+    "models/props_c17/furnitureshelf001b.mdl",
+    "models/dog/eyeglass")
   LaserLib.Configure(self)
 end
 

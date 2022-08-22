@@ -14,6 +14,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_OPAQUE
+ENT.UnitID         = 1
 
 local EFFECTDT = LaserLib.GetData("EFFECTDT")
 local DAMAGEDT = LaserLib.GetData("DAMAGEDT")

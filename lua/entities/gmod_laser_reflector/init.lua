@@ -31,18 +31,20 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
+  local cas = LaserLib.SetClass(self,
+    "models/madjawa/laser_reflector.mdl",
+    "debug/env_cubemap_model")
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(3, 1))
+  local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(3))
-    LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
+    LaserLib.SnapNormal(ent, tr, 90)
     ent:SetAngles(ang)
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    LaserLib.SetVisuals(ply, 3, ent, tr.Entity)
+    LaserLib.SetVisuals(ply, ent, tr)
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()

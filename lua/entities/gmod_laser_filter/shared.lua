@@ -14,6 +14,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 11
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
@@ -35,6 +36,9 @@ function ENT:SetupDataTables()
   self:EditableSetStringCombo("InBeamMaterial", "Internals", material, nil, maticons)
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
+  LaserLib.SetClass(self,
+    "models/props_c17/frame002a.mdl",
+    "models/props_combine/citadel_cable")
   LaserLib.Configure(self)
 end
 

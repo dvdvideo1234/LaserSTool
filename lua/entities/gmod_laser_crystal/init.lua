@@ -94,13 +94,14 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
-  LaserLib.SetClass(self, "models/props_c17/pottery02a.mdl", "models/dog/eyeglass")
-  local idx = self.UnitClassID
+  local cas = LaserLib.SetClass(self,
+    "models/props_c17/pottery02a.mdl",
+    "models/dog/eyeglass")
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(idx, 1))
+  local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
+    LaserLib.SnapNormal(ent, tr, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)

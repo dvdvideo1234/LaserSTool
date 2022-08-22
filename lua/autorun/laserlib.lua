@@ -56,17 +56,6 @@ DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng", 25000, DATA.FGSRVCN, "Maxi
 DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
--- DATA.MCRYSTAL = CreateConVar(DATA.TOOL.."_mcrystal", "models/props_c17/pottery02a.mdl", DATA.FGSRVCN, "Controls the crystal model")
-DATA.MREFLECT = CreateConVar(DATA.TOOL.."_mreflect", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the reflector model")
-DATA.MREFRACT = CreateConVar(DATA.TOOL.."_mrefract", "models/madjawa/laser_reflector.mdl", DATA.FGSRVCN, "Controls the refractor model")
-DATA.MSPLITER = CreateConVar(DATA.TOOL.."_mspliter", "models/props_c17/pottery04a.mdl", DATA.FGSRVCN, "Controls the splitter model")
-DATA.MDIVIDER = CreateConVar(DATA.TOOL.."_mdivider", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the divider model")
-DATA.MSENSOR  = CreateConVar(DATA.TOOL.."_msensor" , "models/props_c17/pottery01a.mdl", DATA.FGSRVCN, "Controls the sensor model")
-DATA.MDIMMER  = CreateConVar(DATA.TOOL.."_mdimmer" , "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the dimmer model")
-DATA.MPORTAL  = CreateConVar(DATA.TOOL.."_mportal" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the portal model")
-DATA.MSPLITRM = CreateConVar(DATA.TOOL.."_msplitrm", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the splitter multy model")
-DATA.MPARALEL = CreateConVar(DATA.TOOL.."_mparalel", "models/props_c17/FurnitureShelf001b.mdl", DATA.FGSRVCN, "Controls the paralleller multy model")
-DATA.MFILTER  = CreateConVar(DATA.TOOL.."_mfilter" , "models/props_c17/Frame002a.mdl", DATA.FGSRVCN, "Controls the filter model")
 DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
 DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
@@ -96,113 +85,29 @@ local gtCOLID = {
 local gtCLASS = {
   -- Classes existing in the hash part are laser-enabled entities `LaserLib.Configure(self)`
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
-  ["gmod_laser"           ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_crystal"   ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_dimmer"    ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_divider"   ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_filter"    ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_parallel"  ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_portal"    ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_rdivider"  ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_reflector" ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_sensor"    ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_splitter"  ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_splitterm" ] = true, -- This is present for hot reload. You must register yours separately
-  ["gmod_laser_refractor" ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser"] = true, -- This is present for hot reload. You must register yours separately
+  -- These are aintended for uning configuration and pre-allocation. Used to create also convars
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
   -- [2] Extension for folder name indices. Stores which folder are entity specific files located
   -- [3] Extension for variable name indices. Populate this when model control variable is different
-  {"gmod_laser"          , nil        , nil      }, -- Laser entity class `DoBeam`
-  {}, -- {"gmod_laser_crystal"  , "crystal"  , nil      }, -- Laser crystal class `EveryBeam`
-  {"gmod_laser_reflector", "reflector", "reflect"}, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , "splitter" , "spliter"}, -- Laser beam splitter `EveryBeam`
-  {"gmod_laser_divider"  , "divider"  , nil      }, -- Laser beam divider `DoBeam`
-  {"gmod_laser_sensor"   , "sensor"   , nil      }, -- Laser beam sensor `EveryBeam`
-  {"gmod_laser_dimmer"   , "dimmer"   , nil      }, -- Laser beam divide `DoBeam`
-  {"gmod_laser_splitterm", "splitterm", "splitrm"}, -- Laser beam splitter multy `EveryBeam`
-  {"gmod_laser_portal"   , "portal"   , nil      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , "parallel" , "paralel"}, -- Laser beam parallel `DoBeam`
-  {"gmod_laser_filter"   , "filter"   , nil      }, -- Laser beam filter `DoBeam`
-  {"gmod_laser_refractor", "refractor", "refract"}  -- Laser beam refractor `DoBeam`
+  {"gmod_laser", nil, nil}
+  -- Laser entity class `DoBeam`
+  -- Laser crystal class `EveryBeam`
+  -- Laser reflectors class `DoBeam`
+  -- Laser beam splitter `EveryBeam`
+  -- Laser beam divider `DoBeam`
+  -- Laser beam sensor `EveryBeam`
+  -- Laser beam dimmer `DoBeam`
+  -- Laser beam splitter multy `EveryBeam`
+  -- Laser beam portal  `DoBeam`
+  -- Laser beam parallel `DoBeam`
+  -- Laser beam filter `DoBeam`
+  -- Laser beam refractor `DoBeam`
 }
 
-local gtMODEL = { -- Model used by the entities menu
-  "", -- Laser model is changed via laser tool. Variable is not needed.
-  "", -- DATA.MCRYSTAL:GetString(), -- Portal cube: models/props/reflection_cube.mdl
-  DATA.MREFLECT:GetString(),
-  DATA.MSPLITER:GetString(),
-  DATA.MDIVIDER:GetString(),
-  DATA.MSENSOR:GetString() , -- Portal catcher: models/props/laser_catcher_center.mdl
-  DATA.MDIMMER:GetString() ,
-  DATA.MSPLITRM:GetString(),
-  DATA.MPORTAL:GetString() , -- Portal: Well... Portals being entities
-  DATA.MPARALEL:GetString(),
-  DATA.MFILTER:GetString() ,
-  DATA.MREFRACT:GetString()
-}
+local gtMODEL = {}
 
-local gtMATERIAL = {
-  "", -- Laser material is changed with the model
-  "", -- "models/dog/eyeglass"                ,
-  "debug/env_cubemap_model"            ,
-  "models/dog/eyeglass"                ,
-  "models/dog/eyeglass"                ,
-  "models/props_combine/citadel_cable" ,
-  "models/dog/eyeglass"                ,
-  "models/dog/eyeglass"                ,
-  "models/props_combine/com_shield001a",
-  "models/dog/eyeglass"                ,
-  "models/props_combine/citadel_cable" ,
-  "models/props_combine/health_charger_glass"
-}
-
---[[
- * Register unit configuration index as unit ID
- * unit > Unit entity class source folder `ENT.Folder`
- * mdef > Default convar model value
- * vdef > Default convar material value
- * conv > When provided used for convar prefix
-]]
-function LaserLib.SetClass(unit, mdef, vdef, conv)
-  -- Is index is provided populate model and create convars
-  local indx = (tonumber(unit.UnitClassID) or 0); if(indx <= 1) then
-    error("Class index invalid: "..tostring(unit.UnitClassID)) end
-  local usrc = tostring(unit.Folder or ""); if(usrc == "") then
-    error("Class name invalid: "..tostring(unit.Folder)) end
-  local vset = gtCLASS[indx] -- Attempt to index class info
-  if(not vset or (vset and not vset[1])) then -- Empty table
-    local ucas = usrc:match("gmod_laser.+$", 1) -- Unit directory class
-    local udrr = ucas:gsub("gmod_laser%A+", "") -- Unit directory suffix
-    -- Allocate calss configuration. Make it accessible to the library
-    local vset = {ucas, udrr, conv}; gtCLASS[indx] = vset -- Index variable name
-    local vidx = tostring(vset[3] or vset[2]) -- Extract variable suffix
-    -- Configure arrays and corresponding console variables
-    local vaum, vauv = ("m"..vidx:lower()), ("v"..vidx:lower())
-    local varm = CreateConVar(DATA.TOOL.."_"..vaum, tostring(mdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." model")
-    local varv = CreateConVar(DATA.TOOL.."_"..vauv, tostring(vdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." material")
-    DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
-    -- Configure model visual
-    local vanm = varm:GetName()
-    cvars.RemoveChangeCallback(vanm, vanm)
-    cvars.AddChangeCallback(vanm, function(name, o, n)
-      local m = tostring(n):Trim()
-      if(m:sub(1,1) == DATA.KEYD) then
-        gtMODEL[indx] = varm:GetDefault()
-        varm:SetString(gtMODEL[indx])
-      else gtMODEL[indx] = m end
-    end, vanm); gtMODEL[indx] = varm:GetString():lower()
-    -- Configure material visual
-    local vanv = varv:GetName()
-    cvars.RemoveChangeCallback(vanv, vanv)
-    cvars.AddChangeCallback(vanv, function(name, o, n)
-      local v = tostring(n):Trim()
-      if(v:sub(1,1) == DATA.KEYD) then
-        gtMATERIAL[indx] = varv:GetDefault()
-        varv:SetString(gtMATERIAL[indx])
-      else gtMATERIAL[indx] = v end
-    end, vanv); gtMATERIAL[indx] = varv:GetString():lower()
-  end
-end
+local gtMATERIAL = {}
 
 local gtCOLOR = {
   [DATA.KEYD] = "BLACK",
@@ -384,32 +289,6 @@ else
   DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
   DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
 end
-
---[[
--- Clear hook for hot reload. Makes sure that hoops are relevant and fresh
-for key, set in pairs(hook.GetTable()) do for idx, fnc in pairs(set) do
-  if(tostring(idx):find(DATA.TOOL, 1, true)) then hook.Remove(key, idx) end
-end end -- Deleates all entries from previos hot reload. Updates last hooks
-
--- Callbacks for model console variables
-for idx = 2, #gtCLASS do
-  local vset = gtCLASS[idx]
-  local vidx = (vset[3] or vset[2])
-  local varo = DATA["M"..vidx:upper()]
-  local varn = varo:GetName()
-
-  cvars.RemoveChangeCallback(varn, varn)
-  cvars.AddChangeCallback(varn,
-    function(name, o, n)
-      local m = tostring(n):Trim()
-      if(m:sub(1,1) == DATA.KEYD) then
-        gtMODEL[idx] = varo:GetDefault()
-        varo:SetString(gtMODEL[idx])
-      else gtMODEL[idx] = m end
-    end,
-  varn)
-end
-]]
 
 --[[
  * Performs CAP dedicated traces. Will return result
@@ -599,17 +478,16 @@ end
 ]]
 function LaserLib.IsOther(arg)
   if(not LaserLib.IsValid(arg)) then return false end
-  if(tre:IsNPC()) then return false end
-  if(tre:IsWorld()) then return false end
-  if(tre:IsPlayer()) then return false end
-  if(tre:IsWeapon()) then return false end
-  if(tre:IsWidget()) then return false end
-  if(tre:IsVehicle()) then return false end
-  if(tre:IsRagdoll()) then return false end
-  if(tre:IsDormant()) then return false end
+  if(arg:IsNPC()) then return false end
+  if(arg:IsWorld()) then return false end
+  if(arg:IsPlayer()) then return false end
+  if(arg:IsWeapon()) then return false end
+  if(arg:IsWidget()) then return false end
+  if(arg:IsVehicle()) then return false end
+  if(arg:IsRagdoll()) then return false end
+  if(arg:IsDormant()) then return false end
   return false
 end
-
 
 --[[
  * This setups the beam kill crediting
@@ -676,9 +554,9 @@ end
 ]]
 function LaserLib.ApplySpawn(base, trace, tran)
   if(tran[2] and tran[3]) then
-    LaserLib.SnapCustom(base, trace.HitPos, trace.HitNormal, tran[2], tran[3])
+    LaserLib.SnapCustom(base, trace, tran[2], tran[3])
   else
-    LaserLib.SnapNormal(base, trace.HitPos, trace.HitNormal, tran[1])
+    LaserLib.SnapNormal(base, trace, tran[1])
   end
 end
 
@@ -773,6 +651,64 @@ function LaserLib.SetPrimary(ent, nov)
   ent:EditableSetVectorColor("BeamColor", "Visuals")
   ent:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
   ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name", "icon")
+end
+
+--[[
+ * Register unit configuration index as unit ID
+ * unit > Unit entity class source folder `ENT.Folder`
+ * mdef > Default convar model value
+ * vdef > Default convar material value
+ * conv > When provided used for convar prefix
+]]
+function LaserLib.SetClass(unit, mdef, vdef, conv)
+  -- Is index is provided populate model and create convars
+  local indx = (tonumber(unit.UnitID) or 0); if(indx <= 1) then
+    error("Index invalid: "..tostring(unit.UnitID)) end
+  local usrc = tostring(unit.Folder or ""); if(usrc == "") then
+    error("Name invalid: "..tostring(unit.Folder)) end
+  local ocas = LaserLib.GetClass(1, 1); if(ocas == "") then
+    error("Base empty: "..tostring(usrc)) end
+  local ucas = usrc:match(ocas..".+$", 1); if(ucas == "") then
+    error("Class empty: "..tostring(usrc)) end
+  local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
+    error("Suffix empty: "..tostring(usrc)) end
+  local vset = gtCLASS[indx] -- Attempt to index class info
+  if(not vset or (vset and not vset[1])) then -- Empty table
+    -- Allocate calss configuration. Make it accessible to the library
+    local vset = {ucas, udrr, conv}; gtCLASS[indx] = vset -- Index variable name
+    local vidx = tostring(vset[3] or vset[2]) -- Extract variable suffix
+    -- Configure arrays and corresponding console variables
+    local vaum, vauv = ("m"..vidx:lower()), ("v"..vidx:lower())
+    local varm = CreateConVar(DATA.TOOL.."_"..vaum, tostring(mdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." model")
+    local varv = CreateConVar(DATA.TOOL.."_"..vauv, tostring(vdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." material")
+    DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
+    -- Configure model visual
+    local vanm = varm:GetName()
+    cvars.RemoveChangeCallback(vanm, vanm)
+    cvars.AddChangeCallback(vanm, function(name, o, n)
+      local m = tostring(n):Trim()
+      if(m:sub(1,1) == DATA.KEYD) then
+        gtMODEL[indx] = varm:GetDefault()
+        varm:SetString(gtMODEL[indx])
+      else gtMODEL[indx] = m end
+    end, vanm); gtMODEL[indx] = varm:GetString():lower()
+    -- Configure material visual
+    local vanv = varv:GetName()
+    cvars.RemoveChangeCallback(vanv, vanv)
+    cvars.AddChangeCallback(vanv, function(name, o, n)
+      local v = tostring(n):Trim()
+      if(v:sub(1,1) == DATA.KEYD) then
+        gtMATERIAL[indx] = varv:GetDefault()
+        varv:SetString(gtMATERIAL[indx])
+      else gtMATERIAL[indx] = v end
+    end, vanv); gtMATERIAL[indx] = varv:GetString():lower()
+    -- Return the class extracted from folder
+    return ucas -- This is passd to `ents.Create`
+  else -- The class is already present so return it
+    if(vset[1] ~= ucas) then -- Index taken so raise error
+      error("Index ["..indx.."]["..vset[1].."] exists: "..tostring(usrc)) end
+    return ucas -- Already cashed value returned
+  end
 end
 
 --[[
@@ -1867,18 +1803,17 @@ end
 --[[
  * Projects the OBB onto the ray defined by position and direction
  * base  > Base entity to calculate the snapping for
- * hitp  > The position of the surface to snap the laser on
- * norm  > World normal direction vector defining the snap surface
+ * trrs  > The trace result structure being used
  * angle > The model offset beam angling parameterization
 ]]
-function LaserLib.SnapNormal(base, hitp, norm, angle)
-  local ang = norm:Angle()
+function LaserLib.SnapNormal(base, trrs, angle)
+  local ang = trrs.HitNormal:Angle()
         ang:RotateAroundAxis(ang:Right(), -angle)
   local dir = LaserLib.GetBeamDirection(base, angle)
         LaserLib.VecNegate(dir)
   local org = LaserLib.GetBeamOrigin(base, dir)
         LaserLib.VecNegate(org)
-  dir:Rotate(ang); org:Rotate(ang); org:Add(hitp)
+  dir:Rotate(ang); org:Rotate(ang); org:Add(trrs.HitPos)
   base:SetPos(org); base:SetAngles(ang)
 end
 
@@ -1915,14 +1850,21 @@ function LaserLib.GetCustomAngle(base, direct)
   return tab.anCustom
 end
 
-function LaserLib.SnapCustom(base, hitp, norm, origin, direct)
+--[[
+ * Projects the OBB onto the ray defined by position and direction
+ * base   > Base entity to calculate the snapping for
+ * trrs   > The trace result structure being used
+ * origin > The model offset beam origin parameterization
+ * direct > The model offset beam direct parameterization
+]]
+function LaserLib.SnapCustom(base, trrs, origin, direct)
   local dir = Vector(direct); LaserLib.VecNegate(dir)
-  local ang, tra = Angle(), norm:Angle()
+  local ang, tra = Angle(), trrs.HitNormal:Angle()
   local pos = LaserLib.GetBeamOrigin(base, dir)
   ang:Set(LaserLib.GetCustomAngle(base, direct))
   tra:RotateAroundAxis(tra:Right(), -90)
   ang:Set(base:AlignAngles(base:LocalToWorldAngles(ang), tra))
-  pos:Rotate(ang); LaserLib.VecNegate(pos); pos:Add(hitp)
+  pos:Rotate(ang); LaserLib.VecNegate(pos); pos:Add(trrs.HitPos)
   base:SetPos(pos); base:SetAngles(ang)
 end
 
@@ -1963,11 +1905,11 @@ if(SERVER) then
    * tr  > Reference to trace result structure
   ]]
   function LaserLib.SetVisuals(ply, ent, tr)
-    local tre, idx = tr.Entity, ent.UnitClassID
+    local tre, idx = tr.Entity, ent.UnitID
     if(ply:KeyDown(IN_USE)) then -- When replacing
-      if(LaserLib.IsOther(tre)) then -- Use trace positiona angle and nodel
-        ent:SetPos(tre:GetPos())
-        ent:SetAngles(tre:GetAngles())
+      if(not LaserLib.IsOther(tre)) then -- Use trace model
+        ent:SetPos(tre:GetPos()) -- Use trace position
+        ent:SetAngles(tre:GetAngles()) -- Use trace angle
         ent:SetModel(tre:GetModel()); tre:Remove()
         LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
       else
@@ -3859,20 +3801,29 @@ function LaserLib.SetupModels()
     table.insert(moar, {"models/props_bts/rocket.mdl"})
     table.insert(moar, {"models/props/cake/cake.mdl",90})
     table.insert(moar, {"models/props/water_bottle/water_bottle.mdl",90})
-    table.insert(moar, {"models/props/turret_01.mdl",0,"12,0,36.75","1,0,0"})
     table.insert(moar, {"models/props_bts/projector.mdl",0,"1,-10,5","0,-1,0"})
     table.insert(moar, {"models/props/laser_emitter.mdl",0,"29,0,-14","1,0,0"})
     table.insert(moar, {"models/props/laser_emitter_center.mdl",0,"29,0,0","1,0,0"})
-    table.insert(moar, {"models/weapons/w_portalgun.mdl",0,"-20,-0.7,-0.3","-1,0,0"})
     table.insert(moar, {"models/props_bts/glados_ball_reference.mdl",0,"0,15,0","0,1,0"})
     table.insert(moar, {"models/props/pc_case02/pc_case02.mdl",0,"-0.2,2.4,-9.2","1,0,0"})
-    table.insert(moar, {"models/props/radio_reference.mdl",0,"0.006396,3.646849,14.241646","0,0,1"})
   end
 
   if(IsMounted("portal2")) then -- Portal 2
+    table.insert(moar, {"models/props/reflection_cube.mdl"})
     table.insert(moar, {"models/br_debris/deb_s8_cube.mdl"})
+    table.insert(moar, {"models/props/laser_catcher_center.mdl",0,"23.7,0,0","1,0,0"})
+    table.insert(moar, {"models/npcs/monsters/monster_a_cube.mdl",0,"13,0,18","0,0,1"})
     table.insert(moar, {"models/npcs/turret/turret.mdl",0,"12,0,36.75","1,0,0"})
     table.insert(moar, {"models/npcs/turret/turret_skeleton.mdl",0,"12,0,36.75","1,0,0"})
+    table.insert(moar, {"models/traincar_interior/traincar_cube_bl.mdl",0,"0,16,12.45","0,1,0"})
+    table.insert(moar, {"models/props/security_camera_prop_reference.mdl",0,"38.6,-0.34,-13.8","1,0,0"})
+    table.insert(moar, {"models/props_mall/cage_light_fixture.mdl",0,"0,5.17,-8.33","0,0,-1"})
+  end
+
+  if(IsMounted("portal") or IsMounted("portal2")) then -- Some models repeat
+    table.insert(moar, {"models/props/turret_01.mdl",0,"12,0,36.75","1,0,0"})
+    table.insert(moar, {"models/weapons/w_portalgun.mdl",0,"-20,-0.7,-0.3","-1,0,0"})
+    table.insert(moar, {"models/props/radio_reference.mdl",0,"0,3.65,14.24","0,0,1"})
   end
 
   if(IsMounted("hl2")) then -- HL2

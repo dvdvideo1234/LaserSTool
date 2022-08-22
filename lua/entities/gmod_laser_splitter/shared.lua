@@ -12,6 +12,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 4
 
 function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"  , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
@@ -21,6 +22,9 @@ function ENT:SetupDataTables()
   self:EditableSetVector("UpwardLocal"  , "General")
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorSplit","Visuals")
+  LaserLib.SetClass(self,
+    "models/props_c17/pottery04a.mdl",
+    "models/dog/eyeglass")
   LaserLib.Configure(self)
 end
 

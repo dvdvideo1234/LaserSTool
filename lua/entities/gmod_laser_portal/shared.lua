@@ -14,6 +14,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 9
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
@@ -27,6 +28,9 @@ function ENT:SetupDataTables()
   self:EditableSetBool("ReflectExitDir", "General") -- Reflect the exit ray direction
   self:EditableSetBool("DrawTransfer", "General") -- Draw transfer overlay entity
   self:EditableSetStringGeneric("EntityExitID", "General", true)
+  LaserLib.SetClass(self,
+    "models/props_c17/frame002a.mdl",
+    "models/props_combine/com_shield001a")
   LaserLib.Configure(self)
 end
 

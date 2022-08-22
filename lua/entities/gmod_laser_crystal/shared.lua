@@ -11,12 +11,14 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
-ENT.UnitClassID    = 2
+ENT.UnitID         = 2
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorMerge","Visuals")
-  LaserLib.SetClass(self, "models/props_c17/pottery02a.mdl", "models/dog/eyeglass")
+  LaserLib.SetClass(self,
+    "models/props_c17/pottery02a.mdl",
+    "models/dog/eyeglass")
   LaserLib.Configure(self)
 end
 

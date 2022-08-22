@@ -12,6 +12,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 6
 
 function ENT:SetupDataTables()
   self.DoBeam = nil -- Recieve beams only
@@ -19,6 +20,9 @@ function ENT:SetupDataTables()
   self:EditableSetBool("CheckBeamColor", "Visuals")
   self:EditableSetBool("CheckDominant" , "General")
   self:EditableSetBool("PassBeamTrough", "General")
+  LaserLib.SetClass(self,
+    "models/props_lab/jar01a.mdl",
+    "zup/ramps/ramp_metal")
   LaserLib.Configure(self)
 end
 

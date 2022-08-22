@@ -44,23 +44,27 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
+  local cas = LaserLib.SetClass(self,
+    "models/props_c17/frame002a.mdl",
+    "models/props_combine/com_shield001a")
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(9, 1))
+  local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(9))
-    LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
+    LaserLib.SnapNormal(ent, tr, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    LaserLib.SetVisuals(ply, 9, ent, tr.Entity)
+    LaserLib.SetVisuals(ply, ent, tr)
+    LaserLib.SetProperties(ent, "metal")
+
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()
     ent:PhysWake()
-    LaserLib.SetProperties(ent, "metal")
+
     LaserLib.SetPlayer(ent, ply)
     ent:SetBeamTransform()
     ply:AddCount(gen.."s", ent)

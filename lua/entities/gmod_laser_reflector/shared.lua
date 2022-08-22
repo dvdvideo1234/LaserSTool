@@ -14,12 +14,16 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 3
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
   self:EditableSetFloat("InReflectRatio" , "General", 0, 1)
+  LaserLib.SetClass(self,
+    "models/madjawa/laser_reflector.mdl",
+    "debug/env_cubemap_model")
   LaserLib.Configure(self)
 end
 
