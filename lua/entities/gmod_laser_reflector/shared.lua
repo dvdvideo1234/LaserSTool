@@ -46,3 +46,10 @@ function ENT:SetReflectRatio(ratio)
   self:WireWrite("Ratio", ratio)
   return self
 end
+
+function ENT:GetReflectInfo(reflect)
+  local cpy = table.Copy(reflect)
+  local rat = self:GetReflectRatio()
+  cpy[1] = ((rat > 0) and rat or reflect[1])
+  return cpy -- Return modified row copy
+end

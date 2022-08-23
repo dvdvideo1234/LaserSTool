@@ -413,14 +413,6 @@ end
  * iR > Row index. Same as the entity unit ID
  * iC > Column index. Same as value requested
 ]]
-function LaserLib.GetUnit(iR, iC)
-  local nR = math.floor(tonumber(iR) or 0)
-  local tS = gtUNITS[nR] -- Pick element
-  if(not tS) then return nil end -- No info
-  local nC = math.floor(tonumber(iC) or 0)
-  return tS[nC] -- Return whatever found
-end
-
 function LaserLib.GetClass(iR)
   local tU = gtUNITS[tonumber(iR) or 0]
   return (tU and tU[1] or nil)

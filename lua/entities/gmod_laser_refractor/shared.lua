@@ -77,5 +77,5 @@ function ENT:GetRefractInfo(refract)
   if(self:GetZeroIndexMode()) then cpy[1] = idx
   else cpy[1] = ((idx ~= 0) and idx or refract[1]) end
   cpy[2], cpy[3] = ((rat > 0) and rat or refract[2]), nil
-  return cpy
+  return cpy -- Return modified row copy
 end
