@@ -420,7 +420,7 @@ function TOOL:Reload(trace)
       LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
     elseif(ply:KeyDown(IN_SPEED) and ent:GetClass() ~= LaserLib.GetClass(9)) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("reflectused"))
-    elseif(ply:KeyDown(IN_DUCK) and ent:GetCreator() == ply) then
+    elseif(ply:KeyDown(IN_DUCK) and (ent:GetCreator() == ply or ply:IsAdmin())) then
       ent:Remove()
     else
       if(ent:GetClass() == LaserLib.GetClass(9)) then
@@ -434,7 +434,7 @@ function TOOL:Reload(trace)
   end; return false
 end
 
-function TOOL:UpdateGhostLaserEmitter(ent, ply)
+function TOOL:UpdateEmitterGhost(ent, ply)
   if(not LaserLib.IsValid(ent)) then return end
   if(not LaserLib.IsValid(ply)) then return end
   if(not ply:IsPlayer()) then return end
@@ -500,7 +500,7 @@ function TOOL:Think()
     self:MakeGhostEntity(model, pos, ang)
   end
 
-  self:UpdateGhostLaserEmitter(self.GhostEntity, self:GetOwner())
+  self:UpdateEmitterGhost(self.GhostEntity, self:GetOwner())
 end
 
 local gtConvarList = TOOL:BuildConVarList()
