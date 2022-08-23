@@ -2,7 +2,7 @@ ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
 ENT.PrintName      = "Splitter Single"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
-ENT.Base           = LaserLib.GetClass(1, 1)
+ENT.Base           = LaserLib.GetClass(1)
 if(WireLib) then
   ENT.WireDebugName = ENT.Information
 end

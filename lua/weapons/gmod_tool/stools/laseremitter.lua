@@ -161,7 +161,7 @@ if(SERVER) then
   duplicator.RegisterEntityModifier("laseremitter_properties",
     function(ply, ent, dupe) LaserLib.SetMaterial(ent, dupe.Material) end)
 
-  duplicator.RegisterEntityClass(LaserLib.GetClass(1, 1), LaserLib.NewLaser,
+  duplicator.RegisterEntityClass(LaserLib.GetClass(1), LaserLib.NewLaser,
     --[[  ply  ]]  "pos"         , "ang"         , "model"      ,
     "tranData"   , "key"         , "width"       , "length"     ,
     "damage"     , "material"    , "dissolveType", "startSound" ,
@@ -243,7 +243,7 @@ end
 
 function TOOL:GetUnit(ent)
   if(not LaserLib.IsValid(ent)) then return LaserLib.GetData("NOAV") end
-  local css = ent:GetClass():gsub(LaserLib.GetClass(1, 1), ""):gsub("^_", "")
+  local css = ent:GetClass():gsub(LaserLib.GetClass(1), ""):gsub("^_", "")
   return ((css:len() > 0) and (" "..css.." ") or (" "))
 end
 
@@ -289,14 +289,14 @@ function TOOL:LeftClick(trace)
   local ensafebeam   = (self:GetClientNumber("ensafebeam", 0) ~= 0)
   local enonvermater = (self:GetClientNumber("enonvermater", 0) ~= 0)
 
-  if(LaserLib.IsValid(ent) and ent:GetClass() == LaserLib.GetClass(1, 1)) then
+  if(LaserLib.IsValid(ent) and ent:GetClass() == LaserLib.GetClass(1)) then
     LaserLib.Notify(ply, "Paste settings !", "UNDO")
     ent:Setup(width      , length      , damage    , material   , dissolvetype,
               startsound , stopsound   , killsound , toggle     , starton     ,
               pushforce  , endingeffect, trandata  , reflectrate, refractrate ,
               forcecenter, enonvermater, ensafebeam, raycolor   , true)
     return true
-  elseif(LaserLib.IsValid(ent) and ent:GetClass() == LaserLib.GetClass(9, 1)) then
+  elseif(LaserLib.IsValid(ent) and ent:GetClass() == LaserLib.GetClass(9)) then
     local idx = self:GetClientInfo("portalexit"); ent:SetEntityExitID(idx)
     LaserLib.Notify(ply, "Paste ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
     return true
@@ -362,7 +362,7 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(ply, "starton"     , (ent:GetOn() and 1 or 0))
       LaserLib.ConCommand(ply, "toggle"      , (ent:GetTable().runToggle and 1 or 0))
       LaserLib.Notify(ply, "Copy"..self:GetUnit(ent).."["..ent:EntIndex().."] settings !", "UNDO")
-    elseif(ent:GetClass() == LaserLib.GetClass(9, 1)) then
+    elseif(ent:GetClass() == LaserLib.GetClass(9)) then
       local idx = tostring(ent:EntIndex())
       LaserLib.ConCommand(ply, "portalexit", idx)
       LaserLib.Notify(ply, "Copy ID"..self:GetUnit(ent).."["..idx.."] !", "UNDO")
@@ -416,14 +416,14 @@ function TOOL:Reload(trace)
   else
     if(not LaserLib.IsValid(ent))  then return false end
     if(ent:IsPlayer()) then return false end
-    if(ply:KeyDown(IN_USE) and ent:GetClass() ~= LaserLib.GetClass(9, 1)) then
+    if(ply:KeyDown(IN_USE) and ent:GetClass() ~= LaserLib.GetClass(9)) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("refractused"))
-    elseif(ply:KeyDown(IN_SPEED) and ent:GetClass() ~= LaserLib.GetClass(9, 1)) then
+    elseif(ply:KeyDown(IN_SPEED) and ent:GetClass() ~= LaserLib.GetClass(9)) then
       LaserLib.SetMaterial(ent, self:GetClientInfo("reflectused"))
     elseif(ply:KeyDown(IN_DUCK) and ent:GetCreator() == ply) then
       ent:Remove()
     else
-      if(ent:GetClass() == LaserLib.GetClass(9, 1)) then
+      if(ent:GetClass() == LaserLib.GetClass(9)) then
         local idx = (tonumber(ent:GetEntityExitID()) or 0)
         local txt = ((idx ~= 0) and tostring(idx) or gsNoAV); ent:SetEntityExitID(0)
         LaserLib.Notify(ply, "Clear ID"..self:GetUnit(ent).."["..txt.."] !", "UNDO")
@@ -446,8 +446,8 @@ function TOOL:UpdateGhostLaserEmitter(ent, ply)
 
   if(not trace.Hit
       or trace.Entity:IsPlayer()
-      or trace.Entity:GetClass() == LaserLib.GetClass(1, 1)
-      or trace.Entity:GetClass() == LaserLib.GetClass(9, 1))
+      or trace.Entity:GetClass() == LaserLib.GetClass(1)
+      or trace.Entity:GetClass() == LaserLib.GetClass(9))
   then
     ent:SetNoDraw(true); return
   end
@@ -461,13 +461,13 @@ function TOOL:GetSurface(ent)
   local mat = ent:GetMaterial()
   local row = LaserLib.DataReflect(mat)
   if(row) then
-    if(ces == LaserLib.GetClass(3, 1)) then
+    if(ces == LaserLib.GetClass(3)) then
       row = {ent:GetReflectRatio()}
     end
     return "{"..table.concat(row, "|").."} "..mat
   else row = LaserLib.DataRefract(mat)
     if(row) then
-      if(ces == LaserLib.GetClass(12, 1)) then
+      if(ces == LaserLib.GetClass(12)) then
         row = ent:GetRefractInfo(row)
         row[1] = math.Round(row[1], 3)
         row[2] = math.Round(row[2], 3)

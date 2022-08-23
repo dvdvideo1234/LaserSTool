@@ -82,7 +82,7 @@ local gtCOLID = {
   "r", "g", "b", "a"
 }
 
-local gtCLASS = {
+local gtUNITS = {
   -- Classes existing in the hash part are laser-enabled entities `LaserLib.Configure(self)`
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
   ["gmod_laser"] = true, -- This is present for hot reload. You must register yours separately
@@ -90,7 +90,9 @@ local gtCLASS = {
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
   -- [2] Extension for folder name indices. Stores which folder are entity specific files located
   -- [3] Extension for variable name indices. Populate this when model control variable is different
-  {"gmod_laser", nil, nil}
+  -- [4] Contains the current model ( last path) cashed being used for the given entity unit ID
+  -- [5] Contains the current material ( texture ) cashed being used for the given entity unit ID
+  {"gmod_laser", nil, nil, "", nil}
   -- Laser entity class `DoBeam`
   -- Laser crystal class `EveryBeam`
   -- Laser reflectors class `DoBeam`
@@ -104,10 +106,6 @@ local gtCLASS = {
   -- Laser beam filter `DoBeam`
   -- Laser beam refractor `DoBeam`
 }
-
-local gtMODEL = {}
-
-local gtMATERIAL = {}
 
 local gtCOLOR = {
   [DATA.KEYD] = "BLACK",
@@ -278,7 +276,7 @@ if(CLIENT) then
   gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
   gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
-  killicon.Add(gtCLASS[1][1], DATA.KILL, gtCOLOR["WHITE"])
+  killicon.Add(gtUNITS[1][1], DATA.KILL, gtCOLOR["WHITE"])
 else
   AddCSLuaFile("autorun/laserlib.lua")
   AddCSLuaFile(DATA.TOOL.."/wire_wrapper.lua")
@@ -408,6 +406,44 @@ function LaserLib.VecNegate(vec)
   vec.y = -vec.y
   vec.z = -vec.z
   return vec
+end
+
+--[[
+ * Reads entity unit value from the list
+ * iR > Row index. Same as the entity unit ID
+ * iC > Column index. Same as value requested
+]]
+function LaserLib.GetUnit(iR, iC)
+  local nR = math.floor(tonumber(iR) or 0)
+  local tS = gtUNITS[nR] -- Pick element
+  if(not tS) then return nil end -- No info
+  local nC = math.floor(tonumber(iC) or 0)
+  return tS[nC] -- Return whatever found
+end
+
+function LaserLib.GetClass(iR)
+  local tU = gtUNITS[tonumber(iR) or 0]
+  return (tU and tU[1] or nil)
+end
+
+function LaserLib.GetFolder(iR)
+  local tU = gtUNITS[tonumber(iR) or 0]
+  return (tU and tU[2] or nil)
+end
+
+function LaserLib.GetSuffix(iR)
+  local tU = gtUNITS[tonumber(iR) or 0]
+  return (tU and tU[3] or nil)
+end
+
+function LaserLib.GetModel(iR)
+  local tU = gtUNITS[tonumber(iR) or 0]
+  return (tU and tU[4] or nil)
+end
+
+function LaserLib.GetMaterial(iR)
+  local tU = gtUNITS[tonumber(iR) or 0]
+  return (tU and tU[5] or nil)
 end
 
 --[[
@@ -561,23 +597,11 @@ function LaserLib.ApplySpawn(base, trace, tran)
 end
 
 --[[
- * Reads entity class name from the list
- * idx (int) > When provided checks settings
-]]
-function LaserLib.GetClass(iR, iC)
-  local nR = math.floor(tonumber(iR) or 0)
-  local tS = gtCLASS[nR] -- Pick element
-  if(not tS) then return nil end -- No info
-  local nC = math.floor(tonumber(iC) or 0)
-  return tS[nC] -- Return whatever found
-end
-
---[[
  * Check when the entity is laser library unit
 ]]
 function LaserLib.IsUnit(ent)
   if(LaserLib.IsValid(ent)) then
-    return gtCLASS[ent:GetClass()]
+    return gtUNITS[ent:GetClass()]
   else return false end
 end
 
@@ -666,19 +690,19 @@ function LaserLib.SetClass(unit, mdef, vdef, conv)
     error("Index invalid: "..tostring(unit.UnitID)) end
   local usrc = tostring(unit.Folder or ""); if(usrc == "") then
     error("Name invalid: "..tostring(unit.Folder)) end
-  local ocas = LaserLib.GetClass(1, 1); if(ocas == "") then
+  local ocas = LaserLib.GetClass(1); if(ocas == "") then
     error("Base empty: "..tostring(usrc)) end
   local ucas = usrc:match(ocas..".+$", 1); if(ucas == "") then
     error("Class empty: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     error("Suffix empty: "..tostring(usrc)) end
-  local vset = gtCLASS[indx] -- Attempt to index class info
+  local vset = gtUNITS[indx] -- Attempt to index class info
   if(not vset or (vset and not vset[1])) then -- Empty table
     -- Allocate calss configuration. Make it accessible to the library
-    local vset = {ucas, udrr, conv}; gtCLASS[indx] = vset -- Index variable name
+    local vset = {ucas, udrr, conv, mdef, vdef}; gtUNITS[indx] = vset -- Index variable name
     local vidx = tostring(vset[3] or vset[2]) -- Extract variable suffix
     -- Configure arrays and corresponding console variables
-    local vaum, vauv = ("m"..vidx:lower()), ("v"..vidx:lower())
+    local vaum, vauv = ("mu"..vidx:lower()), ("vu"..vidx:lower())
     local varm = CreateConVar(DATA.TOOL.."_"..vaum, tostring(mdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." model")
     local varv = CreateConVar(DATA.TOOL.."_"..vauv, tostring(vdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." material")
     DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
@@ -687,21 +711,19 @@ function LaserLib.SetClass(unit, mdef, vdef, conv)
     cvars.RemoveChangeCallback(vanm, vanm)
     cvars.AddChangeCallback(vanm, function(name, o, n)
       local m = tostring(n):Trim()
-      if(m:sub(1,1) == DATA.KEYD) then
-        gtMODEL[indx] = varm:GetDefault()
-        varm:SetString(gtMODEL[indx])
-      else gtMODEL[indx] = m end
-    end, vanm); gtMODEL[indx] = varm:GetString():lower()
+      if(m:sub(1,1) ~= DATA.KEYD) then vset[4] = m else
+        vset[4] = varm:GetDefault(); varm:SetString(vset[4])
+      end -- Update current model at index [4]
+    end, vanm); vset[4] = varm:GetString():lower()
     -- Configure material visual
     local vanv = varv:GetName()
     cvars.RemoveChangeCallback(vanv, vanv)
     cvars.AddChangeCallback(vanv, function(name, o, n)
       local v = tostring(n):Trim()
-      if(v:sub(1,1) == DATA.KEYD) then
-        gtMATERIAL[indx] = varv:GetDefault()
-        varv:SetString(gtMATERIAL[indx])
-      else gtMATERIAL[indx] = v end
-    end, vanv); gtMATERIAL[indx] = varv:GetString():lower()
+      if(v:sub(1,1) ~= DATA.KEYD) then vset[5] = v else
+        vset[5] = varv:GetDefault(); varv:SetString(vset[5])
+      end -- Update current material at index [5]
+    end, vanv); vset[5] = varv:GetString():lower()
     -- Return the class extracted from folder
     return ucas -- This is passd to `ents.Create`
   else -- The class is already present so return it
@@ -718,10 +740,10 @@ end
 ]]
 function LaserLib.Configure(unit)
   if(not LaserLib.IsValid(unit)) then return end
-  local uas, cas = unit:GetClass(), LaserLib.GetClass(1, 1)
+  local uas, cas = unit:GetClass(), LaserLib.GetClass(1)
   if(not uas:find(cas)) then error("Invalid unit: "..uas) end
   -- Delete temporary order info and register unit
-  unit.meOrderInfo = nil; gtCLASS[uas] = true
+  unit.meOrderInfo = nil; gtUNITS[uas] = true
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
     if(unit.WireRemove) then function unit:OnRemove() self:WireRemove() end end
@@ -1037,16 +1059,6 @@ function LaserLib.GetOrderID(ent, key)
   local itab = info.T; if(itab[key]) then
     itab[key] = (itab[key] + 1) else itab[key] = 0 end
   info.N = (info.N + 1); return key, info.N, itab[key]
-end
-
-function LaserLib.GetModel(iK)
-  local sM = gtMODEL[tonumber(iK) or 0]
-  return (sM and sM or nil)
-end
-
-function LaserLib.GetMaterial(iK)
-  local sT = gtMATERIAL[tonumber(iK) or 0]
-  return (sT and sT or nil)
 end
 
 function LaserLib.ProjectRay(pos, org, dir)
@@ -2054,7 +2066,7 @@ if(SERVER) then
     if(not user:IsPlayer()) then return end
     if(not user:CheckLimit(DATA.TOOL.."s")) then return end
 
-    local laser = ents.Create(LaserLib.GetClass(1, 1))
+    local laser = ents.Create(LaserLib.GetClass(1))
     if(not (LaserLib.IsValid(laser))) then return end
 
     laser:SetCollisionGroup(COLLISION_GROUP_NONE)
@@ -2063,7 +2075,7 @@ if(SERVER) then
     laser:SetNotSolid(false)
     laser:SetPos(pos)
     laser:SetAngles(ang)
-    laser:SetModel(Model(model))
+    laser:SetModel(Model(model)); gtUNITS[1][4] = model
     laser:Spawn()
     laser:SetCreator(user)
     laser:Setup(width      , length      , damage    , material   , dissolveType,
@@ -2729,7 +2741,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter, trace)
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
   local refract, key = GetMaterialEntry(mat, gtREFRACT)
   if(LaserLib.IsValid(ent)) then
-    if(ent:GetClass() == LaserLib.GetClass(12, 1)) then
+    if(ent:GetClass() == LaserLib.GetClass(12)) then
       if(not refract) then return nil end
       return ent:GetRefractInfo(refract), key -- Return the initial key
     else
