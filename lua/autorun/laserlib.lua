@@ -182,25 +182,28 @@ local gtREFLECT = { -- Reflection descriptor
 }; gtREFLECT.Size = #gtREFLECT
 
 local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
-  [1] = "air"  , -- Air enumerator index
+  -- Sequential keys must be ordered by contens inclusion
+  -- Lower number means higher priority for contens to be ckecked
+  [1] = "translucent", -- Translucent stuff
   [2] = "glass", -- Glass enumerator index
-  [3] = "water", -- Water enumerator index
-  [4] = "slime", -- Slime enumerator index
-  [5] = "translucent", -- Translucent stuff
+  [3] = "slime", -- Slime enumerator index
+  [4] = "water", -- Water enumerator index
+  [5] = "air"  , -- Air enumerator index
   -- Used for prop updates and checks
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control
   -- [1] : Medium refraction index for the material specified
   -- [2] : Medium refraction rating when the beam goes through reduces its power
   -- [3] : Which index is the material found at when it is searched in array part
+  -- [4] : What contents does the specified index match when requested position checked
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
-  ["air"]                                       = {1.000, 1.000, "air"  }, -- Air refraction index
-  ["glass"]                                     = {1.521, 0.999, "glass"}, -- Ordinary glass
-  ["water"]                                     = {1.333, 0.955, "water"}, -- Water refraction index
-  ["slime"]                                     = {1.387, 0.731, "slime"}, -- Slime refraction index
-  ["translucent"]                               = {1.437, 0.575, "translucent"}, -- Translucent stuff
+  ["air"]                                       = {1.000, 1.000, "air"}, -- Air refraction index
+  ["water"]                                     = {1.333, 0.955, "water", CONTENTS_WATER}, -- Water refraction index
+  ["slime"]                                     = {1.387, 0.731, "slime", CONTENTS_SLIME}, -- Slime refraction index
+  ["glass"]                                     = {1.521, 0.999, "glass", CONTENTS_WINDOW}, -- Ordinary glass
+  ["translucent"]                               = {1.437, 0.575, "translucent", CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
@@ -242,18 +245,6 @@ local gtMATYPE = {
   [tostring(MAT_GLASS     )] = "glass",
   [tostring(MAT_WARPSHIELD)] = "glass"
 }
-
---[[
- * General contents table providing refract bind ID
- [1]: https://wiki.facepunch.com/gmod/Enums/CONTENTS
- [2]: The sequential medium search ID from REFRACT
-]]
-local gtCONTENTS = { -- Start-refract transperent contents
-  {CONTENTS_WINDOW     , 2}, -- REFRACT loop index [2]: glass
-  {CONTENTS_WATER      , 3}, -- REFRACT loop index [3]: water
-  {CONTENTS_SLIME      , 4}, -- REFRACT loop index [4]: slime
-  {CONTENTS_TRANSLUCENT, 5}  -- REFRACT loop index [5]: translucent
-}; gtCONTENTS.Size = #gtCONTENTS -- Store initial table size
 
 local gtTRACE = {
   filter         = nil,
@@ -1665,10 +1656,14 @@ end
  * cont > The trace contents being checked and matched
 ]]
 local function GetContentsID(cont)
-  for idx = 1, gtCONTENTS.Size do -- Check contents
-    local set = gtCONTENTS[idx] -- Index content set
-    local con, cdx = set[1], set[2] -- Index entry
-    if(LaserLib.InContent(cont, con)) then return cdx end
+  for idx = 1, gtREFRACT.Size do -- Check contents
+    local key = gtREFRACT[idx] -- Index content key
+    local row = gtREFRACT[key] -- Index entry row
+    if(row) then local conr = row[4] -- Index the mapped content
+      if(conr and conr > 0) then
+        if(LaserLib.InContent(cont, conr)) then return idx end
+      end
+    end
   end; return nil -- The contents did not get matched to entry
 end
 
@@ -2545,7 +2540,7 @@ end
 --[[
  * Updates the hit texture if the trace contents
  * trace > Trace structure of the current iteration
- * mcont > Medium content entry matched to `CONTENTS[ID]`
+ * mcont > Medium content entry matched to `REFRACT[ID]`
  * Returns a flag when the trace is updated
 ]]
 function mtBeam:SetRefractContent(trace, mcont)

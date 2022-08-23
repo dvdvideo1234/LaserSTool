@@ -26,7 +26,7 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateOutputs(
-    {"Entity", "ENTITY", "Portal entity itself" }
+    {"Entity", "ENTITY", "Portal entity itself"}
   )
 
   -- Mirror the exit position by default
