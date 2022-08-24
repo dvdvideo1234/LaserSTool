@@ -29,6 +29,7 @@ DATA.BESRC = nil             -- External forced entity source for the beam updat
 DATA.BCOLR = nil             -- External forced beam color used in the current request
 DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
+DATA.DISB  = "~"             -- The first symbol used to disable given things
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
 DATA.VTEMP = Vector()        -- Global library temporary storage vector
@@ -183,12 +184,12 @@ local gtREFLECT = { -- Reflection descriptor
 
 local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   -- Sequential keys must be ordered by contens inclusion
-  -- Lower number means higher priority for contens to be ckecked
-  [1] = "translucent", -- Translucent stuff
-  [2] = "glass", -- Glass enumerator index
-  [3] = "slime", -- Slime enumerator index
-  [4] = "water", -- Water enumerator index
-  [5] = "air"  , -- Air enumerator index
+  -- Lower enumerator means higher priority for contens to be ckecked
+  [1] = "air"  , -- Empty enumerator index 0
+  [2] = "glass", -- Glass enumerator index 2
+  [3] = "slime", -- Slime enumerator index 16
+  [4] = "water", -- Water enumerator index 32
+  [5] = "translucent", -- Translucent stuff 268435456
   -- Used for prop updates and checks
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control
@@ -469,7 +470,7 @@ function LaserLib.ExtractIco(tab, key)
       key[k] = LaserLib.GetIcon(v)
     end; return key
   else
-    if(key:sub(1, 1) == "#") then
+    if(key:sub(1, 1) == DATA.DISB) then
       return LaserLib.GetIcon(key:sub(2, -1))
     else
       local set = {} -- Allocate
@@ -1645,12 +1646,8 @@ function LaserLib.IsContent(pos, comp)
   return LaserLib.InContent(con, comp)
 end
 
-function LaserLib.IsContentWater(pos)
-  return LaserLib.IsContent(pos, CONTENTS_WATER)
-end
-
 --[[
- * This is designed to read cantent ID from a trace
+ * This is designed to compare contents to the refract list
  * It will compare the trace contents to the medium content
  * On success will return the content ID to update trace
  * cont > The trace contents being checked and matched
@@ -1659,11 +1656,9 @@ local function GetContentsID(cont)
   for idx = 1, gtREFRACT.Size do -- Check contents
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
-    if(row) then local conr = row[4] -- Index the mapped content
-      if(conr and conr > 0) then
-        if(LaserLib.InContent(cont, conr)) then return idx end
-      end
-    end
+    if(row) then local conr = row[4]; if(conr and conr > 0) then
+      if(LaserLib.InContent(cont, conr)) then return idx end end
+    else error("Entry missing".."["..idx.."]: "..key) end
   end; return nil -- The contents did not get matched to entry
 end
 
@@ -2358,10 +2353,10 @@ end
  * Exit point is water and water is not registered. Register
  * Exit point is air and water surface is predent. Clear water
  * trace > Where to store temporary trace sesult to ignore new table
- * water > Flag indicating that point is inside the water
+ * vncon > Content enumenator value for current medium definition
 ]]
-function mtBeam:UpdateWaterSurface(trace, water)
-  if(water) then -- Source point remains in the water
+function mtBeam:UpdateWaterSurface(trace, vncon)
+  if(LaserLib.InContent(vncon, CONTENTS_WATER)) then -- Point in the water
     if(self:IsAir()) then -- No water surface defined. Traverse to water
       local wat, len, rup = self:GetWater(), DATA.TRWU, DATA.VDRUP
       local trace = TraceBeam(self.VrOrigin, rup, len,
@@ -2538,21 +2533,37 @@ function mtBeam:Redirect(origin, direct, reset)
 end
 
 --[[
+ * Updates the source medium according to the content
+ * pos > Position to calculate content entry for
+ * Returns a flag when source medion is updated
+]]
+function mtBeam:SetSourceContent(pos)
+  local con = util.PointContents(pos)
+  local idx = GetContentsID(con)
+  if(not idx) then return false, con end
+  local nam = gtREFRACT[idx]
+  if(not nam) then return false, con end
+  self:SetMediumSours(gtREFRACT[nam], nam)
+  return true, con -- point contents
+end
+
+--[[
  * Updates the hit texture if the trace contents
  * trace > Trace structure of the current iteration
  * mcont > Medium content entry matched to `REFRACT[ID]`
  * Returns a flag when the trace is updated
 ]]
 function mtBeam:SetRefractContent(trace, mcont)
-  local idx = GetContentsID(mcont or trace.Contents)
+  local con = (mcont or trace.Contents)
+  local idx = GetContentsID(con)
   if(not idx) then return false end
   local nam = gtREFRACT[idx]
   if(not nam) then return false end
   trace.Fraction = 0
+  trace.Contents = con
   trace.HitTexture = nam
-  self.TrMedium.S[2] = nam
-  self.TrMedium.S[1] = gtREFRACT[nam]
   trace.HitPos:Set(self.VrOrigin)
+  self:SetMediumSours(gtREFRACT[nam], nam)
   return true -- Trace updated
 end
 
@@ -2831,12 +2842,14 @@ end
 --[[
  * Configures and activates the water refraction surface
  * The beam may start in the water or hit it and switch
- * mtype > Key indication for medium type found in the water
+ * mekey > Key indication for medium type found in the water
+ * mecon > Medium contentsfount in initial iteration
  * trace > Trace result structure output being used
 ]]
-function mtBeam:SetSurfaceWorld(mtype, trace)
+function mtBeam:SetSurfaceWorld(mekey, mecon, trace)
   local wat = self:GetWater()
-  local vae = mtype:find(self.W[2], 1, true)
+  local vae = LaserLib.InContent(mecon, CONTENTS_WATER)
+  if(not vae) then vae = mekey:find(self.W[2], 1, true) end
   if(self.StRfract) then
     if(vae and self:IsAir()) then
       local rup, trm = DATA.VDRUP, DATA.TRWU
@@ -3527,13 +3540,11 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       if(suc) then
         if(beam.IsRfract) then
           -- Check when bounce position is inside the water
-          local water = LaserLib.IsContentWater(trace.HitPos)
+          local encon, vncon = beam:SetSourceContent(trace.HitPos)
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
-          if(water) then -- Ask souce engine for water position origin
-            beam:SetMediumSours(mtBeam.W) -- Contents is not water and surface is missing
-          else -- Otherwise default the meduim to airs for enity in water
+          if(not encon) then -- Ask souce engine for water position origin
             beam:SetMediumSours(mtBeam.A) -- Contents is not water and surface is missing
           end -- Negate the normal so it must point inwards before refraction
           LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
@@ -3544,7 +3555,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bnex) then -- When the beam gets out of the medium
               beam:Redirect(trace.HitPos, vdir, true)
-              beam:UpdateWaterSurface(tr, water) -- Update the water surface
+              beam:UpdateWaterSurface(tr, vncon) -- Update the water surface
               beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               beam:SetTraceNext(trace.HitPos, vdir)
@@ -3647,14 +3658,14 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   beam:Pass(trace) -- Register beam passing to the new surface
                   -- Calculated refraction ray. Reflect when not possible
                   if(beam.StRfract) then -- Laser is within the map water submerged
-                    beam:SetSurfaceWorld(refract[3] or key, tr)
+                    beam:SetSurfaceWorld(refract[3] or key, trace.Contents, tr)
                     beam:Redirect(trace.HitPos) -- Keep the same direction and initial origin
                     beam.StRfract = false -- Lower the flag so no performance hit is present
                   else -- Beam comes from the air and hits the water. Store water surface and refract
                     -- Get the trace ready to check the other side and point and register the location
                     local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                          trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
-                    beam:SetSurfaceWorld(refract[3] or key, trace)
+                    beam:SetSurfaceWorld(refract[3] or key, trace.Contents, trace)
                     beam:Redirect(trace.HitPos, vdir)
                   end
                   -- Need to make the traversed destination the new source
