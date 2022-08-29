@@ -2206,6 +2206,7 @@ end
 ]]
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
+      mtBeam.__trace = {} -- Trace result to fill instead of creating
       mtBeam.__index = mtBeam -- If not found in self search here
       mtBeam.__vtorg = Vector() -- Temporary calculation origin vector
       mtBeam.__vtdir = Vector() -- Temporary calculation direct vector
@@ -2349,20 +2350,33 @@ function mtBeam:GetWaterOrigin(pos)
 end
 
 --[[
+ * Runs a ray trace to find the water surface
+ * origin > Trace ray origin position
+ * direct > Trace ray origin direction
+ * length > External forced lenght being searched
+]]
+function mtBeam:SetWaterSurface(origin, direct, length)
+  local dir = self.__vtdir; dir:Set(direct or DATA.VDRUP)
+  local org = self.__vtorg; org:Set(origin or self.VrOrigin)
+  local len, tr = (tonumber(length) or DATA.TRWU), self.__trace
+  if(len <= 0) then len = dir:Length() end
+  local wat, trace = self:GetWater(), TraceBeam(org, dir,
+    len, nil, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
+  wat.P:Set(trace.Normal); wat.P:Mul(trace.FractionLeftSolid * len)
+  wat.P:Add(org); wat.N:Set(dir); return self
+end
+
+--[[
  * Updates the water surface in the last iteration of entity refraction
  * Exit point is water and water is not registered. Register
  * Exit point is air and water surface is predent. Clear water
  * trace > Where to store temporary trace sesult to ignore new table
  * vncon > Content enumenator value for current medium definition
 ]]
-function mtBeam:UpdateWaterSurface(trace, vncon)
+function mtBeam:UpdateWaterSurface(vncon)
   if(LaserLib.InContent(vncon, CONTENTS_WATER)) then -- Point in the water
     if(self:IsAir()) then -- No water surface defined. Traverse to water
-      local wat, len, rup = self:GetWater(), DATA.TRWU, DATA.VDRUP
-      local trace = TraceBeam(self.VrOrigin, rup, len,
-        entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
-      wat.P:Set(trace.Normal); wat.P:Mul(trace.FractionLeftSolid * len)
-      wat.P:Add(self.VrOrigin); wat.N:Set(rup) -- Define the water surface
+      self:SetWaterSurface()
       self.NvMask = MASK_SOLID -- Start traversng below the water
     end
   else -- Source engine returns that position is not water
@@ -2533,38 +2547,24 @@ function mtBeam:Redirect(origin, direct, reset)
 end
 
 --[[
- * Updates the source medium according to the content
- * pos > Position to calculate content entry for
- * Returns a flag when source medion is updated
-]]
-function mtBeam:SetSourceContent(pos)
-  local con = util.PointContents(pos)
-  local idx = GetContentsID(con)
-  if(not idx) then return false, con end
-  local nam = gtREFRACT[idx]
-  if(not nam) then return false, con end
-  self:SetMediumSours(gtREFRACT[nam], nam)
-  return true, con -- point contents
-end
-
---[[
  * Updates the hit texture if the trace contents
- * trace > Trace structure of the current iteration
  * mcont > Medium content entry matched to `REFRACT[ID]`
+ * trace > Trace structure of the current iteration
  * Returns a flag when the trace is updated
 ]]
-function mtBeam:SetRefractContent(trace, mcont)
-  local con = (mcont or trace.Contents)
-  local idx = GetContentsID(con)
+function mtBeam:SetRefractContent(mcont, trace)
+  local idx = GetContentsID(mcont)
   if(not idx) then return false end
   local nam = gtREFRACT[idx]
   if(not nam) then return false end
-  trace.Fraction = 0
-  trace.Contents = con
-  trace.HitTexture = nam
-  trace.HitPos:Set(self.VrOrigin)
+  if(trace) then
+    trace.Fraction = 0
+    trace.Contents = mcont
+    trace.HitTexture = nam
+    trace.HitPos:Set(self.VrOrigin)
+  end
   self:SetMediumSours(gtREFRACT[nam], nam)
-  return true -- Trace updated
+  return true, idx, nam
 end
 
 --[[
@@ -3489,10 +3489,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
     -- Check medium contents to know what to do whenbeam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
-      if(trace.StartSolid) then -- The laser source is located on transperent map medium
-        if(not beam:SetRefractContent(trace)) then -- Switch medium via trace content
-          local ocon = util.PointContents(origin) -- Extract contents from the origin
-          beam:SetRefractContent(trace, ocon) -- Trace contents not matched. Use origin
+      if(trace.StartSolid) then -- The beam starts in solid map environment
+        if(not beam:SetRefractContent(trace.Contents, trace)) then -- Switch medium via trace content
+          beam:SetRefractContent(util.PointContents(origin), trace) -- Trace contents not matched. Use origin
         end -- Switch medium via content finished. When not located meduim is unchanged
       end -- Resample the trace result and update hit status via contents
     else -- We have water surface defined and we are not refracting
@@ -3539,8 +3538,9 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
       -- Register a hit so reduce bounces count
       if(suc) then
         if(beam.IsRfract) then
+          local mcons = util.PointContents(trace.HitPos)
           -- Check when bounce position is inside the water
-          local encon, vncon = beam:SetSourceContent(trace.HitPos)
+          local encon = beam:SetRefractContent(mcons)
           -- Well the beam is still tracing
           beam.IsTrace = true -- Produce next ray
           -- Decide whenever to go out of the entity according to the hit location
@@ -3555,7 +3555,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
             if(bnex) then -- When the beam gets out of the medium
               beam:Redirect(trace.HitPos, vdir, true)
-              beam:UpdateWaterSurface(tr, vncon) -- Update the water surface
+              beam:UpdateWaterSurface(mcons) -- Update the water surface
               beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
             else -- Get the trace ready to check the other side and register the location
               beam:SetTraceNext(trace.HitPos, vdir)
