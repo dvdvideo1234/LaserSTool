@@ -2355,13 +2355,13 @@ end
  * direct > Trace ray origin direction
  * length > External forced lenght being searched
 ]]
-function mtBeam:SetWaterSurface(origin, direct, length)
+function mtBeam:SetWaterSurface(origin, direct, length, filter)
   local dir = self.__vtdir; dir:Set(direct or DATA.VDRUP)
   local org = self.__vtorg; org:Set(origin or self.VrOrigin)
   local len, tr = (tonumber(length) or DATA.TRWU), self.__trace
-  if(len <= 0) then len = dir:Length() end
+  if(len <= 0) then len = dir:Length() end; dir:Normalize()
   local wat, trace = self:GetWater(), TraceBeam(org, dir,
-    len, nil, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
+    len, filter, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
   wat.P:Set(trace.Normal); wat.P:Mul(trace.FractionLeftSolid * len)
   wat.P:Add(org); wat.N:Set(dir); return self
 end
@@ -2729,13 +2729,12 @@ end
  * Must update custom special case `gmod_laser_refractor`
  * origin > Refraction medium boundary origin
  * direct > Refraction medium boundary surface direct
- * trace  > Trace structure to store the result
 ]]
-function mtBeam:GetSolidMedium(origin, direct, filter, trace)
+function mtBeam:GetSolidMedium(origin, direct, filter)
   local tr = TraceBeam(origin, direct, DATA.NUGE,
-    filter, MASK_SOLID, COLLISION_GROUP_NONE, false, 0, trace)
+    filter, MASK_SOLID, COLLISION_GROUP_NONE, false, 0, self.__trace)
   if(not (tr or tr.Hit)) then return nil end -- Nothing traces
-  if(tr.Fraction > 0) then return nil end -- Has prop air gap
+  if(tr.Fraction > 0) then return nil end -- Has physical air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
   local refract, key = GetMaterialEntry(mat, gtREFRACT)
   if(LaserLib.IsValid(ent)) then
@@ -2796,7 +2795,7 @@ end
 
 --[[
  * Performs library dedicated beam trace. Runs a
- * CAP trace. when fails runs a general trace
+ * CAP trace. When it fails runs a general trace
  * result > Trace output destination table as standard config
 ]]
 function mtBeam:Trace(result)
@@ -2847,24 +2846,25 @@ end
  * trace > Trace result structure output being used
 ]]
 function mtBeam:SetSurfaceWorld(mekey, mecon, trace)
-  local wat = self:GetWater()
+  local wat, air = self:GetWater(), self:IsAir()
   local vae = LaserLib.InContent(mecon, CONTENTS_WATER)
-  if(not vae) then vae = mekey:find(self.W[2], 1, true) end
+  if(not vae and mekey) then vae = mekey:find(self.W[2], 1, true) end
   if(self.StRfract) then
-    if(vae and self:IsAir()) then
-      local rup, trm = DATA.VDRUP, DATA.TRWU
-      local trace = TraceBeam(self.VrOrigin, rup, trm,
-        entity, MASK_ALL, COLLISION_GROUP_NONE, false, 0, trace)
-      wat.N:Set(rup); wat.P:Set(rup)
-      wat.P:Mul(trm * trace.FractionLeftSolid)
-      wat.P:Add(self.VrOrigin)
+    if(vae and air) then -- Water is not yet registered for transition
+      self:SetWaterSurface() -- Register the water surface
+      self.NvMask = MASK_SOLID -- We stay in the water and hit stuff
     else -- Refract type is not water so reset the configuration
       self:ClearWater() -- Clear the water indicator normal vector
     end -- Water refraction configuration is done
   else -- Refract type not water then setup
-    if(vae and self:IsAir()) then
-      wat.P:Set(trace.HitPos) -- Memorize the surface position
-      wat.N:Set(trace.HitNormal) -- Memorize the surface normal
+    if(vae and air) then -- Water is not yet registered for transition
+      self.NvMask = MASK_SOLID -- We stay in the water and hit stuff
+      if(trace) then
+        wat.P:Set(trace.HitPos) -- Memorize the surface position
+        wat.N:Set(trace.HitNormal) -- Memorize the surface normal
+      else -- Will most likely never happen but still possible
+        self:SetWaterSurface() -- Register the water surface
+      end
     else -- Refract type is not water so reset the configuration
       self:ClearWater() -- Clear the water indicator normal vector
     end -- Water refraction configuration is done
@@ -2907,12 +2907,11 @@ end
  * direct > Ray direction vector override ( not mandatory )
  * normal > Normal vector of the refraction surface
  * target > Entity being the current beam target
- * trace  > Trace structure to temporary store the result
 ]]
-function mtBeam:IsTraverse(origin, direct, normal, target, trace)
+function mtBeam:IsTraverse(origin, direct, normal, target)
   local org = mtBeam.__vtorg; org:Set(origin or self.VrOrigin)
   local dir = mtBeam.__vtdir; dir:Set(direct or self.VrDirect)
-  local refract = self:GetSolidMedium(org, dir, target, trace)
+  local refract = self:GetSolidMedium(org, dir, target)
   if(not refract) then return false end
   -- Refract the hell out of this requested beam with enity destination
   local vdir, bnex, bsam = LaserLib.GetRefracted(dir,
@@ -3472,7 +3471,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local beam = Beam(origin, direct, width, damage, length, force) -- Creates beam class
   if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
-  local trace, tr, target = {}, {} -- Configure and target and shared trace reference
+  local trace, target = {} -- Configure and target and shared trace reference
   -- Reports dedicated values that are being used by other entities and processes
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
@@ -3549,7 +3548,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end -- Negate the normal so it must point inwards before refraction
           LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
           -- Make sure to pick the correct refract exit medium for current node
-          if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target, tr)) then
+          if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
             -- Refract the hell out of this requested beam with entity destination
             local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                            trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
@@ -3613,13 +3612,13 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             -- Margin multiplier for trace back to find correct surface normal
             -- This is the only way to get the proper surface normal vector
             local tr = TraceBeam(org, beam.VrDirect, 2 * DATA.NUGE,
-              mtBeam.F, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
+              mtBeam.F, MASK_ALL, COLLISION_GROUP_NONE, false, 0, mtBeam.__trace)
             -- Store hit position and normal in beam temporary
             local nrm = Vector(tr.HitNormal); org:Set(tr.HitPos)
             -- Reverse direction of the normal to point inside transparent
             LaserLib.VecNegate(nrm); LaserLib.VecNegate(beam.VrDirect)
             -- Do the refraction according to medium boundary
-            if(not beam:IsTraverse(org, nil, nrm, target, tr)) then
+            if(not beam:IsTraverse(org, nil, nrm, target)) then
               local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                    nrm, beam.TrMedium.D[1][1], mtBeam.A[1][1])
               if(bnex) then -- When the beam gets out of the medium
@@ -3656,16 +3655,16 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
                   beam:Pass(trace) -- Register beam passing to the new surface
+                  -- Define water surface as of air-water beam interaction
+                  beam:SetSurfaceWorld(refract[3] or key, trace.Contents, trace)
                   -- Calculated refraction ray. Reflect when not possible
                   if(beam.StRfract) then -- Laser is within the map water submerged
-                    beam:SetSurfaceWorld(refract[3] or key, trace.Contents, tr)
-                    beam:Redirect(trace.HitPos) -- Keep the same direction and initial origin
                     beam.StRfract = false -- Lower the flag so no performance hit is present
+                    beam:Redirect(trace.HitPos) -- Keep the same direction and initial origin
                   else -- Beam comes from the air and hits the water. Store water surface and refract
                     -- Get the trace ready to check the other side and point and register the location
                     local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
                                          trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
-                    beam:SetSurfaceWorld(refract[3] or key, trace.Contents, trace)
                     beam:Redirect(trace.HitPos, vdir)
                   end
                   -- Need to make the traversed destination the new source
