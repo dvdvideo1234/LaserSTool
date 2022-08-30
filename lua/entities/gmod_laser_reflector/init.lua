@@ -31,9 +31,7 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
-  local cas = LaserLib.SetClass(self,
-    "models/madjawa/laser_reflector.mdl",
-    "debug/env_cubemap_model")
+  local cas = LaserLib.GetClass(self.UnitID)
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(cas)

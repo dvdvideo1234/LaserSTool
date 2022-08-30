@@ -462,7 +462,7 @@ function TOOL:GetSurface(ent)
   local row = LaserLib.DataReflect(mat)
   if(row) then
     if(ces == LaserLib.GetClass(3)) then
-      row = ent:GetRefractInfo(row)
+      row = ent:GetReflectInfo(row)
       row[1] = math.Round(row[1], 3)
     end
     return "{"..table.concat(row, "|").."} "..mat

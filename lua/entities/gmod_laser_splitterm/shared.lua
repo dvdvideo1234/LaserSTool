@@ -31,7 +31,7 @@ function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
   self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
-  LaserLib.SetClass(self,
+  LaserLib.RegisterUnit(self,
     "models/props_c17/furnitureshelf001b.mdl",
     "models/dog/eyeglass")
   LaserLib.Configure(self)

@@ -93,20 +93,19 @@ local gtUNITS = {
   -- [3] Extension for variable name indices. Populate this when model control variable is different
   -- [4] Contains the current model ( last path) cashed being used for the given entity unit ID
   -- [5] Contains the current material ( texture ) cashed being used for the given entity unit ID
-  {"gmod_laser", nil, nil, "", nil}
-  -- Laser entity class `DoBeam`
-  -- Laser crystal class `EveryBeam`
-  -- Laser reflectors class `DoBeam`
-  -- Laser beam splitter `EveryBeam`
-  -- Laser beam divider `DoBeam`
-  -- Laser beam sensor `EveryBeam`
-  -- Laser beam dimmer `DoBeam`
-  -- Laser beam splitter multy `EveryBeam`
-  -- Laser beam portal  `DoBeam`
-  -- Laser beam parallel `DoBeam`
-  -- Laser beam filter `DoBeam`
-  -- Laser beam refractor `DoBeam`
-}
+  {"gmod_laser"          , nil , nil, nil, nil}, -- Laser entity class `PriarySource`
+  {"gmod_laser_crystal"  , nil , nil, "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal class `EveryBeam`
+  {"gmod_laser_reflector", nil , nil, "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors class `DoBeam`
+  {"gmod_laser_splitter" , nil , nil, "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser beam splitter `EveryBeam`
+  {"gmod_laser_divider"  , nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam divider `DoBeam`
+  {"gmod_laser_sensor"   , nil , nil, "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- Laser beam sensor `EveryBeam`
+  {"gmod_laser_dimmer"   , nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam dimmer `DoBeam`
+  {"gmod_laser_splitterm", nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam splitter multy `EveryBeam`
+  {"gmod_laser_portal"   , nil , nil, "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser beam portal  `DoBeam`
+  {"gmod_laser_parallel" , nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam parallel `DoBeam`
+  {"gmod_laser_filter"   , nil , nil, "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser beam filter `DoBeam`
+  {"gmod_laser_refractor", nil , nil, "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser beam refractor `DoBeam`
+}; gtUNITS.Size = #gtUNITS
 
 local gtCOLOR = {
   [DATA.KEYD] = "BLACK",
@@ -497,15 +496,14 @@ end
  * arg > Entity object to be checked
 ]]
 function LaserLib.IsOther(arg)
-  if(not LaserLib.IsValid(arg)) then return false end
-  if(arg:IsNPC()) then return false end
-  if(arg:IsWorld()) then return false end
-  if(arg:IsPlayer()) then return false end
-  if(arg:IsWeapon()) then return false end
-  if(arg:IsWidget()) then return false end
-  if(arg:IsVehicle()) then return false end
-  if(arg:IsRagdoll()) then return false end
-  if(arg:IsDormant()) then return false end
+  if(arg:IsNPC()) then return true end
+  if(arg:IsWorld()) then return true end
+  if(arg:IsPlayer()) then return true end
+  if(arg:IsWeapon()) then return true end
+  if(arg:IsWidget()) then return true end
+  if(arg:IsVehicle()) then return true end
+  if(arg:IsRagdoll()) then return true end
+  if(arg:IsDormant()) then return true end
   return false
 end
 
@@ -668,23 +666,25 @@ end
  * vdef > Default convar material value
  * conv > When provided used for convar prefix
 ]]
-function LaserLib.SetClass(unit, mdef, vdef, conv)
+function LaserLib.RegisterUnit(cunit, iunit, mdef, vdef, conv)
   -- Is index is provided populate model and create convars
-  local indx = (tonumber(unit.UnitID) or 0); if(indx <= 1) then
-    error("Index invalid: "..tostring(unit.UnitID)) end
-  local usrc = tostring(unit.Folder or ""); if(usrc == "") then
-    error("Name invalid: "..tostring(unit.Folder)) end
+  local indx = (tonumber(iunit) or 0); if(indx <= 1) then
+    error("Index invalid: "..tostring(iunit)) end
+  local usrc = tostring(cunit or ""); if(usrc == "") then
+    error("Name invalid: "..tostring(cunit)) end
   local ocas = LaserLib.GetClass(1); if(ocas == "") then
-    error("Base empty: "..tostring(usrc)) end
+    error("Base empty: "..tostring(ocas)) end
   local ucas = usrc:match(ocas..".+$", 1); if(ucas == "") then
-    error("Class empty: "..tostring(usrc)) end
+    error("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     error("Suffix empty: "..tostring(usrc)) end
   local vset = gtUNITS[indx] -- Attempt to index class info
-  if(not vset or (vset and not vset[1])) then -- Empty table
+  if(not vset or (vset and not vset[2])) then -- Empty table
     -- Allocate calss configuration. Make it accessible to the library
+    -- >> gmod_laser_reflector  reflector nil models/madjawa/laser_reflector.mdl  debug/env_cubemap_model
+    -- print(">>", ucas, udrr, conv, mdef, vdef)
     local vset = {ucas, udrr, conv, mdef, vdef}; gtUNITS[indx] = vset -- Index variable name
-    local vidx = tostring(vset[3] or vset[2]) -- Extract variable suffix
+    local vidx = tostring(vset[3] or vset[2]); vset[2] = vidx -- Extract variable suffix
     -- Configure arrays and corresponding console variables
     local vaum, vauv = ("mu"..vidx:lower()), ("vu"..vidx:lower())
     local varm = CreateConVar(DATA.TOOL.."_"..vaum, tostring(mdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." model")
@@ -1901,7 +1901,10 @@ if(SERVER) then
   function LaserLib.SetVisuals(ply, ent, tr)
     local tre, idx = tr.Entity, ent.UnitID
     if(ply:KeyDown(IN_USE)) then -- When replacing
-      if(not LaserLib.IsOther(tre)) then -- Use trace model
+      if(LaserLib.IsValid(tre) and not -- Use valid stuff
+         LaserLib.IsOther(tre) and -- Use valid physics
+         tre:GetCreator() == ply) -- Use your own stuff
+      then -- Use the trace valid model as a unit
         ent:SetPos(tre:GetPos()) -- Use trace position
         ent:SetAngles(tre:GetAngles()) -- Use trace angle
         ent:SetModel(tre:GetModel()); tre:Remove()
@@ -2356,13 +2359,13 @@ end
  * length > External forced lenght being searched
 ]]
 function mtBeam:SetWaterSurface(origin, direct, length, filter)
+  local len = (tonumber(length) or DATA.TRWU)
   local dir = self.__vtdir; dir:Set(direct or DATA.VDRUP)
   local org = self.__vtorg; org:Set(origin or self.VrOrigin)
-  local len, tr = (tonumber(length) or DATA.TRWU), self.__trace
   if(len <= 0) then len = dir:Length() end; dir:Normalize()
-  local wat, trace = self:GetWater(), TraceBeam(org, dir,
-    len, filter, MASK_ALL, COLLISION_GROUP_NONE, false, 0, tr)
-  wat.P:Set(trace.Normal); wat.P:Mul(trace.FractionLeftSolid * len)
+  local wat, tr = self:GetWater(), TraceBeam(org, dir,
+    len, filter, MASK_ALL, COLLISION_GROUP_NONE, false, 0, self.__trace)
+  wat.P:Set(tr.Normal); wat.P:Mul(tr.FractionLeftSolid * len)
   wat.P:Add(org); wat.N:Set(dir); return self
 end
 
@@ -3961,6 +3964,18 @@ function LaserLib.SetupSoundEffects()
   end
 
   table.Empty(list.GetForEdit("LaserSounds"))
+end
+
+-- Configure units. Create variable and meterials
+for idx = 2, gtUNITS.Size do local set = gtUNITS[idx]
+  LaserLib.RegisterUnit(set[1], idx, set[4], set[5], set[3])
+end
+
+-- Configure refract sequentials  entries
+for idx = 1, gtREFRACT.Size do
+  local key = gtREFRACT[idx]
+  local set = gtREFRACT[key]
+  set[5] = idx
 end
 
 if(CLIENT) then

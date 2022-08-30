@@ -29,9 +29,7 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
-  local cas = LaserLib.SetClass(self,
-    "models/props_c17/furnitureshelf001b.mdl",
-    "models/dog/eyeglass")
+  local cas = LaserLib.GetClass(self.UnitID)
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(cas)

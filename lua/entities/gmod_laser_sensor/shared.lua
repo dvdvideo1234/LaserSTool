@@ -20,7 +20,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool("CheckBeamColor", "Visuals")
   self:EditableSetBool("CheckDominant" , "General")
   self:EditableSetBool("PassBeamTrough", "General")
-  LaserLib.SetClass(self,
+  LaserLib.RegisterUnit(self,
     "models/props_lab/jar01a.mdl",
     "zup/ramps/ramp_metal")
   LaserLib.Configure(self)

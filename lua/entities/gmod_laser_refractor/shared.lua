@@ -24,7 +24,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool ("HitSurfaceMode", "General")
   self:EditableSetFloat("InRefractIndex", "General", -10, 10)
   self:EditableSetFloat("InRefractRatio", "General",   0,  1)
-  LaserLib.SetClass(self,
+  LaserLib.RegisterUnit(self,
     "models/madjawa/laser_reflector.mdl",
     "models/props_combine/health_charger_glass")
   LaserLib.Configure(self)

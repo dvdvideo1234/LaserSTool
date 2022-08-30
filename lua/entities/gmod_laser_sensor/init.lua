@@ -97,9 +97,7 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
-  local cas = LaserLib.SetClass(self,
-    "models/props_lab/jar01a.mdl",
-    "zup/ramps/ramp_metal")
+  local cas = LaserLib.GetClass(self.UnitID)
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
   local ent = ents.Create(cas)

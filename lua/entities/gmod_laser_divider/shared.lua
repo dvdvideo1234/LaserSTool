@@ -24,7 +24,7 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("InPowerOn"    , "Internals")
-  LaserLib.SetClass(self,
+  LaserLib.RegisterUnit(self,
     "models/props_c17/furnitureshelf001b.mdl",
     "models/dog/eyeglass")
   LaserLib.Configure(self)

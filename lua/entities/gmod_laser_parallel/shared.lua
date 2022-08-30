@@ -25,7 +25,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamDimmer" , "General")
   self:EditableSetBool  ("LinearMapping", "General")
   self:EditableSetBool  ("InPowerOn"  , "Internals")
-  LaserLib.SetClass(self,
+  LaserLib.RegisterUnit(self,
     "models/props_c17/furnitureshelf001b.mdl",
     "models/dog/eyeglass")
   LaserLib.Configure(self)
