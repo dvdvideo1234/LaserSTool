@@ -36,9 +36,6 @@ function ENT:SetupDataTables()
   self:EditableSetStringCombo("InBeamMaterial", "Internals", material, nil, maticons)
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
-  LaserLib.RegisterUnit(self,
-    "models/props_c17/frame002a.mdl",
-    "models/props_combine/citadel_cable")
   LaserLib.Configure(self)
 end
 

@@ -22,9 +22,6 @@ function ENT:SetupDataTables()
   self:EditableSetVector("UpwardLocal"  , "General")
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorSplit","Visuals")
-  LaserLib.RegisterUnit(self,
-    "models/props_c17/pottery04a.mdl",
-    "models/dog/eyeglass")
   LaserLib.Configure(self)
 end
 
