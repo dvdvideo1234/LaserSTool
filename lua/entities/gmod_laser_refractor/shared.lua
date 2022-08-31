@@ -14,6 +14,9 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 12
+
+LaserLib.RegisterUnit(ENT, "models/madjawa/laser_reflector.mdl", "models/props_combine/health_charger_glass")
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
@@ -73,5 +76,5 @@ function ENT:GetRefractInfo(refract)
   if(self:GetZeroIndexMode()) then cpy[1] = idx
   else cpy[1] = ((idx ~= 0) and idx or refract[1]) end
   cpy[2], cpy[3] = ((rat > 0) and rat or refract[2]), nil
-  return cpy
+  return cpy -- Return modified row copy
 end

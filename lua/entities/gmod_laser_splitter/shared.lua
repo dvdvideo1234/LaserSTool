@@ -2,7 +2,7 @@ ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
 ENT.PrintName      = "Splitter Single"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
-ENT.Base           = LaserLib.GetClass(1, 1)
+ENT.Base           = LaserLib.GetClass(1)
 if(WireLib) then
   ENT.WireDebugName = ENT.Information
 end
@@ -12,6 +12,9 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 4
+
+LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyeglass")
 
 function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"  , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())

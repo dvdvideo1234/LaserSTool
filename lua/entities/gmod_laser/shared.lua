@@ -14,6 +14,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_OPAQUE
+ENT.UnitID         = 1
 
 local EFFECTDT = LaserLib.GetData("EFFECTDT")
 local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
@@ -235,7 +236,7 @@ function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
     local pos, enb = self:GetPos(), LaserLib.GetData("ENSOUNDS")
-    local cls, mcs = self:GetClass(), LaserLib.GetClass(1, 1)
+    local cls, mcs = self:GetClass(), LaserLib.GetClass(1)
     if(cls == mcs or enb:GetBool()) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())

@@ -14,6 +14,9 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 9
+
+LaserLib.RegisterUnit(ENT, "models/props_c17/frame002a.mdl", "models/props_combine/com_shield001a")
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")

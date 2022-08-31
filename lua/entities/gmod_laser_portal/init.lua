@@ -26,7 +26,7 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateOutputs(
-    {"Entity", "ENTITY", "Portal entity itself" }
+    {"Entity", "ENTITY", "Portal entity itself"}
   )
 
   -- Mirror the exit position by default
@@ -44,21 +44,18 @@ end
 
 function ENT:SpawnFunction(ply, tr)
   if(not tr.Hit) then return end
+  local cas = LaserLib.GetClass(self.UnitID)
   local gen = LaserLib.GetTool()
   local ang = LaserLib.GetAngleSF(ply)
-  local ent = ents.Create(LaserLib.GetClass(9, 1))
+  local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
-    LaserLib.SetMaterial(ent, LaserLib.GetMaterial(9))
-    LaserLib.SnapNormal(ent, tr.HitPos, tr.HitNormal, 90)
+    LaserLib.SnapNormal(ent, tr, 90)
     ent:SetAngles(ang) -- Appy angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
     ent:SetNotSolid(false)
-    if(ply:KeyDown(IN_USE)) then
-      if(not LaserLib.Replace(tr.Entity, ent)) then
-        ent:SetModel(LaserLib.GetModel(9)) end
-    else ent:SetModel(LaserLib.GetModel(9)) end
+    LaserLib.SetVisuals(ply, ent, tr)
     ent:Spawn()
     ent:SetCreator(ply)
     ent:Activate()

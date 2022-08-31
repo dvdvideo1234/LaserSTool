@@ -16,6 +16,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = false
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 0
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")

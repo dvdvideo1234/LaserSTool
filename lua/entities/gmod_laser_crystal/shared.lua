@@ -2,7 +2,7 @@ ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
 ENT.PrintName      = "Crystal"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
-ENT.Base           = LaserLib.GetClass(1, 1)
+ENT.Base           = LaserLib.GetClass(1)
 if(WireLib) then
   ENT.WireDebugName = ENT.Information
 end
@@ -11,6 +11,9 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 2
+
+LaserLib.RegisterUnit(ENT, "models/props_c17/pottery02a.mdl", "models/dog/eyeglass")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)

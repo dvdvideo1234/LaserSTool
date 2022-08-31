@@ -14,6 +14,9 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.UnitID         = 3
+
+LaserLib.RegisterUnit(ENT, "models/madjawa/laser_reflector.mdl", "debug/env_cubemap_model")
 
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
@@ -41,4 +44,11 @@ function ENT:SetReflectRatio(ratio)
   self:SetInReflectRatio(ratio)
   self:WireWrite("Ratio", ratio)
   return self
+end
+
+function ENT:GetReflectInfo(reflect)
+  local cpy = table.Copy(reflect)
+  local rat = self:GetReflectRatio()
+  cpy[1] = ((rat > 0) and rat or reflect[1])
+  return cpy -- Return modified row copy
 end
