@@ -14,6 +14,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 5
 
+LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass")
+
 function ENT:UpdateInternals()
   self.hitSize = 0 -- Add sources in array
   self.crHdx = 0 -- Current bean index

@@ -14,6 +14,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 6
 
+LaserLib.RegisterUnit(ENT, "models/props_lab/jar01a.mdl", "zup/ramps/ramp_metal")
+
 function ENT:SetupDataTables()
   self.DoBeam = nil -- Recieve beams only
   LaserLib.SetPrimary(self, true)

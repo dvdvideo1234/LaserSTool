@@ -14,6 +14,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 4
 
+LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyeglass")
+
 function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"  , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
   self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)

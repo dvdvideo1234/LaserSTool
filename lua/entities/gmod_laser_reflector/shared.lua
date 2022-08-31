@@ -16,6 +16,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 3
 
+LaserLib.RegisterUnit(ENT, "models/madjawa/laser_reflector.mdl", "debug/env_cubemap_model")
+
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 

@@ -89,22 +89,21 @@ local gtUNITS = {
   ["gmod_laser"] = true, -- This is present for hot reload. You must register yours separately
   -- These are aintended for uning configuration and pre-allocation. Used to create also convars
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
-  -- [2] Extension for folder name indices. Stores which folder are entity specific files located
-  -- [3] Extension for variable name indices. Populate this when model control variable is different
-  -- [4] Contains the current model ( last path) cashed being used for the given entity unit ID
-  -- [5] Contains the current material ( texture ) cashed being used for the given entity unit ID
-  {"gmod_laser"          , nil , nil, nil, nil}, -- Laser entity class `PriarySource`
-  {"gmod_laser_crystal"  , nil , nil, "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal class `EveryBeam`
-  {"gmod_laser_reflector", nil , nil, "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , nil , nil, "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser beam splitter `EveryBeam`
-  {"gmod_laser_divider"  , nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam divider `DoBeam`
-  {"gmod_laser_sensor"   , nil , nil, "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- Laser beam sensor `EveryBeam`
-  {"gmod_laser_dimmer"   , nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam dimmer `DoBeam`
-  {"gmod_laser_splitterm", nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam splitter multy `EveryBeam`
-  {"gmod_laser_portal"   , nil , nil, "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , nil , nil, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam parallel `DoBeam`
-  {"gmod_laser_filter"   , nil , nil, "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser beam filter `DoBeam`
-  {"gmod_laser_refractor", nil , nil, "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser beam refractor `DoBeam`
+  -- [2] Extension for folder and variable name indices. Stores which folder are entity specific files located
+  -- [3] Contains the current model ( last path) cashed being used for the given entity unit ID
+  -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
+  {"gmod_laser"          , nil, nil, nil}, -- Laser entity class `PriarySource`
+  {"gmod_laser_crystal"  , nil, "", ""}, -- Laser crystal class `EveryBeam`
+  {"gmod_laser_reflector", nil, "", ""}, -- Laser reflectors class `DoBeam`
+  {"gmod_laser_splitter" , nil, "", ""}, -- Laser beam splitter `EveryBeam`
+  {"gmod_laser_divider"  , nil, "", ""}, -- Laser beam divider `DoBeam`
+  {"gmod_laser_sensor"   , nil, "", ""}, -- Laser beam sensor `EveryBeam`
+  {"gmod_laser_dimmer"   , nil, "", ""}, -- Laser beam dimmer `DoBeam`
+  {"gmod_laser_splitterm", nil, "", ""}, -- Laser beam splitter multy `EveryBeam`
+  {"gmod_laser_portal"   , nil, "", ""}, -- Laser beam portal  `DoBeam`
+  {"gmod_laser_parallel" , nil, "", ""}, -- Laser beam parallel `DoBeam`
+  {"gmod_laser_filter"   , nil, "", ""}, -- Laser beam filter `DoBeam`
+  {"gmod_laser_refractor", nil, "", ""}  -- Laser beam refractor `DoBeam`
 }; gtUNITS.Size = #gtUNITS
 
 local gtCOLOR = {
@@ -196,6 +195,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   -- [2] : Medium refraction rating when the beam goes through reduces its power
   -- [3] : Which index is the material found at when it is searched in array part
   -- [4] : What contents does the specified index match when requested position checked
+  -- [5] : Reverse integer index for serch for medium contents sequential order
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
@@ -230,6 +230,15 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Dark glass other
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; gtREFRACT.Size = #gtREFRACT
+
+-- Configure refract sequentials  entries
+for idx = 1, gtREFRACT.Size do
+  local key = gtREFRACT[idx]; if(not key) then
+    error("Refraction key missing: "..idx) end
+  local set = gtREFRACT[key]; if(not set) then
+    error("Refraction set missing: "..key) end
+  set[5] = idx -- Store ID for reverse indexing
+end
 
 --[[
  * Material configuration to use when override is missing
@@ -409,24 +418,21 @@ function LaserLib.GetClass(iR)
   return (tU and tU[1] or nil)
 end
 
-function LaserLib.GetFolder(iR)
+function LaserLib.GetSuffix(iR)
   local tU = gtUNITS[tonumber(iR) or 0]
   return (tU and tU[2] or nil)
 end
 
-function LaserLib.GetSuffix(iR)
+function LaserLib.GetModel(iR, vR)
   local tU = gtUNITS[tonumber(iR) or 0]
+  if(tU and vR) then tU[3] = vR end
   return (tU and tU[3] or nil)
 end
 
-function LaserLib.GetModel(iR)
+function LaserLib.GetMaterial(iR, vR)
   local tU = gtUNITS[tonumber(iR) or 0]
+  if(tU and vR) then tU[4] = vR end
   return (tU and tU[4] or nil)
-end
-
-function LaserLib.GetMaterial(iR)
-  local tU = gtUNITS[tonumber(iR) or 0]
-  return (tU and tU[5] or nil)
 end
 
 --[[
@@ -661,16 +667,16 @@ end
 
 --[[
  * Register unit configuration index as unit ID
- * unit > Unit entity class source folder `ENT.Folder`
+ * uent > Unit entity class source folder `ENT`
  * mdef > Default convar model value
  * vdef > Default convar material value
  * conv > When provided used for convar prefix
 ]]
-function LaserLib.RegisterUnit(cunit, iunit, mdef, vdef, conv)
+function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   -- Is index is provided populate model and create convars
-  local indx = (tonumber(iunit) or 0); if(indx <= 1) then
+  local indx = (tonumber(uent.UnitID) or 0); if(indx <= 1) then
     error("Index invalid: "..tostring(iunit)) end
-  local usrc = tostring(cunit or ""); if(usrc == "") then
+  local usrc = tostring(uent.Folder or ""); if(usrc == "") then
     error("Name invalid: "..tostring(cunit)) end
   local ocas = LaserLib.GetClass(1); if(ocas == "") then
     error("Base empty: "..tostring(ocas)) end
@@ -681,33 +687,33 @@ function LaserLib.RegisterUnit(cunit, iunit, mdef, vdef, conv)
   local vset = gtUNITS[indx] -- Attempt to index class info
   if(not vset or (vset and not vset[2])) then -- Empty table
     -- Allocate calss configuration. Make it accessible to the library
-    -- >> gmod_laser_reflector  reflector nil models/madjawa/laser_reflector.mdl  debug/env_cubemap_model
-    -- print(">>", ucas, udrr, conv, mdef, vdef)
-    local vset = {ucas, udrr, conv, mdef, vdef}; gtUNITS[indx] = vset -- Index variable name
-    local vidx = tostring(vset[3] or vset[2]); vset[2] = vidx -- Extract variable suffix
+    local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
+    local vset = {ucas, vidx, mdef, vdef}; gtUNITS[indx] = vset -- Index variable name
     -- Configure arrays and corresponding console variables
-    local vaum, vauv = ("mu"..vidx:lower()), ("vu"..vidx:lower())
-    local varm = CreateConVar(DATA.TOOL.."_"..vaum, tostring(mdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." model")
-    local varv = CreateConVar(DATA.TOOL.."_"..vauv, tostring(vdef or ""):lower(), DATA.FGSRVCN, "Controls the "..udrr.." material")
+    local vmod = tostring(mdef or ""):lower()
+    local vmat = tostring(vdef or ""):lower()
+    local vaum, vauv = ("mu"..vidx), ("vu"..vidx)
+    local varm = CreateConVar(DATA.TOOL.."_"..vaum, vmod, DATA.FGSRVCN, "Controls the "..udrr.." model")
+    local varv = CreateConVar(DATA.TOOL.."_"..vauv, vmat, DATA.FGSRVCN, "Controls the "..udrr.." material")
     DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
     -- Configure model visual
     local vanm = varm:GetName()
     cvars.RemoveChangeCallback(vanm, vanm)
     cvars.AddChangeCallback(vanm, function(name, o, n)
       local m = tostring(n):Trim()
-      if(m:sub(1,1) ~= DATA.KEYD) then vset[4] = m else
-        vset[4] = varm:GetDefault(); varm:SetString(vset[4])
+      if(m:sub(1,1) ~= DATA.KEYD) then LaserLib.GetModel(indx, m) else
+        varm:SetString(LaserLib.GetModel(indx, varm:GetDefault()))
       end -- Update current model at index [4]
-    end, vanm); vset[4] = varm:GetString():lower()
+    end, vanm); LaserLib.GetModel(indx, varm:GetString():lower())
     -- Configure material visual
     local vanv = varv:GetName()
     cvars.RemoveChangeCallback(vanv, vanv)
     cvars.AddChangeCallback(vanv, function(name, o, n)
       local v = tostring(n):Trim()
-      if(v:sub(1,1) ~= DATA.KEYD) then vset[5] = v else
-        vset[5] = varv:GetDefault(); varv:SetString(vset[5])
+      if(v:sub(1,1) ~= DATA.KEYD) then LaserLib.GetMaterial(indx, v) else
+        varv:SetString(LaserLib.GetMaterial(indx, varv:GetDefault()))
       end -- Update current material at index [5]
-    end, vanv); vset[5] = varv:GetString():lower()
+    end, vanv); LaserLib.GetMaterial(indx, varv:GetString():lower())
     -- Return the class extracted from folder
     return ucas -- This is passd to `ents.Create`
   else -- The class is already present so return it
@@ -1896,10 +1902,10 @@ if(SERVER) then
    * Configures visuals material and model for a unit
    * ply > Entity class unit owner or the player
    * ent > The actual entity class unit spawned
-   * tr  > Reference to trace result structure
+   * trc > Reference to trace result structure
   ]]
-  function LaserLib.SetVisuals(ply, ent, tr)
-    local tre, idx = tr.Entity, ent.UnitID
+  function LaserLib.SetVisuals(ply, ent, trc)
+    local tre, idx = trc.Entity, ent.UnitID
     if(ply:KeyDown(IN_USE)) then -- When replacing
       if(LaserLib.IsValid(tre) and not -- Use valid stuff
          LaserLib.IsOther(tre) and -- Use valid physics
@@ -2060,7 +2066,7 @@ if(SERVER) then
     laser:SetNotSolid(false)
     laser:SetPos(pos)
     laser:SetAngles(ang)
-    laser:SetModel(Model(model)); gtUNITS[1][4] = model
+    laser:SetModel(LaserLib.GetModel(1, Model(model)))
     laser:Spawn()
     laser:SetCreator(user)
     laser:Setup(width      , length      , damage    , material   , dissolveType,
@@ -3964,18 +3970,6 @@ function LaserLib.SetupSoundEffects()
   end
 
   table.Empty(list.GetForEdit("LaserSounds"))
-end
-
--- Configure units. Create variable and meterials
-for idx = 2, gtUNITS.Size do local set = gtUNITS[idx]
-  LaserLib.RegisterUnit(set[1], idx, set[4], set[5], set[3])
-end
-
--- Configure refract sequentials  entries
-for idx = 1, gtREFRACT.Size do
-  local key = gtREFRACT[idx]
-  local set = gtREFRACT[key]
-  set[5] = idx
 end
 
 if(CLIENT) then

@@ -13,6 +13,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 2
 
+LaserLib.RegisterUnit(ENT, "models/props_c17/pottery02a.mdl", "models/dog/eyeglass")
+
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
   self:EditableSetBool("BeamColorMerge","Visuals")

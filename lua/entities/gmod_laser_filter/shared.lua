@@ -16,6 +16,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 11
 
+LaserLib.RegisterUnit(ENT, "models/props_c17/frame002a.mdl", "models/props_combine/citadel_cable")
+
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
