@@ -1905,21 +1905,21 @@ if(SERVER) then
    * trc > Reference to trace result structure
   ]]
   function LaserLib.SetVisuals(ply, ent, trc)
+    local vmo = false
     local tre, idx = trc.Entity, ent.UnitID
     if(ply:KeyDown(IN_USE)) then -- When replacing
+      local cre = tre:GetCreator()
       if(LaserLib.IsValid(tre) and not -- Use valid stuff
          LaserLib.IsOther(tre) and -- Use valid physics
-         tre:GetCreator() == ply) -- Use your own stuff
-      then -- Use the trace valid model as a unit
-        ent:SetPos(tre:GetPos()) -- Use trace position
-        ent:SetAngles(tre:GetAngles()) -- Use trace angle
-        ent:SetModel(tre:GetModel()); tre:Remove()
-        LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
-      else
-        ent:SetModel(LaserLib.GetModel(idx))
-        LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
-      end
-    else
+         (cre == ply or cre == NULL)) -- Use your own stuff
+      then vmo = true end -- Update the conditions flag
+    end -- Check the conditions flag and apply changes
+    if(vmo) then -- Use the trace valid model as a unit
+      ent:SetPos(tre:GetPos()) -- Use trace position
+      ent:SetAngles(tre:GetAngles()) -- Use trace angle
+      ent:SetModel(tre:GetModel()); tre:Remove()
+      LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
+    else -- Conditions are not met so work normally
       ent:SetModel(LaserLib.GetModel(idx))
       LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
     end
