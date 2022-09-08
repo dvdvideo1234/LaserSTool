@@ -1547,11 +1547,11 @@ end
  * bdegr  > Return the result in degrees
 ]]
 function LaserLib.GetRefractAngle(source, destin, bdegr)
-  local mar = source / destin -- Calculate ratio
-  if(math.abs(mar) > 1) then mar = 1 / mar end
+  local mar = (source / destin) -- Calculate ref ratio
+  if(math.abs(mar) > 1) then mar = 1 / mar end -- Reverse
   local arg = math.asin(mar) -- Calculate sine argument
-  if(bdegr) then arg = math.deg(arg) end
-  return arg -- The medium border angle
+  if(not bdegr) then return arg end -- Return radians
+  return math.deg(arg) -- Do some extra work for degrees
 end
 
 --[[
