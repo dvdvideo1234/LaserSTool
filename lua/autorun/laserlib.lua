@@ -145,6 +145,7 @@ local gtREFLECT = { -- Reflection descriptor
   -- User for general class control
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the material found at when it is searched in array part
+  -- [3] : Reverse integer index for serch for medium contents sequential order
   [""]                                   = false, -- Disable empty materials
   ["**empty**"]                          = false, -- Disable empty world materials
   ["**studio**"]                         = false, -- Disable empty prop materials
@@ -202,10 +203,10 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
-  ["air"]                                       = {1.000, 1.000, "air"}, -- Air refraction index
-  ["water"]                                     = {1.333, 0.955, "water", CONTENTS_WATER}, -- Water refraction index
-  ["slime"]                                     = {1.387, 0.731, "slime", CONTENTS_SLIME}, -- Slime refraction index
-  ["glass"]                                     = {1.521, 0.999, "glass", CONTENTS_WINDOW}, -- Glass refraction index
+  ["air"]                                       = {1.000, 1.000, "air"        , CONTENTS_EMPTY      }, -- Air refraction index
+  ["water"]                                     = {1.333, 0.955, "water"      , CONTENTS_WATER      }, -- Water refraction index
+  ["slime"]                                     = {1.387, 0.731, "slime"      , CONTENTS_SLIME      }, -- Slime refraction index
+  ["glass"]                                     = {1.521, 0.999, "glass"      , CONTENTS_WINDOW     }, -- Glass refraction index
   ["translucent"]                               = {1.437, 0.575, "translucent", CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
@@ -287,34 +288,40 @@ end
  * data > Data set for reflect or refract being validated
  * size > Search array size that is being forced on the check
 ]]
-local function SetupMaterials(data, size)
+local function SetupMaterialsDataset(data, size)
   -- Validate default key
-  local key, set = data[DATA.KEYD]
-  local siz = tonumber(size) or data.Size
+  local key, set, num = data[DATA.KEYD]
+  local siz = (tonumber(size) or data.Size)
   -- Check forced size and compare with internal
-  if(size < 0) then
-    error("Search array lenght negative") end
-  if(math.ceil(size) ~= math.floor(size)) then
-    error("Search array lenght fractional") end
-  if(siz ~= size) then
-    error("Search array lenght mismatch") end
-  if(not key) then
+  if(not key) then -- Check default key presence
     error("Default key index missing")
-  else
-    if(not data[key]) then
+  else -- Check default key configuration
+    if(not data[key]) then -- Not present
       error("Default key entry missing") end
-  end
-  -- Configure refract sequentials  entries
-  for idx = 1, size do
-    key = data[idx]; if(not key) then
-      error("Refraction key missing: "..idx) end
-    set = data[key]; if(not set) then
-      error("Refraction set missing: "..key) end
-    for k, v in pairs(set) do
-      if(v == key) then set[5] = idx; break; end
-    end -- Store ID for reverse indexing
-    if(not set[5]) then
-      error("Internal match key missing: "..key) end
+  end -- Default key is confugured correctly
+  -- There is data in the sequential part
+  if(data.Size and data.Size > 0) then
+    if(siz < 0) then -- Size is invalid
+      error("Search array lenght negative") end
+    if(math.ceil(siz) ~= math.floor(siz)) then
+      error("Search array lenght fractional") end
+    if(siz ~= data.Size) then
+      error("Search array lenght mismatch") end
+    -- Configure refract sequentials  entries
+    for idx = 1, siz do
+      key = data[idx]; if(not key) then
+        error("Dataset key missing: "..idx) end
+      set = data[key]; if(not set) then
+        error("Dataset set missing: "..key) end
+      if(not num) then num = #set end
+      -- Store ID for reverse indexing
+      for idn = 1, num do
+        if(key == set[idn]) then
+          set[num + 1] = idx; break; end
+      end -- Check if ID is stored correctly
+      if(not set[num + 1]) then
+        error("Internal match key missing: "..key) end
+    end
   end
 end
 
@@ -329,10 +336,10 @@ end
  * https://github.com/RafaelDeJongh/cap/blob/master/lua/stargate/shared/tracelines.lua
 ]]
 local function TraceCAP(origin, direct, length, filter)
-  if(StarGate ~= nil) then
+  if(StarGate) then
     gtTRACE.start:Set(origin) -- By default CAP uses origin position ray
     gtTRACE.endpos:Set(direct) -- By default CAP uses direction ray length
-    if(length ~= nil and length > 0) then -- Lenght is available. Use it instead
+    if(length and length > 0) then -- Lenght is available. Use it instead
       gtTRACE.endpos:Normalize() -- Normalize ending position
       gtTRACE.endpos:Mul(length) -- Scale using the external length
     end -- The data is ready as the CAP trace accepts it and call the thing
@@ -365,7 +372,7 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   end -- Utilize direction length when not provided
   gtTRACE.endpos:Add(origin)
   gtTRACE.filter = filter
-  if(width ~= nil and width > 0) then
+  if(width and width > 0) then
     local m = width / 2
     gtTRACE.funct = util.TraceHull
     gtTRACE.mins:SetUnpacked(-m, -m, -m)
@@ -377,22 +384,22 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
       gtTRACE.funct = util.TraceLine
     end -- Use the original no detour trace line
   end
-  if(mask ~= nil) then
+  if(mask) then
     gtTRACE.mask = mask
   else -- Default trace mask
     gtTRACE.mask = MASK_SOLID
   end
-  if(iworld ~= nil) then
+  if(iworld) then
     gtTRACE.ignoreworld = iworld
   else -- Default world ignore
     gtTRACE.ignoreworld = false
   end
-  if(colgrp ~= nil) then
+  if(colgrp) then
     gtTRACE.collisiongroup = colgrp
   else -- Default collision group
     gtTRACE.collisiongroup = COLLISION_GROUP_NONE
   end
-  if(result ~= nil) then
+  if(result) then
     gtTRACE.output = result
     gtTRACE.funct(gtTRACE)
     gtTRACE.output = nil
@@ -1995,7 +2002,7 @@ if(SERVER) then
 
   function LaserLib.DoSound(target, noise)
     if(not LaserLib.IsValid(target)) then return end
-    if(noise ~= nil and (target:Health() > 0 or target:IsPlayer())) then
+    if(noise and (target:Health() > 0 or target:IsPlayer())) then
       sound.Play(noise, target:GetPos())
       target:EmitSound(Sound(noise))
     end
@@ -4028,5 +4035,5 @@ if(CLIENT) then
   end)
 end
 
-SetupMaterials(gtREFRACT, 5)
-SetupMaterials(gtREFLECT, 7)
+SetupMaterialsDataset(gtREFRACT, 5)
+SetupMaterialsDataset(gtREFLECT, 7)
