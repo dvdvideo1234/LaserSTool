@@ -145,7 +145,7 @@ function ENT:EveryBeam(entity, index, beam, trace)
     local upwrd = Vector(self:GetUpwardLocal())
           upwrd:Rotate(self:GetAngles())
     local bsdir = Vector(trace.HitNormal)
-    local bmorg = trace.HitPos; LaserLib.VecNegate(bsdir)
+    local bmorg = trace.HitPos; bsdir:Negate()
     local mrdotm = math.abs(beam.VrDirect:Dot(bsdir))
     local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
     local angle, count = bsdir:AngleEx(upwrd), self.crCount

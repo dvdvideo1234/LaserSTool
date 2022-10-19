@@ -23,6 +23,9 @@ DATA.TRWU = 50000            -- The distance to trace for finding water surface
 DATA.FMVA = "%f,%f,%f"       -- Utilized to print vector in proper manner
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
+DATA.WVIS = { 380, 750}      -- General wavelength limists for visible light
+DATA.WMAP = {  20,   5}      -- Dispersion wavelenght mapping for refractive index
+DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
 DATA.BBONC = 0               -- External forced beam max bounces. Resets on every beam
 DATA.BLENG = 0               -- External forced beam length used in the current request
 DATA.BESRC = nil             -- External forced entity source for the beam update
@@ -142,6 +145,7 @@ local gtREFLECT = { -- Reflection descriptor
   -- User for general class control
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the material found at when it is searched in array part
+  -- [3] : Reverse integer index for serch for medium contents sequential order
   [""]                                   = false, -- Disable empty materials
   ["**empty**"]                          = false, -- Disable empty world materials
   ["**studio**"]                         = false, -- Disable empty prop materials
@@ -191,7 +195,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   -- Used for prop updates and checks
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control
-  -- [1] : Medium refraction index for the material specified
+  -- [1] : Medium refraction index for the material specified by sodium line
   -- [2] : Medium refraction rating when the beam goes through reduces its power
   -- [3] : Which index is the material found at when it is searched in array part
   -- [4] : What contents does the specified index match when requested position checked
@@ -199,10 +203,10 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
-  ["air"]                                       = {1.000, 1.000, "air"}, -- Air refraction index
-  ["water"]                                     = {1.333, 0.955, "water", CONTENTS_WATER}, -- Water refraction index
-  ["slime"]                                     = {1.387, 0.731, "slime", CONTENTS_SLIME}, -- Slime refraction index
-  ["glass"]                                     = {1.521, 0.999, "glass", CONTENTS_WINDOW}, -- Ordinary glass
+  ["air"]                                       = {1.000, 1.000, "air"        , CONTENTS_EMPTY      }, -- Air refraction index
+  ["water"]                                     = {1.333, 0.955, "water"      , CONTENTS_WATER      }, -- Water refraction index
+  ["slime"]                                     = {1.387, 0.731, "slime"      , CONTENTS_SLIME      }, -- Slime refraction index
+  ["glass"]                                     = {1.521, 0.999, "glass"      , CONTENTS_WINDOW     }, -- Glass refraction index
   ["translucent"]                               = {1.437, 0.575, "translucent", CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
@@ -230,15 +234,6 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Dark glass other
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; gtREFRACT.Size = #gtREFRACT
-
--- Configure refract sequentials  entries
-for idx = 1, gtREFRACT.Size do
-  local key = gtREFRACT[idx]; if(not key) then
-    error("Refraction key missing: "..idx) end
-  local set = gtREFRACT[key]; if(not set) then
-    error("Refraction set missing: "..key) end
-  set[5] = idx -- Store ID for reverse indexing
-end
 
 --[[
  * Material configuration to use when override is missing
@@ -289,16 +284,59 @@ else
 end
 
 --[[
+ * Checks and setups the material set of type reflect or refract
+ * data > Data set for reflect or refract being validated
+ * size > Search array size that is being forced on the check
+]]
+local function SetupMaterialsDataset(data, size)
+  -- Validate default key
+  local key, set, num = data[DATA.KEYD]
+  local siz = (tonumber(size) or data.Size)
+  -- Check forced size and compare with internal
+  if(not key) then -- Check default key presence
+    error("Default key index missing")
+  else -- Check default key configuration
+    if(not data[key]) then -- Not present
+      error("Default key entry missing") end
+  end -- Default key is confugured correctly
+  -- There is data in the sequential part
+  if(data.Size and data.Size > 0) then
+    if(siz < 0) then -- Size is invalid
+      error("Search array lenght negative") end
+    if(math.ceil(siz) ~= math.floor(siz)) then
+      error("Search array lenght fractional") end
+    if(siz ~= data.Size) then
+      error("Search array lenght mismatch") end
+    -- Configure refract sequentials  entries
+    for idx = 1, siz do
+      key = data[idx]; if(not key) then
+        error("Dataset key missing: "..idx) end
+      set = data[key]; if(not set) then
+        error("Dataset set missing: "..key) end
+      if(not num) then num = #set end
+      -- Store ID for reverse indexing
+      for idn = 1, num do
+        if(key == set[idn]) then
+          set[num + 1] = idx; break; end
+      end -- Check if ID is stored correctly
+      if(not set[num + 1]) then
+        error("Internal match key missing: "..key) end
+    end
+  end
+end
+
+--[[
  * Performs CAP dedicated traces. Will return result
  * only when CAP hits its dedicated entities
  * origin > Trace origin as world position vector
  * direct > Trace direction as world aim vector
  * length > Trace length in source units
  * filter > Trace filter as standard config
+ * https://github.com/RafaelDeJongh/cap/pull/108
  * https://github.com/RafaelDeJongh/cap/blob/master/lua/stargate/shared/tracelines.lua
 ]]
 local function TraceCAP(origin, direct, length, filter)
-  if(StarGate ~= nil) then
+  if(StarGate) then
     gtTRACE.start:Set(origin) -- By default CAP uses origin position ray
     gtTRACE.endpos:Set(direct) -- By default CAP uses direction ray length
     if(length and length > 0) then -- Lenght is available. Use it instead
@@ -334,7 +372,7 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   end -- Utilize direction length when not provided
   gtTRACE.endpos:Add(origin)
   gtTRACE.filter = filter
-  if(width ~= nil and width > 0) then
+  if(width and width > 0) then
     local m = width / 2
     gtTRACE.funct = util.TraceHull
     gtTRACE.mins:SetUnpacked(-m, -m, -m)
@@ -346,22 +384,22 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
       gtTRACE.funct = util.TraceLine
     end -- Use the original no detour trace line
   end
-  if(mask ~= nil) then
+  if(mask) then
     gtTRACE.mask = mask
   else -- Default trace mask
     gtTRACE.mask = MASK_SOLID
   end
-  if(iworld ~= nil) then
+  if(iworld) then
     gtTRACE.ignoreworld = iworld
   else -- Default world ignore
     gtTRACE.ignoreworld = false
   end
-  if(colgrp ~= nil) then
+  if(colgrp) then
     gtTRACE.collisiongroup = colgrp
   else -- Default collision group
     gtTRACE.collisiongroup = COLLISION_GROUP_NONE
   end
-  if(result ~= nil) then
+  if(result) then
     gtTRACE.output = result
     gtTRACE.funct(gtTRACE)
     gtTRACE.output = nil
@@ -401,13 +439,6 @@ function LaserLib.GetZeroTransform()
   return DATA.VZERO, DATA.AZERO
 end
 
-function LaserLib.VecNegate(vec)
-  vec.x = -vec.x
-  vec.y = -vec.y
-  vec.z = -vec.z
-  return vec
-end
-
 --[[
  * Reads entity unit value from the list
  * iR > Row index. Same as the entity unit ID
@@ -445,6 +476,23 @@ function LaserLib.Clear(arr, idx)
   local idx = math.floor(tonumber(idx) or 1)
   if(idx <= 0) then return end
   while(arr[idx]) do idx, arr[idx] = (idx + 1) end
+end
+
+--[[
+ * Remaps refraction index according to material sodium line
+ * Returns the dynamic refraction index based on wavelength
+ * This is mainly used for calculating component light dispersion
+ * wave > Wavelength of the input beam traversing the medium
+ * nidx > Wavelenght for the sodium line according to the material
+ * https://en.wikipedia.org/wiki/List_of_refractive_indices
+ * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
+]]
+function LaserLib.GetIndex(wave, nidx)
+  local wr, mr, ms = DATA.WVIS, DATA.WMAP, DATA.SOMR
+  local s = math.Remap(DATA.SODD, wr[1], wr[2], mr[1], mr[2])
+  local x = math.Remap(wave, wr[1], wr[2], mr[1], mr[2])
+  local h = -math.log(s) / ms -- Index `nidx` for sodium line
+  return (-math.log(x) / ms - h) + nidx
 end
 
 --[[
@@ -1569,8 +1617,8 @@ end
 function LaserLib.GetRefracted(direct, normal, source, destin)
   local inc = direct:GetNormalized() -- Read normalized copy or incident
   if(source == destin) then return inc, true, true end -- Continue out medium
-  local nrm = Vector(normal) -- Always normalized. Call copy-constructor
-  local vcr = inc:Cross(LaserLib.VecNegate(nrm)) -- Sine: |i||n|sin(i^n)
+  local nrm = Vector(normal); nrm:Negate()  -- Call copy-constructor
+  local vcr = inc:Cross(nrm) -- Always normalized. Sine: |i||n|sin(i^n)
   local ang, sii = nrm:AngleEx(vcr), vcr:Length()
   local mar = (sii * source) / destin -- Apply Snell's law
   if(math.abs(mar) <= 1) then -- Valid angle available
@@ -1663,8 +1711,7 @@ local function GetContentsID(cont)
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
     if(row) then local conr = row[4]; if(conr and conr > 0) then
-      if(LaserLib.InContent(cont, conr)) then return idx end end
-    else error("Entry missing".."["..idx.."]: "..key) end
+      if(LaserLib.InContent(cont, conr)) then return idx end end end
   end; return nil -- The contents did not get matched to entry
 end
 
@@ -1809,10 +1856,8 @@ end
 function LaserLib.SnapNormal(base, trrs, angle)
   local ang = trrs.HitNormal:Angle()
         ang:RotateAroundAxis(ang:Right(), -angle)
-  local dir = LaserLib.GetBeamDirection(base, angle)
-        LaserLib.VecNegate(dir)
-  local org = LaserLib.GetBeamOrigin(base, dir)
-        LaserLib.VecNegate(org)
+  local dir = LaserLib.GetBeamDirection(base, angle); dir:Negate()
+  local org = LaserLib.GetBeamOrigin(base, dir); org:Negate()
   dir:Rotate(ang); org:Rotate(ang); org:Add(trrs.HitPos)
   base:SetPos(org); base:SetAngles(ang)
 end
@@ -1858,13 +1903,13 @@ end
  * direct > The model offset beam direct parameterization
 ]]
 function LaserLib.SnapCustom(base, trrs, origin, direct)
-  local dir = Vector(direct); LaserLib.VecNegate(dir)
+  local dir = Vector(direct); dir:Negate()
   local ang, tra = Angle(), trrs.HitNormal:Angle()
   local pos = LaserLib.GetBeamOrigin(base, dir)
   ang:Set(LaserLib.GetCustomAngle(base, direct))
   tra:RotateAroundAxis(tra:Right(), -90)
   ang:Set(base:AlignAngles(base:LocalToWorldAngles(ang), tra))
-  pos:Rotate(ang); LaserLib.VecNegate(pos); pos:Add(trrs.HitPos)
+  pos:Rotate(ang); pos:Negate(); pos:Add(trrs.HitPos)
   base:SetPos(pos); base:SetAngles(ang)
 end
 
@@ -1957,7 +2002,7 @@ if(SERVER) then
 
   function LaserLib.DoSound(target, noise)
     if(not LaserLib.IsValid(target)) then return end
-    if(noise ~= nil and (target:Health() > 0 or target:IsPlayer())) then
+    if(noise and (target:Health() > 0 or target:IsPlayer())) then
       sound.Play(noise, target:GetPos())
       target:EmitSound(Sound(noise))
     end
@@ -2684,7 +2729,7 @@ function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
   self.VrOrigin:Set(direct)
   self.VrOrigin:Mul(self.DmRfract)
   self.VrOrigin:Add(origin)
-  LaserLib.VecNegate(self.VrDirect)
+  self.VrDirect:Negate()
   -- Must trace only this entity otherwise invalid
   self.TeFilter = function(ent) return (ent == target) end
   self.NvIWorld = true -- We are interested only in the refraction entity
@@ -2769,7 +2814,7 @@ function mtBeam:SetTraceNext(origin, direct)
   self.VrOrigin:Set(direct)
   self.VrOrigin:Mul(self.DmRfract)
   self.VrOrigin:Add(origin)
-  LaserLib.VecNegate(self.VrDirect)
+  self.VrDirect:Negate()
   return self -- Coding effective API
 end
 
@@ -2827,11 +2872,11 @@ end
 function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit outside the water
   local wat = self:GetWater() -- Local reference indexing water
-  local vtm = self.__vtorg; LaserLib.VecNegate(self.VrDirect)
+  local vtm = self.__vtorg; self.VrDirect:Negate()
   local vwa = self:IntersectRaySurface(wat.P, wat.N)
   -- Registering the node cannot be done with direct subtraction
-  LaserLib.VecNegate(self.VrDirect); self:RegisterNode(vwa, true)
-  vtm:Set(wat.N); LaserLib.VecNegate(vtm)
+  self.VrDirect:Negate(); self:RegisterNode(vwa, true)
+  vtm:Set(wat.N); vtm:Negate()
   local vdir, bnex = LaserLib.GetRefracted(self.VrDirect, vtm,
                        mtBeam.W[1][1], mtBeam.A[1][1])
   if(bnex) then
@@ -3396,7 +3441,7 @@ local gtACTORS = {
       local vdot = (ent:GetBeamDimmer() and mdot or 1)
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
-      beam.VrDirect:Set(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
+      beam.VrDirect:Set(trace.HitNormal); beam.VrDirect:Negate()
       beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the parallel
     end
   end,
@@ -3555,7 +3600,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           if(not encon) then -- Ask souce engine for water position origin
             beam:SetMediumSours(mtBeam.A) -- Contents is not water and surface is missing
           end -- Negate the normal so it must point inwards before refraction
-          LaserLib.VecNegate(trace.HitNormal); LaserLib.VecNegate(beam.VrDirect)
+          trace.HitNormal:Negate(); beam.VrDirect:Negate()
           -- Make sure to pick the correct refract exit medium for current node
           if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
             -- Refract the hell out of this requested beam with entity destination
@@ -3617,7 +3662,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             beam.IsTrace = true -- Produce next ray
             -- Make sure that outer trace will always hit
             local org, nrm = beam:GetNudge(trace.LengthLS + DATA.NUGE)
-            LaserLib.VecNegate(beam.VrDirect)
+            beam.VrDirect:Negate()
             -- Margin multiplier for trace back to find correct surface normal
             -- This is the only way to get the proper surface normal vector
             local tr = TraceBeam(org, beam.VrDirect, 2 * DATA.NUGE,
@@ -3625,7 +3670,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             -- Store hit position and normal in beam temporary
             local nrm = Vector(tr.HitNormal); org:Set(tr.HitPos)
             -- Reverse direction of the normal to point inside transparent
-            LaserLib.VecNegate(nrm); LaserLib.VecNegate(beam.VrDirect)
+            nrm:Negate(); beam.VrDirect:Negate()
             -- Do the refraction according to medium boundary
             if(not beam:IsTraverse(org, nil, nrm, target)) then
               local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
@@ -3989,3 +4034,6 @@ if(CLIENT) then
       end
   end)
 end
+
+SetupMaterialsDataset(gtREFRACT, 5)
+SetupMaterialsDataset(gtREFLECT, 7)
