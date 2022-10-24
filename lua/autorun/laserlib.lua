@@ -149,13 +149,13 @@ local gtREFLECT = { -- Reflection descriptor
   [""]                                   = false, -- Disable empty materials
   ["**empty**"]                          = false, -- Disable empty world materials
   ["**studio**"]                         = false, -- Disable empty prop materials
-  ["cubemap"]                            = {0.999, "cubemap"},
-  ["reflect"]                            = {0.999, "reflect"},
-  ["mirror"]                             = {0.999, "mirror" },
-  ["chrome"]                             = {0.955, "chrome" },
-  ["shiny"]                              = {0.854, "shiny"  },
-  ["white"]                              = {0.342, "white"  },
-  ["metal"]                              = {0.045, "metal"  },
+  ["cubemap"]                            = {0.999, Key = "cubemap"},
+  ["reflect"]                            = {0.999, Key = "reflect"},
+  ["mirror"]                             = {0.999, Key = "mirror" },
+  ["chrome"]                             = {0.955, Key = "chrome" },
+  ["shiny"]                              = {0.854, Key = "shiny"  },
+  ["white"]                              = {0.342, Key = "white"  },
+  ["metal"]                              = {0.045, Key = "metal"  },
   -- Materials that are overridden and directly hash searched
   ["models/shiny"]                       = {0.873},
   ["wtp/chrome_1"]                       = {0.955},
@@ -203,11 +203,11 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
-  ["air"]                                       = {1.000, 1.000, "air"        , CONTENTS_EMPTY      }, -- Air refraction index
-  ["water"]                                     = {1.333, 0.955, "water"      , CONTENTS_WATER      }, -- Water refraction index
-  ["slime"]                                     = {1.387, 0.731, "slime"      , CONTENTS_SLIME      }, -- Slime refraction index
-  ["glass"]                                     = {1.521, 0.999, "glass"      , CONTENTS_WINDOW     }, -- Glass refraction index
-  ["translucent"]                               = {1.437, 0.575, "translucent", CONTENTS_TRANSLUCENT}, -- Translucent stuff
+  ["air"]                                       = {1.000, 1.000, Key = "air"        , Con = CONTENTS_EMPTY      }, -- Air refraction index
+  ["water"]                                     = {1.333, 0.955, Key = "water"      , Con = CONTENTS_WATER      }, -- Water refraction index
+  ["slime"]                                     = {1.387, 0.731, Key = "slime"      , Con = CONTENTS_SLIME      }, -- Slime refraction index
+  ["glass"]                                     = {1.521, 0.999, Key = "glass"      , Con = CONTENTS_WINDOW     }, -- Glass refraction index
+  ["translucent"]                               = {1.437, 0.575, Key = "translucent", Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
@@ -238,6 +238,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
 --[[
  * Material configuration to use when override is missing
  * Acts like a reference key jump for to the REFLECT set
+ * Convert all numbers to strings to preven memory leaks
  * https://wiki.facepunch.com/gmod/Enums/MAT
 ]]
 local gtMATYPE = {
@@ -290,13 +291,13 @@ end
 ]]
 local function SetupMaterialsDataset(data, size)
   -- Validate default key
-  local key, set, num = data[DATA.KEYD]
+  local key, set = data[DATA.KEYD]
   local siz = (tonumber(size) or data.Size)
   -- Check forced size and compare with internal
   if(not key) then -- Check default key presence
     error("Default key index missing")
   else -- Check default key configuration
-    if(not data[key]) then -- Not present
+    if(not data[key]) then -- Key not present
       error("Default key entry missing") end
   end -- Default key is confugured correctly
   -- There is data in the sequential part
@@ -313,13 +314,7 @@ local function SetupMaterialsDataset(data, size)
         error("Dataset key missing: "..idx) end
       set = data[key]; if(not set) then
         error("Dataset set missing: "..key) end
-      if(not num) then num = #set end
-      -- Store ID for reverse indexing
-      for idn = 1, num do
-        if(key == set[idn]) then
-          set[num + 1] = idx; break; end
-      end -- Check if ID is stored correctly
-      if(not set[num + 1]) then
+      if(set.Key == key) then set.ID = idx else
         error("Internal match key missing: "..key) end
     end
   end
@@ -1710,7 +1705,7 @@ local function GetContentsID(cont)
   for idx = 1, gtREFRACT.Size do -- Check contents
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
-    if(row) then local conr = row[4]; if(conr and conr > 0) then
+    if(row) then local conr = row.Con; if(conr and conr > 0) then
       if(LaserLib.InContent(cont, conr)) then return idx end end end
   end; return nil -- The contents did not get matched to entry
 end
@@ -3710,7 +3705,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   -- Subtract traced length from total length
                   beam:Pass(trace) -- Register beam passing to the new surface
                   -- Define water surface as of air-water beam interaction
-                  beam:SetSurfaceWorld(refract[3] or key, trace.Contents, trace)
+                  beam:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
                   -- Calculated refraction ray. Reflect when not possible
                   if(beam.StRfract) then -- Laser is within the map water submerged
                     beam.StRfract = false -- Lower the flag so no performance hit is present
