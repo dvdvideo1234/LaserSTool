@@ -200,7 +200,7 @@ function ENT:SetStartSound(snd)
 end
 
 function ENT:GetStartSound()
-  return self.startSound
+  return (self.startSound or "")
 end
 
 function ENT:SetStopSound(snd)
@@ -213,7 +213,7 @@ function ENT:SetStopSound(snd)
 end
 
 function ENT:GetStopSound()
-  return self.stopSound
+  return (self.stopSound or "")
 end
 
 function ENT:SetKillSound(snd)
@@ -226,7 +226,7 @@ function ENT:SetKillSound(snd)
 end
 
 function ENT:GetKillSound()
-  return self.killSound
+  return (self.killSound or "")
 end
 
 --[[
@@ -294,15 +294,34 @@ function ENT:GetBeamForce()
   end
 end
 
+local function test(k, m)
+  if(type(m) == "table") then
+    print(k, "--------B ERROR [m]--------")
+    trackasmlib.LogTable(m)
+    print(k, "--------E ERROR [m]--------")
+  else
+    print(k, "--------B ERROR [m]--------")
+    print(type(m), m)
+    print(k, "--------E ERROR [m]--------")
+  end
+end
+
 --[[
  * Handling color setup and conversion
 ]]
 function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
+  print(mr, mg, mb, ma)
   local m = LaserLib.GetData("CLMX")
+  test("X", mr)
+  test(1, m)
   local v, a = Vector(), m
+  print(v, a, m)
   if(istable(mr)) then
+    test(2, m)
     v.x = ((mr[1] or mr["r"] or m) / m)
+    test(3, m)
     v.y = ((mr[2] or mr["g"] or m) / m)
+    test(4, m)
     v.z = ((mr[3] or mr["b"] or m) / m)
       a =  (mr[4] or mr["a"] or m)
   else
