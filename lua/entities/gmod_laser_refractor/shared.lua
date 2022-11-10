@@ -24,7 +24,7 @@ include(LaserLib.GetTool().."/editable_wrapper.lua")
 function ENT:SetupDataTables()
   self:EditableSetBool ("ZeroIndexMode" , "General")
   self:EditableSetBool ("HitSurfaceMode", "General")
-  self:EditableSetFloat("InRefractIndex", "General", -10, 10)
+  self:EditableSetFloat("InRefractIndex", "General", -25, 25)
   self:EditableSetFloat("InRefractRatio", "General",   0,  1)
   LaserLib.Configure(self)
 end
@@ -43,7 +43,7 @@ function ENT:GetRefractIndex()
 end
 
 function ENT:SetRefractIndex(index)
-  local index = math.Clamp(tonumber(index) or 0, -10, 10)
+  local index = math.Clamp(tonumber(index) or 0, -25, 25)
   self:SetInRefractIndex(index)
   self:WireWrite("Index", index)
   return self

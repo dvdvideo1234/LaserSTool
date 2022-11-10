@@ -462,6 +462,20 @@ function LaserLib.GetMaterial(iR, vR)
 end
 
 --[[
+ * Extracts the first available number in a list
+ * num   > Amount of item to check for number
+ * {...} > Variable arguments list of numbers
+ * Retuens the fist number found or nil
+]]
+function LaserLib.GetNumber(n, ...)
+  local arg, out = {...}
+  for i = 1, n do
+    out = out or tonumber(arg[i])
+    if(out) then return out end
+  end; return out
+end
+
+--[[
  * Clears an array table from specified index
  * arr > Array to be cleared
  * idx > Start clear index (not mandatory)

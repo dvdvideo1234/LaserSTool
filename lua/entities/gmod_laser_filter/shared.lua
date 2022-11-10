@@ -41,22 +41,22 @@ function ENT:SetupDataTables()
   LaserLib.Configure(self)
 end
 
---[[ ----------------------
-      Handling color setup and conversion
----------------------- ]]
+--[[
+ * Handling color setup and conversion
+]]
 function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
   local m = LaserLib.GetData("CLMX")
   local v, a = Vector(), m
   if(istable(mr)) then
-    v.x = ((mr[1] or mr["r"] or m) / m)
-    v.y = ((mr[2] or mr["g"] or m) / m)
-    v.z = ((mr[3] or mr["b"] or m) / m)
-      a =  (mr[4] or mr["a"] or m)
+    v.x = LaserLib.GetNumber(3, mr[1], mr["r"], m) / m
+    v.y = LaserLib.GetNumber(3, mr[2], mr["g"], m) / m
+    v.z = LaserLib.GetNumber(3, mr[3], mr["b"], m) / m
+      a = LaserLib.GetNumber(3, mr[4], mr["a"], m)
   else
-    v.x = ((mr or m) / m) -- [0-1]
-    v.y = ((mg or m) / m) -- [0-1]
-    v.z = ((mb or m) / m) -- [0-1]
-      a =  (ma or m) -- [0-255]
+    v.x = LaserLib.GetNumber(2, mr, m) / m -- [0-1]
+    v.y = LaserLib.GetNumber(2, mg, m) / m -- [0-1]
+    v.z = LaserLib.GetNumber(2, mb, m) / m -- [0-1]
+      a = LaserLib.GetNumber(2, ma, m) -- [0-255]
   end
   self:SetBeamColor(v)
   self:SetBeamAlpha(a)

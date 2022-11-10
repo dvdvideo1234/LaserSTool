@@ -75,38 +75,38 @@ function SWEP:Deploy()
   self:Setup()
 end
 
---[[---------------------------------------------------------
-  Reload does nothing
------------------------------------------------------------]]
+--[[
+ * Reload does nothing
+]]
 function SWEP:Reload()
   return false
 end
 
---[[---------------------------------------------------------
-  PrimaryAttack
------------------------------------------------------------]]
+--[[
+ * PrimaryAttack
+]]
 function SWEP:PrimaryAttack()
   return false
 end
 
---[[---------------------------------------------------------
-  SecondaryAttack
------------------------------------------------------------]]
+--[[
+ * SecondaryAttack
+]]
 function SWEP:SecondaryAttack()
   return false
 end
 
---[[---------------------------------------------------------
-  Name: ShouldDropOnDie
-  Desc: Should this weapon be dropped when its owner dies?
------------------------------------------------------------]]
+--[[
+ * Name: ShouldDropOnDie
+ * Desc: Should this weapon be dropped when its owner dies?
+]]
 function SWEP:ShouldDropOnDie()
   return false
 end
 
---[[---------------------------------------------------------
-  Think does nothing
------------------------------------------------------------]]
+--[[
+ * Think does nothing
+]]
 
 function SWEP:GetBeamMaterial(bool)
   local user = self:GetOwner()
