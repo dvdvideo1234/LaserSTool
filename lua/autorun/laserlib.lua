@@ -203,11 +203,11 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
-  ["air"]                                       = {1.000, 1.000, Key = "air"        , Con = CONTENTS_EMPTY      }, -- Air refraction index
-  ["water"]                                     = {1.333, 0.955, Key = "water"      , Con = CONTENTS_WATER      }, -- Water refraction index
-  ["slime"]                                     = {1.387, 0.731, Key = "slime"      , Con = CONTENTS_SLIME      }, -- Slime refraction index
-  ["glass"]                                     = {1.521, 0.999, Key = "glass"      , Con = CONTENTS_WINDOW     }, -- Glass refraction index
-  ["translucent"]                               = {1.437, 0.575, Key = "translucent", Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
+  ["air"]                                       = {1.000, 1.000, Con = CONTENTS_EMPTY      }, -- Air refraction index
+  ["water"]                                     = {1.333, 0.955, Con = CONTENTS_WATER      }, -- Water refraction index
+  ["slime"]                                     = {1.387, 0.731, Con = CONTENTS_SLIME      }, -- Slime refraction index
+  ["glass"]                                     = {1.521, 0.999, Con = CONTENTS_WINDOW     }, -- Glass refraction index
+  ["translucent"]                               = {1.437, 0.575, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
@@ -314,8 +314,9 @@ local function SetupMaterialsDataset(data, size)
         error("Dataset key missing: "..idx) end
       set = data[key]; if(not set) then
         error("Dataset set missing: "..key) end
-      if(set.Key == key) then set.ID = idx else
-        error("Internal match key missing: "..key) end
+      if(not istable(set)) then
+        error("Dataset ent missing: "..key) end
+      set.Key = key; set.ID = idx
     end
   end
 end
@@ -2321,6 +2322,21 @@ local function Beam(origin, direct, width, damage, length, force)
   return self
 end
 
+
+
+--[[
+ * Clears all the data from the beam
+]]
+function mtBeam:Clear(key)
+  if(key) then
+    self[key] = nil
+  else
+
+    for k, v in pairs(self) do
+
+  end; return self
+end
+
 --[[
  * Reads a water member
 ]]
@@ -2410,6 +2426,38 @@ function mtBeam:GetWaterOrigin(pos)
   tmp:Set(pos or self.VrOrigin)
   tmp:Sub(wat.P)
   return tmp:Dot(wat.N)
+end
+
+--[[
+ * Registers next stage segment to the current beam
+ * beam > Beam object to apply as branch
+ * stat > Status to register with true/false
+]]
+function mtBeam:SetBranch(beam, stat)
+  if(getmetatable(beam) ~= mtBeam) then return self end
+  local stat = (stat or stat == nil) and true or false
+  local bran = self.TrBranch -- Branches local reference
+  if(istable(bran)) then -- We have a table
+    bran[beam] = stat -- Register the branching beam
+  else -- Otherwise create the table and register
+    bran = {} -- Make local table for beam branching
+    bran[beam] = stat -- Resgister branch status
+    self.TrBranch = bran -- Register local reference
+  end; return self
+end
+
+--[[
+ * Clears all beam branches
+]]
+function mtBeam:ClearBranch()
+  local bran = self.TrBranch
+  if(istable(bran)) then
+    for k, v in pairs(bran) do
+      v:ClearBranch() -- Clear sub-beams
+      bran[k] = nil   -- Clear current
+    end; self.TrBranch = nil -- No table
+  end; bran = nil -- Update current
+  return self
 end
 
 --[[
