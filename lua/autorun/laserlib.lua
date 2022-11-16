@@ -2429,21 +2429,42 @@ function mtBeam:GetWaterOrigin(pos)
 end
 
 --[[
- * Registers next stage segment to the current beam
+ * Inserts next stage segment to the current beam
  * beam > Beam object to apply as branch
- * stat > Status to register with true/false
+ * indx > Beam object ID to insert
+ * reov > Enable to direct write down
 ]]
-function mtBeam:SetBranch(beam, stat)
+function mtBeam:SetBranch(beam, indx, reov)
   if(getmetatable(beam) ~= mtBeam) then return self end
-  local stat = (stat or stat == nil) and true or false
   local bran = self.TrBranch -- Branches local reference
-  if(istable(bran)) then -- We have a table
-    bran[beam] = stat -- Register the branching beam
-  else -- Otherwise create the table and register
-    bran = {} -- Make local table for beam branching
-    bran[beam] = stat -- Resgister branch status
-    self.TrBranch = bran -- Register local reference
+  local indx = (tonumber(indx) or 0) -- Index to set new value
+  if(not bran) then bran = {Size = 0}; self.TrBranch = bran end
+  local size = bran.Size -- Read stack size ad apply borders
+  if(indx < 1 or indx > size) then -- Invalid index check
+    table.insert(bran, beam) -- Register the branching beam
+    bran.Size = size + 1 -- Increment array stack size
+  else -- Handle indices [1..bran.Size] for easy managment
+    if(reov) then bran[indx] = beam else -- Not replacing directly
+      table.insert(bran, indx, beam) -- Register the branching beam
+      bran.Size = size + 1 -- Increment array stack size
+    end
   end; return self
+end
+
+--[[
+ * Selects next stage segment to the current beam
+ * indx > Beam object ID to select
+ * reov > Enable to return a reference
+]]
+function mtBeam:GetBranch(indx, reov)
+  local bran = self.TrBranch -- Branches local reference
+  if(not bran) then return nil end -- No branches
+  local size = bran.Size -- Read stack size ad apply borders
+  local indx = (tonumber(indx) or size) -- Index to get
+  if(indx < 1 or indx > size) then return nil end
+  local item = bran[indx]; if(reov) then return item end
+  table.remove(bran, indx); bran.Size = size - 1
+  return self
 end
 
 --[[
@@ -2451,12 +2472,13 @@ end
 ]]
 function mtBeam:ClearBranch()
   local bran = self.TrBranch
-  if(istable(bran)) then
-    for k, v in pairs(bran) do
-      v:ClearBranch() -- Clear sub-beams
-      bran[k] = nil   -- Clear current
-    end; self.TrBranch = nil -- No table
-  end; bran = nil -- Update current
+  if(not bran) then return end -- No branches
+  for idx = 1, bran.Size do
+    local vrn = bran[idx]
+    vrn:ClearBranch()
+    bran[idx] = nil
+  end
+  bran.Size = 0
   return self
 end
 
