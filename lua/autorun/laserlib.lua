@@ -1206,13 +1206,14 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
     end
   end
   if(tre and ply) then
+    local cas = LaserLib.GetClass(1)
     local vbb = tre:LocalToWorld(tre:OBBCenter())
     local org, dir = ply:EyePos(), ply:GetAimVector()
     for idx = 1, #teun do
       local ent = teun[idx]
       local ecs = ent:GetClass()
-      if(tre ~= ent and not ecs ~= "gmod_laser" and
-         LaserLib.IsValid(ent) and ecs:find("gmod_laser", 1, true))
+      if(tre ~= ent and not ecs ~= cas and
+         LaserLib.IsValid(ent) and ecs:find(cas, 1, true))
       then -- Move trace entity to the targets beam
         local rep = (ent and ent.hitReports or nil)
         if(rep and rep.Size and rep.Size > 0) then
