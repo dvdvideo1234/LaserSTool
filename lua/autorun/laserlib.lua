@@ -149,38 +149,38 @@ local gtREFLECT = { -- Reflection descriptor
   [""]                                   = false, -- Disable empty materials
   ["**empty**"]                          = false, -- Disable empty world materials
   ["**studio**"]                         = false, -- Disable empty prop materials
-  ["cubemap"]                            = {0.999, Key = "cubemap"},
-  ["reflect"]                            = {0.999, Key = "reflect"},
-  ["mirror"]                             = {0.999, Key = "mirror" },
-  ["chrome"]                             = {0.955, Key = "chrome" },
-  ["shiny"]                              = {0.854, Key = "shiny"  },
-  ["white"]                              = {0.342, Key = "white"  },
-  ["metal"]                              = {0.045, Key = "metal"  },
+  ["cubemap"]                            = {0.999}, -- Other cubemap reflective stuff
+  ["reflect"]                            = {0.999}, -- It has reflect in the name
+  ["mirror"]                             = {0.999}, -- It has mirror in the name
+  ["chrome"]                             = {0.955}, -- Something chrommed and reflective
+  ["shiny"]                              = {0.854}, -- Something generally shiny
+  ["white"]                              = {0.342}, -- Something white that reflects
+  ["metal"]                              = {0.045}, -- General metalic surface
   -- Materials that are overridden and directly hash searched
-  ["models/shiny"]                       = {0.873},
-  ["wtp/chrome_1"]                       = {0.955},
-  ["wtp/chrome_2"]                       = {0.955},
-  ["wtp/chrome_3"]                       = {0.955},
-  ["wtp/chrome_4"]                       = {0.955},
-  ["wtp/chrome_5"]                       = {0.955},
-  ["wtp/chrome_6"]                       = {0.955},
-  ["wtp/chrome_7"]                       = {0.955},
-  ["wtp/paint_1"]                        = {0.115},
-  ["wtp/paint_2"]                        = {0.055},
-  ["wtp/paint_3"]                        = {0.684},
-  ["wtp/paint_4"]                        = {0.831},
-  ["wtp/paint_5"]                        = {0.107},
-  ["phoenix_storms/window"]              = {0.897},
-  ["bobsters_trains/chrome"]             = {0.955},
+  ["models/shiny"]                       = {0.873}, -- Some generally shiny model
+  ["wtp/chrome_1"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_2"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_3"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_4"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_5"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_6"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_7"]                       = {0.955}, -- Chrome surface variation
+  ["wtp/paint_1"]                        = {0.115}, -- Various reflective paints
+  ["wtp/paint_2"]                        = {0.055}, -- Various reflective paints
+  ["wtp/paint_3"]                        = {0.684}, -- Various reflective paints
+  ["wtp/paint_4"]                        = {0.831}, -- Various reflective paints
+  ["wtp/paint_5"]                        = {0.107}, -- Various reflective paints
+  ["phoenix_storms/window"]              = {0.897}, -- PHX window
+  ["bobsters_trains/chrome"]             = {0.955}, -- Chrome from bobster trains
   ["gm_construct/color_room"]            = {0.342}, -- White room in gm_construct
   ["debug/env_cubemap_model"]            = {1.000}, -- There is no perfect mirror
-  ["models/materials/chchrome"]          = {0.864},
-  ["phoenix_storms/grey_chrome"]         = {0.757},
-  ["phoenix_storms/fender_white"]        = {0.625},
-  ["sprops/textures/sprops_chrome"]      = {0.757},
-  ["sprops/textures/sprops_chrome2"]     = {0.657},
-  ["phoenix_storms/pack2/bluelight"]     = {0.734},
-  ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943},
+  ["models/materials/chchrome"]          = {0.864}, -- Chrommed materials
+  ["phoenix_storms/grey_chrome"]         = {0.757}, -- Gray chrome
+  ["phoenix_storms/fender_white"]        = {0.625}, -- White reflective fender
+  ["sprops/textures/sprops_chrome"]      = {0.757}, -- Various PHX chrome materials
+  ["sprops/textures/sprops_chrome2"]     = {0.657}, -- Various PHX chrome materials
+  ["phoenix_storms/pack2/bluelight"]     = {0.734}, -- PHX blue light
+  ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943}, -- Shiny wheel material
   ["bobsters_trains/chrome_dirty_black"] = {0.537}
 }; gtREFLECT.Size = #gtREFLECT
 
