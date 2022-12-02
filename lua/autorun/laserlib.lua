@@ -2323,8 +2323,6 @@ local function Beam(origin, direct, width, damage, length, force)
   return self
 end
 
-
-
 --[[
  * Clears all the data from the beam
 ]]
@@ -2332,9 +2330,7 @@ function mtBeam:Clear(key)
   if(key) then
     self[key] = nil
   else
-
     for k, v in pairs(self) do
-
   end; return self
 end
 
