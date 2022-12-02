@@ -937,20 +937,20 @@ function LaserLib.Configure(unit)
   end
 
   --[[
-   * Registers a trace hit report under the specified index
+   * Registers a trace hit report under auto index
    * trace > Trace result structure to register
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam, trace)
-    if(not self.hitReports) then self.hitReports = {Size = 0} end
-    local rep, idx = self.hitReports, beam.BmIdenty
-    if(idx >= rep.Size) then rep.Size = idx end
+    local rep = self.hitReports -- Read entity hit reports
+    if(not rep) then rep = {Size = 0}; self.hitReports = rep end
+    local idx = (rep.Size + 1); rep.Size = idx
     if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
     rep["BM"] = beam; rep["TR"] = trace; return self
   end
 
   --[[
-   * Retrieves hit report trace and beam under specified index
+   * Retrieves hit report trace and beam for specified index
    * index > Hit report index to read ( defaults to 1 )
   ]]
   function unit:GetHitReport(index)
@@ -2454,7 +2454,7 @@ end
 --[[
  * Selects next stage segment to the current beam
  * indx > Beam object ID to select
- * reov > Enable to return a reference
+ * reov > Enable to direct read out
 ]]
 function mtBeam:GetBranch(indx, reov)
   local bran = self.TrBranch -- Branches local reference
@@ -2462,9 +2462,8 @@ function mtBeam:GetBranch(indx, reov)
   local size = bran.Size -- Read stack size ad apply borders
   local indx = (tonumber(indx) or size) -- Index to get
   if(indx < 1 or indx > size) then return nil end
-  local item = bran[indx]; if(reov) then return item end
-  table.remove(bran, indx); bran.Size = size - 1
-  return self
+  local beam = bran[indx]; if(reov) then return beam end
+  bran.Size = size - 1; return table.remove(bran, indx)
 end
 
 --[[
@@ -3596,6 +3595,8 @@ end
  * usrfle > Use surface material reflecting efficiency
  * usrfre > Use surface material refracting efficiency
  * noverm > Enable interactions with no material override
+ * index  > Provide beam start for splitter source entities
+ * stage  > Recursion stage used to identify recursion depth
 ]]
 function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, usrfle, usrfre, noverm, index, stage)
   -- Parameter validation check. Allocate only when these conditions are present
@@ -3672,12 +3673,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
         if(beam.IsRfract) then
           local mcons = util.PointContents(trace.HitPos)
           -- Check when bounce position is inside the water
-          local encon = beam:SetRefractContent(mcons)
-          -- Well the beam is still tracing
-          beam.IsTrace = true -- Produce next ray
+          beam.IsTrace = true -- Produce next ray. Well the beam is still tracing
           -- Decide whenever to go out of the entity according to the hit location
-          if(not encon) then -- Ask souce engine for water position origin
-            beam:SetMediumSours(mtBeam.A) -- Contents is not water and surface is missing
+          if(not beam:SetRefractContent(mcons)) then -- Ask souce engine for water position origin
+            beam:SetMediumSours(mtBeam.A) -- Contents are not located and surface is missing
           end -- Negate the normal so it must point inwards before refraction
           trace.HitNormal:Negate(); beam.VrDirect:Negate()
           -- Make sure to pick the correct refract exit medium for current node
