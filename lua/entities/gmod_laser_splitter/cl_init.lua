@@ -1,5 +1,7 @@
 include("shared.lua")
 
+local LNDIRACT = LaserLib.GetData("LNDIRACT")
+
 function ENT:DrawBeam(org, dir, idx)
   local beam, trace = self:DoBeam(org, dir, idx)
   if(not beam) then return end
@@ -40,33 +42,34 @@ function ENT:Draw()
     end
   else
     if(mcount > 1) then
-      render.SetColorMaterial()
-      local fulla = LaserLib.GetData("AMAX")[2]
-      local delta = fulla / mcount
-      local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
-      local color = LaserLib.GetColor("YELLOW")
-      local orign = self:GetBeamOrigin()
-      local direc = self:GetDirectLocal()
-      local upwrd = self:GetUpwardLocal()
-      local marx = self:GetBeamLeanX()
-      local mary = self:GetBeamLeanY()
-      local angle = direc:AngleEx(upwrd)
-      for idx = 1, mcount do
-        local dir = mary * angle:Up()
-              dir:Add(marx * angle:Forward())
-              dir:Set(self:GetBeamDirection(dir))
-              dir:Normalize(); dir:Mul(lndir)
-              dir:Add(orign)
-        render.DrawLine(orign, dir, color)
-        angle:RotateAroundAxis(direc, delta)
+      local lndir = LNDIRACT:GetFloat()
+      if(lndir > 0) then
+        render.SetColorMaterial()
+        local fulla = LaserLib.GetData("AMAX")[2]
+        local delta = fulla / mcount
+        local color = LaserLib.GetColor("YELLOW")
+        local orign = self:GetBeamOrigin()
+        local direc = self:GetDirectLocal()
+        local upwrd = self:GetUpwardLocal()
+        local marx = self:GetBeamLeanX()
+        local mary = self:GetBeamLeanY()
+        local angle = direc:AngleEx(upwrd)
+        for idx = 1, mcount do
+          local dir = mary * angle:Up()
+                dir:Add(marx * angle:Forward())
+                dir:Set(self:GetBeamDirection(dir))
+                dir:Normalize(); dir:Mul(lndir)
+                dir:Add(orign)
+          render.DrawLine(orign, dir, color)
+          angle:RotateAroundAxis(direc, delta)
+        end
+      elseif(mcount == 1) then
+        local color = LaserLib.GetColor("YELLOW")
+        local orign = self:GetBeamOrigin()
+        local direc = self:GetBeamDirection()
+              direc:Mul(lndir); direc:Add(orign)
+        render.DrawLine(orign, direc, color)
       end
-    elseif(mcount == 1) then
-      local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
-      local color = LaserLib.GetColor("YELLOW")
-      local orign = self:GetBeamOrigin()
-      local direc = self:GetBeamDirection()
-            direc:Mul(lndir); direc:Add(orign)
-      render.DrawLine(orign, direc, color)
     end
     self:SetHitReportMax()
   end

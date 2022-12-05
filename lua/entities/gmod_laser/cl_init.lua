@@ -1,5 +1,7 @@
 include("shared.lua")
 
+local LNDIRACT = LaserLib.GetData("LNDIRACT")
+
 ENT.RenderGroup = RENDERGROUP_BOTH
 
 --[[
@@ -53,12 +55,14 @@ function ENT:Draw()
       self:DrawBeam()
     end
   else
-    local color = LaserLib.GetColor("YELLOW")
-    local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
-    local origin = self:GetBeamOrigin()
-    local direct = self:GetBeamDirection()
-          direct:Mul(lndir); direct:Add(origin)
-    render.DrawLine(origin, direct, color)
+    local lndir = LNDIRACT:GetFloat()
+    if(lndir > 0) then
+      local color = LaserLib.GetColor("YELLOW")
+      local origin = self:GetBeamOrigin()
+      local direct = self:GetBeamDirection()
+            direct:Mul(lndir); direct:Add(origin)
+      render.DrawLine(origin, direct, color)
+    end
   end
 end
 
