@@ -21,6 +21,8 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/do
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
+local DOTM = LaserLib.GetData("DOTM")
+
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
@@ -53,9 +55,8 @@ end
 function ENT:GetHitPower(normal, beam, trace, bmln)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
-  local dotm = LaserLib.GetData("DOTM")
   local dotv = math.abs(norm:Dot(beam.VrDirect))
   if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
   local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - dotm)), dotv
+  return (dott > (1 - DOTM)), dotv
 end

@@ -4,7 +4,7 @@ E2Lib.RegisterExtension("laserbeam", true,
 )
 
 local RNEXT, RSAME = false, false -- These store the current status for medium refraction
-local KEYA = LaserLib.GetData("KEYA") -- Retrieve the active key indexing select all
+local KEYA    = LaserLib.GetData("KEYA") -- Retrieve the active key indexing select all
 local REFLECT = LaserLib.DataReflect(KEYA) -- Retrieve all reflection database entries
 local REFRACT = LaserLib.DataRefract(KEYA) -- Retrieve all refraction database entries
 local WIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean

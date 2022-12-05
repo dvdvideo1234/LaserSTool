@@ -10,6 +10,12 @@ resource.AddFile("materials/vgui/entities/gmod_laser_killicon.vmt")
 
 resource.AddSingleFile("materials/effects/redlaser1_smoke.vtf")
 
+local AMAX     = LaserLib.GetData("AMAX")
+local MXBMWIDT = LaserLib.GetData("MXBMWIDT")
+local MXBMLENG = LaserLib.GetData("MXBMLENG")
+local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
+local MXBMFORC = LaserLib.GetData("MXBMFORC")
+
 function ENT:PreEntityCopy()
   self:WirePreEntityCopy()
 end
@@ -64,20 +70,8 @@ function ENT:SpawnFunction(user, trace)
   if(not trace.Hit) then return end
   if(not LaserLib.IsValid(user)) then return end
   local tool         = LaserLib.GetTool()
+  local prefix       = LaserLib.GetTool().."_"
   local angspawn     = LaserLib.GetAngleSF(user)
-  local prefix, amax = tool.."_", LaserLib.GetData("AMAX")
-  local colorr       = math.Clamp(user:GetInfoNum(prefix.."colorr", 0), 0 , 255)
-  local colorg       = math.Clamp(user:GetInfoNum(prefix.."colorg", 0), 0 , 255)
-  local colorb       = math.Clamp(user:GetInfoNum(prefix.."colorb", 0), 0 , 255)
-  local colora       = math.Clamp(user:GetInfoNum(prefix.."colora", 0), 0 , 255)
-  local width        = math.Clamp(user:GetInfoNum(prefix.."width", 0), 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  local length       = math.Clamp(user:GetInfoNum(prefix.."length", 0), 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  local damage       = math.Clamp(user:GetInfoNum(prefix.."damage", 0), 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  local pushforce    = math.Clamp(user:GetInfoNum(prefix.."pushforce", 0), 0, LaserLib.GetData("MXBMFORC"):GetFloat())
-  local angle        = math.Clamp(user:GetInfoNum(prefix.."angle", 0), amax[1], amax[2])
-  local org, dir     = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
-  local trandata     = LaserLib.SetupTransform({angle, org, dir})
-  local raycolor     = Color(colorr, colorg, colorb, colora)
   local key          = user:GetInfoNum(prefix.."key", 0)
   local model        = user:GetInfo(prefix.."model")
   local material     = user:GetInfo(prefix.."material")
@@ -95,6 +89,18 @@ function ENT:SpawnFunction(user, trace)
   local endingeffect = (user:GetInfoNum(prefix.."endingeffect", 0) ~= 0)
   local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
   local ensafebeam   = (user:GetInfoNum(prefix.."ensafebeam", 0) ~= 0)
+  local colorr       = math.Clamp(user:GetInfoNum(prefix.."colorr", 0), 0 , 255)
+  local colorg       = math.Clamp(user:GetInfoNum(prefix.."colorg", 0), 0 , 255)
+  local colorb       = math.Clamp(user:GetInfoNum(prefix.."colorb", 0), 0 , 255)
+  local colora       = math.Clamp(user:GetInfoNum(prefix.."colora", 0), 0 , 255)
+  local width        = math.Clamp(user:GetInfoNum(prefix.."width", 0), 0, MXBMWIDT:GetFloat())
+  local length       = math.Clamp(user:GetInfoNum(prefix.."length", 0), 0, MXBMLENG:GetFloat())
+  local damage       = math.Clamp(user:GetInfoNum(prefix.."damage", 0), 0, MXBMDAMG:GetFloat())
+  local pushforce    = math.Clamp(user:GetInfoNum(prefix.."pushforce", 0), 0, MXBMFORC:GetFloat())
+  local angle        = math.Clamp(user:GetInfoNum(prefix.."angle", 0), AMAX[1], AMAX[2])
+  local org, dir     = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
+  local trandata     = LaserLib.SetupTransform({angle, org, dir})
+  local raycolor     = Color(colorr, colorg, colorb, colora)
   local laser        = LaserLib.NewLaser(user       , trace.HitPos, angspawn    , model       ,
                                          trandata   , key         , width       , length      ,
                                          damage     , material    , dissolvetype, startsound  ,

@@ -1,8 +1,8 @@
 include("shared.lua")
 
-local LNDIRACT = LaserLib.GetData("LNDIRACT")
-
 ENT.RenderGroup = RENDERGROUP_BOTH
+
+local LNDIRACT = LaserLib.GetData("LNDIRACT")
 
 --[[
  * This is actually faster than stuffing all the beams

@@ -21,7 +21,8 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/frame002a.mdl", "models/props_combi
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-local gsNA = LaserLib.GetData("NOAV")
+local NOAV = LaserLib.GetData("NOAV")
+local DOTM = LaserLib.GetData("DOTM")
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal" , "General") -- Used as forward
@@ -41,10 +42,9 @@ function ENT:SetBeamTransform()
 end
 
 function ENT:UpdateVectors()
-  local mdt = LaserLib.GetData("DOTM")
   local fwd = self:GetNormalLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= mdt) then
+  if(math.abs(fwd:Dot(upw)) >= DOTM) then
     local rgh = fwd:Cross(upw)
     upw:Set(rgh:Cross(fwd))
     upw:Normalize()
@@ -65,11 +65,10 @@ function ENT:ToCustomUCS(vec)
 end
 
 function ENT:IsHitNormal(trace)
-  local dotm = LaserLib.GetData("DOTM")
   local norm = Vector(self:GetNormalLocal())
-  if(norm:LengthSqr() < dotm) then return true end
+  if(norm:LengthSqr() < DOTM) then return true end
   norm:Rotate(self:GetAngles())
-  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - dotm))
+  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - DOTM))
 end
 
 --[[
@@ -80,7 +79,7 @@ end
 function ENT:GetTransitID(idx, ent)
   local idx = (tonumber(idx) or 0) -- Convert the number
   if(ent) then return ((idx ~= 0) and Entity(idx) or nil)
-  else return ((idx ~= 0) and tostring(idx) or gsNA) end
+  else return ((idx ~= 0) and tostring(idx) or NOAV) end
 end
 
 function ENT:IsTrueExit(out) local ent

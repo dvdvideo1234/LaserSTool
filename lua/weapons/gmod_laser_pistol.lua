@@ -34,8 +34,9 @@ SWEP.AccurateCrosshair      = true
 
 local gsTool = LaserLib.GetTool()
 local gsPref = gsTool.."_"
-local tAmax = LaserLib.GetData("AMAX")
 
+local AMAX     = LaserLib.GetData("AMAX")
+local CLMX     = LaserLib.GetData("CLMX")
 local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
 local MXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local MXBMFORC = LaserLib.GetData("MXBMFORC")
@@ -131,7 +132,6 @@ end
 
 function SWEP:GetBeamColorRGBA(bcol)
   local user = self:GetOwner()
-  local m = LaserLib.GetData("CLMX")
   local r = math.Clamp(user:GetInfoNum(gsPref.."colorr", 0), 0 , 255)
   local g = math.Clamp(user:GetInfoNum(gsPref.."colorg", 0), 0 , 255)
   local b = math.Clamp(user:GetInfoNum(gsPref.."colorb", 0), 0 , 255)

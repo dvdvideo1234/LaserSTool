@@ -16,6 +16,8 @@ ENT.UnitID         = 5
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass")
 
+local DOTM = LaserLib.GetData("DOTM")
+
 function ENT:UpdateInternals()
   self.hitSize = 0 -- Add sources in array
   self.crHdx = 0 -- Current bean index
@@ -85,8 +87,7 @@ end
 function ENT:IsHitNormal(trace)
   local normal = Vector(self:GetHitNormal())
         normal:Rotate(self:GetAngles())
-  local dotm = LaserLib.GetData("DOTM")
-  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
+  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - DOTM))
 end
 
 function ENT:EveryBeam(entity, index, beam, trace)

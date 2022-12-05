@@ -4,6 +4,10 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_splitterm.vmt")
 
+local NSPLITER = LaserLib.GetData("NSPLITER")
+local XSPLITER = LaserLib.GetData("XSPLITER")
+local YSPLITER = LaserLib.GetData("YSPLITER")
+
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
   self:PhysicsInit(SOLID_VPHYSICS)
@@ -59,9 +63,9 @@ function ENT:SpawnFunction(ply, tr)
     LaserLib.SetProperties(ent, "metal")
     LaserLib.SetPlayer(ent, ply)
     ent:SetBeamTransform()
-    ent:SetBeamCount(LaserLib.GetData("NSPLITER"):GetInt())
-    ent:SetBeamLeanX(LaserLib.GetData("XSPLITER"):GetFloat())
-    ent:SetBeamLeanY(LaserLib.GetData("YSPLITER"):GetFloat())
+    ent:SetBeamCount(NSPLITER:GetInt())
+    ent:SetBeamLeanX(XSPLITER:GetFloat())
+    ent:SetBeamLeanY(YSPLITER:GetFloat())
     ply:AddCount(gen.."s", ent)
     ply:AddCleanup(gen.."s", ent)
     return ent

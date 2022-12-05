@@ -617,8 +617,7 @@ function LaserLib.ByString(str)
   return a, b, c
 end
 
-function LaserLib.SetupTransform(tran)
-  local amax = LaserLib.GetData("AMAX")
+function LaserLib.SetupTransform(tran) local amax = DATA.AMAX
   tran[1] = math.Clamp(tonumber(tran[1]) or 0, amax[1], amax[2])
   if(not tran[2] or tran[2] == "") then tran[2] = nil -- Origin
   else tran[2] = Vector(LaserLib.ByString(tran[2])) end
@@ -702,10 +701,10 @@ function LaserLib.SetPrimary(ent, nov)
     ent:EditableSetBool("RefractRatio", "Material")
   end
   ent:EditableSetBool ("InPowerOn"   , "Internals")
-  ent:EditableSetFloat("InBeamWidth" , "Internals", 0, LaserLib.GetData("MXBMWIDT"):GetFloat())
-  ent:EditableSetFloat("InBeamLength", "Internals", 0, LaserLib.GetData("MXBMLENG"):GetFloat())
-  ent:EditableSetFloat("InBeamDamage", "Internals", 0, LaserLib.GetData("MXBMDAMG"):GetFloat())
-  ent:EditableSetFloat("InBeamForce" , "Internals", 0, LaserLib.GetData("MXBMFORC"):GetFloat())
+  ent:EditableSetFloat("InBeamWidth" , "Internals", 0, DATA.MXBMWIDT:GetFloat())
+  ent:EditableSetFloat("InBeamLength", "Internals", 0, DATA.MXBMLENG:GetFloat())
+  ent:EditableSetFloat("InBeamDamage", "Internals", 0, DATA.MXBMDAMG:GetFloat())
+  ent:EditableSetFloat("InBeamForce" , "Internals", 0, DATA.MXBMFORC:GetFloat())
   local maticons = table.Copy(material)
   for k, v in pairs(maticons) do maticons[k] = ((k == "Empty") and "stop" or "picture_edit") end
   ent:EditableSetStringCombo("InBeamMaterial", "Internals", material, nil, maticons)
@@ -719,7 +718,7 @@ function LaserLib.SetPrimary(ent, nov)
     ent:EditableSetBool("EndingEffect"  , "Visuals")
   end
   ent:EditableSetVectorColor("BeamColor", "Visuals")
-  ent:EditableSetFloat("BeamAlpha", "Visuals", 0, LaserLib.GetData("CLMX"))
+  ent:EditableSetFloat("BeamAlpha", "Visuals", 0, DATA.CLMX)
   ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name", "icon")
 end
 
@@ -1235,8 +1234,7 @@ end
 function LaserLib.DrawTextHUD(txt)
   if(SERVER) then return end
   if(not txt) then return end
-  local arn = LaserLib.GetData("TAHD")
-  local rat = LaserLib.GetData("GRAT")
+  local arn, rat = DATA.TAHD, DATA.GRAT
   local blk = LaserLib.GetColor("BLACK")
   local bkg = LaserLib.GetColor("BACKGND")
   local w = surface.ScreenWidth()
@@ -1342,9 +1340,9 @@ end
 ]]
 function LaserLib.SetMaterialSize(pnMat, iRow)
   if(SERVER) then return end
+  local nRat = DATA.GRAT
   local scrW = surface.ScreenWidth()
   local scrH = surface.ScreenHeight()
-  local nRat = LaserLib.GetData("GRAT")
   local nRaw, nRah = (scrW / nRat), (scrH / nRat)
   local iW = (((nRaw - 2*3 - 1) / iRow) / nRaw)
   local iH = (((nRah - 2*3 - 1) / iRow) / nRah)
@@ -3107,7 +3105,7 @@ end
  * Cashes the currently used beam color when needed
 ]]
 function mtBeam:SetColorRGBA(mr, mg, mb, ma)
-  local c, m = self.NvColor, LaserLib.GetData("CLMX")
+  local c, m = self.NvColor, DATA.CLMX
   if(not c) then c = Color(0,0,0,0); self.NvColor = c end
   if(istable(mr)) then
     c.r = math.Clamp(mr[1] or mr["r"], 0, m)
