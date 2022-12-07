@@ -322,6 +322,51 @@ local function SetupMaterialsDataset(data, size)
 end
 
 --[[
+ * Inserts consistent data in array notation {1,2,Size=2}
+ * tArr > Array to modify
+ * aVia > Data to be inserted
+ * iID  > Location to insert data in
+ * bOvr > Force replace the array slot
+]]
+local function InsertData(tArr, aVia, iID, bOvr)
+  if(not tArr.Size) then tArr.Size = #tArr end
+  local idx = (tonumber(iID) or 0)
+  local vdt, siz = (aVia or DATA.DISB), tArr.Size
+  if(idx < 1 or idx > siz) then
+    table.insert(tArr, vdt)
+    tArr.Size = (siz + 1)
+  else
+    if(bOvr) then tArr[idx] = aVia else
+      table.insert(tArr, idx, vdt)
+      tArr.Size = (siz + 1)
+    end
+  end; return tArr
+end
+
+--[[
+ * Selects consistent data in array notation {1,2,Size=2}
+ * tArr > Array to modify
+ * iID  > Location to insert data in
+ * bOvr > Read only without pop data out
+]]
+local function SelectData(tArr, iID, bOvr)
+  if(not tArr.Size) then tArr.Size = #tArr end
+  local siz = tArr.Size
+  local idx = (tonumber(iID) or 0)
+  if(idx < 1 or idx > siz) then
+    if(bOvr) then return tArr[siz] else
+      tArr.Size = (siz - 1)
+      return table.remove(tArr)
+    end
+  else
+    if(bOvr) then return tArr[idx] else
+      tArr.Size = (siz - 1)
+      return table.remove(tArr, idx)
+    end
+  end; return tArr
+end
+
+--[[
  * Performs CAP dedicated traces. Will return result
  * only when CAP hits its dedicated entities
  * origin > Trace origin as world position vector
@@ -943,9 +988,7 @@ function LaserLib.Configure(unit)
   function unit:SetHitReport(beam, trace)
     local rep = self.hitReports -- Read entity hit reports
     if(not rep) then rep = {Size = 0}; self.hitReports = rep end
-    local idx = (rep.Size + 1); rep.Size = idx
-    if(not rep[idx]) then rep[idx] = {} end; rep = rep[idx]
-    rep["BM"] = beam; rep["TR"] = trace; return self
+    InsertData(rep, {["BM"] = beam; rep["TR"] = trace}); return self
   end
 
   --[[
@@ -954,8 +997,9 @@ function LaserLib.Configure(unit)
   ]]
   function unit:GetHitReport(index)
     if(not index) then return end
-    if(not self.hitReports) then return end
-    local rep = self.hitReports[index]
+    local rep = self.hitReports
+    if(not rep) then return end
+    local rep = SelectData(rep, index, true)
     if(not rep) then return end
     return rep["BM"], rep["TR"]
   end
