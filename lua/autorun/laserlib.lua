@@ -328,7 +328,7 @@ end
  * iID  > Location to insert data in
  * bOvr > Force replace the array slot
 ]]
-local function InsertData(tArr, aVia, iID, bOvr)
+function LaserLib.InsertData(tArr, aVia, iID, bOvr)
   if(not tArr.Size) then tArr.Size = #tArr end
   local idx = (tonumber(iID) or 0)
   local vdt, siz = (aVia or DATA.DISB), tArr.Size
@@ -349,7 +349,7 @@ end
  * iID  > Location to insert data in
  * bOvr > Read only without pop data out
 ]]
-local function SelectData(tArr, iID, bOvr)
+function LaserLib.SelectData(tArr, iID, bOvr)
   if(not tArr.Size) then tArr.Size = #tArr end
   local siz = tArr.Size
   local idx = (tonumber(iID) or 0)
@@ -988,7 +988,7 @@ function LaserLib.Configure(unit)
   function unit:SetHitReport(beam, trace)
     local rep = self.hitReports -- Read entity hit reports
     if(not rep) then rep = {Size = 0}; self.hitReports = rep end
-    InsertData(rep, {["BM"] = beam; rep["TR"] = trace}); return self
+    LaserLib.InsertData(rep, {["BM"] = beam; rep["TR"] = trace}); return self
   end
 
   --[[
@@ -998,9 +998,9 @@ function LaserLib.Configure(unit)
   function unit:GetHitReport(index)
     if(not index) then return end
     local rep = self.hitReports
-    if(not rep) then return end
-    local rep = SelectData(rep, index, true)
-    if(not rep) then return end
+    if(not rep) then return nil end
+    local rep = LaserLib.SelectData(rep, index, true)
+    if(not rep) then return nil end
     return rep["BM"], rep["TR"]
   end
 
@@ -1784,8 +1784,10 @@ local function GetMaterialEntry(mat, set)
   local key, val = mat, set[mat]
   -- Check for overriding with default
   if(mat == DATA.KEYD) then return set[val], val end
-  -- Check for element overrides
+  -- Check for element overrides found
   if(val) then return val, key end
+  -- Check for disabled entry
+  if(val == false) then return nil end
   -- Check for element category
   for idx = 1, set.Size do key = set[idx]
     if(mat:find(key, 1, true)) then -- Cache the material
@@ -2476,18 +2478,8 @@ end
 function mtBeam:SetBranch(beam, indx, reov)
   if(getmetatable(beam) ~= mtBeam) then return self end
   local bran = self.TrBranch -- Branches local reference
-  local indx = (tonumber(indx) or 0) -- Index to set new value
   if(not bran) then bran = {Size = 0}; self.TrBranch = bran end
-  local size = bran.Size -- Read stack size ad apply borders
-  if(indx < 1 or indx > size) then -- Invalid index check
-    table.insert(bran, beam) -- Register the branching beam
-    bran.Size = size + 1 -- Increment array stack size
-  else -- Handle indices [1..bran.Size] for easy managment
-    if(reov) then bran[indx] = beam else -- Not replacing directly
-      table.insert(bran, indx, beam) -- Register the branching beam
-      bran.Size = size + 1 -- Increment array stack size
-    end
-  end; return self
+  LaserLib.InsertData(bran, beam, indx, reov); return self
 end
 
 --[[
@@ -2498,11 +2490,7 @@ end
 function mtBeam:GetBranch(indx, reov)
   local bran = self.TrBranch -- Branches local reference
   if(not bran) then return nil end -- No branches
-  local size = bran.Size -- Read stack size ad apply borders
-  local indx = (tonumber(indx) or size) -- Index to get
-  if(indx < 1 or indx > size) then return nil end
-  local beam = bran[indx]; if(reov) then return beam end
-  bran.Size = size - 1; return table.remove(bran, indx)
+  return LaserLib.SelectData(bran, indx, reov)
 end
 
 --[[
