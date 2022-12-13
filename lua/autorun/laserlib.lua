@@ -142,7 +142,7 @@ local gtREFLECT = { -- Reflection descriptor
   [7] = "metal"  , -- All shiny metals reflecting
   -- Used for prop updates and checks
   [DATA.KEYD] = "debug/env_cubemap_model",
-  -- User for general class control
+  -- User for general class control. Status: [nil] = missing, [false] = disable
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the material found at when it is searched in array part
   -- [3] : Reverse integer index for serch for medium contents sequential order
@@ -194,7 +194,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [5] = "translucent", -- Translucent stuff 268435456
   -- Used for prop updates and checks
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
-  -- User for general class control
+  -- User for general class control. Status: [nil] = missing, [false] = disable
   -- [1] : Medium refraction index for the material specified by sodium line
   -- [2] : Medium refraction rating when the beam goes through reduces its power
   -- [3] : Which index is the material found at when it is searched in array part
@@ -292,30 +292,31 @@ end
 local function SetupMaterialsDataset(data, size)
   -- Validate default key
   local key, set = data[DATA.KEYD]
-  local siz = (tonumber(size) or data.Size)
   -- Check forced size and compare with internal
-  if(not key) then -- Check default key presence
-    error("Default key index missing")
+  local siz = (tonumber(size) or data.Size)
+  -- Check default key and raise error
+  if(key == nil) then -- Check default key presence
+    error("Default key index missing: "..tostring(key))
   else -- Check default key configuration
-    if(not data[key]) then -- Key not present
-      error("Default key entry missing") end
+    if(data[key] == nil) then -- Key not present
+      error("Default key entry missing: "..tostring(key)) end
   end -- Default key is confugured correctly
   -- There is data in the sequential part
   if(data.Size and data.Size > 0) then
     if(siz < 0) then -- Size is invalid
-      error("Search array lenght negative") end
+      error("Search array lenght negative: "..tostring(siz)) end
     if(math.ceil(siz) ~= math.floor(siz)) then
-      error("Search array lenght fractional") end
+      error("Search array lenght fractional: "..tostring(siz)) end
     if(siz ~= data.Size) then
-      error("Search array lenght mismatch") end
+      error("Search array lenght mismatch: "..tostring(siz)) end
     -- Configure refract sequentials  entries
     for idx = 1, siz do
       key = data[idx]; if(not key) then
-        error("Dataset key missing: "..idx) end
+        error("Dataset key missing: "..tostring(idx)) end
       set = data[key]; if(not set) then
-        error("Dataset set missing: "..key) end
+        error("Dataset set missing: "..tostring(key)) end
       if(not istable(set)) then
-        error("Dataset ent missing: "..key) end
+        error("Dataset ent missing: "..tostring(key)) end
       set.Key = key; set.ID = idx
     end
   end
@@ -929,9 +930,9 @@ function LaserLib.Configure(unit)
    * Returns hit report stack size
   ]]
   function unit:GetHitReportMax()
-    local rep = self.hitReports
-    if(not rep) then return 0 end
-    return rep.Size or 0
+    local ros = self.hitReports
+    if(not ros) then return 0 end
+    return ros.Size or 0
   end
 
   --[[
@@ -942,14 +943,14 @@ function LaserLib.Configure(unit)
   ]]
   function unit:SetHitReportMax(rovr)
     if(self.hitReports) then
-      local rep, idx = self.hitReports
+      local ros, idx = self.hitReports
       if(rovr) then -- Overhead mode
         local rovr = tonumber(rovr) or 0
-        idx, rep.Size = (rovr + 1), rovr
-      else idx, rep.Size = 1, 0 end
+        idx, ros.Size = (rovr + 1), rovr
+      else idx, ros.Size = 1, 0 end
       -- Wipe selected items
-      while(rep[idx]) do
-        rep[idx] = nil
+      while(ros[idx]) do
+        ros[idx] = nil
         idx = idx + 1
       end
     end; return self
@@ -968,13 +969,13 @@ function LaserLib.Configure(unit)
     if(ent == self) then return nil end -- Cannot be source to itself
     if(not self.hitSources[ent]) then return nil end -- Not source
     if(not ent:GetOn()) then return nil end -- Unit is not powered on
-    local rep = ent.hitReports -- Retrieve and localize hit reports
-    if(not rep) then return nil end -- No hit reports. Exit at once
+    local ros = ent.hitReports -- Retrieve and localize hit reports
+    if(not ros) then return nil end -- No hit reports. Exit at once
     if(idx and not bri) then -- Retrieve the report requested by ID
       local beam, trace = ent:GetHitReport(idx) -- Retrieve beam report
       if(trace and trace.Hit and self == trace.Entity) then return idx end
     else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
-      for cnt = anc, rep.Size do local beam, trace = ent:GetHitReport(cnt)
+      for cnt = anc, ros.Size do local beam, trace = ent:GetHitReport(cnt)
         if(trace and trace.Hit and self == trace.Entity) then return cnt end
       end -- The hit report list is scanned and no reports are found hitting us `self`
     end; return nil -- Tell requestor we did not find anything that hits us `self`
@@ -986,9 +987,9 @@ function LaserLib.Configure(unit)
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam, trace)
-    local rep = self.hitReports -- Read entity hit reports
-    if(not rep) then rep = {Size = 0}; self.hitReports = rep end
-    LaserLib.InsertData(rep, {["BM"] = beam; rep["TR"] = trace}); return self
+    local ros = self.hitReports -- Read entity hit reports
+    if(not ros) then ros = {Size = 0}; self.hitReports = ros end
+    LaserLib.InsertData(ros, {["BM"] = beam, ["TR"] = trace}); return self
   end
 
   --[[
@@ -997,11 +998,11 @@ function LaserLib.Configure(unit)
   ]]
   function unit:GetHitReport(index)
     if(not index) then return end
-    local rep = self.hitReports
-    if(not rep) then return nil end
-    local rep = LaserLib.SelectData(rep, index, true)
-    if(not rep) then return nil end
-    return rep["BM"], rep["TR"]
+    local ros = self.hitReports
+    if(not ros) then return nil end
+    ros = LaserLib.SelectData(ros, index, true)
+    if(not ros) then return nil end
+    return ros["BM"], ros["TR"]
   end
 
   --[[
@@ -1240,8 +1241,8 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
       LaserLib.IsUnit(ent) and tre ~= ent)
     then -- Move targets to the trace entity beam
       local vbb = ent:LocalToWorld(ent:OBBCenter())
-      local rep = (tre and tre.hitReports or nil)
-      if(rep and rep.Size and rep.Size > 0) then
+      local ros = (tre and tre.hitReports or nil)
+      if(ros and ros.Size and ros.Size > 0) then
         LaserLib.DrawAssistReports(vbb, tre, ncst)
       else
         LaserLib.DrawAssistOBB(vbb, org, dir, ncst)
@@ -1258,8 +1259,8 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
       if(tre ~= ent and not ecs ~= cas and
          LaserLib.IsValid(ent) and ecs:find(cas, 1, true))
       then -- Move trace entity to the targets beam
-        local rep = (ent and ent.hitReports or nil)
-        if(rep and rep.Size and rep.Size > 0) then
+        local ros = (ent and ent.hitReports or nil)
+        if(ros and ros.Size and ros.Size > 0) then
           LaserLib.DrawAssistReports(vbb, ent, ncst, true)
         else
           local org, dir = LaserLib.GetTransformUnit(ent)
@@ -1786,15 +1787,15 @@ local function GetMaterialEntry(mat, set)
   if(mat == DATA.KEYD) then return set[val], val end
   -- Check for element overrides found
   if(val) then return val, key end
-  -- Check for disabled entry
-  if(val == false) then return nil end
-  -- Check for element category
+  -- Check for disabled entry (false)
+  if(val ~= nil) then return nil end
+  -- Check for miss element category (nil)
   for idx = 1, set.Size do key = set[idx]
-    if(mat:find(key, 1, true)) then -- Cache the material
+    if(mat:find(key)) then -- Cache the material
       set[mat] = set[key] -- Cache the material found
       return set[mat], key -- Compare the entry
     end -- Read and compare the next entry
-  end; set[mat] = false -- Undefined material
+  end; set[mat] = (val ~= nil) -- Undefined material
   return nil -- Return nothing when not found
 end
 
@@ -2375,6 +2376,7 @@ function mtBeam:Clear(key)
     self[key] = nil
   else
     for k, v in pairs(self) do
+      self[key] = nil end
   end; return self
 end
 
