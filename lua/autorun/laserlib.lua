@@ -989,7 +989,7 @@ function LaserLib.Configure(unit)
   function unit:SetHitReport(beam, trace)
     local ros = self.hitReports -- Read entity hit reports
     if(not ros) then ros = {Size = 0}; self.hitReports = ros end
-    LaserLib.InsertData(ros, {["BM"] = beam, ["TR"] = trace}); return self
+    LaserLib.InsertData(ros, {["BM"] = beam, ["TR"] = trace}, beam.BmIdenty, true); return self
   end
 
   --[[
