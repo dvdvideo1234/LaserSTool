@@ -4,8 +4,9 @@
 .gitattributes
 .editorconfig
 .gitignore
+.workshop
+.tgitconfig
 contributing.md
 readme.md
-workshop_publish.bat
 data
 license
