@@ -618,6 +618,42 @@ function LaserLib.IsOther(arg)
 end
 
 --[[
+ * Checks whever an entity is player
+]]
+function LaserLib.IsPlayer(arg)
+  if(not LaserLib.IsValid(arg)) then return false end
+  if(not arg.IsPlayer) then return false end
+  return arg:IsPlayer()
+end
+
+--[[
+ * Returns the entity owner when defined
+ * Uses various entity fields and methods
+]]
+function LaserLib.GetOwner(ent)
+  if(not LaserLib.IsValid(ent)) then return nil end
+  local set, user = ent.OnDieFunctions
+  -- Use CPPI first when installed. If fails search down
+  user = ((CPPI and ent.CPPIGetOwner) and ent:CPPIGetOwner() or nil)
+  if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  -- Try the direct entity methods. Extract owner from functios
+  user = (ent.GetOwner and ent:GetOwner() or nil)
+  if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  user = (ent.GetCreator and ent:GetCreator() or nil)
+  if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  -- Try then various entity internal key values
+  user = ent.player; if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  user = ent.Owner; if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  user = ent.owner; if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  if(set) then -- Duplicatior die functions are registered
+    set = set.GetCountUpdate; user = (set.Args and set.Args[1] or nil)
+    if(LaserLib.IsPlayer(user)) then return user else user = nil end
+    set = set.undo1; user = (set.Args and set.Args[1] or nil)
+    if(LaserLib.IsPlayer(user)) then return user else user = nil end
+  end; return user -- No owner is found. Nothing is returned
+end
+
+--[[
  * This setups the beam kill crediting
  * Updates the kill credit player for specific entity
  * To obtain the creator player use `ent:GetCreator()`
