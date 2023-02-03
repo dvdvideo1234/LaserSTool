@@ -52,24 +52,25 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
 -- Library internal variables for limits and realtime tweaks
-DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc", 16, DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
-DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt", 30, DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
-DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg", 5000, DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
-DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc", 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
-DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng", 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
-DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10, DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc" , 16   , DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
+DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt" , 30   , DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
+DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg" , 5000 , DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
+DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
+DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
+DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10   , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
-DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast", 100, DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
-DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter", 2, DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
-DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter", 1, DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
-DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter", 1, DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
-DATA.EFFECTDT = CreateConVar(DATA.TOOL.."_effectdt", 0.15, DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
-DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds", 1, DATA.FGSRVCN, "Trigger this to enable or disable redirecton sounds")
-DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract", 20, DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
-DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt", 0.1, DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
-DATA.DRWBMSPD = CreateConVar(DATA.TOOL.."_drwbmspd", 8, DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
-DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam", 150, DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
-DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist", 1000, DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
+DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2    , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
+DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter X direction", 0, 1)
+DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter Y direction", 0, 1)
+DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Trigger this to enable or disable redirecton sounds")
+DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
+DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
+
+DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
+DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract"  , 20   , DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
+DATA.DRWBMSPD = CreateConVar(DATA.TOOL.."_drwbmspd"  , 8    , DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
+DATA.EFFECTDT = CreateConVar(DATA.TOOL.."_effectdt"  , 0.15 , DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
 
 local gtTCUST = {
   "Forward", "Right", "Up",
@@ -264,11 +265,13 @@ local gtTRACE = {
 }
 
 if(CLIENT) then
-  DATA.TAHD = TEXT_ALIGN_CENTER
+  DATA.CAPB = {} -- Store functions fof control panel
+  DATA.TAHD = TEXT_ALIGN_CENTER -- Text alignment
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
   DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, gtCOLOR["WHITE"]) end
+  DATA.CAPF = function(sS) return sS:gsub("^%l", string.upper) end -- Capitalize first letter
   gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
   gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
@@ -4158,6 +4161,57 @@ function LaserLib.SetupSoundEffects()
   end
 
   table.Empty(list.GetForEdit("LaserSounds"))
+end
+
+function LaserLib.ConVarToSlider(cPanel, sHash)
+  if(SERVER) then return end
+  local cV = DATA[sHash]; if(not cV) then return end
+  local sN = cV:GetName()
+  local sH = cV:GetHelpText()
+  local sT = sN:gsub("_", ".")
+  local sA = language.GetPhrase("tool."..sT.."_con")
+  local sB = language.GetPhrase("tool."..sT)
+  local pItem = cPanel:NumSlider(sA, sN, cV:GetMin(), cV:GetMax(), 5)
+        pItem:SetTooltip(sB); pItem:SetDefaultValue(cV:GetDefault())
+  return pItem -- Return created panel
+end
+
+function LaserLib.ConVarToCheck(cPanel, sHash)
+  if(SERVER) then return end
+  local cV = DATA[sHash]; if(not cV) then return end
+  local sN = cV:GetName()
+  local sH = cV:GetHelpText()
+  local sT = sN:gsub("_", ".")
+  local sA = language.GetPhrase("tool."..sT.."_con")
+  local sB = language.GetPhrase("tool."..sT)
+  local pItem = cPanel:CheckBox(sA, sN)
+        pItem:SetTooltip(sB)
+  return pItem -- Return created panel
+end
+
+--[[
+ * Creates panel control options function
+ * sDir > Control panel tab name
+ * sSub > Control panel type
+ * fFoo > Control panel handler function
+ * Usage: LaserLib.Controls("Utilities", "User", setupUserSettings)
+]]
+function LaserLib.Controls(sDir, sSub, fFoo)
+  if(SERVER) then return end
+  local tArg, tBar, fCap = {...}, DATA.CAPB, DATA.CAPF -- Third argument controls the behavior
+  local sDir, sSub = tostring(sDir):lower(), tostring(sSub):lower()
+  local bS, lDir = pcall(fCap, sDir); if(not bS) then return end
+  local bS, lSub = pcall(fCap, sSub); if(not bS) then return end
+  local sKey, sHoo = (DATA.TOOL.."%s_%s"):format(sDir, sSub), "PopulateToolMenu"
+  if(fFoo) then
+    if(not tBar[sDir]) then tBar[sDir] = {} end; tBar[sDir][sSub] = fFoo
+    hook.Remove(sHoo, sKey); hook.Add(sHoo, sKey, function()
+      spawnmenu.AddToolMenuOption(lDir, lSub, sKey,
+        language.GetPhrase("tool."..DATA.TOOL..".name"), "", "", fFoo) end)
+  else
+    if(not tBar[sDir]) then return end -- Control class not present
+    return tBar[sDir][sSub] -- Return what is stored in
+  end
 end
 
 if(CLIENT) then
