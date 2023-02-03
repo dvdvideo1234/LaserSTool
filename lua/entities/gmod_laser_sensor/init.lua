@@ -4,7 +4,7 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 
-local CTOL = LaserLib.GetData("CTOL")
+local gnCTOL = LaserLib.GetData("CTOL")
 
 function ENT:RegisterSource(ent)
   if(not self.hitSources) then return self end
@@ -217,7 +217,7 @@ function ENT:UpdateDominant(dom)
         if(mcomcor) then -- Dominant beam color compare enabled
           local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
           local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
-          mcoe = (mv:IsEqualTol(dv, CTOL) and (math.abs(ma - da) < CTOL))
+          mcoe = (mv:IsEqualTol(dv, gnCTOL) and (math.abs(ma - da) < gnCTOL))
         end
         -- Compare the internal congiguration and trigger sensor
         if((not mcomcor   or (mcomcor       and mcoe)) and

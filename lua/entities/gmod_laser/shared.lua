@@ -19,14 +19,14 @@ ENT.UnitID         = 1
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-local CLMX     = LaserLib.GetData("CLMX")
-local DOTM     = LaserLib.GetData("DOTM")
-local AMAX     = LaserLib.GetData("AMAX")
-local VDRUP    = LaserLib.GetData("VDRUP")
-local VZERO    = LaserLib.GetData("VZERO")
-local EFFECTDT = LaserLib.GetData("EFFECTDT")
-local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
-local ENSOUNDS = LaserLib.GetData("ENSOUNDS")
+local gnCLMX     = LaserLib.GetData("CLMX")
+local gnDOTM     = LaserLib.GetData("DOTM")
+local gtAMAX     = LaserLib.GetData("AMAX")
+local gvVDRUP    = LaserLib.GetData("VDRUP")
+local gvVZERO    = LaserLib.GetData("VZERO")
+local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
+local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
+local cvENSOUNDS = LaserLib.GetData("ENSOUNDS")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
@@ -35,13 +35,13 @@ end
 
 function ENT:SetBeamTransform(tranData)
   if(tranData[2] and tranData[3]) then
-    local orgn = (tranData[2] or VZERO)
-    local dirc = (tranData[3] or VDRUP):GetNormalized()
+    local orgn = (tranData[2] or gvVZERO)
+    local dirc = (tranData[3] or gvVDRUP):GetNormalized()
     self:SetOriginLocal(orgn)
     self:SetDirectLocal(dirc)
   else
     local val = (tonumber(tranData[1]) or 0)
-    local ang = math.Clamp(val, AMAX[1], AMAX[2])
+    local ang = math.Clamp(val, gtAMAX[1], gtAMAX[2])
     local dir = LaserLib.GetBeamDirection(self, ang)
     local org = LaserLib.GetBeamOrigin(self, dir)
     self:SetOriginLocal(org)
@@ -67,7 +67,7 @@ function ENT:GetHitPower(normal, beam, trace, bmln)
   local dotv = math.abs(norm:Dot(beam.VrDirect))
   if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
   local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - DOTM)), dotv
+  return (dott > (1 - gnDOTM)), dotv
 end
 
 --[[
@@ -181,9 +181,12 @@ function ENT:GetBeamMaterial(bool)
     if(mac) then -- Material object. Compare materials
       if(mac:GetName() ~= mat) then -- Different mats
         mac = Material(mat) -- Update reference
+        self.roMaterial = mac -- Store material
       end -- Material object is cached and updated
-    else mac = Material(mat) end -- Missing. Populate
-    self.roMaterial = mac; return mac -- Return mat object
+    else -- Missing. Populate cached material
+      mac = Material(mat) -- Update reference
+      self.roMaterial = mac -- Store material
+    end; return mac -- Return mat object
   else -- Material object is not issued. Return the string
     return mat
   end
@@ -238,7 +241,7 @@ function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
     local pos, cls = self:GetPos(), self:GetClass()
-    if(cls == LaserLib.GetClass(1) or ENSOUNDS:GetBool()) then
+    if(cls == LaserLib.GetClass(1) or cvENSOUNDS:GetBool()) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())
       else -- User shuts the entity off
@@ -299,17 +302,17 @@ end
  * Handling color setup and conversion
 ]]
 function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
-  local v, a = Vector(), CLMX
+  local v, a = Vector(), gnCLMX
   if(istable(mr)) then
-    v.x = LaserLib.GetNumber(3, mr[1], mr["r"], CLMX) / CLMX
-    v.y = LaserLib.GetNumber(3, mr[2], mr["g"], CLMX) / CLMX
-    v.z = LaserLib.GetNumber(3, mr[3], mr["b"], CLMX) / CLMX
-      a = LaserLib.GetNumber(3, mr[4], mr["a"], CLMX)
+    v.x = LaserLib.GetNumber(3, mr[1], mr["r"], gnCLMX) / gnCLMX
+    v.y = LaserLib.GetNumber(3, mr[2], mr["g"], gnCLMX) / gnCLMX
+    v.z = LaserLib.GetNumber(3, mr[3], mr["b"], gnCLMX) / gnCLMX
+      a = LaserLib.GetNumber(3, mr[4], mr["a"], gnCLMX)
   else
-    v.x = LaserLib.GetNumber(2, mr, CLMX) / CLMX -- [0-1]
-    v.y = LaserLib.GetNumber(2, mg, CLMX) / CLMX -- [0-1]
-    v.z = LaserLib.GetNumber(2, mb, CLMX) / CLMX -- [0-1]
-      a = LaserLib.GetNumber(2, ma, CLMX) -- [0-255]
+    v.x = LaserLib.GetNumber(2, mr, gnCLMX) / gnCLMX -- [0-1]
+    v.y = LaserLib.GetNumber(2, mg, gnCLMX) / gnCLMX -- [0-1]
+    v.z = LaserLib.GetNumber(2, mb, gnCLMX) / gnCLMX -- [0-1]
+      a = LaserLib.GetNumber(2, ma, gnCLMX) -- [0-255]
   end
   self:SetBeamColor(v)
   self:SetBeamAlpha(a)
@@ -317,7 +320,7 @@ end
 
 function ENT:GetBeamColorRGBA(bcol)
   local v, a = self:GetBeamColor(), self:GetBeamAlpha()
-  local r, g, b = (v.x * CLMX), (v.y * CLMX), (v.z * CLMX)
+  local r, g, b = (v.x * gnCLMX), (v.y * gnCLMX), (v.z * gnCLMX)
   if(bcol) then local c = self.roColor
     if(not c) then c = Color(0,0,0,0); self.roColor = c end
     c.r, c.g, c.b, c.a = r, g, b, a; return c

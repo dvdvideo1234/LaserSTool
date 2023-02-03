@@ -32,7 +32,7 @@ DATA.BESRC = nil             -- External forced entity source for the beam updat
 DATA.BCOLR = nil             -- External forced beam color used in the current request
 DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
-DATA.DISB  = "~"             -- The first symbol used to disable given things
+DATA.KEYX  = "~"             -- The first symbol used to disable given things
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
 DATA.VTEMP = Vector()        -- Global library temporary storage vector
@@ -332,7 +332,7 @@ end
 function LaserLib.InsertData(tArr, aVia, iID, bOvr)
   if(not tArr.Size) then tArr.Size = #tArr end
   local idx = (tonumber(iID) or 0)
-  local vdt, siz = (aVia or DATA.DISB), tArr.Size
+  local vdt, siz = (aVia or DATA.KEYX), tArr.Size
   if(idx < 1 or idx > siz) then
     table.insert(tArr, vdt)
     tArr.Size = (siz + 1)
@@ -579,7 +579,7 @@ function LaserLib.ExtractIco(tab, key)
       key[k] = LaserLib.GetIcon(v)
     end; return key
   else
-    if(key:sub(1, 1) == DATA.DISB) then
+    if(key:sub(1, 1) == DATA.KEYX) then
       return LaserLib.GetIcon(key:sub(2, -1))
     else
       local set = {} -- Allocate

@@ -21,7 +21,7 @@ ENT.UnitID         = 0
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-local DOTM = LaserLib.GetData("DOTM")
+local gnDOTM = LaserLib.GetData("DOTM")
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
@@ -68,7 +68,7 @@ function ENT:GetHitPower(normal, beam, trace)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - DOTM))
+  return (dott > (1 - gnDOTM))
 end
 
 function ENT:DoBeam(org, dir, bmex)

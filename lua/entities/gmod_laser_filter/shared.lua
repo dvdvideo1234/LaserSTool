@@ -21,12 +21,12 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/frame002a.mdl", "models/props_combi
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-local DOTM     = LaserLib.GetData("DOTM")
-local CLMX     = LaserLib.GetData("CLMX")
-local MXBMWIDT = LaserLib.GetData("MXBMWIDT")
-local MXBMLENG = LaserLib.GetData("MXBMLENG")
-local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
-local MXBMFORC = LaserLib.GetData("MXBMFORC")
+local gnDOTM     = LaserLib.GetData("DOTM")
+local gnCLMX     = LaserLib.GetData("CLMX")
+local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
+local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
+local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
+local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
 
 function ENT:SetupDataTables()
   local material = list.Get("LaserEmitterMaterials"); material["Empty"] = ""
@@ -36,15 +36,15 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamPassEnable", "General")
   self:EditableSetBool  ("BeamPassTexture", "General")
   self:EditableSetBool  ("BeamPassColor", "General")
-  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, MXBMWIDT:GetFloat())
-  self:EditableSetFloat ("InBeamLength", "Internals", 0, MXBMLENG:GetFloat())
-  self:EditableSetFloat ("InBeamDamage", "Internals", 0, MXBMDAMG:GetFloat())
-  self:EditableSetFloat ("InBeamForce" , "Internals", 0, MXBMFORC:GetFloat())
+  self:EditableSetFloat ("InBeamWidth" , "Internals", 0, cvMXBMWIDT:GetFloat())
+  self:EditableSetFloat ("InBeamLength", "Internals", 0, cvMXBMLENG:GetFloat())
+  self:EditableSetFloat ("InBeamDamage", "Internals", 0, cvMXBMDAMG:GetFloat())
+  self:EditableSetFloat ("InBeamForce" , "Internals", 0, cvMXBMFORC:GetFloat())
   local maticons = table.Copy(material)
   for k, v in pairs(maticons) do maticons[k] = ((k == "Empty") and "stop" or "picture_edit") end
   self:EditableSetStringCombo("InBeamMaterial", "Internals", material, nil, maticons)
   self:EditableSetVectorColor("BeamColor", "Visuals")
-  self:EditableSetFloat("BeamAlpha", "Visuals", 0, CLMX)
+  self:EditableSetFloat("BeamAlpha", "Visuals", 0, gnCLMX)
   LaserLib.Configure(self)
 end
 
@@ -52,17 +52,17 @@ end
  * Handling color setup and conversion
 ]]
 function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
-  local v, a = Vector(), CLMX
+  local v, a = Vector(), gnCLMX
   if(istable(mr)) then
-    v.x = LaserLib.GetNumber(3, mr[1], mr["r"], CLMX) / CLMX
-    v.y = LaserLib.GetNumber(3, mr[2], mr["g"], CLMX) / CLMX
-    v.z = LaserLib.GetNumber(3, mr[3], mr["b"], CLMX) / CLMX
-      a = LaserLib.GetNumber(3, mr[4], mr["a"], CLMX)
+    v.x = LaserLib.GetNumber(3, mr[1], mr["r"], gnCLMX) / gnCLMX
+    v.y = LaserLib.GetNumber(3, mr[2], mr["g"], gnCLMX) / gnCLMX
+    v.z = LaserLib.GetNumber(3, mr[3], mr["b"], gnCLMX) / gnCLMX
+      a = LaserLib.GetNumber(3, mr[4], mr["a"], gnCLMX)
   else
-    v.x = LaserLib.GetNumber(2, mr, CLMX) / CLMX -- [0-1]
-    v.y = LaserLib.GetNumber(2, mg, CLMX) / CLMX -- [0-1]
-    v.z = LaserLib.GetNumber(2, mb, CLMX) / CLMX -- [0-1]
-      a = LaserLib.GetNumber(2, ma, CLMX) -- [0-255]
+    v.x = LaserLib.GetNumber(2, mr, gnCLMX) / gnCLMX -- [0-1]
+    v.y = LaserLib.GetNumber(2, mg, gnCLMX) / gnCLMX -- [0-1]
+    v.z = LaserLib.GetNumber(2, mb, gnCLMX) / gnCLMX -- [0-1]
+      a = LaserLib.GetNumber(2, ma, gnCLMX) -- [0-255]
   end
   self:SetBeamColor(v)
   self:SetBeamAlpha(a)
@@ -71,7 +71,7 @@ end
 function ENT:GetBeamColorRGBA(bcol)
   local v = self:GetBeamColor()
   local a = self:GetBeamAlpha()
-  local r, g, b = (v.x * CLMX), (v.y * CLMX), (v.z * CLMX)
+  local r, g, b = (v.x * gnCLMX), (v.y * gnCLMX), (v.z * gnCLMX)
   if(bcol) then local c = self.roColor
     if(not c) then c = Color(0,0,0,0); self.roColor = c end
     c.r, c.g, c.b, c.a = r, g, b, a; return c
@@ -106,5 +106,5 @@ function ENT:GetHitPower(normal, beam, trace)
   local norm = Vector(normal)
         norm:Rotate(self:GetAngles())
   local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - DOTM))
+  return (dott > (1 - gnDOTM))
 end

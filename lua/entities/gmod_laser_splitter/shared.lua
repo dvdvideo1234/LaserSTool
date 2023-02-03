@@ -16,11 +16,11 @@ ENT.UnitID         = 4
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyeglass")
 
-local DOTM     = LaserLib.GetData("DOTM")
-local MXSPLTBC = LaserLib.GetData("MXSPLTBC")
+local gnDOTM     = LaserLib.GetData("DOTM")
+local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:SetupDataTables()
-  self:EditableSetInt   ("InBeamCount"  , "Internals", 0, MXSPLTBC:GetInt())
+  self:EditableSetInt   ("InBeamCount"  , "Internals", 0, cvMXSPLTBC:GetInt())
   self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
@@ -44,7 +44,7 @@ end
 function ENT:UpdateVectors()
   local fwd = self:GetDirectLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= DOTM) then
+  if(math.abs(fwd:Dot(upw)) >= gnDOTM) then
     local rgh = fwd:Cross(upw)
     upw:Set(rgh:Cross(fwd))
     upw:Normalize()

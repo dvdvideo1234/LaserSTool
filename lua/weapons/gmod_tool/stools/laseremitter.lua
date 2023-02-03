@@ -1,16 +1,16 @@
-local gsTool   = LaserLib.GetTool()
-local NOAV     = LaserLib.GetData("NOAV")
-local AMAX     = LaserLib.GetData("AMAX")
-local KEYA     = LaserLib.GetData("KEYA")
-local GRAT     = LaserLib.GetData("GRAT")
-local WLMR     = LaserLib.GetData("WLMR")
-local FNUH     = LaserLib.GetData("FNUH")
-local MXBMWIDT = LaserLib.GetData("MXBMWIDT")
-local MXBMLENG = LaserLib.GetData("MXBMLENG")
-local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
-local MXBMFORC = LaserLib.GetData("MXBMFORC")
-local MFORCELM = LaserLib.GetData("MFORCELM")
-local MAXRAYAS = LaserLib.GetData("MAXRAYAS")
+local gsTOOL     = LaserLib.GetTool()
+local gsNOAV     = LaserLib.GetData("NOAV")
+local gtAMAX     = LaserLib.GetData("AMAX")
+local gsKEYA     = LaserLib.GetData("KEYA")
+local gnGRAT     = LaserLib.GetData("GRAT")
+local gnWLMR     = LaserLib.GetData("WLMR")
+local gsFNUH     = LaserLib.GetData("FNUH")
+local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
+local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
+local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
+local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
+local cvMFORCELM = LaserLib.GetData("MFORCELM")
+local cvMAXRAYAS = LaserLib.GetData("MAXRAYAS")
 
 if(CLIENT) then
 
@@ -24,22 +24,22 @@ if(CLIENT) then
   }
 
   -- http://www.famfamfam.com/lab/icons/silk/preview.php
-  concommand.Add(gsTool.."_openmaterial",
+  concommand.Add(gsTOOL.."_openmaterial",
     function(ply, cmd, args)
       local base, tseq, sors
       local argm = tostring(args[1] or ""):upper()
       if(argm == "MIRROR") then
         sors = "REFLECT"
-        base = LaserLib.DataReflect(KEYA)
+        base = LaserLib.DataReflect(gsKEYA)
         tseq = LaserLib.GetSequenceData(base)
       elseif(argm == "TRANSPARENT") then
         sors = "REFRACT"
-        base = LaserLib.DataRefract(KEYA)
+        base = LaserLib.DataRefract(gsKEYA)
         tseq = LaserLib.GetSequenceData(base)
       else return nil end
       tseq.Sors = sors:lower().."used"
-      tseq.Conv = GetConVar(gsTool.."_"..tseq.Sors)
-      tseq.Name = language.GetPhrase("tool."..gsTool..".openmaterial")..argm
+      tseq.Conv = GetConVar(gsTOOL.."_"..tseq.Sors)
+      tseq.Name = language.GetPhrase("tool."..gsTOOL..".openmaterial")..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
       local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
@@ -53,12 +53,12 @@ if(CLIENT) then
             pnCombo:SetParent(pnFrame)
             pnCombo:SetSortItems(false)
             pnCombo:SetPos(iPa, 24 + iPa)
-            pnCombo:SetSize(pnFrame:GetWide() - (GRAT - 1) * pnFrame:GetWide(), 25)
-            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTool..".openmaterial_find"))
-            pnCombo:SetValue(language.GetPhrase("tool."..gsTool..".openmaterial_find0"))
-            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
-            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
-            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTool..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+            pnCombo:SetSize(pnFrame:GetWide() - (gnGRAT - 1) * pnFrame:GetWide(), 25)
+            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmaterial_find"))
+            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmaterial_find0"))
+            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
       local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
             pnText:SetParent(pnFrame)
             pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
@@ -89,7 +89,7 @@ end
 
 TOOL.Settings = {0, "", ""}
 TOOL.Category = "Construction"
-TOOL.Name     = (language and language.GetPhrase("tool."..gsTool..".name"))
+TOOL.Name     = (language and language.GetPhrase("tool."..gsTOOL..".name"))
 
 if(SERVER) then
   duplicator.RegisterEntityModifier("laseremitter_material",
@@ -106,10 +106,10 @@ if(SERVER) then
     "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
     "forceCenter", "frozen"      , "enOverMater" , "enSafeBeam" , "rayColor")
 
-  CreateConVar("sbox_max"..gsTool.."s", 20)
+  CreateConVar("sbox_max"..gsTOOL.."s", 20)
 end
 
-cleanup.Register(gsTool.."s")
+cleanup.Register(gsTOOL.."s")
 
 TOOL.ClientConVar =
 {
@@ -129,7 +129,7 @@ TOOL.ClientConVar =
   [ "dissolvetype" ] = "core",
   [ "startsound"   ] = "ambient/energy/weld1.wav",
   [ "stopsound"    ] = "ambient/energy/weld2.wav",
-  [ "killsound"    ] = "ambient/levels/citadel/weapon_disintegrate1.wav",
+  [ "killsound"    ] = "ambient/levels/citadel/weapon_disintegngrate1.wav",
   [ "toggle"       ] = 1,
   [ "starton"      ] = 0,
   [ "pushforce"    ] = 100,
@@ -155,7 +155,7 @@ LaserLib.SetupComboBools()
 LaserLib.SetupSoundEffects()
 LaserLib.SetupDissolveTypes()
 
-cleanup.Register(gsTool.."s")
+cleanup.Register(gsTOOL.."s")
 
 function TOOL:Holster()
   if(LaserLib.IsValid(self.GhostEntity)) then
@@ -166,7 +166,7 @@ end
 
 function TOOL:GetAngleOffset()
   local nang = self:GetClientNumber("angle", 0)
-  return math.Clamp(nang, AMAX[1], AMAX[2])
+  return math.Clamp(nang, gtAMAX[1], gtAMAX[2])
 end
 
 function TOOL:GetTransform()
@@ -178,7 +178,7 @@ function TOOL:GetTransform()
 end
 
 function TOOL:GetUnit(ent)
-  if(not LaserLib.IsValid(ent)) then return NOAV end
+  if(not LaserLib.IsValid(ent)) then return gsNOAV end
   local css = ent:GetClass():gsub(LaserLib.GetClass(1), ""):gsub("^_", "")
   return ((css:len() > 0) and (" "..css.." ") or (" "))
 end
@@ -197,7 +197,7 @@ function TOOL:LeftClick(trace)
   local ply, ent = self:GetOwner(), trace.Entity
   if(ent:IsPlayer()) then return false end
   local swep = self:GetSWEP()
-  if(not swep:CheckLimit(gsTool.."s")) then return false end
+  if(not swep:CheckLimit(gsTOOL.."s")) then return false end
   local pos, ang     = trace.HitPos, trace.HitNormal:Angle()
   local trandata     = self:GetTransform()
   local raycolor     = self:GetBeamRayColor()
@@ -219,11 +219,11 @@ function TOOL:LeftClick(trace)
   local forcecenter  = (self:GetClientNumber("forcecenter", 0) ~= 0)
   local ensafebeam   = (self:GetClientNumber("ensafebeam", 0) ~= 0)
   local enonvermater = (self:GetClientNumber("enonvermater", 0) ~= 0)
-  local width        = math.Clamp(self:GetClientNumber("width", 0), 0, MXBMWIDT:GetFloat())
-  local length       = math.Clamp(self:GetClientNumber("length", 0), 0, MXBMLENG:GetFloat())
-  local damage       = math.Clamp(self:GetClientNumber("damage", 0), 0, MXBMDAMG:GetFloat())
-  local pushforce    = math.Clamp(self:GetClientNumber("pushforce", 0), 0, MXBMFORC:GetFloat())
-  local forcelimit   = math.Clamp(self:GetClientNumber("forcelimit", 0), 0, MFORCELM:GetFloat())
+  local width        = math.Clamp(self:GetClientNumber("width", 0), 0, cvMXBMWIDT:GetFloat())
+  local length       = math.Clamp(self:GetClientNumber("length", 0), 0, cvMXBMLENG:GetFloat())
+  local damage       = math.Clamp(self:GetClientNumber("damage", 0), 0, cvMXBMDAMG:GetFloat())
+  local pushforce    = math.Clamp(self:GetClientNumber("pushforce", 0), 0, cvMXBMFORC:GetFloat())
+  local forcelimit   = math.Clamp(self:GetClientNumber("forcelimit", 0), 0, cvMFORCELM:GetFloat())
 
   if(LaserLib.IsValid(ent) and ent:GetClass() == LaserLib.GetClass(1)) then
     LaserLib.Notify(ply, "Paste settings !", "UNDO")
@@ -258,8 +258,8 @@ function TOOL:LeftClick(trace)
     undo.SetPlayer(ply)
   undo.Finish()
 
-  ply:AddCount(gsTool.."s", laser)
-  ply:AddCleanup(gsTool.."s", laser)
+  ply:AddCount(gsTOOL.."s", laser)
+  ply:AddCleanup(gsTOOL.."s", laser)
 
   LaserLib.Notify(ply, "Laser created !", "GENERIC")
 
@@ -307,8 +307,8 @@ function TOOL:RightClick(trace)
       local ang = math.atan2(math.Round(nor:Dot(ent:GetUp()), rnd),
                              math.Round(nor:Dot(ent:GetForward()), rnd))
       local mod, ang = ent:GetModel(), math.deg(ang)
-      local dir = Vector(trace.HitNormal); dir:Mul(WLMR)
-      dir:Add(ent:GetPos()); dir:Set(ent:WorldToLocal(dir)); dir:Div(WLMR)
+      local dir = Vector(trace.HitNormal); dir:Mul(gnWLMR)
+      dir:Add(ent:GetPos()); dir:Set(ent:WorldToLocal(dir)); dir:Div(gnWLMR)
       local org = Vector(trace.HitPos); org:Set(ent:WorldToLocal(org))
       dir = tostring(dir):Trim():gsub("%s+", ",")
       org = tostring(org):Trim():gsub("%s+", ",")
@@ -361,7 +361,7 @@ function TOOL:Reload(trace)
     else
       if(ent:GetClass() == LaserLib.GetClass(9)) then
         local idx = (tonumber(ent:GetEntityExitID()) or 0)
-        local txt = ((idx ~= 0) and tostring(idx) or NOAV); ent:SetEntityExitID(0)
+        local txt = ((idx ~= 0) and tostring(idx) or gsNOAV); ent:SetEntityExitID(0)
         LaserLib.Notify(ply, "Clear ID"..self:GetUnit(ent).."["..txt.."] !", "UNDO")
       else
         LaserLib.SetMaterial(ent)
@@ -409,7 +409,7 @@ function TOOL:GetSurface(ent)
         row[1] = math.Round(row[1], 3)
         row[2] = math.Round(row[2], 3)
       end
-      local fnm = "["..FNUH.."]"
+      local fnm = "["..gsFNUH.."]"
       local ang = LaserLib.GetRefractAngle(row[1], 1, true)
       return fnm:format(ang).."{"..table.concat(row, "|").."} "..mat
     end
@@ -444,49 +444,49 @@ local gtConvarList = TOOL:BuildConVarList()
 -- Enter `spawnmenu_reload` in the console to reload the panel
 function TOOL.BuildCPanel(panel) local pItem, pName, vData
   panel:ClearControls(); panel:DockPadding(5, 0, 5, 10)
-  panel:SetName(language.GetPhrase("tool."..gsTool..".name"))
-  panel:Help   (language.GetPhrase("tool."..gsTool..".desc"))
+  panel:SetName(language.GetPhrase("tool."..gsTOOL..".name"))
+  panel:Help   (language.GetPhrase("tool."..gsTOOL..".desc"))
 
   pItem = vgui.Create("ControlPresets", panel)
-  pItem:SetPreset(gsTool)
+  pItem:SetPreset(gsTOOL)
   pItem:AddOption("Default", gtConvarList)
   for key, val in pairs(table.GetKeys(gtConvarList)) do pItem:AddConVar(val) end
   panel:AddItem(pItem)
 
   pItem = vgui.Create("CtrlNumPad", panel)
-  pItem:SetConVar1(gsTool.."_key")
-  pItem:SetLabel1(language.GetPhrase("tool."..gsTool..".key_con"))
-  pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTool..".key"))
+  pItem:SetConVar1(gsTOOL.."_key")
+  pItem:SetLabel1(language.GetPhrase("tool."..gsTOOL..".key_con"))
+  pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTOOL..".key"))
   panel:AddPanel(pItem)
 
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".width_con"), gsTool.."_width", 0, MXBMWIDT:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".width")); pItem:SetDefaultValue(gtConvarList[gsTool.."_width"])
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".length_con"), gsTool.."_length", 0, MXBMLENG:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".length")); pItem:SetDefaultValue(gtConvarList[gsTool.."_length"])
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".damage_con"), gsTool.."_damage", 0, MXBMDAMG:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".damage")); pItem:SetDefaultValue(gtConvarList[gsTool.."_damage"])
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".pushforce_con"), gsTool.."_pushforce", 0, MXBMFORC:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".pushforce")); pItem:SetDefaultValue(gtConvarList[gsTool.."_pushforce"])
-  pItem = panel:MatSelect(gsTool.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
-  pItem.Label:SetText(language.GetPhrase("tool."..gsTool..".material_con"))
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".material"))
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTOOL..".width_con"), gsTOOL.."_width", 0, cvMXBMWIDT:GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".width")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_width"])
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTOOL..".length_con"), gsTOOL.."_length", 0, cvMXBMLENG:GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".length")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_length"])
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTOOL..".damage_con"), gsTOOL.."_damage", 0, cvMXBMDAMG:GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".damage")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_damage"])
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTOOL..".pushforce_con"), gsTOOL.."_pushforce", 0, cvMXBMFORC:GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".pushforce")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_pushforce"])
+  pItem = panel:MatSelect(gsTOOL.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
+  pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
 
   pItem = vgui.Create("CtrlColor", panel)
   pItem:Dock(TOP); pItem:SetTall(250)
-  pItem:SetLabel(language.GetPhrase("tool."..gsTool..".color_con"))
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".color"))
-  pItem:SetConVarR(gsTool.."_colorr")
-  pItem:SetConVarG(gsTool.."_colorg")
-  pItem:SetConVarB(gsTool.."_colorb")
-  pItem:SetConVarA(gsTool.."_colora")
+  pItem:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".color"))
+  pItem:SetConVarR(gsTOOL.."_colorr")
+  pItem:SetConVarG(gsTOOL.."_colorg")
+  pItem:SetConVarB(gsTOOL.."_colorb")
+  pItem:SetConVarA(gsTOOL.."_colora")
   panel:AddPanel(pItem)
 
   pItem = vgui.Create("PropSelect", panel)
   pItem:Dock(TOP); pItem:SetTall(150)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".model"))
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
   pItem:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
     models = list.GetForEdit("LaserEmitterModels"),
-    label  = language.GetPhrase("tool."..gsTool..".model_con")
+    label  = language.GetPhrase("tool."..gsTOOL..".model_con")
   }); panel:AddItem(pItem)
 
   LaserLib.ComboBoxString(panel, "dissolvetype", "LaserDissolveTypes")
@@ -494,30 +494,30 @@ function TOOL.BuildCPanel(panel) local pItem, pName, vData
   LaserLib.ComboBoxString(panel, "stopsound"   , "LaserStopSounds"   )
   LaserLib.ComboBoxString(panel, "killsound"   , "LaserKillSounds"   )
 
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".forcelimit_con"), gsTool.."_forcelimit", 0, MFORCELM:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".forcelimit")); pItem:SetDefaultValue(gtConvarList[gsTool.."_forcelimit"])
-  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTool..".rayassist_con"), gsTool.."_rayassist", 0, MAXRAYAS:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".rayassist")); pItem:SetDefaultValue(gtConvarList[gsTool.."_rayassist"])
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".surfweld_con"), gsTool.."_surfweld")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".surfweld"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".nocollide_con"), gsTool.."_nocollide")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".nocollide"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".frozen_con"), gsTool.."_frozen")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".frozen"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".toggle_con"), gsTool.."_toggle")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".toggle"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".starton_con"), gsTool.."_starton")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".starton"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".endingeffect_con"), gsTool.."_endingeffect")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".endingeffect"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".reflectrate_con"), gsTool.."_reflectrate")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".reflectrate"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".refractrate_con"), gsTool.."_refractrate")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".refractrate"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".forcecenter_con"), gsTool.."_forcecenter")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".forcecenter"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".enonvermater_con"), gsTool.."_enonvermater")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".enonvermater"))
-  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTool..".ensafebeam_con"), gsTool.."_ensafebeam")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTool..".ensafebeam"))
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTOOL..".forcelimit_con"), gsTOOL.."_forcelimit", 0, cvMFORCELM:GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".forcelimit")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_forcelimit"])
+  pItem = panel:NumSlider(language.GetPhrase("tool."..gsTOOL..".rayassist_con"), gsTOOL.."_rayassist", 0, cvMAXRAYAS:GetFloat(), 5)
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".rayassist")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_rayassist"])
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".surfweld_con"), gsTOOL.."_surfweld")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".surfweld"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".nocollide_con"), gsTOOL.."_nocollide")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".nocollide"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".frozen_con"), gsTOOL.."_frozen")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".frozen"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".toggle_con"), gsTOOL.."_toggle")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".toggle"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".starton_con"), gsTOOL.."_starton")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".starton"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".endingeffect_con"), gsTOOL.."_endingeffect")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".endingeffect"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".reflectrate_con"), gsTOOL.."_reflectrate")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".reflectrate"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".refractrate_con"), gsTOOL.."_refractrate")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".refractrate"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".forcecenter_con"), gsTOOL.."_forcecenter")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".forcecenter"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".enonvermater_con"), gsTOOL.."_enonvermater")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".enonvermater"))
+  pItem = panel:CheckBox(language.GetPhrase("tool."..gsTOOL..".ensafebeam_con"), gsTOOL.."_ensafebeam")
+  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".ensafebeam"))
 end

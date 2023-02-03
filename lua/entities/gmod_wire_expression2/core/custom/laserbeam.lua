@@ -3,18 +3,18 @@ E2Lib.RegisterExtension("laserbeam", true,
   "Provides a dedicated API that can extract beam information from laser entities and database."
 )
 
-local RNEXT, RSAME = false, false -- These store the current status for medium refraction
-local KEYA    = LaserLib.GetData("KEYA") -- Retrieve the active key indexing select all
-local REFLECT = LaserLib.DataReflect(KEYA) -- Retrieve all reflection database entries
-local REFRACT = LaserLib.DataRefract(KEYA) -- Retrieve all refraction database entries
-local WIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
+local gbRNEXT, gbRSAME = false, false -- These store the current status for medium refraction
+local gsKEYA    = LaserLib.GetData("KEYA") -- Retrieve the active key indexing select all
+local gtREFLECT = LaserLib.DataReflect(gsKEYA) -- Retrieve all reflection database entries
+local gtREFRACT = LaserLib.DataRefract(gsKEYA) -- Retrieve all refraction database entries
+local gtWIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
 
 --[[
  * Converts any value to wiremod dedicated booleans
  * src > source value to be converted
 ]]
 local function toBool(src)
-  return WIRECNV[tobool(src)]
+  return gtWIRECNV[tobool(src)]
 end
 
 --[[
@@ -479,27 +479,27 @@ end
 
 __e2setcost(1)
 e2function number laserGetReflectDataRatio(string idx)
-  local ext = REFLECT[idx]; return ((ext and ext[1] or 0) or 0)
+  local ext = gtREFLECT[idx]; return ((ext and ext[1] or 0) or 0)
 end
 
 __e2setcost(1)
 e2function string laserGetReflectDataKey(string idx)
-  local ext = REFLECT[idx]; return ((ext and ext[2] or "") or "")
+  local ext = gtREFLECT[idx]; return ((ext and ext[2] or "") or "")
 end
 
 __e2setcost(1)
 e2function number laserGetRefractDataIndex(string idx)
-  local ext = REFRACT[idx]; return ((ext and ext[1] or 0) or 0)
+  local ext = gtREFRACT[idx]; return ((ext and ext[1] or 0) or 0)
 end
 
 __e2setcost(1)
 e2function number laserGetRefractDataRatio(string idx)
-  local ext = REFRACT[idx]; return ((ext and ext[2] or 0) or 0)
+  local ext = gtREFRACT[idx]; return ((ext and ext[2] or 0) or 0)
 end
 
 __e2setcost(1)
 e2function string laserGetRefractDataKey(string idx)
-  local ext = REFRACT[idx]; return ((ext and ext[3] or "") or "")
+  local ext = gtREFRACT[idx]; return ((ext and ext[3] or "") or "")
 end
 
 __e2setcost(1)
@@ -511,17 +511,17 @@ end
 __e2setcost(1)
 e2function vector laserGetRefractBeam(vector come, vector norm, number sors, number dest)
   local res, nex, sam = LaserLib.GetRefracted(come, norm, sors, dest)
-  RNEXT, RSAME = nex, sam; return Vector(res)
+  gbRNEXT, gbRSAME = nex, sam; return Vector(res)
 end
 
 __e2setcost(1)
 e2function number laserGetRefractIsNext()
-  return (RNEXT and 1 or 0)
+  return (gbRNEXT and 1 or 0)
 end
 
 __e2setcost(1)
 e2function number laserGetRefractIsSame()
-  return (RSAME and 1 or 0)
+  return (gbRSAME and 1 or 0)
 end
 
 __e2setcost(1)

@@ -21,8 +21,8 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/frame002a.mdl", "models/props_combi
 include(LaserLib.GetTool().."/wire_wrapper.lua")
 include(LaserLib.GetTool().."/editable_wrapper.lua")
 
-local NOAV = LaserLib.GetData("NOAV")
-local DOTM = LaserLib.GetData("DOTM")
+local gsNOAV = LaserLib.GetData("NOAV")
+local gnDOTM = LaserLib.GetData("DOTM")
 
 function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal" , "General") -- Used as forward
@@ -44,7 +44,7 @@ end
 function ENT:UpdateVectors()
   local fwd = self:GetNormalLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= DOTM) then
+  if(math.abs(fwd:Dot(upw)) >= gnDOTM) then
     local rgh = fwd:Cross(upw)
     upw:Set(rgh:Cross(fwd))
     upw:Normalize()
@@ -66,9 +66,9 @@ end
 
 function ENT:IsHitNormal(trace)
   local norm = Vector(self:GetNormalLocal())
-  if(norm:LengthSqr() < DOTM) then return true end
+  if(norm:LengthSqr() < gnDOTM) then return true end
   norm:Rotate(self:GetAngles())
-  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - DOTM))
+  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - gnDOTM))
 end
 
 --[[
@@ -79,7 +79,7 @@ end
 function ENT:GetTransitID(idx, ent)
   local idx = (tonumber(idx) or 0) -- Convert the number
   if(ent) then return ((idx ~= 0) and Entity(idx) or nil)
-  else return ((idx ~= 0) and tostring(idx) or NOAV) end
+  else return ((idx ~= 0) and tostring(idx) or gsNOAV) end
 end
 
 function ENT:IsTrueExit(out) local ent

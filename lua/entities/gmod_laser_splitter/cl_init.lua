@@ -1,7 +1,7 @@
 include("shared.lua")
 
-local AMAX     = LaserLib.GetData("AMAX")
-local LNDIRACT = LaserLib.GetData("LNDIRACT")
+local gtAMAX     = LaserLib.GetData("AMAX")
+local cvLNDIRACT = LaserLib.GetData("LNDIRACT")
 
 function ENT:DrawBeam(org, dir, idx)
   local beam, trace = self:DoBeam(org, dir, idx)
@@ -21,7 +21,7 @@ function ENT:Draw()
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
       if(mcount > 1) then
-        local delta = AMAX[2] / mcount
+        local delta = gtAMAX[2] / mcount
         local direc = self:GetDirectLocal()
         local upwrd = self:GetUpwardLocal()
         local marx = self:GetBeamLeanX()
@@ -42,10 +42,10 @@ function ENT:Draw()
     end
   else
     if(mcount > 1) then
-      local lndir = LNDIRACT:GetFloat()
+      local lndir = cvLNDIRACT:GetFloat()
       if(lndir > 0) then
         render.SetColorMaterial()
-        local delta = AMAX[2] / mcount
+        local delta = gtAMAX[2] / mcount
         local color = LaserLib.GetColor("YELLOW")
         local orign = self:GetBeamOrigin()
         local direc = self:GetDirectLocal()

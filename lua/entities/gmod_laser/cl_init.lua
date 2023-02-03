@@ -2,7 +2,7 @@ include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
-local LNDIRACT = LaserLib.GetData("LNDIRACT")
+local cvLNDIRACT = LaserLib.GetData("LNDIRACT")
 
 --[[
  * This is actually faster than stuffing all the beams
@@ -55,7 +55,7 @@ function ENT:Draw()
       self:DrawBeam()
     end
   else
-    local lndir = LNDIRACT:GetFloat()
+    local lndir = cvLNDIRACT:GetFloat()
     if(lndir > 0) then
       local color = LaserLib.GetColor("YELLOW")
       local origin = self:GetBeamOrigin()

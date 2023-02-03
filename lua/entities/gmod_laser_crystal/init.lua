@@ -4,7 +4,7 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
-local CLMX = LaserLib.GetData("CLMX")
+local gnCLMX = LaserLib.GetData("CLMX")
 
 function ENT:UpdateInternals(init)
   if(init) then
@@ -173,10 +173,10 @@ end
 function ENT:DominantColor(beam, cov)
   local mar = math.max(cov.r, cov.g, cov.b)
   if(mar > 0) then
-    if(mar > CLMX) then
-      cov.r = (cov.r / mar) * CLMX
-      cov.g = (cov.g / mar) * CLMX
-      cov.b = (cov.b / mar) * CLMX
+    if(mar > gnCLMX) then
+      cov.r = (cov.r / mar) * gnCLMX
+      cov.g = (cov.g / mar) * gnCLMX
+      cov.b = (cov.b / mar) * gnCLMX
     end
     self:SetDominant(beam, cov)
   else
