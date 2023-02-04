@@ -97,17 +97,17 @@ local gtUNITS = {
   -- [3] Contains the current model ( last path) cashed being used for the given entity unit ID
   -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
   {"gmod_laser"          , nil, nil, nil}, -- Laser entity class `PriarySource`
-  {"gmod_laser_crystal"  , nil, "", ""}, -- Laser crystal class `EveryBeam`
-  {"gmod_laser_reflector", nil, "", ""}, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , nil, "", ""}, -- Laser beam splitter `EveryBeam`
-  {"gmod_laser_divider"  , nil, "", ""}, -- Laser beam divider `DoBeam`
-  {"gmod_laser_sensor"   , nil, "", ""}, -- Laser beam sensor `EveryBeam`
-  {"gmod_laser_dimmer"   , nil, "", ""}, -- Laser beam dimmer `DoBeam`
-  {"gmod_laser_splitterm", nil, "", ""}, -- Laser beam splitter multy `EveryBeam`
-  {"gmod_laser_portal"   , nil, "", ""}, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , nil, "", ""}, -- Laser beam parallel `DoBeam`
-  {"gmod_laser_filter"   , nil, "", ""}, -- Laser beam filter `DoBeam`
-  {"gmod_laser_refractor", nil, "", ""}  -- Laser beam refractor `DoBeam`
+  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal class `EveryBeam`
+  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors class `DoBeam`
+  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser beam splitter `EveryBeam`
+  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam divider `DoBeam`
+  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- Laser beam sensor `EveryBeam`
+  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam dimmer `DoBeam`
+  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam splitter multy `EveryBeam`
+  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser beam portal  `DoBeam`
+  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam parallel `DoBeam`
+  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser beam filter `DoBeam`
+  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser beam refractor `DoBeam`
 }; gtUNITS.Size = #gtUNITS
 
 local gtCOLOR = {
