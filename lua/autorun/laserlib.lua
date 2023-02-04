@@ -3891,6 +3891,34 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   return beam, trace
 end
 
+function LaserLib.NumSlider(panel, convar, nmin, nmax, ndef, ndig)
+  if(SERVER) then return end
+  local unit = LaserLib.GetTool()
+  local cV = GetConVar(unit.."_"..convar)
+  if(not cV) then error("Convar missing: "..convar) end
+  local sT = ("tool."..unit.."."..convar)
+  local sN, sH = cV:GetName(), cV:GetHelpText()
+  local sB = language.GetPhrase(sT)
+  local sA = language.GetPhrase(sT.."_con")
+  local pItem = panel:NumSlider(sA, sN, nmin or cV:GetMin(), nmax or cV:GetMax(), ndig or 5)
+        pItem:SetTooltip((sB == sT) and sH or sB); pItem:SetDefaultValue(ndef or cV:GetDefault())
+  return pItem -- Return created panel
+end
+
+function LaserLib.CheckBox(panel, convar)
+  if(SERVER) then return end
+  local unit = LaserLib.GetTool()
+  local cV = GetConVar(unit.."_"..convar)
+  if(not cV) then error("Convar missing: "..convar) end
+  local sT = ("tool."..unit.."."..convar)
+  local sN, sH = cV:GetName(), cV:GetHelpText()
+  local sB = language.GetPhrase(sT)
+  local sA = language.GetPhrase(sT.."_con")
+  local pItem = panel:CheckBox(sA, sN)
+        pItem:SetTooltip((sB == sT) and sH or sB)
+  return pItem -- Return created panel
+end
+
 function LaserLib.ComboBoxString(panel, convar, nameset)
   local unit = LaserLib.GetTool()
   local svar = GetConVar(unit.."_"..convar):GetString()
@@ -4163,32 +4191,6 @@ function LaserLib.SetupSoundEffects()
   table.Empty(list.GetForEdit("LaserSounds"))
 end
 
-function LaserLib.ConVarToSlider(cPanel, sHash)
-  if(SERVER) then return end
-  local cV = DATA[sHash]; if(not cV) then return end
-  local sN = cV:GetName()
-  local sH = cV:GetHelpText()
-  local sT = sN:gsub("_", ".")
-  local sA = language.GetPhrase("tool."..sT.."_con")
-  local sB = language.GetPhrase("tool."..sT)
-  local pItem = cPanel:NumSlider(sA, sN, cV:GetMin(), cV:GetMax(), 5)
-        pItem:SetTooltip(sB); pItem:SetDefaultValue(cV:GetDefault())
-  return pItem -- Return created panel
-end
-
-function LaserLib.ConVarToCheck(cPanel, sHash)
-  if(SERVER) then return end
-  local cV = DATA[sHash]; if(not cV) then return end
-  local sN = cV:GetName()
-  local sH = cV:GetHelpText()
-  local sT = sN:gsub("_", ".")
-  local sA = language.GetPhrase("tool."..sT.."_con")
-  local sB = language.GetPhrase("tool."..sT)
-  local pItem = cPanel:CheckBox(sA, sN)
-        pItem:SetTooltip(sB)
-  return pItem -- Return created panel
-end
-
 --[[
  * Creates panel control options function
  * sDir > Control panel tab name
@@ -4198,7 +4200,7 @@ end
 ]]
 function LaserLib.Controls(sDir, sSub, fFoo)
   if(SERVER) then return end
-  local tArg, tBar, fCap = {...}, DATA.CAPB, DATA.CAPF -- Third argument controls the behavior
+  local tBar, fCap = DATA.CAPB, DATA.CAPF -- Third argument controls the behavior
   local sDir, sSub = tostring(sDir):lower(), tostring(sSub):lower()
   local bS, lDir = pcall(fCap, sDir); if(not bS) then return end
   local bS, lSub = pcall(fCap, sSub); if(not bS) then return end

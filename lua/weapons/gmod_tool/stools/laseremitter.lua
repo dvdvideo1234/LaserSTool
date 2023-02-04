@@ -53,7 +53,7 @@ if(CLIENT) then
         if(not bS) then error("Admin error: "..vOut) end
       end -- Admin panel is updated with other language
     end -- Panels are cleared and we change the language utilizing localify
-  end, gsToolPrefL.."lang")
+  end, gsTOOL.."lang")
 
   -- http://www.famfamfam.com/lab/icons/silk/preview.php
   concommand.Add(gsTOOL.."_openmaterial",
@@ -71,7 +71,7 @@ if(CLIENT) then
       else return nil end
       tseq.Sors = sors:lower().."used"
       tseq.Conv = GetConVar(gsTOOL.."_"..tseq.Sors)
-      tseq.Name = language.GetPhrase("tool."..gsTOOL..".openmaterial")..argm
+      tseq.Name = language.GetPhrase("tool."..gsTOOL..".openmaterial").." "..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
       local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
@@ -491,14 +491,10 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTOOL..".key"))
   cPanel:AddPanel(pItem)
 
-  pItem = cPanel:NumSlider(language.GetPhrase("tool."..gsTOOL..".width_con"), gsTOOL.."_width", 0, cvMXBMWIDT:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".width")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_width"])
-  pItem = cPanel:NumSlider(language.GetPhrase("tool."..gsTOOL..".length_con"), gsTOOL.."_length", 0, cvMXBMLENG:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".length")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_length"])
-  pItem = cPanel:NumSlider(language.GetPhrase("tool."..gsTOOL..".damage_con"), gsTOOL.."_damage", 0, cvMXBMDAMG:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".damage")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_damage"])
-  pItem = cPanel:NumSlider(language.GetPhrase("tool."..gsTOOL..".pushforce_con"), gsTOOL.."_pushforce", 0, cvMXBMFORC:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".pushforce")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_pushforce"])
+  LaserLib.NumSlider(cPanel, "width"    , 0, cvMXBMWIDT:GetFloat(), gtConvarList[gsTOOL.."_width"])
+  LaserLib.NumSlider(cPanel, "length"   , 0, cvMXBMLENG:GetFloat(), gtConvarList[gsTOOL.."_length"])
+  LaserLib.NumSlider(cPanel, "damage"   , 0, cvMXBMDAMG:GetFloat(), gtConvarList[gsTOOL.."_damage"])
+  LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
   pItem = cPanel:MatSelect(gsTOOL.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
   pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
@@ -526,32 +522,19 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   LaserLib.ComboBoxString(cPanel, "stopsound"   , "LaserStopSounds"   )
   LaserLib.ComboBoxString(cPanel, "killsound"   , "LaserKillSounds"   )
 
-  pItem = cPanel:NumSlider(language.GetPhrase("tool."..gsTOOL..".forcelimit_con"), gsTOOL.."_forcelimit", 0, cvMFORCELM:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".forcelimit")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_forcelimit"])
-  pItem = cPanel:NumSlider(language.GetPhrase("tool."..gsTOOL..".rayassist_con"), gsTOOL.."_rayassist", 0, cvMAXRAYAS:GetFloat(), 5)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".rayassist")); pItem:SetDefaultValue(gtConvarList[gsTOOL.."_rayassist"])
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".surfweld_con"), gsTOOL.."_surfweld")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".surfweld"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".nocollide_con"), gsTOOL.."_nocollide")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".nocollide"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".frozen_con"), gsTOOL.."_frozen")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".frozen"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".toggle_con"), gsTOOL.."_toggle")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".toggle"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".starton_con"), gsTOOL.."_starton")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".starton"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".endingeffect_con"), gsTOOL.."_endingeffect")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".endingeffect"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".reflectrate_con"), gsTOOL.."_reflectrate")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".reflectrate"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".refractrate_con"), gsTOOL.."_refractrate")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".refractrate"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".forcecenter_con"), gsTOOL.."_forcecenter")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".forcecenter"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".enonvermater_con"), gsTOOL.."_enonvermater")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".enonvermater"))
-  pItem = cPanel:CheckBox(language.GetPhrase("tool."..gsTOOL..".ensafebeam_con"), gsTOOL.."_ensafebeam")
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".ensafebeam"))
+  LaserLib.NumSlider(cPanel, "forcelimit", 0, cvMFORCELM:GetFloat(), gtConvarList[gsTOOL.."_forcelimit"])
+  LaserLib.NumSlider(cPanel, "rayassist" , 0, cvMAXRAYAS:GetFloat(), gtConvarList[gsTOOL.."_rayassist"])
+  LaserLib.CheckBox (cPanel, "surfweld")
+  LaserLib.CheckBox (cPanel, "nocollide")
+  LaserLib.CheckBox (cPanel, "frozen")
+  LaserLib.CheckBox (cPanel, "toggle")
+  LaserLib.CheckBox (cPanel, "starton")
+  LaserLib.CheckBox (cPanel, "endingeffect")
+  LaserLib.CheckBox (cPanel, "reflectrate")
+  LaserLib.CheckBox (cPanel, "refractrate")
+  LaserLib.CheckBox (cPanel, "forcecenter")
+  LaserLib.CheckBox (cPanel, "enonvermater")
+  LaserLib.CheckBox (cPanel, "ensafebeam")
 end
 
 if(CLIENT) then
@@ -559,12 +542,12 @@ if(CLIENT) then
   local function setupUserSettings(cPanel)
     cPanel:ClearControls(); cPanel:DockPadding(5, 0, 5, 10)
     cPanel:SetName(language.GetPhrase("tool."..gsTOOL..".utilities_user"))
-    cPanel:ControlHelp(languageGetPhrase("tool."..gsTOOL..".user_var"))
-    LaserLib.ConVarToSlider(cPanel, "LNDIRACT")
-    LaserLib.ConVarToSlider(cPanel, "DRWBMSPD")
-    LaserLib.ConVarToSlider(cPanel, "EFFECTDT")
-    LaserLib.ConVarToSlider(cPanel, "NRASSIST")
-    LaserLib.ConVarToSlider(cPanel, "MAXRAYAS")
+    cPanel:ControlHelp(language.GetPhrase("tool."..gsTOOL..".user_var"))
+    LaserLib.NumSlider(cPanel, "lndiract" )
+    LaserLib.NumSlider(cPanel, "drwbmspd" )
+    LaserLib.NumSlider(cPanel, "effectdt" )
+    LaserLib.NumSlider(cPanel, "nrassist" )
+    LaserLib.NumSlider(cPanel, "maxrayast")
   end
 
   LaserLib.Controls("Utilities", "User", setupUserSettings)
@@ -572,22 +555,22 @@ if(CLIENT) then
   -- Enter `spawnmenu_reload` in the console to reload the panel
   local function setupAdminSettings(cPanel)
     cPanel:ClearControls(); cPanel:DockPadding(5, 0, 5, 10)
-    cPanel:SetName(languageGetPhrase("tool."..gsTOOL..".utilities_admin"))
-    cPanel:ControlHelp(languageGetPhrase("tool."..gsTOOL..".admin_var"))
-    LaserLib.ConVarToCheck (cPanel, "ENSOUNDS")
-    LaserLib.ConVarToSlider(cPanel, "MXSPLTBC")
-    LaserLib.ConVarToSlider(cPanel, "MXBMWIDT")
-    LaserLib.ConVarToSlider(cPanel, "MXBMDAMG")
-    LaserLib.ConVarToSlider(cPanel, "MXBMFORC")
-    LaserLib.ConVarToSlider(cPanel, "MXBMLENG")
-    LaserLib.ConVarToSlider(cPanel, "MBOUNCES")
-    LaserLib.ConVarToSlider(cPanel, "MFORCELM")
-    LaserLib.ConVarToSlider(cPanel, "NSPLITER")
-    LaserLib.ConVarToSlider(cPanel, "XSPLITER")
-    LaserLib.ConVarToSlider(cPanel, "YSPLITER")
-    LaserLib.ConVarToSlider(cPanel, "DAMAGEDT")
-    LaserLib.ConVarToSlider(cPanel, "VESFBEAM")
+    cPanel:SetName(language.GetPhrase("tool."..gsTOOL..".utilities_admin"))
+    cPanel:ControlHelp(language.GetPhrase("tool."..gsTOOL..".admin_var"))
+    LaserLib.CheckBox (cPanel, "ensounds"  )
+    LaserLib.NumSlider(cPanel, "maxspltbc" )
+    LaserLib.NumSlider(cPanel, "maxbmwidt" )
+    LaserLib.NumSlider(cPanel, "maxbmdamg" )
+    LaserLib.NumSlider(cPanel, "maxbmforc" )
+    LaserLib.NumSlider(cPanel, "maxbmleng" )
+    LaserLib.NumSlider(cPanel, "maxbounces")
+    LaserLib.NumSlider(cPanel, "maxforclim")
+    LaserLib.NumSlider(cPanel, "nspliter"  )
+    LaserLib.NumSlider(cPanel, "xspliter"  )
+    LaserLib.NumSlider(cPanel, "yspliter"  )
+    LaserLib.NumSlider(cPanel, "damagedt"  )
+    LaserLib.NumSlider(cPanel, "vesfbeam"  )
   end
 
-  asmlib.DoAction("Utilities", "Admin", setupAdminSettings)
+  LaserLib.Controls("Utilities", "Admin", setupAdminSettings)
 end
