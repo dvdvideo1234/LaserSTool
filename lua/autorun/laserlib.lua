@@ -51,7 +51,7 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 -- Independently controlled flags for console variables
 DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
--- Library internal variables for limits and realtime tweaks
+-- Library internal variables for limits and realtime tweaks ( server controlled )
 DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc" , 16   , DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
 DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt" , 30   , DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
 DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg" , 5000 , DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
@@ -67,8 +67,9 @@ DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 
+-- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
-DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract"  , 20   , DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
+DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract"  , 10   , DATA.FGINDCN, "How long will the direction of output beams be rendered", 0, 50)
 DATA.DRWBMSPD = CreateConVar(DATA.TOOL.."_drwbmspd"  , 8    , DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
 DATA.EFFECTDT = CreateConVar(DATA.TOOL.."_effectdt"  , 0.15 , DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
 
@@ -326,51 +327,6 @@ local function SetupMaterialsDataset(data, size)
 end
 
 --[[
- * Inserts consistent data in array notation {1,2,Size=2}
- * tArr > Array to modify
- * aVia > Data to be inserted
- * iID  > Location to insert data in
- * bOvr > Force replace the array slot
-]]
-function LaserLib.InsertData(tArr, aVia, iID, bOvr)
-  if(not tArr.Size) then tArr.Size = #tArr end
-  local idx = (tonumber(iID) or 0)
-  local vdt, siz = (aVia or DATA.KEYX), tArr.Size
-  if(idx < 1 or idx > siz) then
-    table.insert(tArr, vdt)
-    tArr.Size = (siz + 1)
-  else
-    if(bOvr) then tArr[idx] = aVia else
-      table.insert(tArr, idx, vdt)
-      tArr.Size = (siz + 1)
-    end
-  end; return tArr
-end
-
---[[
- * Selects consistent data in array notation {1,2,Size=2}
- * tArr > Array to modify
- * iID  > Location to insert data in
- * bOvr > Read only without pop data out
-]]
-function LaserLib.SelectData(tArr, iID, bOvr)
-  if(not tArr.Size) then tArr.Size = #tArr end
-  local siz = tArr.Size
-  local idx = (tonumber(iID) or 0)
-  if(idx < 1 or idx > siz) then
-    if(bOvr) then return tArr[siz] else
-      tArr.Size = (siz - 1)
-      return table.remove(tArr)
-    end
-  else
-    if(bOvr) then return tArr[idx] else
-      tArr.Size = (siz - 1)
-      return table.remove(tArr, idx)
-    end
-  end; return tArr
-end
-
---[[
  * Performs CAP dedicated traces. Will return result
  * only when CAP hits its dedicated entities
  * origin > Trace origin as world position vector
@@ -455,6 +411,175 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   end
 end
 
+--[[
+ * Checks if contens content is present in binary
+ * Returns true when content persists in trace
+]]
+local function InContent(cont, comp)
+  return (bit.band(cont, comp) == comp)
+end
+
+--[[
+ * Checks if contens content is present in position
+ * Returns true when content persists in trace
+]]
+local function IsContent(cpos, comp)
+  return InContent(util.PointContents(cpos), comp)
+end
+
+--[[
+ * This is designed to compare contents to the refract list
+ * It will compare the trace contents to the medium content
+ * On success will return the content ID to update trace
+ * cont > The trace contents being checked and matched
+]]
+local function GetContentsID(cont)
+  for idx = 1, gtREFRACT.Size do -- Check contents
+    local key = gtREFRACT[idx] -- Index content key
+    local row = gtREFRACT[key] -- Index entry row
+    if(row) then local conr = row.Con; if(conr and conr > 0) then
+      if(InContent(cont, conr)) then return idx end end end
+  end; return nil -- The contents did not get matched to entry
+end
+
+--[[
+ * Checks when the entity has interactive material
+ * Cashes the incoming request for the material index
+ * Used to pick data when reflecting or refracting
+ * mat > Direct material to check for. Missing uses `ent`
+ * set > The dedicated parameters setting to check
+ * Returns: Material entry from the given set
+]]
+local function GetMaterialEntry(mat, set)
+  if(not mat) then return nil end
+  if(not set) then return nil end
+  local mat = tostring(mat):lower()
+  -- Read the first entry from table
+  local key, val = mat, set[mat]
+  -- Check for overriding with default
+  if(mat == DATA.KEYD) then return set[val], val end
+  -- Check for element overrides found
+  if(val) then return val, key end
+  -- Check for disabled entry (false)
+  if(val ~= nil) then return nil end
+  -- Check for miss element category (nil)
+  for idx = 1, set.Size do key = set[idx]
+    if(mat:find(key)) then -- Cache the material
+      set[mat] = set[key] -- Cache the material found
+      return set[mat], key -- Compare the entry
+    end -- Read and compare the next entry
+  end; set[mat] = (val ~= nil) -- Undefined material
+  return nil -- Return nothing when not found
+end
+
+--[[
+ * Searches for a material in the definition set
+ * When material is not passed returns the default
+ * When material is passed indexes and returns it
+]]
+local function GetInteractIndex(iK, set)
+  if(iK == DATA.KEYA) then return set end
+  if(not iK) then return set[DATA.KEYD] end
+  return set[iK] -- Index the row
+end
+
+--[[
+ * Calculates the beam position and direction when entity is a portal
+ * This assumes that the beam enters the +X and exits at +X
+ * This will lead to correct beam representation across portal Y axis
+ * base    > Base entity acting as a portal entrance
+ * exit    > Exit entity acting as a portal beam output location
+ * origin  > Hit location vector placed on the first entity surface
+ * direct  > Direction that the beam goes inside the first entity
+ * forigin > Origin custom modifier function. Negates X, Y by default
+ * fdirect > Direction custom modifier function. Negates X, Y by default
+ * Returns the output beam ray position and direction
+]]
+local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
+  if(not (base and base:IsValid())) then return origin, direct end
+  if(not (exit and exit:IsValid())) then return origin, direct end
+  local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
+  pos:Set(base:WorldToLocal(pos)); dir:Mul(wmr)
+  if(forigin) then local suc, err = pcall(forigin, pos)
+    if(not suc) then error("Origin error: "..err) end
+  else pos.x, pos.y = -pos.x, -pos.y end
+  pos:Set(exit:LocalToWorld(pos))
+  dir:Add(base:GetPos())
+  dir:Set(base:WorldToLocal(dir))
+  if(fdirect) then local suc, err = pcall(fdirect, dir)
+    if(not suc) then error("Direct error: "..err) end
+  else dir.x, dir.y = -dir.x, -dir.y end
+  dir:Rotate(exit:GetAngles()); dir:Div(wmr)
+  return pos, dir
+end
+
+--[[
+ * Projects beam direction onto portal forward and retrieves
+ * portal beam margin visuals to be displayed correctly in
+ * render target surface. Returns incorrect results when
+ * portal position is not located on the render target surface
+ * entity > The portal entity to calculate margin for
+ * origin > Hit location vector placed on the furst entity surface
+ * direct > Direction that the beam goes inside the first entity
+ * normal > Surface normal vector. Usually portal:GetForward()
+ * Returns the output beam ray margin transition
+]]
+local function GetMarginPortal(entity, origin, direct, normal)
+  local normal = (normal or entity:GetForward())
+  local pos, mav = entity:GetPos(), Vector(direct)
+  local wvc = Vector(origin); wvc:Sub(pos)
+  local mar = math.abs(wvc:Dot(normal)) -- Project entrance vector
+  local vsm = mar / math.cos(math.asin(normal:Cross(direct):Length()))
+  vsm = 2 * vsm; mav:Mul(vsm); mav:Add(origin)
+  return mav, vsm
+end
+
+
+--[[
+ * Inserts consistent data in array notation {1,2,Size=2}
+ * tArr > Array to modify
+ * aVia > Data to be inserted
+ * iID  > Location to insert data in
+ * bOvr > Force replace the array slot
+]]
+local function InsertData(tArr, aVia, iID, bOvr)
+  if(not tArr.Size) then tArr.Size = #tArr end
+  local idx = (tonumber(iID) or 0)
+  local vdt, siz = (aVia or DATA.KEYX), tArr.Size
+  if(idx < 1 or idx > siz) then
+    table.insert(tArr, vdt)
+    tArr.Size = (siz + 1)
+  else
+    if(bOvr) then tArr[idx] = aVia else
+      table.insert(tArr, idx, vdt)
+      tArr.Size = (siz + 1)
+    end
+  end; return tArr
+end
+
+--[[
+ * Selects consistent data in array notation {1,2,Size=2}
+ * tArr > Array to modify
+ * iID  > Location to insert data in
+ * bOvr > Read only without pop data out
+]]
+local function SelectData(tArr, iID, bOvr)
+  if(not tArr.Size) then tArr.Size = #tArr end
+  local siz = tArr.Size
+  local idx = (tonumber(iID) or 0)
+  if(idx < 1 or idx > siz) then
+    if(bOvr) then return tArr[siz] else
+      tArr.Size = (siz - 1)
+      return table.remove(tArr)
+    end
+  else
+    if(bOvr) then return tArr[idx] else
+      tArr.Size = (siz - 1)
+      return table.remove(tArr, idx)
+    end
+  end; return tArr
+end
+
 function LaserLib.GetSign(arg)
   return arg / math.abs(arg)
 end
@@ -509,6 +634,42 @@ function LaserLib.GetMaterial(iR, vR)
   local tU = gtUNITS[tonumber(iR) or 0]
   if(tU and vR) then tU[4] = vR end
   return (tU and tU[4] or nil)
+end
+
+--[[
+ * Validates entity or physics object
+ * arg > Entity or physics object
+]]
+function LaserLib.IsValid(arg)
+  if(arg == nil) then return false end
+  if(arg == NULL) then return false end
+  if(not arg.IsValid) then return false end
+  return arg:IsValid()
+end
+
+--[[
+ * Validates entity and checks for something else
+ * arg > Entity object to be checked
+]]
+function LaserLib.IsOther(arg)
+  if(arg:IsNPC()) then return true end
+  if(arg:IsWorld()) then return true end
+  if(arg:IsPlayer()) then return true end
+  if(arg:IsWeapon()) then return true end
+  if(arg:IsWidget()) then return true end
+  if(arg:IsVehicle()) then return true end
+  if(arg:IsRagdoll()) then return true end
+  if(arg:IsDormant()) then return true end
+  return false
+end
+
+--[[
+ * Checks whever an entity is player
+]]
+function LaserLib.IsPlayer(arg)
+  if(not LaserLib.IsValid(arg)) then return false end
+  if(not arg.IsPlayer) then return false end
+  return arg:IsPlayer()
 end
 
 --[[
@@ -594,42 +755,6 @@ function LaserLib.ExtractIco(tab, key)
 end
 
 --[[
- * Validates entity or physics object
- * arg > Entity or physics object
-]]
-function LaserLib.IsValid(arg)
-  if(arg == nil) then return false end
-  if(arg == NULL) then return false end
-  if(not arg.IsValid) then return false end
-  return arg:IsValid()
-end
-
---[[
- * Validates entity and checks for something else
- * arg > Entity object to be checked
-]]
-function LaserLib.IsOther(arg)
-  if(arg:IsNPC()) then return true end
-  if(arg:IsWorld()) then return true end
-  if(arg:IsPlayer()) then return true end
-  if(arg:IsWeapon()) then return true end
-  if(arg:IsWidget()) then return true end
-  if(arg:IsVehicle()) then return true end
-  if(arg:IsRagdoll()) then return true end
-  if(arg:IsDormant()) then return true end
-  return false
-end
-
---[[
- * Checks whever an entity is player
-]]
-function LaserLib.IsPlayer(arg)
-  if(not LaserLib.IsValid(arg)) then return false end
-  if(not arg.IsPlayer) then return false end
-  return arg:IsPlayer()
-end
-
---[[
  * Returns the entity owner when defined
  * Uses various entity fields and methods
 ]]
@@ -680,7 +805,7 @@ function LaserLib.Notify(user, text, mtyp)
 end
 
 function LaserLib.ConCommand(user, name, value)
-  local key = LaserLib.GetTool().."_"..name
+  local key = DATA.TOOL.."_"..name
   if(LaserLib.IsValid(user)) then
     user:ConCommand(key.." \""..tostring(value or "").."\"\n")
   else RunConsoleCommand(key, tostring(value or "")) end
@@ -1028,7 +1153,7 @@ function LaserLib.Configure(unit)
   function unit:SetHitReport(beam, trace)
     local ros = self.hitReports -- Read entity hit reports
     if(not ros) then ros = {Size = 0}; self.hitReports = ros end
-    LaserLib.InsertData(ros, {["BM"] = beam, ["TR"] = trace}, beam.BmIdenty, true); return self
+    InsertData(ros, {["BM"] = beam, ["TR"] = trace}, beam.BmIdenty, true); return self
   end
 
   --[[
@@ -1039,7 +1164,7 @@ function LaserLib.Configure(unit)
     if(not index) then return end
     local ros = self.hitReports
     if(not ros) then return nil end
-    ros = LaserLib.SelectData(ros, index, true)
+    ros = SelectData(ros, index, true)
     if(not ros) then return nil end
     return ros["BM"], ros["TR"]
   end
@@ -1506,11 +1631,10 @@ end
 ]]
 function LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
   if(SERVER) then return end
-  local sTool = LaserLib.GetTool()
   -- Update material selection content
   LaserLib.ClearMaterials(pnMat)
   -- Read the controls table and create index
-  local tCont, iC = pnMat.Controls, 0
+  local tCont, iC, sTool = pnMat.Controls, 0, DATA.TOOL
   -- Update material panel with ordered values
   for iD = 1, sort.Size do
     local tRow, pnImg = sort[iD]
@@ -1782,71 +1906,6 @@ end
 
 function LaserLib.GetColor(idx)
   return GetCollectionData(idx, gtCOLOR)
-end
-
-function LaserLib.InContent(cont, comp)
-  return (bit.band(cont, comp) == comp)
-end
-
-function LaserLib.IsContent(pos, comp)
-  local con = util.PointContents(pos)
-  return LaserLib.InContent(con, comp)
-end
-
---[[
- * This is designed to compare contents to the refract list
- * It will compare the trace contents to the medium content
- * On success will return the content ID to update trace
- * cont > The trace contents being checked and matched
-]]
-local function GetContentsID(cont)
-  for idx = 1, gtREFRACT.Size do -- Check contents
-    local key = gtREFRACT[idx] -- Index content key
-    local row = gtREFRACT[key] -- Index entry row
-    if(row) then local conr = row.Con; if(conr and conr > 0) then
-      if(LaserLib.InContent(cont, conr)) then return idx end end end
-  end; return nil -- The contents did not get matched to entry
-end
-
---[[
- * Checks when the entity has interactive material
- * Cashes the incoming request for the material index
- * Used to pick data when reflecting or refracting
- * mat > Direct material to check for. Missing uses `ent`
- * set > The dedicated parameters setting to check
- * Returns: Material entry from the given set
-]]
-local function GetMaterialEntry(mat, set)
-  if(not mat) then return nil end
-  if(not set) then return nil end
-  local mat = tostring(mat):lower()
-  -- Read the first entry from table
-  local key, val = mat, set[mat]
-  -- Check for overriding with default
-  if(mat == DATA.KEYD) then return set[val], val end
-  -- Check for element overrides found
-  if(val) then return val, key end
-  -- Check for disabled entry (false)
-  if(val ~= nil) then return nil end
-  -- Check for miss element category (nil)
-  for idx = 1, set.Size do key = set[idx]
-    if(mat:find(key)) then -- Cache the material
-      set[mat] = set[key] -- Cache the material found
-      return set[mat], key -- Compare the entry
-    end -- Read and compare the next entry
-  end; set[mat] = (val ~= nil) -- Undefined material
-  return nil -- Return nothing when not found
-end
-
---[[
- * Searches for a material in the definition set
- * When material is not passed returns the default
- * When material is passed indexes and returns it
-]]
-local function GetInteractIndex(iK, set)
-  if(iK == DATA.KEYA) then return set end
-  if(not iK) then return set[DATA.KEYD] end
-  return set[iK] -- Index the row
 end
 
 function LaserLib.DataReflect(iK)
@@ -2233,58 +2292,6 @@ if(SERVER) then
 
     return laser
   end
-
-end
-
---[[
- * Calculates the beam position and direction when entity is a portal
- * This assumes that the beam enters the +X and exits at +X
- * This will lead to correct beam representation across portal Y axis
- * base    > Base entity acting as a portal entrance
- * exit    > Exit entity acting as a portal beam output location
- * origin  > Hit location vector placed on the first entity surface
- * direct  > Direction that the beam goes inside the first entity
- * forigin > Origin custom modifier function. Negates X, Y by default
- * fdirect > Direction custom modifier function. Negates X, Y by default
- * Returns the output beam ray position and direction
-]]
-local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
-  if(not LaserLib.IsValid(base)) then return origin, direct end
-  if(not LaserLib.IsValid(exit)) then return origin, direct end
-  local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
-  pos:Set(base:WorldToLocal(pos)); dir:Mul(wmr)
-  if(forigin) then local suc, err = pcall(forigin, pos)
-    if(not suc) then error("Origin error: "..err) end
-  else pos.x, pos.y = -pos.x, -pos.y end
-  pos:Set(exit:LocalToWorld(pos))
-  dir:Add(base:GetPos())
-  dir:Set(base:WorldToLocal(dir))
-  if(fdirect) then local suc, err = pcall(fdirect, dir)
-    if(not suc) then error("Direct error: "..err) end
-  else dir.x, dir.y = -dir.x, -dir.y end
-  dir:Rotate(exit:GetAngles()); dir:Div(wmr)
-  return pos, dir
-end
-
---[[
- * Projects beam direction onto portal forward and retrieves
- * portal beam margin visuals to be displayed correctly in
- * render target surface. Returns incorrect results when
- * portal position is not located on the render target surface
- * entity > The portal entity to calculate margin for
- * origin > Hit location vector placed on the furst entity surface
- * direct > Direction that the beam goes inside the first entity
- * normal > Surface normal vector. Usually portal:GetForward()
- * Returns the output beam ray margin transition
-]]
-local function GetMarginPortal(entity, origin, direct, normal)
-  local normal = (normal or entity:GetForward())
-  local pos, mav = entity:GetPos(), Vector(direct)
-  local wvc = Vector(origin); wvc:Sub(pos)
-  local mar = math.abs(wvc:Dot(normal)) -- Project entrance vector
-  local vsm = mar / math.cos(math.asin(normal:Cross(direct):Length()))
-  vsm = 2 * vsm; mav:Mul(vsm); mav:Add(origin)
-  return mav, vsm
 end
 
 --[[
@@ -2520,7 +2527,7 @@ function mtBeam:SetBranch(beam, indx, reov)
   if(getmetatable(beam) ~= mtBeam) then return self end
   local bran = self.TrBranch -- Branches local reference
   if(not bran) then bran = {Size = 0}; self.TrBranch = bran end
-  LaserLib.InsertData(bran, beam, indx, reov); return self
+  InsertData(bran, beam, indx, reov); return self
 end
 
 --[[
@@ -2531,7 +2538,7 @@ end
 function mtBeam:GetBranch(indx, reov)
   local bran = self.TrBranch -- Branches local reference
   if(not bran) then return nil end -- No branches
-  return LaserLib.SelectData(bran, indx, reov)
+  return SelectData(bran, indx, reov)
 end
 
 --[[
@@ -2574,7 +2581,7 @@ end
  * vncon > Content enumenator value for current medium definition
 ]]
 function mtBeam:UpdateWaterSurface(vncon)
-  if(LaserLib.InContent(vncon, CONTENTS_WATER)) then -- Point in the water
+  if(InContent(vncon, CONTENTS_WATER)) then -- Point in the water
     if(self:IsAir()) then -- No water surface defined. Traverse to water
       self:SetWaterSurface()
       self.NvMask = MASK_SOLID -- Start traversng below the water
@@ -3047,7 +3054,7 @@ end
 ]]
 function mtBeam:SetSurfaceWorld(mekey, mecon, trace)
   local wat, air = self:GetWater(), self:IsAir()
-  local vae = LaserLib.InContent(mecon, CONTENTS_WATER)
+  local vae = InContent(mecon, CONTENTS_WATER)
   if(not vae and mekey) then vae = mekey:find(self.W[2], 1, true) end
   if(self.StRfract) then
     if(vae and air) then -- Water is not yet registered for transition
@@ -3893,24 +3900,23 @@ end
 
 function LaserLib.NumSlider(panel, convar, nmin, nmax, ndef, ndig)
   if(SERVER) then return end
-  local unit = LaserLib.GetTool()
-  local cV = GetConVar(unit.."_"..convar)
+  local sTool = DATA.TOOL -- Read the tool name directly
+  local cV = GetConVar(sTool.."_"..convar)
   if(not cV) then error("Convar missing: "..convar) end
-  local sT = ("tool."..unit.."."..convar)
+  local sT = ("tool."..sTool.."."..convar)
   local sN, sH = cV:GetName(), cV:GetHelpText()
-  local sB = language.GetPhrase(sT)
-  local sA = language.GetPhrase(sT.."_con")
-  local pItem = panel:NumSlider(sA, sN, nmin or cV:GetMin(), nmax or cV:GetMax(), ndig or 5)
+  local sB, sC = language.GetPhrase(sT), language.GetPhrase(sT.."_con")
+  local pItem = panel:NumSlider(sC, sN, nmin or cV:GetMin(), nmax or cV:GetMax(), ndig or 5)
         pItem:SetTooltip((sB == sT) and sH or sB); pItem:SetDefaultValue(ndef or cV:GetDefault())
   return pItem -- Return created panel
 end
 
 function LaserLib.CheckBox(panel, convar)
   if(SERVER) then return end
-  local unit = LaserLib.GetTool()
-  local cV = GetConVar(unit.."_"..convar)
+  local sTool = DATA.TOOL -- Read the tool name directly
+  local cV = GetConVar(sTool.."_"..convar)
   if(not cV) then error("Convar missing: "..convar) end
-  local sT = ("tool."..unit.."."..convar)
+  local sT = ("tool."..sTool.."."..convar)
   local sN, sH = cV:GetName(), cV:GetHelpText()
   local sB = language.GetPhrase(sT)
   local sA = language.GetPhrase(sT.."_con")
@@ -3920,30 +3926,30 @@ function LaserLib.CheckBox(panel, convar)
 end
 
 function LaserLib.ComboBoxString(panel, convar, nameset)
-  local unit = LaserLib.GetTool()
-  local svar = GetConVar(unit.."_"..convar):GetString()
-  local base = language.GetPhrase("tool."..unit.."."..convar.."_con")
-  local hint = language.GetPhrase("tool."..unit.."."..convar)
-  local item, name = panel:ComboBox(base, unit.."_"..convar)
-  item:SetTooltip(hint); name:SetTooltip(hint)
-  item:SetSortItems(true); item:Dock(TOP); item:SetTall(22)
-  for key, val in pairs(list.GetForEdit(nameset)) do
-    local bsel = (svar == val.name)
-    local name = language.GetPhrase(key)
-    local icon = LaserLib.GetIcon(val.icon)
-    item:AddChoice(name, val.name, bsel, icon)
+  local sTool = DATA.TOOL -- Read the tool name directly
+  local sVar  = GetConVar(sTool.."_"..convar):GetString()
+  local sBase = language.GetPhrase("tool."..sTool.."."..convar.."_con")
+  local sHint = language.GetPhrase("tool."..sTool.."."..convar)
+  local pItem, pName = panel:ComboBox(sBase, sTool.."_"..convar)
+  pItem:SetTooltip(sHint); pName:SetTooltip(sHint)
+  pItem:SetSortItems(true); pItem:Dock(TOP); pItem:SetTall(22)
+  for key, row in pairs(list.GetForEdit(nameset)) do
+    local bS = (sVar == row.name)
+    local sN = language.GetPhrase(key)
+    local sI = LaserLib.GetIcon(row.icon)
+    pItem:AddChoice(sN, row.name, bS, sI)
   end
-  function name:DoRightClick()
+  function pName:DoRightClick()
     SetClipboardText(self:GetValue())
   end
-  function item:DoRightClick()
-    local vN = name:GetValue()
+  function pItem:DoRightClick()
+    local vN = pName:GetValue()
     local iD = self:GetSelectedID()
     local vT = self:GetOptionText(iD)
     local vD = self:GetOptionData(iD)
-    SetClipboardText(vN.." "..vT.." ["..vD.."]")
+    SetClipboardText("["..iD.."/"..vN.."]:["..vT.."]["..vD.."]")
   end
-  return item, name
+  return pItem, pName
 end
 
 -- https://github.com/Facepunch/garrysmod/tree/master/garrysmod/resource/localization/en
@@ -4113,18 +4119,18 @@ function LaserLib.SetupModels()
   -- Automatic model array population. Add models in the list above
   table.Empty(list.GetForEdit("LaserEmitterModels"))
 
-  local sTool = LaserLib.GetTool()
+  local pref = (DATA.TOOL.."_")
   for idx = 1, #moar do
     local rec = moar[idx]
-    local mod = tostring(rec[1] or "")
-    local ang = (tonumber(rec[2]) or 0)
-    local org = tostring(rec[3] or "")
-    local dir = tostring(rec[4] or "")
+    local mod =  tostring(rec[1]  or "")
+    local ang = (tonumber(rec[2]) or 0 )
+    local org =  tostring(rec[3]  or "")
+    local dir =  tostring(rec[4]  or "")
     table.Empty(rec)
-    rec[sTool.."_model" ] = mod
-    rec[sTool.."_angle" ] = ang
-    rec[sTool.."_origin"] = org
-    rec[sTool.."_direct"] = dir
+    rec[pref.."model" ] = mod
+    rec[pref.."angle" ] = ang
+    rec[pref.."origin"] = org
+    rec[pref.."direct"] = dir
     list.Set("LaserEmitterModels", mod, rec)
   end
 end
