@@ -34,14 +34,15 @@ SWEP.AccurateCrosshair      = true
 
 local gsTool = LaserLib.GetTool()
 local gsPref = gsTool.."_"
-local tAmax = LaserLib.GetData("AMAX")
 
-local MXBMDAMG = LaserLib.GetData("MXBMDAMG")
-local MXBMWIDT = LaserLib.GetData("MXBMWIDT")
-local MXBMFORC = LaserLib.GetData("MXBMFORC")
-local MXBMLENG = LaserLib.GetData("MXBMLENG")
-local EFFECTDT = LaserLib.GetData("EFFECTDT")
-local DAMAGEDT = LaserLib.GetData("DAMAGEDT")
+local gtAMAX     = LaserLib.GetData("AMAX")
+local gnCLMX     = LaserLib.GetData("CLMX")
+local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
+local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
+local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
+local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
+local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
+local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 if(SERVER) then
   resource.AddFile("materials/vgui/entities/gmod_laser_pistol.vmt")
@@ -116,9 +117,12 @@ function SWEP:GetBeamMaterial(bool)
     if(matc) then
       if(matc:GetName() ~= matr) then
         matc = Material(matr)
+        self.roMaterial = matc
       end
-    else matc = Material(matr) end
-    self.roMaterial = matc; return matc
+    else
+      matc = Material(matr)
+      self.roMaterial = matc
+    end; return matc
   else
     return matr
   end
@@ -131,7 +135,6 @@ end
 
 function SWEP:GetBeamColorRGBA(bcol)
   local user = self:GetOwner()
-  local m = LaserLib.GetData("CLMX")
   local r = math.Clamp(user:GetInfoNum(gsPref.."colorr", 0), 0 , 255)
   local g = math.Clamp(user:GetInfoNum(gsPref.."colorg", 0), 0 , 255)
   local b = math.Clamp(user:GetInfoNum(gsPref.."colorb", 0), 0 , 255)
@@ -181,19 +184,19 @@ function SWEP:GetEndingEffect()
 end
 
 function SWEP:GetBeamWidth()
-  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."width", 0), 0, MXBMWIDT:GetFloat())
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."width", 0), 0, cvMXBMWIDT:GetFloat())
 end
 
 function SWEP:GetBeamDamage()
-  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."damage", 0), 0, MXBMDAMG:GetFloat())
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."damage", 0), 0, cvMXBMDAMG:GetFloat())
 end
 
 function SWEP:GetBeamLength()
-  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."length", 0), 0, MXBMLENG:GetFloat())
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."length", 0), 0, cvMXBMLENG:GetFloat())
 end
 
 function SWEP:GetBeamForce()
-  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, MXBMFORC:GetFloat())
+  return math.Clamp(self:GetOwner():GetInfoNum(gsPref.."pushforce", 0), 0, cvMXBMFORC:GetFloat())
 end
 
 function SWEP:GetBeamSafety()

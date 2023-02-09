@@ -4,6 +4,11 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_splitter.vmt")
 
+local gtAMAX     = LaserLib.GetData("AMAX")
+local cvNSPLITER = LaserLib.GetData("NSPLITER")
+local cvXSPLITER = LaserLib.GetData("XSPLITER")
+local cvYSPLITER = LaserLib.GetData("YSPLITER")
+
 function ENT:UpdateInternals()
   self.crOpower = nil
   self.crDoment = nil
@@ -90,9 +95,9 @@ function ENT:SpawnFunction(ply, tr)
     LaserLib.SetProperties(ent, "metal")
     LaserLib.SetPlayer(ent, ply)
     ent:SetBeamTransform()
-    ent:SetBeamCount(LaserLib.GetData("NSPLITER"):GetInt())
-    ent:SetBeamLeanX(LaserLib.GetData("XSPLITER"):GetFloat())
-    ent:SetBeamLeanY(LaserLib.GetData("YSPLITER"):GetFloat())
+    ent:SetBeamCount(cvNSPLITER:GetInt())
+    ent:SetBeamLeanX(cvXSPLITER:GetFloat())
+    ent:SetBeamLeanY(cvYSPLITER:GetFloat())
     ply:AddCount(gen.."s", ent)
     ply:AddCleanup(gen.."s", ent)
     return ent
@@ -153,8 +158,7 @@ function ENT:Think()
   if(self:GetOn()) then
     local direc = self:GetDirectLocal()
     if(mcount > 1) then
-      local fulla = LaserLib.GetData("AMAX")[2]
-      local delta = fulla / mcount
+      local delta = gtAMAX[2] / mcount
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
       local upwrd = self:GetUpwardLocal()

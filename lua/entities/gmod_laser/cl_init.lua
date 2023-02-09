@@ -2,6 +2,8 @@ include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_BOTH
 
+local cvLNDIRACT = LaserLib.GetData("LNDIRACT")
+
 --[[
  * This is actually faster than stuffing all the beams
  * information for every laser in a dedicated table and
@@ -53,12 +55,14 @@ function ENT:Draw()
       self:DrawBeam()
     end
   else
-    local color = LaserLib.GetColor("YELLOW")
-    local lndir = LaserLib.GetData("LNDIRACT"):GetFloat()
-    local origin = self:GetBeamOrigin()
-    local direct = self:GetBeamDirection()
-          direct:Mul(lndir); direct:Add(origin)
-    render.DrawLine(origin, direct, color)
+    local lndir = cvLNDIRACT:GetFloat()
+    if(lndir > 0) then
+      local color = LaserLib.GetColor("YELLOW")
+      local origin = self:GetBeamOrigin()
+      local direct = self:GetBeamDirection()
+            direct:Mul(lndir); direct:Add(origin)
+      render.DrawLine(origin, direct, color)
+    end
   end
 end
 

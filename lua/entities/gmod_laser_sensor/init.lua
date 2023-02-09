@@ -4,6 +4,8 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 
+local gnCTOL = LaserLib.GetData("CTOL")
+
 function ENT:RegisterSource(ent)
   if(not self.hitSources) then return self end
   self.hitSources[ent] = true; return self
@@ -126,7 +128,7 @@ function ENT:EveryBeam(entity, index, beam, trace)
   local norm = self:GetUnitDirection()
   local bdot, mdot = self:GetHitPower(norm, beam, trace)
   if(trace and trace.Hit and beam) then
-    self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
+    self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
     if(bdot) then
       self.crNpower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
       self.crWidth  = self.crWidth  + beam.NvWidth
@@ -180,7 +182,7 @@ function ENT:UpdateDominant(dom)
     local zorigin, como = morigin:IsZero(), false
     local zdirect, comd = mdirect:IsZero(), false
     if(not zorigin) then -- Check if origin is present
-      como = (morigin:Distance(self.crOrigin) >= mlength)
+      como = (morigin:DistToSqr(self.crOrigin) >= mlength^2)
     end -- No need to calculate square root when zero
     if(not zdirect) then comd = self.crNormh end
     -- Thrigger the wire inputs
@@ -213,10 +215,9 @@ function ENT:UpdateDominant(dom)
         local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
         local dovrmat = domsrc:GetNonOverMater() and 2 or 1
         if(mcomcor) then -- Dominant beam color compare enabled
-          local margin = LaserLib.GetData("CTOL")
           local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
           local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
-          mcoe = (mv:IsEqualTol(dv, margin) and (math.abs(ma - da) < margin))
+          mcoe = (mv:IsEqualTol(dv, gnCTOL) and (math.abs(ma - da) < gnCTOL))
         end
         -- Compare the internal congiguration and trigger sensor
         if((not mcomcor   or (mcomcor       and mcoe)) and

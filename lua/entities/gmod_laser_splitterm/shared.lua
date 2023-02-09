@@ -16,6 +16,10 @@ ENT.UnitID         = 8
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass")
 
+local gtAMAX     = LaserLib.GetData("AMAX")
+local gnDOTM     = LaserLib.GetData("DOTM")
+local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
+
 function ENT:UpdateInternals()
   self.hitSize = 0 -- Add sources in array
   self.crHdx = 0 -- Current bean index
@@ -30,7 +34,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamReplicate" , "General")
   self:EditableSetBool  ("BeamColorSplit", "Visuals")
   self:EditableSetBool  ("InPowerOn"     , "Internals")
-  self:EditableSetInt   ("InBeamCount"   , "Internals", 0, LaserLib.GetData("MXSPLTBC"):GetInt())
+  self:EditableSetInt   ("InBeamCount"   , "Internals", 0, cvMXSPLTBC:GetInt())
   self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
   self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
   LaserLib.Configure(self)
@@ -51,10 +55,9 @@ function ENT:SetBeamTransform()
 end
 
 function ENT:UpdateVectors()
-  local mdt = LaserLib.GetData("DOTM")
   local fwd = self:GetNormalLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= mdt) then
+  if(math.abs(fwd:Dot(upw)) >= gnDOTM) then
     local rgh = fwd:Cross(upw)
     upw:Set(rgh:Cross(fwd))
     upw:Normalize()
@@ -135,8 +138,7 @@ end
 function ENT:IsHitNormal(trace)
   local normal = Vector(self:GetHitNormal())
         normal:Rotate(self:GetAngles())
-  local dotm = LaserLib.GetData("DOTM")
-  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - dotm))
+  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - gnDOTM))
 end
 
 function ENT:EveryBeam(entity, index, beam, trace)
@@ -150,9 +152,9 @@ function ENT:EveryBeam(entity, index, beam, trace)
     local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
     local angle, count = bsdir:AngleEx(upwrd), self.crCount
     if(count > 1) then
+      local mnang = gtAMAX[2] / count
       local marbx = self:GetBeamLeanX()
       local marby = self:GetBeamLeanY()
-      local mnang = LaserLib.GetData("AMAX")[2] / count
       for idx = 1, count do
         local newdr = marby * angle:Up(); newdr:Add(marbx * angle:Forward())
         if(CLIENT) then
