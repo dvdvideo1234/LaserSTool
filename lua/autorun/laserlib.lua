@@ -3956,6 +3956,9 @@ function LaserLib.CheckBox(panel, convar)
   local sA = language.GetPhrase(sT.."_con")
   local pItem = panel:CheckBox(sA, sN)
         pItem:SetTooltip((sB == sT) and sH or sB)
+  function pItem.Label:DoRightClick()
+    SetClipboardText(self:GetValue())
+  end
   return pItem -- Return created panel
 end
 
@@ -3981,7 +3984,7 @@ function LaserLib.ComboBoxString(panel, convar, nameset)
     local iD = self:GetSelectedID()
     local vT = self:GetOptionText(iD)
     local vD = self:GetOptionData(iD)
-    SetClipboardText("["..iD.."/"..vN.."]:["..vT.."]["..vD.."]")
+    SetClipboardText("["..vN..iD.."]:["..vT.."]["..vD.."]")
   end
   return pItem, pName
 end
