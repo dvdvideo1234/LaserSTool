@@ -513,6 +513,7 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   pItem:Dock(TOP); pItem:SetTall(150)
   pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
   pItem:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
+    convar = gsTOOL.."_model", -- Pass model convar
     models = list.GetForEdit("LaserEmitterModels"),
     label  = language.GetPhrase("tool."..gsTOOL..".model_con")
   }); cPanel:AddItem(pItem)
