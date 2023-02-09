@@ -1889,7 +1889,6 @@ function LaserLib.IsPower(width, damage)
   return (math.Round(power, DATA.RNDB) > margn)
 end
 
--- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
 function GetCollectionData(key, set)
   local idx = DATA.KEYD
   local def = set[set[idx]]
@@ -1900,6 +1899,7 @@ function GetCollectionData(key, set)
   return out -- Return indexed OK
 end
 
+-- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
 function LaserLib.GetDissolveID(idx)
   return GetCollectionData(idx, gtDISTYPE)
 end
@@ -2081,6 +2081,46 @@ if(SERVER) then
       local damage = math.Clamp(damage / 2500 * 3, 0, 4)
       target:Hit(laser, origin, damage, -1 * normal)
       return true -- Exit main damage routine
+    end,
+    ["#ISPLAYER#"] = function(target  , laser , attacker, origin ,
+                              normal  , direct, damage  , force  ,
+                              dissolve, noise , fcenter , safety)
+      LaserLib.DoSound(target, noise) -- Play sound for breakable props
+      local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
+      if(LaserLib.IsValid(torch)) then
+        local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
+        LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
+        local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
+        if(LaserLib.IsValid(doll)) then print("PDOLL", doll, swep)
+          if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
+          doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
+          LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
+          return true -- Exit main damage routine
+        else
+          LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE)
+          target:Kill(); return true -- Exit main damage routine
+        end
+      else
+        LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE)
+        target:Kill(); return true -- Exit main damage routine
+      end
+    end,
+    ["#ISNPC#"] = function(target  , laser , attacker, origin ,
+                           normal  , direct, damage  , force  ,
+                           dissolve, noise , fcenter , safety)
+      LaserLib.DoSound(target, noise) -- Play sound for breakable props
+      local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
+      if(LaserLib.IsValid(torch)) then
+        local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
+        if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end -- Mark weapon
+        target:SetName(torch.Target) -- The NPC does not have kill method. Mark it
+        LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
+        LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
+        return true -- Exit main damage routine
+      else
+        LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE)
+        target:Remove(); return true -- Exit main damage routine
+      end
     end
   }
 
@@ -2204,38 +2244,33 @@ if(SERVER) then
       else
         if(target:IsPlayer()) then
           if(target:Health() <= damage) then
-            local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
-            if(not LaserLib.IsValid(torch)) then target:Kill(); return end
-            LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE) -- Do damage to generate the ragdoll
-            local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
-            if(not LaserLib.IsValid(doll)) then target:Kill(); return end -- Nevec for the player ragdoll idea
-            doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
-            LaserLib.DoSound(target, noise) -- Play sound for breakable props
-            LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
+            local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
+                                   target  , laser , attacker, origin ,
+                                   normal  , direct, damage  , force  ,
+                                   dissolve, noise , fcenter , safety)
+            if(not suc) then target:Kill(); error(err) end -- Remove target
+            if(oux) then return end -- Exit main damage routine immediately
           end
         elseif(target:IsNPC()) then
           if(target:Health() <= damage) then
-            local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
-            if(not LaserLib.IsValid(torch)) then target:Remove(); return end
-            LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE) -- Do damage to generate the ragdoll
-            target:SetName(torch.Target) -- The NPC does not have kill method
-            local swep = target:GetActiveWeapon()
-            if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
-            LaserLib.DoSound(target, noise) -- Play sound for breakable props
-            LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
+            local suc, oux = pcall(gtDAMAGE["#ISNPC#"],
+                                   target  , laser , attacker, origin ,
+                                   normal  , direct, damage  , force  ,
+                                   dissolve, noise , fcenter , safety)
+            if(not suc) then target:Remove(); error(err) end -- Remove target
+            if(oux) then return end -- Exit main damage routine immediately
           end
         elseif(target:IsVehicle()) then
           local driver = target:GetDriver()
           if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
-            if(driver:Health() <= damage) then -- We must kill the driver!
-              local torch = LaserLib.NewDissolver(laser, driver:GetPos(), attacker, dissolve)
-              if(not LaserLib.IsValid(torch)) then driver:Kill(); return end
-              LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE) -- Do damage to generate the ragdoll
-              local doll = driver:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
-              if(not LaserLib.IsValid(doll)) then driver:Kill(); return end
-              doll:SetName(torch.Target) -- Thanks to Nevec for the player ragdoll idea
-              LaserLib.DoSound(driver, noise) -- Dissolver only for player and NPC
-              LaserLib.DoDissolve(torch) -- Allowing us to dissolve him the cleanest way
+            if(driver:Health() <= damage) then
+            driver:ExitVehicle()
+            local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
+                                   driver  , laser , attacker, origin ,
+                                   normal  , direct, damage  , force  ,
+                                   dissolve, noise , fcenter , safety)
+              if(not suc) then driver:Kill(); error(err) end -- Remove target
+              if(oux) then return end -- Exit main damage routine immediately
             end
           end
         end
