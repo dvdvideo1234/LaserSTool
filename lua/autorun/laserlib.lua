@@ -20,7 +20,7 @@ DATA.ERAD = 1.12             -- Entity refract coefficient for back trace origin
 DATA.TRWD = 0.27             -- Beam back trace width when refracting
 DATA.WLMR = 10000            -- World vectors to be correctly converted to local
 DATA.TRWU = 50000            -- The distance to trace for finding water surface
-DATA.FMVA = "%f,%f,%f"       -- Utilized to print vector in proper manner
+DATA.FMVA = "%f,%f,%f"       -- Utilized to outut formatted vectors in proper manner
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 380, 750}      -- General wavelength limists for visible light
@@ -240,7 +240,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
 --[[
  * Material configuration to use when override is missing
  * Acts like a reference key jump for to the REFLECT set
- * Convert all numbers to strings to preven memory leaks
+ * Convert all numbers to strings to preven memory gaps
  * https://wiki.facepunch.com/gmod/Enums/MAT
 ]]
 local gtMATYPE = {
@@ -2091,7 +2091,7 @@ if(SERVER) then
         local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
         LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
         local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
-        if(LaserLib.IsValid(doll)) then print("PDOLL", doll, swep)
+        if(LaserLib.IsValid(doll)) then
           if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
           doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
           LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
@@ -2263,8 +2263,7 @@ if(SERVER) then
         elseif(target:IsVehicle()) then
           local driver = target:GetDriver()
           if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
-            if(driver:Health() <= damage) then
-            driver:ExitVehicle()
+            if(driver:Health() <= damage) then driver:ExitVehicle()
             local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
                                    driver  , laser , attacker, origin ,
                                    normal  , direct, damage  , force  ,
