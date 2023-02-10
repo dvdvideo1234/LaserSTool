@@ -35,8 +35,8 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamColorSplit", "Visuals")
   self:EditableSetBool  ("InPowerOn"     , "Internals")
   self:EditableSetInt   ("InBeamCount"   , "Internals", 0, cvMXSPLTBC:GetInt())
-  self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamLeanX"   , "Internals", -1, 1)
+  self:EditableSetFloat ("InBeamLeanY"   , "Internals", -1, 1)
   LaserLib.Configure(self)
 end
 
@@ -108,18 +108,7 @@ function ENT:InitSources()
 end
 
 function ENT:GetHitNormal()
-  if(SERVER) then
-    local normal = self:WireRead("Normal", true)
-    if(normal) then normal:Normalize() else
-      normal = self:GetNormalLocal()
-    end -- Make sure length is one unit
-    self:SetNWVector("GetNormalLocal", normal)
-    self:WireWrite("Normal", normal)
-    return normal
-  else
-    local normal = self:GetNormalLocal()
-    return self:GetNWFloat("GetNormalLocal", normal)
-  end
+  return LaserLib.GetUnitProperty(self, "GetNormalLocal", "Normal"):GetNormalized()
 end
 
 function ENT:SetOn(bool)
@@ -144,6 +133,8 @@ end
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     self:SetArrays(entity)
+    local marbx = self:GetBeamLeanX()
+    local marby = self:GetBeamLeanY()
     local upwrd = Vector(self:GetUpwardLocal())
           upwrd:Rotate(self:GetAngles())
     local bsdir = Vector(trace.HitNormal)
@@ -151,12 +142,13 @@ function ENT:EveryBeam(entity, index, beam, trace)
     local mrdotm = math.abs(beam.VrDirect:Dot(bsdir))
     local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
     local angle, count = bsdir:AngleEx(upwrd), self.crCount
+    local angup, angfw = angle:Up(), angle:Forward()
+    angup:Mul(marby); angfw:Mul(marbx); angfw:Add(angup)
+    angle:Set(angfw:AngleEx(upwrd))
     if(count > 1) then
       local mnang = gtAMAX[2] / count
-      local marbx = self:GetBeamLeanX()
-      local marby = self:GetBeamLeanY()
       for idx = 1, count do
-        local newdr = marby * angle:Up(); newdr:Add(marbx * angle:Forward())
+        local newdr = angle:Forward()
         if(CLIENT) then
           self:DrawBeam(entity, bmorg, newdr, beam, mrdotv)
         else
@@ -165,10 +157,11 @@ function ENT:EveryBeam(entity, index, beam, trace)
         angle:RotateAroundAxis(bsdir, mnang)
       end
     else
+      local newdr = angle:Forward()
       if(CLIENT) then
-        self:DrawBeam(entity, bmorg, bsdir, beam, mrdotv)
+        self:DrawBeam(entity, bmorg, newdr, beam, mrdotv)
       else
-        self:DoDamage(self:DoBeam(entity, bmorg, bsdir, beam, mrdotv))
+        self:DoDamage(self:DoBeam(entity, bmorg, newdr, beam, mrdotv))
       end
     end
   end -- Sources are located in the table hash part
