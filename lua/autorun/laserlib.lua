@@ -41,7 +41,7 @@ DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Pos
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
-DATA.NWPID = DATA.TOOL.."_class[%s]" -- General key storing laser portal entity networking
+DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
@@ -2474,15 +2474,13 @@ end
  * Registers a medium in the dedicated list
 ]]
 function mtBeam:SetMedium(index, data, mkey, norm)
-  if(not key) then return self end
-  local info = self.TrMedium[key]
-  if(info) then
-    info[1] = (data or info[1])
-    info[2] = (mkey or info[2])
-    info[3] = (norm or info[3])
-  else
-    local mer = mtBeam.__meair -- Create trace medium data using the defaults
-    self.TrMedium[key] = {(data or mer[1]), (mkey or mer[2]), (norm or Vector())}
+  if(not index) then return self end
+  local info = self.TrMedium[index]
+  if(info) then -- Entry is present for this chached medium
+    info[1], info[2], info[3] = (data or info[1]), (mkey or info[2]), (norm or info[3])
+  else -- Entry for this chached medium is unavailable
+    local meair = mtBeam.__meair -- Create trace medium data using the defaults
+    self.TrMedium[index] = {(data or meair[1]), (mkey or meair[2]), (norm or Vector())}
   end; return self
 end
 
@@ -3114,21 +3112,22 @@ function mtBeam:RefractWaterAir()
   local wat = self:GetWater() -- Local reference indexing water
   local vtm = self.__vtorg; self.VrDirect:Negate()
   local vwa = self:IntersectRaySurface(wat.P, wat.N)
+  local mewat, meair = mtBeam.__mewat, mtBeam.__meair
   -- Registering the node cannot be done with direct subtraction
   self.VrDirect:Negate(); self:RegisterNode(vwa, true)
   vtm:Set(wat.N); vtm:Negate()
   local vdir, bnex = LaserLib.GetRefracted(self.VrDirect, vtm,
-                       mtBeam.__mewat[1][1], mtBeam.__meair[1][1])
+                       mewat[1][1], meair[1][1])
   if(bnex) then
     self.NvMask = MASK_ALL -- We change the medium to air
     self:ClearWater() -- Set water normal flag to zero
-    self:SetMediumSours(mtBeam.__meair) -- Switch to air medium
+    self:SetMediumSours(meair) -- Switch to air medium
     self:Redirect(vwa, vdir, true) -- Redirect and reset laser beam
   else -- Redirect the beam in case of going out reset medium
     self.NvMask = MASK_SOLID -- We stay in the water and hit stuff
     self:Redirect(vwa, vdir) -- Redirect only reset laser beam
   end -- Apply power ratio when requested
-  if(self.BrRefrac) then self:SetPowerRatio(mtBeam.__mewat[1][2]) end
+  if(self.BrRefrac) then self:SetPowerRatio(mewat[1][2]) end
   return self -- Coding effective API
 end
 
@@ -3507,19 +3506,19 @@ local gtACTORS = {
   end,
   ["prop_portal"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent, src = trace.Entity, beam:GetSource()
+    local ent = trace.Entity
     if(not ent:IsLinked()) then return end -- No linked pair
-    local nwp, out = DATA.NWPID:format(ent:GetClass()), nil
-    if(SERVER) then
+    local src = beam:GetSource()
+    local nwp, out = DATA.NWPID, nil
+    if(SERVER) then -- Locating open pair is server-side
       out = ent:FindOpenPair() -- Retrieve open pair
-      if(LaserLib.IsValid(out)) then
-        ent:SetNWInt(nwp, out:EntIndex())
+      if(LaserLib.IsValid(out)) then -- Validate portal
+        ent:SetNWInt(nwp, out:EntIndex()) -- Store pair
       else ent:SetNWInt(nwp, 0); return end -- No linked pair
-    else
+    else -- Clienttakes entity form networking
       out = Entity(ent:GetNWInt(nwp, 0))
       if(not LaserLib.IsValid(out)) then return end -- No linked pair
-    end
-    -- Assume that output portal will have the same surface offset
+    end -- Assume that output portal will have the same surface offset
     local dir, pos = beam.VrDirect, trace.HitPos
     local mav, vsm = GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)
@@ -3768,6 +3767,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local trace, target = {} -- Configure and target and shared trace reference
+  -- Store general definition of air adn water mediums for fast usage and indexing
+  local mewat, meair = mtBeam.__mewat, mtBeam.__meair -- Local reference beam menbers
   -- Reports dedicated values that are being used by other entities and processes
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
@@ -3839,7 +3840,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           beam.IsTrace = true -- Produce next ray. Well the beam is still tracing
           -- Decide whenever to go out of the entity according to the hit location
           if(not beam:SetRefractContent(mcons)) then -- Ask souce engine for water position origin
-            beam:SetMediumSours(beam.__meair) -- Contents are not located and surface is missing
+            beam:SetMediumSours(meair) -- Contents are not located and surface is missing
           end -- Negate the normal so it must point inwards before refraction
           trace.HitNormal:Negate(); beam.VrDirect:Negate()
           -- Make sure to pick the correct refract exit medium for current node
@@ -3914,10 +3915,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             -- Do the refraction according to medium boundary
             if(not beam:IsTraverse(org, nil, nrm, target)) then
               local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
-                                   nrm, beam.TrMedium.D[1][1], beam.__meair[1][1])
+                                   nrm, beam.TrMedium.D[1][1], meair[1][1])
               if(bnex) then -- When the beam gets out of the medium
                 beam:Redirect(org, vdir, true)
-                beam:SetMediumSours(beam.__meair)
+                beam:SetMediumSours(meair)
                 -- Memorizing will help when beam traverses from world to no-collided entity
                 beam:SetMediumMemory(beam.TrMedium.D, nil, nrm)
               else -- Get the trace ready to check the other side and register the location
