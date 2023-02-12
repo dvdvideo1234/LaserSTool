@@ -63,7 +63,8 @@ DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10   , DATA.FGSRVCN, "Max
 DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
 DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2    , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter X direction", -1, 1)
-DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
+DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0    , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
+DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter Z direction", -1, 1)
 DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Trigger this to enable or disable redirecton sounds")
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
@@ -875,6 +876,28 @@ function LaserLib.ApplySpawn(base, trace, tran)
   else
     LaserLib.SnapNormal(base, trace, tran[1])
   end
+end
+
+--[[
+ * Retrieves the splitter lean control angle
+ * F/U vectors are locals angle will be local also
+ * F/U vectors are world angle will be world also
+ * forwd > Forward vector for angale caculation
+ * upwrd > Upwards vector for angale caculation
+ * marbx > Angle axis offest margin for X
+ * marby > Angle axis offest margin for Y
+ * marbz > Angle axis offest margin for Z
+]]
+function LaserLib.GetLeanAngle(forwd, upwrd, marbx, marby, marbz)
+  local marbx = math.Clamp(tonumber(marbx) or 0, -1, 1)
+  local marby = math.Clamp(tonumber(marby) or 0, -1, 1)
+  local marbz = math.Clamp(tonumber(marbz) or 0, -1, 1)
+  local angle = forwd:AngleEx(upwrd)
+  local aup   = angle:Up(); aup:Mul(marbz)
+  local arg   = angle:Right(); arg:Mul(marby)
+  local afw   = angle:Forward(); afw:Mul(marbx)
+  afw:Add(arg); afw:Add(aup)
+  return afw:AngleEx(upwrd)
 end
 
 --[[
@@ -2434,7 +2457,7 @@ local function Beam(origin, direct, width, damage, length, force)
   self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
   if(self.BmLength == 0) then return end -- Length is not available exit now
   self.VrDirect = Vector(direct) -- Copy direction and normalize when present
-  if(self.VrDirect:LengthSqr() ~= 1) then self.VrDirect:Normalize() else return end
+  if(self.VrDirect:LengthSqr() > 0) then self.VrDirect:Normalize() else return end
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
   self.TrMedium = {} -- Contains information for the mediums being traversed
   -- Trace data node points notation row for a given node ID
