@@ -3082,6 +3082,7 @@ end
  * width  > Trace beam width.    Default `0`
 ]]
 function mtBeam:GetTrace(origin, direct, length, filter, mask, colgrp, iworld, width)
+  local origin, direct = (origin or self.VrOrigin), (direct or self.VrDirect)
   return TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, mtBeam.__trace)
 end
 
@@ -3139,9 +3140,9 @@ end
  * trace > Trace result structure output being used
 ]]
 function mtBeam:SetSurfaceWorld(mekey, mecon, trace)
-  local wat, air = self:GetWater(), self:IsAir()
-  local vae = InContent(mecon, CONTENTS_WATER)
-  if(not vae and mekey) then vae = mekey:find(self.W[2], 1, true) end
+  local wat, mewat = self:GetWater(), mtBeam.__mewat
+  local vae, air = InContent(mecon, CONTENTS_WATER), self:IsAir()
+  if(not vae and mekey) then vae = mekey:find(mewat[2], 1, true) end
   if(self.StRfract) then
     if(vae and air) then -- Water is not yet registered for transition
       self:SetWaterSurface() -- Register the water surface
