@@ -450,8 +450,9 @@ local function GetContentsID(cont)
   for idx = 1, gtREFRACT.Size do -- Check contents
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
-    if(row) then local conr = row.Con; if(conr and conr > 0) then
-      if(InContent(cont, conr)) then return idx end end end
+    if(row) then local conr = row.Con; if(conr ~= nil) then
+      if(InContent(cont, conr) or cont == conr) then return idx end
+    end end -- Check if we have the corresponding bit or be equal
   end; return nil -- The contents did not get matched to entry
 end
 
