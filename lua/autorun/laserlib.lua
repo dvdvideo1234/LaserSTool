@@ -169,7 +169,7 @@ local gtREFLECT = { -- Reflection descriptor
   ["reflect"]                            = {0.999}, -- It has reflect in the name
   ["mirror"]                             = {0.999}, -- It has mirror in the name
   ["chrome"]                             = {0.955}, -- Something chrommed and reflective
-  ["shiny"]                              = {0.854}, -- Something generally shiny
+  ["shiny"]                              = {0.915}, -- Something generally shiny
   ["white"]                              = {0.342}, -- Something white that reflects
   ["metal"]                              = {0.045}, -- General metalic surface
   -- Materials that are overridden and directly hash searched
