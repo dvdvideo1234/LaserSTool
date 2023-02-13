@@ -94,11 +94,22 @@ local gtCOLID = {
 local gtUNITS = {
   -- Classes existing in the hash part are laser-enabled entities `LaserLib.Configure(self)`
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
-  ["gmod_laser"] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser"          ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_crystal"  ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_reflector"] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_splitter" ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_divider"  ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_sensor"   ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_dimmer"   ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_splitterm"] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_portal"   ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_parallel" ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_filter"   ] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_refractor"] = true, -- This is present for hot reload. You must register yours separately
   -- These are aintended for uning configuration and pre-allocation. Used to create also convars
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
   -- [2] Extension for folder and variable name indices. Stores which folder are entity specific files located
-  -- [3] Contains the current model ( last path) cashed being used for the given entity unit ID
+  -- [3] Contains the current model ( last path ) cashed being used for the given entity unit ID
   -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
   {"gmod_laser"          , nil, nil, nil}, -- Laser entity class `PriarySource`
   {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal class `EveryBeam`
