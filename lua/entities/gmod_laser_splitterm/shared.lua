@@ -119,7 +119,18 @@ function ENT:InitSources()
 end
 
 function ENT:GetHitNormal()
-  return LaserLib.GetUnitProperty(self, "GetNormalLocal", "Normal"):GetNormalized()
+  if(SERVER) then
+    local normal = self:WireRead("Normal", true)
+    if(normal) then normal:Normalize() else
+      normal = self:GetNormalLocal()
+    end -- Make sure length is one unit
+    self:SetNWVector("GetNormalLocal", normal)
+    self:WireWrite("Normal", normal)
+    return normal
+  else
+    local normal = self:GetNormalLocal()
+    return self:GetNWFloat("GetNormalLocal", normal)
+  end
 end
 
 function ENT:SetOn(bool)

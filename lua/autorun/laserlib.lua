@@ -784,31 +784,6 @@ function LaserLib.GetOwner(ent)
 end
 
 --[[
- * Updates the unit propertties that have
- * desicated wire ports. Automatically sends
- * Data to client via NW when property is
- * affected by wire
- * unit  > Unit entity requesting the value
- * keydt > Datatable method for internal value
- * pname > Wiremod port name affecting value
-]]
-function LaserLib.GetUnitProperty(unit, keydt, pname)
-  local upro = unit[keydt](unit)
-  if(SERVER) then -- The server can read wire value
-    if(pname) then -- Wire port available
-      local wire = unit:WireRead(pname, true)
-      if(wire) then upro = wire end
-      unit:SetNWVector(keydt, upro)
-      unit:WireWrite(pname, upro)
-    end
-  else -- Make client report the value from wire
-    if(pname) then -- Wire port available
-      upro = unit:GetNWFloat(keydt, upro)
-    end -- Return the unit property when no wire
-  end; return upro
-end
-
---[[
  * This setups the beam kill crediting
  * Updates the kill credit player for specific entity
  * To obtain the creator player use `ent:GetCreator()`
