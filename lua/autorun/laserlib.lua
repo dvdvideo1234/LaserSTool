@@ -2171,10 +2171,10 @@ if(SERVER) then
     local vmo = false
     local tre, idx = trc.Entity, ent.UnitID
     if(ply:KeyDown(IN_USE)) then -- When replacing
-      local cre = tre:GetCreator()
+      local own = LaserLib.GetOwner(tre)
       if(LaserLib.IsValid(tre) and not -- Use valid stuff
          LaserLib.IsOther(tre) and -- Use valid physics
-         (cre == ply or cre == NULL)) -- Use your own stuff
+         (own == ply or own == NULL)) -- Use your own stuff
       then vmo = true end -- Update the conditions flag
     end -- Check the conditions flag and apply changes
     if(vmo) then -- Use the trace valid model as a unit
