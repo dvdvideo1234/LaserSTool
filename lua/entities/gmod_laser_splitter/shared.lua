@@ -45,10 +45,8 @@ end
 function ENT:UpdateVectors()
   local fwd = self:GetDirectLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= gnDOTM) then
-    local rgh = fwd:Cross(upw)
-    upw:Set(rgh:Cross(fwd))
-    upw:Normalize()
+  if(not LaserLib.IsOrtho(fwd, upw)) then
+    LaserLib.SetOrtho(fwd, upw, true)
     self:SetUpwardLocal(upw)
   end; return self
 end

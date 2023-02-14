@@ -595,6 +595,34 @@ local function SelectData(tArr, iID, bOvr)
   end; return tArr
 end
 
+--[[
+ * Checks if The given vectors are orthogonal
+ * vFw > Forward axis vector as direction
+ * vUp > Up axis vector finishing the plane
+ * Returns true when vectors are orthogonal
+]]
+function LaserLib.IsOrtho(vFw, vUp)
+  return (math.abs(vFw:Dot(vUp)) >= DATA.DOTM)
+end
+
+--[[
+ * Makes the up direction vector orthogonal
+ * to the forward one. Uses forced cross product
+ * Stores data into the up direction vector
+ * vFw > Forward axis vector as direction
+ * vUp > Up axis vector finishing the plane
+ * bNu > Enable normalizing the result
+ * bNr > Enable normalizing the result
+ * Returns reference to up direction vector
+]]
+function LaserLib.SetOrtho(vFw, vUp, bNu, bNr)
+  local vRg = vFw:Cross(vUp)
+  vUp:Set(rghw:Cross(vFw))
+  if(bNu) then vUp:Normalize() end
+  if(bNr) then vRg:Normalize() end
+  return vUp, vRg
+end
+
 function LaserLib.GetSign(arg)
   return arg / math.abs(arg)
 end
