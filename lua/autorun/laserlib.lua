@@ -2461,11 +2461,10 @@ end
 ]]
 local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
-      mtBeam.__trace = {} -- Trace result to fill instead of creating
+      mtBeam.__trace = {} -- Temporary trace result to fill
       mtBeam.__index = mtBeam -- If not found in self search here
       mtBeam.__vtorg = Vector() -- Temporary calculation origin vector
       mtBeam.__vtdir = Vector() -- Temporary calculation direct vector
-      mtBeam.__surfw = {P = Vector(), N = Vector()} -- Water surface storage
       mtBeam.__meair = {gtREFRACT["air"  ], "air"  } -- General air info
       mtBeam.__mewat = {gtREFRACT["water"], "water"} -- General water info
 local function Beam(origin, direct, width, damage, length, force)
@@ -2475,6 +2474,8 @@ local function Beam(origin, direct, width, damage, length, force)
   self.VrDirect = Vector(direct) -- Copy direction and normalize when present
   if(self.VrDirect:LengthSqr() > 0) then self.VrDirect:Normalize() else return end
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
+  self.TsWater  = {P = Vector(), N = Vector()} -- Water surface storage specific
+  self.TrResult = {} -- Actual trace result. Not available when finish in solids
   self.TrMedium = {} -- Contains information for the mediums being traversed
   -- Trace data node points notation row for a given node ID
   --   [1] > Node location in 3D space position (vector)
@@ -2510,20 +2511,6 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
- * Registers a medium in the dedicated list
-]]
-function mtBeam:SetMedium(index, data, mkey, norm)
-  if(not index) then return self end
-  local info = self.TrMedium[index]
-  if(info) then -- Entry is present for this chached medium
-    info[1], info[2], info[3] = (data or info[1]), (mkey or info[2]), (norm or info[3])
-  else -- Entry for this chached medium is unavailable
-    local meair = mtBeam.__meair -- Create trace medium data using the defaults
-    self.TrMedium[index] = {(data or meair[1]), (mkey or meair[2]), (norm or Vector())}
-  end; return self
-end
-
---[[
  * Clears all the data from the beam
 ]]
 function mtBeam:Clear(key)
@@ -2536,10 +2523,19 @@ function mtBeam:Clear(key)
 end
 
 --[[
+ * Clears all the data from the beam
+]]
+function mtBeam:ClearTrace()
+  table.Empty(self.TrResult)
+  self.TrResult = nil
+  return self
+end
+
+--[[
  * Reads a water member
 ]]
 function mtBeam:GetWater(key)
-  local wat = self.__surfw
+  local wat = self.TsWater
   if(key) then
     return wat[key]
   else
@@ -2768,6 +2764,20 @@ function mtBeam:IsMemory(index, pos)
 end
 
 --[[
+ * Registers a medium in the dedicated list
+]]
+function mtBeam:SetMedium(index, data, mkey, norm)
+  if(not index) then return self end
+  local info = self.TrMedium[index]
+  if(info) then -- Entry is present for this chached medium
+    info[1], info[2], info[3] = (data or info[1]), (mkey or info[2]), (norm or info[3])
+  else -- Entry for this chached medium is unavailable
+    local meair = mtBeam.__meair -- Create trace medium data using the defaults
+    self.TrMedium[index] = {(data or meair[1]), (mkey or meair[2]), (norm or Vector())}
+  end; return self
+end
+
+--[[
  * Changes the source medium. Source is the medium that
  * surrounds all objects and acts line their environment
  * origin > Beam exit position
@@ -2962,6 +2972,7 @@ end
  * belongs on the laser beam. Adjusts if not
 ]]
 function mtBeam:IsNode()
+  -- TODO: Check whenever we can use trace fractions
   if(self.NvLength >= 0) then return true end
   local set = self.TvPoints -- Set of nodes
   local siz = set.Size -- Read stack size
@@ -2970,7 +2981,8 @@ function mtBeam:IsNode()
   local nxt, prv = set[siz][1], set[siz-1][1]
   vtm:Set(nxt); vtm:Sub(prv); vtm:Normalize()
   vtm:Mul(self.NvLength); nxt:Add(vtm)
-  self.NvLength = 0; return false
+  self.NvLength = 0; self:ClearTrace()
+  return false -- Clear trace and return
 end
 
 --[[
@@ -3134,7 +3146,9 @@ function mtBeam:Trace(result)
   local length = (self.IsRfract and self.TrRfract or self.NvLength)
   if(not self.IsRfract) then -- CAP trace is not needed wen we are refracting
     local tr = TraceCAP(self.VrOrigin, self.VrDirect, length, self.TeFilter)
-    if(tr) then return self:SetTraceWidth(tr, length) end -- Return CAP currently hit
+    if(tr) then if(result) then -- Merge CAP result into the beam result
+      return self:SetTraceWidth(table.Merge(result, tr), length)
+    else return self:SetTraceWidth(tr, length) end end -- Return CAP currently hit
   end -- When the trace is not specific CAP entity continue
   return self:SetTraceWidth(TraceBeam( -- Otherwise use the standard trace
     self.VrOrigin, self.VrDirect, length       , self.TeFilter,
@@ -3156,8 +3170,8 @@ function mtBeam:RefractWaterAir()
   -- Registering the node cannot be done with direct subtraction
   self.VrDirect:Negate(); self:RegisterNode(vwa, true)
   vtm:Set(wat.N); vtm:Negate()
-  local vdir, bnex = LaserLib.GetRefracted(self.VrDirect, vtm,
-                       mewat[1][1], meair[1][1])
+  local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
+                       vtm, mewat[1][1], meair[1][1])
   if(bnex) then
     self.NvMask = MASK_ALL -- We change the medium to air
     self:ClearWater() -- Set water normal flag to zero
@@ -3435,14 +3449,14 @@ end
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
  * sours > Entity keeping the beam effects internals
- * trace > Trace result received from the beam
  * endrw > Draw enabled flag from beam sources
 ]]
-function mtBeam:DrawEffect(sours, trace, endrw)
+function mtBeam:DrawEffect(sours, endrw)
   if(SERVER) then return self end
+  local trace = self.TrResult
   local sours = (sours or self:GetSource())
   if(trace and not trace.HitSky and
-    endrw and sours.isEffect)
+     endrw and sours.isEffect)
   then -- Drawing effects is enabled
     if(not sours.dtEffect) then
       sours.dtEffect = EffectData()
@@ -3754,6 +3768,7 @@ local gtACTORS = {
     if(beam.BrRefrac) then beam:SetPowerRatio(refcopy[2]) end
   end,
   ["gmod_laser_sensor"] = function(beam, trace)
+    -- TODO: Find a way to clear data from previous pass
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not ent:GetPassBeamTrough()) then return end
@@ -3806,7 +3821,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local beam = Beam(origin, direct, width, damage, length, force) -- Creates beam class
   if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
-  local trace, target = {} -- Configure and target and shared trace reference
+  local trace, target = beam.TrResult -- Configure and target and shared trace reference
   -- Store general definition of air adn water mediums for fast usage and indexing
   local mewat, meair = mtBeam.__mewat, mtBeam.__meair -- Local reference beam menbers
   -- Reports dedicated values that are being used by other entities and processes
@@ -4023,7 +4038,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Update the sources and trigger the hit reports
   beam:UpdateSource(trace)
   -- Return what did the beam hit and stuff
-  return beam, trace
+  return beam
 end
 
 function LaserLib.NumSlider(panel, convar, nmin, nmax, ndef, ndig)

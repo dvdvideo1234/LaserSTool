@@ -352,18 +352,8 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
-  local beam, trace = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
-  return beam, trace
+  return LaserLib.DoBeam(self  , origin, direct, length, width,
+                         damage, force , usrfle, usrfre, noverm, idx)
 end
 
 function ENT:Setup(width      , length      , damage    , material   , dissolveType,

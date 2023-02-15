@@ -118,7 +118,8 @@ function ENT:SpawnFunction(user, trace)
   end
 end
 
-function ENT:DoDamage(beam, trace)
+function ENT:DoDamage(beam)
+  local trace = beam.TrResult
   if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
@@ -150,25 +151,23 @@ end
 function ENT:Think()
   if(self:GetOn()) then
     self:UpdateFlags()
-    local beam, trace = self:DoBeam()
+    local beam = self:DoBeam()
 
     if(beam) then
       self:WireWrite("Range", beam.RaLength)
     end
 
-    if(trace) then
+    if(beam.TrResult) then
+      local trace = beam.TrResult
       self:WireWrite("Hit", (trace.Hit and 1 or 0))
-
-      local trent = trace.Entity
-
-      if(LaserLib.IsValid(trent)) then
-        self:WireWrite("Target", trent)
+      if(LaserLib.IsValid(trace.Entity)) then
+        self:WireWrite("Target", trace.Entity)
       else
         self:WireWrite("Target")
       end
     end
 
-    self:DoDamage(beam, trace)
+    self:DoDamage(beam)
   else
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)
