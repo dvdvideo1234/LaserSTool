@@ -2475,7 +2475,6 @@ local function Beam(origin, direct, width, damage, length, force)
   if(self.VrDirect:LengthSqr() > 0) then self.VrDirect:Normalize() else return end
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
   self.TsWater  = {P = Vector(), N = Vector()} -- Water surface storage specific
-  self.TrResult = {} -- Actual trace result. Not available when finish in solids
   self.TrMedium = {} -- Contains information for the mediums being traversed
   -- Trace data node points notation row for a given node ID
   --   [1] > Node location in 3D space position (vector)
@@ -2520,15 +2519,6 @@ function mtBeam:Clear(key)
     for k, v in pairs(self) do
       self[key] = nil end
   end; return self
-end
-
---[[
- * Clears all the data from the beam
-]]
-function mtBeam:ClearTrace()
-  table.Empty(self.TrResult)
-  self.TrResult = nil
-  return self
 end
 
 --[[
@@ -2981,8 +2971,7 @@ function mtBeam:IsNode()
   local nxt, prv = set[siz][1], set[siz-1][1]
   vtm:Set(nxt); vtm:Sub(prv); vtm:Normalize()
   vtm:Mul(self.NvLength); nxt:Add(vtm)
-  self.NvLength = 0; self:ClearTrace()
-  return false -- Clear trace and return
+  self.NvLength = 0; return false
 end
 
 --[[
@@ -3411,12 +3400,12 @@ function mtBeam:Draw(sours, imatr, color)
   if(szv <= 0) then return self end
   -- Update rendering boundaries
   local sours = (sours or self.BmSource)
-  local ushit = LocalPlayer():GetEyeTrace().HitPos
+  local userh = LocalPlayer():GetEyeTrace().HitPos
   local bbmin = sours:LocalToWorld(sours:OBBMins())
   local bbmax = sours:LocalToWorld(sours:OBBMaxs())
   -- Extend render bounds with player hit position
-  LaserLib.UpdateRB(bbmin, ushit, math.min)
-  LaserLib.UpdateRB(bbmax, ushit, math.max)
+  LaserLib.UpdateRB(bbmin, userh, math.min)
+  LaserLib.UpdateRB(bbmax, userh, math.max)
   -- Extend render bounds with the first node
   LaserLib.UpdateRB(bbmin, tvpnt[1][1], math.min)
   LaserLib.UpdateRB(bbmax, tvpnt[1][1], math.max)
@@ -3449,11 +3438,11 @@ end
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
  * sours > Entity keeping the beam effects internals
+ * trace > Trace result received from the beam
  * endrw > Draw enabled flag from beam sources
 ]]
-function mtBeam:DrawEffect(sours, endrw)
+function mtBeam:DrawEffect(sours, trace, endrw)
   if(SERVER) then return self end
-  local trace = self.TrResult
   local sours = (sours or self:GetSource())
   if(trace and not trace.HitSky and
      endrw and sours.isEffect)
@@ -3821,7 +3810,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   local beam = Beam(origin, direct, width, damage, length, force) -- Creates beam class
   if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
-  local trace, target = beam.TrResult -- Configure and target and shared trace reference
+  local trace, target = {} -- Configure and target and shared trace reference
   -- Store general definition of air adn water mediums for fast usage and indexing
   local mewat, meair = mtBeam.__mewat, mtBeam.__meair -- Local reference beam menbers
   -- Reports dedicated values that are being used by other entities and processes
@@ -4038,7 +4027,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Update the sources and trigger the hit reports
   beam:UpdateSource(trace)
   -- Return what did the beam hit and stuff
-  return beam
+  return beam, trace
 end
 
 function LaserLib.NumSlider(panel, convar, nmin, nmax, ndef, ndig)
