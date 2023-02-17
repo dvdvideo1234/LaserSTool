@@ -1897,9 +1897,9 @@ end
  * source > Refraction index of the source medium
  * destin > Refraction index of the destination medium
  * Return the refracted ray and beam status
-  [1] > The refracted ray direction vector
-  [2] > Will the beam traverse to the next medium
-  [3] > Mediums have the same refractive index
+ *    [1] > The refracted ray direction vector
+ *    [2] > Will the beam traverse to the next medium
+ *    [3] > Mediums have the same refractive index
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
   local inc = direct:GetNormalized() -- Read normalized copy or incident
