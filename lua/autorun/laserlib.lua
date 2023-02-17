@@ -1006,7 +1006,7 @@ end
 ]]
 function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   -- Is index is provided populate model and create convars
-  local indx = (tonumber(uent.UnitID) or 0); if(indx <= 1) then
+  local index = (tonumber(uent.UnitID) or 0); if(index <= 1) then
     error("Index invalid: "..tostring(iunit)) end
   local usrc = tostring(uent.Folder or ""); if(usrc == "") then
     error("Name invalid: "..tostring(cunit)) end
@@ -1016,11 +1016,11 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     error("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     error("Suffix empty: "..tostring(usrc)) end
-  local vset = gtUNITS[indx] -- Attempt to index class info
+  local vset = gtUNITS[index] -- Attempt to index class info
   if(not vset or (vset and not vset[2])) then -- Empty table
     -- Allocate calss configuration. Make it accessible to the library
     local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
-    local vset = {ucas, vidx, mdef, vdef}; gtUNITS[indx] = vset -- Index variable name
+    local vset = {ucas, vidx, mdef, vdef}; gtUNITS[index] = vset -- Index variable name
     -- Configure arrays and corresponding console variables
     local vmod = tostring(mdef or ""):lower()
     local vmat = tostring(vdef or ""):lower()
@@ -1033,24 +1033,24 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     cvars.RemoveChangeCallback(vanm, vanm)
     cvars.AddChangeCallback(vanm, function(name, o, n)
       local m = tostring(n):Trim()
-      if(m:sub(1,1) ~= DATA.KEYD) then LaserLib.GetModel(indx, m) else
-        varm:SetString(LaserLib.GetModel(indx, varm:GetDefault()))
+      if(m:sub(1,1) ~= DATA.KEYD) then LaserLib.GetModel(index, m) else
+        varm:SetString(LaserLib.GetModel(index, varm:GetDefault()))
       end -- Update current model at index [4]
-    end, vanm); LaserLib.GetModel(indx, varm:GetString():lower())
+    end, vanm); LaserLib.GetModel(index, varm:GetString():lower())
     -- Configure material visual
     local vanv = varv:GetName()
     cvars.RemoveChangeCallback(vanv, vanv)
     cvars.AddChangeCallback(vanv, function(name, o, n)
       local v = tostring(n):Trim()
-      if(v:sub(1,1) ~= DATA.KEYD) then LaserLib.GetMaterial(indx, v) else
-        varv:SetString(LaserLib.GetMaterial(indx, varv:GetDefault()))
+      if(v:sub(1,1) ~= DATA.KEYD) then LaserLib.GetMaterial(index, v) else
+        varv:SetString(LaserLib.GetMaterial(index, varv:GetDefault()))
       end -- Update current material at index [5]
-    end, vanv); LaserLib.GetMaterial(indx, varv:GetString():lower())
+    end, vanv); LaserLib.GetMaterial(index, varv:GetString():lower())
     -- Return the class extracted from folder
     return ucas -- This is passd to `ents.Create`
   else -- The class is already present so return it
     if(vset[1] ~= ucas) then -- Index taken so raise error
-      error("Index ["..indx.."]["..vset[1].."] exists: "..tostring(usrc)) end
+      error("Index ["..index.."]["..vset[1].."] exists: "..tostring(usrc)) end
     return ucas -- Already cashed value returned
   end
 end
@@ -1211,14 +1211,19 @@ function LaserLib.Configure(unit)
   end
 
   --[[
-   * Registers a trace hit report under auto index
+   * Registers a trace hit report under automatic index
+   * This is done only for units that have beam output
+   * Make sure to provide unique beam identification ID
+   * This is called only for units that run `DoBeam`
+   * Unit: My [idx]-th beam passed trough there and hit that
    * trace > Trace result structure to register
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam, trace)
-    local ros = self.hitReports -- Read entity hit reports
+    local ros, idx = self.hitReports, beam.BmIdenty -- Read hit reports
     if(not ros) then ros = {Size = 0}; self.hitReports = ros end
-    InsertData(ros, {["BM"] = beam, ["TR"] = trace}, beam.BmIdenty, true); return self
+    InsertData(ros, {["BM"] = beam, ["TR"] = trace}, idx, true)
+    return self -- Codiing effective API
   end
 
   --[[
@@ -2614,40 +2619,53 @@ end
 
 --[[
  * Inserts next stage segment to the current beam
- * beam > Beam object to apply as branch
- * indx > Beam object ID to insert
- * reov > Enable to direct write down
+ * beam  > Beam object to apply as branch
+ * index > Beam object ID to insert
+ * reov  > Enable to direct write down
 ]]
-function mtBeam:SetBranch(beam, indx, reov)
-  if(getmetatable(beam) ~= mtBeam) then return self end
-  local bran = self.TrBranch -- Branches local reference
-  if(not bran) then bran = {Size = 0}; self.TrBranch = bran end
-  InsertData(bran, beam, indx, reov); return self
+function mtBeam:SetBranch(beam, trace, index, reov)
+  local ran = self.TrBranch -- Branches local reference
+  if(not ran) then ran = {Size = 0}; self.TrBranch = ran end
+  InsertData(ran, {["BM"] = beam, ["TR"] = trace}, index, reov)
+  return self -- Codiing effective API
 end
 
 --[[
  * Selects next stage segment to the current beam
- * indx > Beam object ID to select
+ * index > Beam object ID to select
  * reov > Enable to direct read out
 ]]
-function mtBeam:GetBranch(indx, reov)
-  local bran = self.TrBranch -- Branches local reference
-  if(not bran) then return nil end -- No branches
-  return SelectData(bran, indx, reov)
+function mtBeam:GetBranch(index, reov)
+  if(not index) then return end
+  local ran = self.TrBranch -- Branches local reference
+  if(not ran) then return nil end -- No branches
+  ran = SelectData(ran, index, reov)
+  if(not ran) then return nil end
+  return ran["BM"], ran["TR"]
 end
 
 --[[
  * Clears all beam branches
 ]]
 function mtBeam:ClearBranch()
-  local bran = self.TrBranch
-  if(not bran) then return end -- No branches
-  for idx = 1, bran.Size do
-    local vrn = bran[idx]
-    vrn:ClearBranch()
-    bran[idx] = nil
-  end
-  bran.Size = 0
+  local ran = self.TrBranch
+  if(not ran) then return end -- No branches
+  for idx = 1, ran.Size do
+    local row = ran[idx]
+    local bm = row["BM"]
+    local tr = row["TR"]
+    if(bm) then -- Branch
+      bm:ClearBranch()
+      table.Empty(bm)
+      row["BM"] = nil
+    end -- Delete beams
+    if(tr) then -- Trace
+      table.Empty(tr)
+      row["TR"] = nil
+    end -- Clear traces
+    ran[idx] = nil
+  end -- All cleared
+  ran.Size = 0
   return self
 end
 
