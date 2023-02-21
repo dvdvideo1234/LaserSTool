@@ -453,9 +453,12 @@ local function GetContentsID(cont)
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
     if(row) then local conr = row.Con -- Read row contents
-      if(conr ~= nil) then local conc = InContent(cont, conr)
-      if((cont == conr) or (conr ~= 0 and conc)) then return idx end
-    end end -- Check if we have the corresponding bit or be equal
+      if(conr ~= nil) then if(conr ~= 0) then -- Row contents
+          if(InContent(cont, conr)) then return idx end
+        else -- Compare directly when zero to avoid mismatch
+          if(cont == conr) then return idx end -- Air contents
+      end end -- Contents are compared and index is extracted
+    end -- Check if we have the corresponding bit or be equal
   end; return nil -- The contents did not get matched to entry
 end
 
@@ -2709,7 +2712,6 @@ end
  * Updates the water surface in the last iteration of entity refraction
  * Exit point is water and water is not registered. Register
  * Exit point is air and water surface is predent. Clear water
- * trace > Where to store temporary trace sesult to ignore new table
  * vncon > Content enumenator value for current medium definition
 ]]
 function mtBeam:UpdateWaterSurface(vncon)
