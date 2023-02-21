@@ -604,7 +604,7 @@ end
  * Returns true when vectors are orthogonal
 ]]
 function LaserLib.IsOrtho(vFw, vUp)
-  return (math.abs(vFw:Dot(vUp)) >= DATA.DOTM)
+  return (math.abs(vFw:Dot(vUp)) <= DATA.DOTM)
 end
 
 --[[
@@ -619,7 +619,7 @@ end
 ]]
 function LaserLib.SetOrtho(vFw, vUp, bNu, bNr)
   local vRg = vFw:Cross(vUp)
-  vUp:Set(rghw:Cross(vFw))
+  vUp:Set(vRg:Cross(vFw))
   if(bNu) then vUp:Normalize() end
   if(bNr) then vRg:Normalize() end
   return vUp, vRg
