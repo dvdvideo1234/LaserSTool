@@ -24,6 +24,7 @@ DATA.FMVA = "%f,%f,%f"       -- Utilized to outut formatted vectors in proper ma
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 380, 750}      -- General wavelength limists for visible light
+DATA.WCOL = {  0 , 300}      -- Mapping for wavelenght to color hue conversion
 DATA.WMAP = {  20,   5}      -- Dispersion wavelenght mapping for refractive index
 DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
 DATA.BBONC = 0               -- External forced beam max bounces. Resets on every beam
@@ -39,6 +40,7 @@ DATA.VTEMP = Vector()        -- Global library temporary storage vector
 DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
+DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to crerate color
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
 DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
@@ -739,23 +741,6 @@ function LaserLib.Clear(arr, idx)
   local idx = math.floor(tonumber(idx) or 1)
   if(idx <= 0) then return end
   while(arr[idx]) do idx, arr[idx] = (idx + 1) end
-end
-
---[[
- * Remaps refraction index according to material sodium line
- * Returns the dynamic refraction index based on wavelength
- * This is mainly used for calculating component light dispersion
- * wave > Wavelength of the input beam traversing the medium
- * nidx > Wavelenght for the sodium line according to the material
- * https://en.wikipedia.org/wiki/List_of_refractive_indices
- * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
-]]
-function LaserLib.GetIndex(wave, nidx)
-  local wr, mr, ms = DATA.WVIS, DATA.WMAP, DATA.SOMR
-  local s = math.Remap(DATA.SODD, wr[1], wr[2], mr[1], mr[2])
-  local x = math.Remap(wave, wr[1], wr[2], mr[1], mr[2])
-  local h = -math.log(s) / ms -- Index `nidx` for sodium line
-  return (-math.log(x) / ms - h) + nidx
 end
 
 --[[
@@ -2399,6 +2384,41 @@ if(SERVER) then
 end
 
 --[[
+ * Remaps refraction index according to material sodium line
+ * Returns the dynamic refraction index based on wavelength
+ * This is mainly used for calculating component light dispersion
+ * wave > Wavelength of the input beam traversing the medium
+ * nidx > Wavelenght for the sodium line according to the material
+ * https://en.wikipedia.org/wiki/List_of_refractive_indices
+ * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
+]]
+function LaserLib.WaveToIndex(wave, nidx)
+  local wr, mr, ms = DATA.WVIS, DATA.WMAP, DATA.SOMR
+  local s = math.Remap(DATA.SODD, wr[1], wr[2], mr[1], mr[2])
+  local x = math.Remap(wave, wr[1], wr[2], mr[1], mr[2])
+  local h = -math.log(s) / ms -- Index `nidx` for sodium line
+  return (-math.log(x) / ms - h) + nidx
+end
+
+--[[
+ * Converts beam wavelength to a color
+ * This is mainly used for calculating component light dispersion
+ * wave > Wavelength of the input beam traversing the medium
+ * bobc > Return a color object instead of 4 numbers
+ * https://en.wikipedia.org/wiki/HSL_and_HSV#/media/File:Hsl-hsv_models.svg
+ * https://wiki.facepunch.com/gmod/Global.HSVToColor
+]]
+function LaserLib.WaveToColor(wave, bobc)
+  local wvis, wcol = DATA.WVIS, DATA.WCOL
+  local hue = math.Remap(wave, wvis[1], wvis[2], wcol[1], wcol[2])
+  local tab = HSVToColor(hue, 1, 1) -- Returns table not color
+  if(bobc) then local wtcol = DATA.WTCOL
+    wtcol.r, wtcol.g = tab.r, tab.g
+    wtcol.b, wtcol.a = tab.b, tab.a; return wtcol
+  end; return tab.r, tab.g, tab.b, tab.a
+end
+
+--[[
  * Makes the laser trace loop use pre-defined bounces cout
  * When this is not given the loop will use MBOUNCES
  * bounce > The amount of bounces the loop will have
@@ -2980,16 +3000,12 @@ end
  * belongs on the laser beam. Adjusts if not
 ]]
 function mtBeam:IsNode()
-  -- TODO: Check whenever we can use trace fractions
   if(self.NvLength >= 0) then return true end
   local set = self.TvPoints -- Set of nodes
   local siz = set.Size -- Read stack size
-  if(siz < 2) then return true end -- Exit
-  local vtm = self.__vtorg -- Index temporary
-  local nxt, prv = set[siz][1], set[siz-1][1]
-  vtm:Set(nxt); vtm:Sub(prv); vtm:Normalize()
-  vtm:Mul(self.NvLength); nxt:Add(vtm)
-  self.NvLength = 0; return false
+  local nxt, dir = set[siz][1], self.__vtdir
+  dir:Set(self.VrDirect) dir:Mul(self.NvLength)
+  nxt:Add(dir); self.NvLength = 0; return false
 end
 
 --[[
@@ -3906,20 +3922,22 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
           end -- Negate the normal so it must point inwards before refraction
           trace.HitNormal:Negate(); beam.VrDirect:Negate()
           -- Make sure to pick the correct refract exit medium for current node
-          if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
-            -- Refract the hell out of this requested beam with entity destination
-            local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
-                           trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
-            if(bnex) then -- When the beam gets out of the medium
-              beam:Redirect(trace.HitPos, vdir, true)
-              beam:UpdateWaterSurface(mcons) -- Update the water surface
-              beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
-            else -- Get the trace ready to check the other side and register the location
-              beam:SetTraceNext(trace.HitPos, vdir)
-            end -- Apply power ratio when requested
-            if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
-          end
-        else -- Put special cases here
+          if(beam.NvLength > 0) then
+            if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
+              -- Refract the hell out of this requested beam with entity destination
+              local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
+                             trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
+              if(bnex) then -- When the beam gets out of the medium
+                beam:Redirect(trace.HitPos, vdir, true)
+                beam:UpdateWaterSurface(mcons) -- Update the water surface
+                beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
+              else -- Get the trace ready to check the other side and register the location
+                beam:SetTraceNext(trace.HitPos, vdir)
+              end -- Apply power ratio when requested
+              if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
+            end -- We are already on red while traversing so do not redirect
+          else beam.IsTrace = false end -- Exit now without redirecting
+        else -- Put special cases for specific classes here
           if(cas and gtACTORS[cas]) then
             local suc, err = pcall(gtACTORS[cas], beam, trace)
             if(not suc) then beam.IsTrace = false; target:Remove(); error(err) end
@@ -3975,18 +3993,20 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             -- Reverse direction of the normal to point inside transparent
             nrm:Negate(); beam.VrDirect:Negate()
             -- Do the refraction according to medium boundary
-            if(not beam:IsTraverse(org, nil, nrm, target)) then
-              local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
-                                   nrm, beam.TrMedium.D[1][1], meair[1][1])
-              if(bnex) then -- When the beam gets out of the medium
-                beam:Redirect(org, vdir, true)
-                beam:SetMediumSours(meair)
-                -- Memorizing will help when beam traverses from world to no-collided entity
-                beam:SetMediumMemory(beam.TrMedium.D, nil, nrm)
-              else -- Get the trace ready to check the other side and register the location
-                beam:Redirect(org, vdir)
-              end
-            end
+            if(beam.NvLength > 0) then
+              if(not beam:IsTraverse(org, nil, nrm, target)) then
+                local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
+                                     nrm, beam.TrMedium.D[1][1], meair[1][1])
+                if(bnex) then -- When the beam gets out of the medium
+                  beam:Redirect(org, vdir, true)
+                  beam:SetMediumSours(meair)
+                  -- Memorizing will help when beam traverses from world to no-collided entity
+                  beam:SetMediumMemory(beam.TrMedium.D, nil, nrm)
+                else -- Get the trace ready to check the other side and register the location
+                  beam:Redirect(org, vdir)
+                end
+              end -- We are already on red while traversing so do not redirect
+            else beam.IsTrace = false end -- Exit now without redirecting
           else -- The beam ends inside a solid transparent medium
             local org = beam:GetNudge(beam.NvLength)
             beam:RegisterNode(org, beam.NvLength)
