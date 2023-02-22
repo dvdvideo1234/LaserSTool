@@ -3816,12 +3816,19 @@ local gtACTORS = {
   end
 }
 
-function LaserLib.SetActor(ent, func)
-  if(not LaserLib.IsValid(ent)) then
-    error("Entity mismatch: "..tostring(ent)) end
-  local ty = type(func); if(ty ~= "function") then
+--[[
+ * Registers and actor forction for entity specified class
+ * The function argument are (beam, trace) and define
+ * what will happen if the beam loop meats this entity class
+ * entity > Entity of the disired class to have a handler
+ * action > Action function (beam, trace) to handle entity
+]]
+function LaserLib.SetActor(entity, action)
+  if(not LaserLib.IsValid(entity)) then
+    error("Entity mismatch: "..tostring(entity)) end
+  local ty = type(action); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
-  gtACTORS[ent:GetClass()] = func
+  gtACTORS[entity:GetClass()] = action
 end
 
 --[[
