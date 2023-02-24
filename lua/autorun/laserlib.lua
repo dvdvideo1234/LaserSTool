@@ -298,9 +298,8 @@ else
   AddCSLuaFile(DATA.TOOL.."/editable_wrapper.lua")
   DATA.DMGI = DamageInfo() -- Create a server-side damage information class
   DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
-  DATA.NTIF = {} -- User notification configuration type
-  DATA.NTIF[1] = "GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)"
-  DATA.NTIF[2] = "surface.PlaySound(\"ambient/water/drip%d.wav\")"
+  -- User notification configuration type. Used to format notifications via string.format
+  DATA.NTIF = {"GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)", "surface.PlaySound(\"ambient/water/drip%d.wav\")"}
 end
 
 --[[
@@ -2584,6 +2583,16 @@ function mtBeam:Pass(trace)
 end
 
 --[[
+ * Makes the beam skip the entity and continue traversing
+ * Setups entity actor filter and applies the actor flag
+]]
+function mtBeam:SetActor(entity)
+  self.TeFilter = entity -- Register the entity actor filter
+  self.TrFActor = LaserLib.IsValid(entity) -- Actor boolean
+  return self -- Coding effective API
+end
+
+--[[
  * Issues a finish command to the traced laser beam
 ]]
 function mtBeam:Bounce()
@@ -3135,10 +3144,8 @@ end
 function mtBeam:GetActorID(target)
   -- If filter was a special actor and the clear flag is enabled
   -- Make sure to reset the filter if needed to enter actor again
-  if(self.TrFActor) then -- Custom filter clear has been requested
-    self.TeFilter = nil -- Reset the filter to hit something else
-    self.TrFActor = false -- Lower the flag so it does not enter
-  end -- Filter is present and we have request to clear the value
+  if(self.TrFActor) then self:SetActor() end -- Custom filter clear
+  -- Filter is present and we have request to clear the value
   -- Validate trace target and extract its class if available
   local suc, cas = LaserLib.IsValid(target), nil -- Validate target
   if(suc) then cas = target:GetClass() end; return suc, cas
@@ -3540,7 +3547,7 @@ local gtACTORS = {
     beam.VrOrigin:Set(pot); beam.VrDirect:Set(dit)
     -- Otherwise the trace will get stick and will hit again
     beam:RegisterNode(beam.VrOrigin, false, true)
-    beam.TeFilter, beam.TrFActor = out, true
+    beam:SetActor(out)
     beam.IsTrace = true -- CAP networking is correct. Continue
   end,
   ["gmod_laser_portal"] = function(beam, trace)
@@ -3580,7 +3587,7 @@ local gtACTORS = {
       end)
     beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
     beam:RegisterNode(beam.VrOrigin, false, true)
-    beam.TeFilter, beam.TrFActor = out, true
+    beam:SetActor(out)
     beam.IsTrace = true -- Output model is validated. Continue
   end,
   ["prop_portal"] = function(beam, trace)
@@ -3605,7 +3612,7 @@ local gtACTORS = {
     beam:RegisterNode(nps); nps:Add(vsm * ndr)
     beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
     beam:RegisterNode(nps)
-    beam.TeFilter, beam.TrFActor = out, true
+    beam:SetActor(out)
     beam.IsTrace = true -- Output portal is validated. Continue
   end,
   ["gmod_laser_dimmer"] = function(beam, trace)
@@ -3618,7 +3625,7 @@ local gtACTORS = {
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
-      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+      beam:SetActor(ent) -- Makes beam pass the dimmer
     end
   end,
   ["seamless_portal"] = function(beam, trace)
@@ -3647,7 +3654,7 @@ local gtACTORS = {
     beam:RegisterNode(nps); nps:Add(vsm * ndr)
     beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
     beam:RegisterNode(nps)
-    beam.TeFilter, beam.TrFActor = out, true
+    beam:SetActor(out) -- Makes beam pass the dimmer
     beam.IsTrace = true -- Output portal is validated. Continue
   end,
   ["gmod_laser_rdivider"] = function(beam, trace)
@@ -3701,7 +3708,7 @@ local gtACTORS = {
           if(ec.a > 0 and mca) then return end
         end
         beam.VrOrigin:Set(trace.HitPos)
-        beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+        beam:SetActor(ent) -- Makes beam pass the dimmer
         beam.IsTrace = true -- Beam hits correct surface. Continue
       else -- The beam did not fell victim to direct draw filtering
         local width, damage, force, length
@@ -3744,7 +3751,7 @@ local gtACTORS = {
         beam.NvDamage  = damage; node[3] = damage
         beam.NvForce   = force ; node[4] = force
         beam.VrOrigin:Set(trace.HitPos)
-        beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the dimmer
+        beam:SetActor(ent) -- Makes beam pass the dimmer
         beam.IsTrace = true -- Beam hits correct surface. Continue
       end
     end
@@ -3760,7 +3767,7 @@ local gtACTORS = {
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
       beam.VrDirect:Set(trace.HitNormal); beam.VrDirect:Negate()
-      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the parallel
+      beam:SetActor(ent) -- Makes beam pass the dimmer
     end
   end,
   ["gmod_laser_reflector"] = function(beam, trace)
@@ -3782,7 +3789,7 @@ local gtACTORS = {
     local bnex, bsam, vdir = beam:GetBoundaryEntity(refcopy[1], trace)
     if(ent:GetHitSurfaceMode()) then
       beam:Redirect(trace.HitPos, vdir) -- Redirect the beam on the surface
-      beam.TeFilter, beam.TrFActor = ent, true -- Makes beam pass the entity
+      beam:SetActor(ent) -- Makes beam pass the dimmer
     else -- Refraction done using multiple surfaces
       if(bnex or bsam) then -- We have to change mediums
         beam:SetRefractEntity(trace.HitPos, vdir, ent, refcopy, key)
@@ -3812,7 +3819,7 @@ local gtACTORS = {
       src[srb] = true
     end
     beam.IsTrace = true
-    beam.TeFilter, beam.TrFActor = ent, true
+    beam:SetActor(ent) -- Makes beam pass the dimmer
   end
 }
 
