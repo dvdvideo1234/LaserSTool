@@ -1,7 +1,5 @@
 include("shared.lua")
 
-ENT.RenderGroup = RENDERGROUP_BOTH
-
 local cvLNDIRACT = LaserLib.GetData("LNDIRACT")
 
 --[[

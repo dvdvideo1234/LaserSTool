@@ -35,8 +35,9 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamColorSplit", "Visuals")
   self:EditableSetBool  ("InPowerOn"     , "Internals")
   self:EditableSetInt   ("InBeamCount"   , "Internals", 0, cvMXSPLTBC:GetInt())
-  self:EditableSetFloat ("InBeamLeanX"   , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamLeanY"   , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamLeanX"   , "Internals", -1, 1)
+  self:EditableSetFloat ("InBeamLeanY"   , "Internals", -1, 1)
+  self:EditableSetFloat ("InBeamLeanZ"   , "Internals", -1, 1)
   LaserLib.Configure(self)
 end
 
@@ -57,10 +58,8 @@ end
 function ENT:UpdateVectors()
   local fwd = self:GetNormalLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= gnDOTM) then
-    local rgh = fwd:Cross(upw)
-    upw:Set(rgh:Cross(fwd))
-    upw:Normalize()
+  if(not LaserLib.IsOrtho(fwd, upw)) then
+    LaserLib.SetOrtho(fwd, upw, true)
     self:SetUpwardLocal(upw)
   end; return self
 end
@@ -76,7 +75,7 @@ function ENT:GetBeamCount()
 end
 
 function ENT:SetBeamLeanX(num)
-  local x = math.Clamp(num, 0, 1)
+  local x = math.Clamp(num, -1, 1)
   self:SetInBeamLeanX(x)
   return self
 end
@@ -86,13 +85,23 @@ function ENT:GetBeamLeanX()
 end
 
 function ENT:SetBeamLeanY(num)
-  local y = math.Clamp(num, 0, 1)
+  local y = math.Clamp(num, -1, 1)
   self:SetInBeamLeanY(y)
   return self
 end
 
 function ENT:GetBeamLeanY()
   return self:GetInBeamLeanY()
+end
+
+function ENT:SetBeamLeanZ(num)
+  local z = math.Clamp(num, -1, 1)
+  self:SetInBeamLeanZ(z)
+  return self
+end
+
+function ENT:GetBeamLeanZ()
+  return self:GetInBeamLeanZ()
 end
 
 function ENT:InitSources()
@@ -143,32 +152,40 @@ end
 
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
-    self:SetArrays(entity)
-    local upwrd = Vector(self:GetUpwardLocal())
-          upwrd:Rotate(self:GetAngles())
-    local bsdir = Vector(trace.HitNormal)
-    local bmorg = trace.HitPos; bsdir:Negate()
-    local mrdotm = math.abs(beam.VrDirect:Dot(bsdir))
-    local mrdotv = (self:GetBeamDimmer() and mrdotm or 1)
-    local angle, count = bsdir:AngleEx(upwrd), self.crCount
+    local count = self.crCount; self:SetArrays(entity)
     if(count > 1) then
       local mnang = gtAMAX[2] / count
-      local marbx = self:GetBeamLeanX()
-      local marby = self:GetBeamLeanY()
+      local bsdir = Vector(trace.HitNormal)
+      local bmorg = trace.HitPos; bsdir:Negate()
+      local mdotm = math.abs(beam.VrDirect:Dot(bsdir))
+      local mdotv = (self:GetBeamDimmer() and mdotm or 1)
+      local upwrd = self:GetUpwardLocal(); upwrd:Rotate(self:GetAngles())
+      local angle = LaserLib.GetLeanAngle(bsdir, upwrd,
+                                          self:GetBeamLeanX(),
+                                          self:GetBeamLeanY(),
+                                          self:GetBeamLeanZ())
       for idx = 1, count do
-        local newdr = marby * angle:Up(); newdr:Add(marbx * angle:Forward())
         if(CLIENT) then
-          self:DrawBeam(entity, bmorg, newdr, beam, mrdotv)
+          self:DrawBeam(entity, bmorg, angle:Forward(), beam, mdotv)
         else
-          self:DoDamage(self:DoBeam(entity, bmorg, newdr, beam, mrdotv))
+          self:DoDamage(self:DoBeam(entity, bmorg, angle:Forward(), beam, mdotv))
         end
         angle:RotateAroundAxis(bsdir, mnang)
       end
-    else
+    elseif(count == 1) then
+      local bsdir = Vector(trace.HitNormal)
+      local bmorg = trace.HitPos; bsdir:Negate()
+      local mdotm = math.abs(beam.VrDirect:Dot(bsdir))
+      local mdotv = (self:GetBeamDimmer() and mdotm or 1)
+      local upwrd = self:GetUpwardLocal(); upwrd:Rotate(self:GetAngles())
+      local angle = LaserLib.GetLeanAngle(bsdir, upwrd,
+                                          self:GetBeamLeanX(),
+                                          self:GetBeamLeanY(),
+                                          self:GetBeamLeanZ())
       if(CLIENT) then
-        self:DrawBeam(entity, bmorg, bsdir, beam, mrdotv)
+        self:DrawBeam(entity, bmorg, angle:Forward(), beam, mdotv)
       else
-        self:DoDamage(self:DoBeam(entity, bmorg, bsdir, beam, mrdotv))
+        self:DoDamage(self:DoBeam(entity, bmorg, angle:Forward(), beam, mdotv))
       end
     end
   end -- Sources are located in the table hash part

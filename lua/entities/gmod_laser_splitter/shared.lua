@@ -21,8 +21,9 @@ local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"  , "Internals", 0, cvMXSPLTBC:GetInt())
-  self:EditableSetFloat ("InBeamLeanX"  , "Internals", 0, 1)
-  self:EditableSetFloat ("InBeamLeanY"  , "Internals", 0, 1)
+  self:EditableSetFloat ("InBeamLeanX"  , "Internals", -1, 1)
+  self:EditableSetFloat ("InBeamLeanY"  , "Internals", -1, 1)
+  self:EditableSetFloat ("InBeamLeanZ"  , "Internals", -1, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
   LaserLib.SetPrimary(self)
@@ -44,10 +45,8 @@ end
 function ENT:UpdateVectors()
   local fwd = self:GetDirectLocal()
   local upw = self:GetUpwardLocal()
-  if(math.abs(fwd:Dot(upw)) >= gnDOTM) then
-    local rgh = fwd:Cross(upw)
-    upw:Set(rgh:Cross(fwd))
-    upw:Normalize()
+  if(not LaserLib.IsOrtho(fwd, upw)) then
+    LaserLib.SetOrtho(fwd, upw, true)
     self:SetUpwardLocal(upw)
   end; return self
 end
@@ -120,7 +119,7 @@ function ENT:GetBeamCount()
 end
 
 function ENT:SetBeamLeanX(num)
-  local x = math.Clamp(num, 0, 1)
+  local x = math.Clamp(num, -1, 1)
   self:SetInBeamLeanX(x)
   return self
 end
@@ -130,13 +129,23 @@ function ENT:GetBeamLeanX()
 end
 
 function ENT:SetBeamLeanY(num)
-  local y = math.Clamp(num, 0, 1)
+  local y = math.Clamp(num, -1, 1)
   self:SetInBeamLeanY(y)
   return self
 end
 
 function ENT:GetBeamLeanY()
   return self:GetInBeamLeanY()
+end
+
+function ENT:SetBeamLeanZ(num)
+  local z = math.Clamp(num, -1, 1)
+  self:SetInBeamLeanZ(z)
+  return self
+end
+
+function ENT:GetBeamLeanZ()
+  return self:GetInBeamLeanZ()
 end
 
 function ENT:BeamColorSplit(idx)

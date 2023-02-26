@@ -131,7 +131,7 @@ if(SERVER) then
     function(user, ent, dupe) LaserLib.SetMaterial(ent, dupe.Material) end)
 
   duplicator.RegisterEntityClass(LaserLib.GetClass(1), LaserLib.NewLaser,
-    --[[  user  ]]  "pos"         , "ang"         , "model"      ,
+    --[[  user  ]] "pos"         , "ang"         , "model"      ,
     "tranData"   , "key"         , "width"       , "length"     ,
     "damage"     , "material"    , "dissolveType", "startSound" ,
     "stopSound"  , "killSound"   , "runToggle"   , "startOn"    ,

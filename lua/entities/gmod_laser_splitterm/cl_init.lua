@@ -9,6 +9,7 @@ function ENT:DrawBeam(src, org, dir, bmex, vdot)
 end
 
 function ENT:Draw()
+  self:UpdateViewRB()
   self:DrawModel()
   self:DrawShadow(false)
   self:InitSources()

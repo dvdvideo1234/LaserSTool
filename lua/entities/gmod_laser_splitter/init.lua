@@ -8,6 +8,7 @@ local gtAMAX     = LaserLib.GetData("AMAX")
 local cvNSPLITER = LaserLib.GetData("NSPLITER")
 local cvXSPLITER = LaserLib.GetData("XSPLITER")
 local cvYSPLITER = LaserLib.GetData("YSPLITER")
+local cvZSPLITER = LaserLib.GetData("ZSPLITER")
 
 function ENT:UpdateInternals()
   self.crOpower = nil
@@ -54,6 +55,7 @@ function ENT:Initialize()
   self:SetBeamCount(0)
   self:SetBeamLeanX(0)
   self:SetBeamLeanY(0)
+  self:SetBeamLeanZ(0)
   self:SetBeamLength(0)
   self:SetBeamDamage(0)
   self:SetStopSound("")
@@ -98,6 +100,7 @@ function ENT:SpawnFunction(ply, tr)
     ent:SetBeamCount(cvNSPLITER:GetInt())
     ent:SetBeamLeanX(cvXSPLITER:GetFloat())
     ent:SetBeamLeanY(cvYSPLITER:GetFloat())
+    ent:SetBeamLeanZ(cvZSPLITER:GetFloat())
     ply:AddCount(gen.."s", ent)
     ply:AddCleanup(gen.."s", ent)
     return ent
@@ -156,22 +159,28 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    local direc = self:GetDirectLocal()
     if(mcount > 1) then
       local delta = gtAMAX[2] / mcount
-      local marbx = self:GetBeamLeanX()
-      local marby = self:GetBeamLeanY()
-      local upwrd = self:GetUpwardLocal()
-      local angle = direc:AngleEx(upwrd)
+        local forwd = self:GetDirectLocal()
+        local upwrd = self:GetUpwardLocal()
+        local angle = LaserLib.GetLeanAngle(forwd, upwrd,
+                                            self:GetBeamLeanX(),
+                                            self:GetBeamLeanY(),
+                                            self:GetBeamLeanZ())
       self:UpdateFlags()
-      for index = 1, mcount do
-        local dir = marby * angle:Up()
-              dir:Add(marbx * angle:Forward())
-        self:DoDamage(self:DoBeam(nil, dir, index))
-        angle:RotateAroundAxis(direc, delta)
+      for idx = 1, mcount do
+        self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
+        angle:RotateAroundAxis(forwd, delta)
       end
     else
-      self:DoDamage(self:DoBeam(nil, direc))
+      self:UpdateFlags()
+      local forwd = self:GetDirectLocal()
+      local upwrd = self:GetUpwardLocal()
+      local angle = LaserLib.GetLeanAngle(forwd, upwrd,
+                                          self:GetBeamLeanX(),
+                                          self:GetBeamLeanY(),
+                                          self:GetBeamLeanZ())
+      self:DoDamage(self:DoBeam(nil, angle:Forward()))
     end
     self:SetHitReportMax(mcount)
   else

@@ -82,7 +82,7 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-author-org]: https://forum.facepunch.com/u/madjawa-legacy
 [ref-org-repo]: https://svn.madjawa.net/lua/LaserSTOOL/
 [ref-git-pr]: https://github.com/dvdvideo1234/LaserSTool/pulls
-[ref-ws-publish]: https://github.com/dvdvideo1234/LaserSTool/blob/main/workshop_publish.bat
+[ref-ws-publish]: https://github.com/dvdvideo1234/WindowsBatches/tree/master/SteamGames/GmodAddons/WorkshopPublish
 [ref-exp-irl]: https://www.grammarly.com/blog/irl-meaning/
 [ref-adv-dupe1]: https://github.com/wiremod/advduplicator
 [ref-adv-dupe2]: https://github.com/wiremod/advdupe2
