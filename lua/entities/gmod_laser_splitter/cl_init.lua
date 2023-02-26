@@ -13,6 +13,7 @@ function ENT:DrawBeam(org, dir, idx)
 end
 
 function ENT:Draw()
+  self:UpdateViewRB()
   self:DrawModel()
   self:DrawShadow(false)
   local mcount = self:GetBeamCount()

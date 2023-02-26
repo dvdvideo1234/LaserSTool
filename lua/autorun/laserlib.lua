@@ -1097,6 +1097,24 @@ function LaserLib.Configure(unit)
         return self
       end
     end
+  else
+    --[[
+     * This is used for stubborn units that does not update their beam
+     * bounds view. The beam simply dissappears when render bounds are
+     * not updated. Places a point in player view to make it always seen
+     * emin > Externnal wold-space OBBMins
+     * emax > Externnal wold-space OBBMaxs
+    ]]
+    function unit:UpdateViewRB(emin, emax)
+      local vpos, vmin, vmax = LaserLib.GetPlayerView()
+      if(emin) then vmin = emin else -- External MAXS
+        vmin = self:LocalToWorld(self:OBBMins()) end
+      if(emax) then vmax = emax else -- External MINS
+        vmax = self:LocalToWorld(self:OBBMaxs()) end
+      LaserLib.UpdateBounds(vmin, math.min, vpos)
+      LaserLib.UpdateBounds(vmax, math.max, vpos)
+      self:SetRenderBoundsWS(vmin, vmax)
+    end
   end
   --[[
    * Effects draw handling decides whenever
@@ -1392,6 +1410,18 @@ function LaserLib.GetTransformUnit(ent)
   local vor = Vector(org); vor:Rotate(ang); vor:Add(pos);
   local vdr = Vector(dir); vdr:Rotate(ang)
   return vor, vdr
+end
+
+--[[
+ * Generates a position in front of player view
+ * It is used to be provideed to render bounds
+]]
+function LaserLib.GetPlayerView()
+  if(SERVER) then return end -- Server can go out now
+  local user = LocalPlayer()
+  local vpos = user:GetAimVector()
+        vpos:Mul(50); vpos:Add(user:EyePos())
+  return vpos
 end
 
 --[[
@@ -1906,14 +1936,18 @@ end
 
 --[[
  * Updates render bounds vector by calling min/max
- * base > Vector to be updated and manipulated
- * vec  > Vector the base must be updated with
- * func > The function to be called. Either max or min
+ * vcbase > Vector to be updated and manipulated
+ * action > The function to be called. Either max or min
+ * bounds > Vector the base must be updated with
 ]]
-function LaserLib.UpdateRB(base, vec, func)
-  base.x = func(base.x, vec.x)
-  base.y = func(base.y, vec.y)
-  base.z = func(base.z, vec.z)
+function LaserLib.UpdateBounds(vcbase, action, bounds)
+  local sx, ox = pcall(action, vcbase.x, bounds.x)
+  if(not sx) then error("Bounds error X: "..ox) end
+  local sy, oy = pcall(action, vcbase.y, bounds.y)
+  if(not sy) then error("Bounds error Y: "..oy) end
+  local sz, oz = pcall(action, vcbase.z, bounds.z)
+  if(not sz) then error("Bounds error Z: "..oz) end
+  vcbase.x, vcbase.y, vcbase.z = ox, oy, oz
 end
 
 --[[
@@ -2284,7 +2318,7 @@ if(SERVER) then
           phys:ApplyForceOffset(direct * force, origin)
         end -- This is the way laser can be used as forcer
       end -- Do not apply force on laser units
-      if(target:IsPlayer()) then -- Portal beam safety
+      if(target:IsPlayer() and damage > 0) then -- Portal beam safety
         LaserLib.DoBurn(target, origin, direct, safety)
       end -- Target is not unit. Check emiter safety
     end
@@ -2537,6 +2571,21 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
+ * Validates beam nodes
+ * When not valid returns nil
+ * Returns validated beam nodes
+]]
+function mtBeam:GetPoints()
+  local tvp = self.TvPoints
+  if(not tvp) then return nil end
+  if(not tvp[1]) then return nil end
+  local szv = tvp.Size -- Vertex size
+  if(not szv) then return nil end
+  if(szv <= 0) then return nil end
+  return tvp, szv
+end
+
+--[[
  * Clears all the data from the beam
 ]]
 function mtBeam:Clear(key)
@@ -2565,11 +2614,11 @@ end
  * index > Node index to be used. Defaults to node size
 ]]
 function mtBeam:GetNode(index)
-  local tno = self.TvPoints
+  local tvp = self.TvPoints
   if(index) then
-    return tno[index]
+    return tvp[index]
   else
-    return tno[tno.Size]
+    return tvp[tvp.Size]
   end
 end
 
@@ -2588,7 +2637,7 @@ end
 ]]
 function mtBeam:SetActor(entity)
   self.TeFilter = entity -- Register the entity actor filter
-  self.TrFActor = LaserLib.IsValid(entity) -- Actor boolean
+  self.TrFActor = (entity ~= nil) -- Actor existance boolean
   return self -- Coding effective API
 end
 
@@ -2620,10 +2669,8 @@ end
  * negative > Ray goes in the water
 ]]
 function mtBeam:GetWaterDirect(dir)
-  local air = self:IsAir()
-  if(air) then return nil end
-  local wat = self:GetWater()
-  local tmp = self.__vtdir
+  if(self:IsAir()) then return nil end
+  local wat, tmp = self:GetWater(), self.__vtdir
   tmp:Set(dir or self.VrDirect)
   return tmp:Dot(wat.N)
 end
@@ -2640,12 +2687,9 @@ end
  * negative > Point is below water
 ]]
 function mtBeam:GetWaterOrigin(pos)
-  local air = self:IsAir()
-  if(air) then return nil end
-  local wat = self:GetWater()
-  local tmp = self.__vtorg
-  tmp:Set(pos or self.VrOrigin)
-  tmp:Sub(wat.P)
+  if(self:IsAir()) then return nil end
+  local wat, tmp = self:GetWater(), self.__vtorg
+  tmp:Set(pos or self.VrOrigin); tmp:Sub(wat.P)
   return tmp:Dot(wat.N)
 end
 
@@ -3425,6 +3469,26 @@ function mtBeam:GetBoundaryEntity(index, trace)
   return bnex, bsam, vdir
 end
 
+function mtBeam:IsVisible()
+  if(SERVER) then return false end
+  local tvpnt, szv = self:GetPoints()
+  if(not tvpnt) then return false end
+  local vuser = LaserLib.GetPlayerView()
+  -- Project view onto the beam and check if visible
+  for idx = 2, szv do -- Loop beam visible segments
+    local new, org = tvpnt[idx], tvpnt[idx - 1]
+    if(org[5]) then -- When we need to check only the drawn
+      local ntx, otx = new[1], org[1] -- Read origin vectors
+      local dir = (ntx - otx) -- Beam single ray segment
+      local uir = (vuser - otx) -- Player ray with segment origin
+      if(uir:Dot(dir) > 0) then dir:Normalize()
+        local pos = LaserLib.ProjectRay(vuser, otx, dir)
+        if(pos:ToScreen().visible) then return true end
+      end -- TODO: Better visiblility algorithm
+    end
+  end; return false
+end
+
 --[[
  * This traps the beam by following the trace
  * You can mark trace view points as visible
@@ -3434,46 +3498,48 @@ end
 ]]
 function mtBeam:Draw(sours, imatr, color)
   if(SERVER) then return self end
-  local tvpnt = self.TvPoints
-  -- Check node availability
+  local tvpnt, szv = self:GetPoints()
   if(not tvpnt) then return self end
-  if(not tvpnt[1]) then return self end
-  local szv = tvpnt.Size -- Vertex size
-  if(not szv) then return self end
-  if(szv <= 0) then return self end
   -- Update rendering boundaries
   local sours = (sours or self.BmSource)
-  local userh = LocalPlayer():GetEyeTrace().HitPos
-  local bbmin = sours:LocalToWorld(sours:OBBMins())
-  local bbmax = sours:LocalToWorld(sours:OBBMaxs())
-  -- Extend render bounds with player hit position
-  LaserLib.UpdateRB(bbmin, userh, math.min)
-  LaserLib.UpdateRB(bbmax, userh, math.max)
+  local bmin, bmax = sours:GetRenderBounds()
+        bmin:Set(sours:LocalToWorld(bmin))
+        bmax:Set(sours:LocalToWorld(bmax))
+  -- Extend render bounds with player view
+  local vuser = LaserLib.GetPlayerView()
+  LaserLib.UpdateBounds(bmin, math.min, vuser)
+  LaserLib.UpdateBounds(bmax, math.max, vuser)
+  -- Extend render bounds with entity OBB
+  local omin = sours:LocalToWorld(sours:OBBMins())
+  local omax = sours:LocalToWorld(sours:OBBMaxs())
+  LaserLib.UpdateBounds(bmin, math.min, omin)
+  LaserLib.UpdateBounds(bmax, math.max, omax)
   -- Extend render bounds with the first node
-  LaserLib.UpdateRB(bbmin, tvpnt[1][1], math.min)
-  LaserLib.UpdateRB(bbmax, tvpnt[1][1], math.max)
+  local begin = tvpnt[1][1] -- Beam start
+  LaserLib.UpdateBounds(bmin, math.min, begin)
+  LaserLib.UpdateBounds(bmax, math.max, begin)
   -- Adjust the render bounds with world-space coordinates
-  sours:SetRenderBoundsWS(bbmin, bbmax) -- World space is faster
+  sours:SetRenderBoundsWS(bmin, bmax) -- World space is faster
   -- Material must be cached and updated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
   local cup = (color or self.BmColor)
   local spd = DATA.DRWBMSPD:GetFloat()
   -- Draw the beam sequentially being faster
   for idx = 2, szv do
+    local new = tvpnt[idx]
     local org = tvpnt[idx - 1]
-    local new = tvpnt[idx - 0]
     local ntx, otx = new[1], org[1] -- Read origin
     local wdt = LaserLib.GetWidth(org[2]) -- Start width
     -- Make sure the coordinates are converted to world ones
-    LaserLib.UpdateRB(bbmin, ntx, math.min)
-    LaserLib.UpdateRB(bbmax, ntx, math.max)
+    LaserLib.UpdateBounds(bmin, math.min, ntx)
+    LaserLib.UpdateBounds(bmax, math.max, ntx)
     -- When we need to draw the beam with rendering library
     if(org[5]) then cup = (org[6] or cup) -- Change color
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
       render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
     end -- Draw the actual beam texture
   end -- Adjust the render bounds with world-space coordinates
-  sours:SetRenderBoundsWS(bbmin, bbmax); return self
+  sours:SetRenderBoundsWS(bmin, bmax); return self
 end
 
 --[[
