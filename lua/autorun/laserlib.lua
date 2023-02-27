@@ -1106,7 +1106,7 @@ function LaserLib.Configure(unit)
      * emax > Externnal wold-space OBBMaxs
     ]]
     function unit:UpdateViewRB(emin, emax)
-      local vpos, vmin, vmax = LaserLib.GetPlayerView()
+      local vpos, vmin, vmax = LaserLib.GetPlayerView(20)
       if(emin) then vmin = emin else -- External MAXS
         vmin = self:LocalToWorld(self:OBBMins()) end
       if(emax) then vmax = emax else -- External MINS
@@ -1415,12 +1415,13 @@ end
 --[[
  * Generates a position in front of player view
  * It is used to be provideed to render bounds
+ * mar > Margin to extent the aim vector
 ]]
-function LaserLib.GetPlayerView()
+function LaserLib.GetPlayerView(mar)
   if(SERVER) then return end -- Server can go out now
   local user = LocalPlayer()
   local vpos = user:GetAimVector()
-        vpos:Mul(50); vpos:Add(user:EyePos())
+        vpos:Mul(mar or 0); vpos:Add(user:EyePos())
   return vpos
 end
 
@@ -3469,26 +3470,6 @@ function mtBeam:GetBoundaryEntity(index, trace)
   return bnex, bsam, vdir
 end
 
-function mtBeam:IsVisible()
-  if(SERVER) then return false end
-  local tvpnt, szv = self:GetPoints()
-  if(not tvpnt) then return false end
-  local vuser = LaserLib.GetPlayerView()
-  -- Project view onto the beam and check if visible
-  for idx = 2, szv do -- Loop beam visible segments
-    local new, org = tvpnt[idx], tvpnt[idx - 1]
-    if(org[5]) then -- When we need to check only the drawn
-      local ntx, otx = new[1], org[1] -- Read origin vectors
-      local dir = (ntx - otx) -- Beam single ray segment
-      local uir = (vuser - otx) -- Player ray with segment origin
-      if(uir:Dot(dir) > 0) then dir:Normalize()
-        local pos = LaserLib.ProjectRay(vuser, otx, dir)
-        if(pos:ToScreen().visible) then return true end
-      end -- TODO: Better visiblility algorithm
-    end
-  end; return false
-end
-
 --[[
  * This traps the beam by following the trace
  * You can mark trace view points as visible
@@ -3506,7 +3487,7 @@ function mtBeam:Draw(sours, imatr, color)
         bmin:Set(sours:LocalToWorld(bmin))
         bmax:Set(sours:LocalToWorld(bmax))
   -- Extend render bounds with player view
-  local vuser = LaserLib.GetPlayerView()
+  local vuser = LaserLib.GetPlayerView(20)
   LaserLib.UpdateBounds(bmin, math.min, vuser)
   LaserLib.UpdateBounds(bmax, math.max, vuser)
   -- Extend render bounds with entity OBB
@@ -3515,9 +3496,9 @@ function mtBeam:Draw(sours, imatr, color)
   LaserLib.UpdateBounds(bmin, math.min, omin)
   LaserLib.UpdateBounds(bmax, math.max, omax)
   -- Extend render bounds with the first node
-  local begin = tvpnt[1][1] -- Beam start
-  LaserLib.UpdateBounds(bmin, math.min, begin)
-  LaserLib.UpdateBounds(bmax, math.max, begin)
+  local from = tvpnt[1][1] -- Beam start
+  LaserLib.UpdateBounds(bmin, math.min, from)
+  LaserLib.UpdateBounds(bmax, math.max, from)
   -- Adjust the render bounds with world-space coordinates
   sours:SetRenderBoundsWS(bmin, bmax) -- World space is faster
   -- Material must be cached and updated with left click setup
@@ -3529,12 +3510,12 @@ function mtBeam:Draw(sours, imatr, color)
     local new = tvpnt[idx]
     local org = tvpnt[idx - 1]
     local ntx, otx = new[1], org[1] -- Read origin
-    local wdt = LaserLib.GetWidth(org[2]) -- Start width
     -- Make sure the coordinates are converted to world ones
     LaserLib.UpdateBounds(bmin, math.min, ntx)
     LaserLib.UpdateBounds(bmax, math.max, ntx)
     -- When we need to draw the beam with rendering library
     if(org[5]) then cup = (org[6] or cup) -- Change color
+      local wdt = LaserLib.GetWidth(org[2]) -- Start width
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
       render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
     end -- Draw the actual beam texture
