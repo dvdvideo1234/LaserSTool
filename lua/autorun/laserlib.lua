@@ -43,7 +43,8 @@ DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to crerate color
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
-DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
+DATA.NWPID = DATA.TOOL.."_or_portal" -- General key storing laser portal entity networking
+DATA.NWSID = DATA.TOOL.."_sm_portal" -- General key storing client seemles portals entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
@@ -389,14 +390,14 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   gtTRACE.filter = filter
   if(width and width > 0) then
     local m = width / 2
-    gtTRACE.funct = util.TraceHull
+    gtTRACE.action = util.TraceHull
     gtTRACE.mins:SetUnpacked(-m, -m, -m)
     gtTRACE.maxs:SetUnpacked( m,  m,  m)
   else
     if(SeamlessPortals) then -- Mee's Seamless-Portals
-      gtTRACE.funct = SeamlessPortals.TraceLine
+      gtTRACE.action = SeamlessPortals.TraceLine
     else -- Seamless portals are not installed
-      gtTRACE.funct = util.TraceLine
+      gtTRACE.action = util.TraceLine
     end -- Use the original no detour trace line
   end
   if(mask) then
@@ -416,12 +417,12 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   end
   if(result) then
     gtTRACE.output = result
-    gtTRACE.funct(gtTRACE)
+    gtTRACE.action(gtTRACE)
     gtTRACE.output = nil
     return result
   else
     gtTRACE.output = nil
-    return gtTRACE.funct(gtTRACE)
+    return gtTRACE.action(gtTRACE)
   end
 end
 
@@ -503,9 +504,26 @@ local function GetInteractIndex(iK, set)
 end
 
 --[[
+ * Project a position onto ray defines as origin and direction
+ * pos > Position being projected onto a ray
+ * org > Ray origin that we are projecting onto
+ * dir > Ray direction that we are projecting onto
+ * Returns
+ * [1] > Projected position onto the ray
+ * [2] > Position ray margin as dot product
+]]
+local function ProjectRay(pos, org, dir)
+  local dir = dir:GetNormalized()
+  local vrs = Vector(pos); vrs:Sub(org)
+  local mar = vrs:Dot(dir); vrs:Set(dir)
+        vrs:Mul(mar); vrs:Add(org)
+  return vrs, mar
+end
+
+--[[
  * Calculates the beam position and direction when entity is a portal
  * This assumes that the beam enters the +X and exits at +X
- * This will lead to correct beam representation across portal Y axis
+ * Doing so will lead to correct beam representation across portal Y axis
  * base    > Base entity acting as a portal entrance
  * exit    > Exit entity acting as a portal beam output location
  * origin  > Hit location vector placed on the first entity surface
@@ -1392,14 +1410,6 @@ function LaserLib.GetOrderID(ent, key)
   info.N = (info.N + 1); return key, info.N, itab[key]
 end
 
-function LaserLib.ProjectRay(pos, org, dir)
-  local vrs = Vector(pos); vrs:Sub(org)
-  local mar = vrs:Dot(dir); vrs:Set(dir)
-        vrs:Mul(mar); vrs:Add(org)
-  local amr = pos:DistToSqr(vrs)
-  return vrs, mar, amr
-end
-
 function LaserLib.GetTransformUnit(ent)
   if(not LaserLib.IsValid(ent)) then return end
   local org = (ent.GetOriginLocal and ent:GetOriginLocal() or ent:OBBCenter())
@@ -1438,7 +1448,8 @@ function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   if(not (org and dir)) then return end
   local ctr = LaserLib.GetColor("GREEN")
   local csr = LaserLib.GetColor("YELLOW")
-  local vrs, mar, amr = LaserLib.ProjectRay(vbb, org, dir)
+  local vrs, mar = ProjectRay(vbb, org, dir)
+  local amr = vbb:DistToSqr(vrs)
   if(rev and mar < 0) then return end
   local so, sv = vbb:ToScreen(), vrs:ToScreen()
   if(so.visible) then
@@ -2301,7 +2312,7 @@ if(SERVER) then
     if(smu <= 0) then return end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
     local obb = target:LocalToWorld(target:OBBCenter())
-    local pbb = LaserLib.ProjectRay(obb, origin, direct)
+    local pbb = ProjectRay(obb, origin, direct)
           obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
           obb.z = 0; target:SetVelocity(obb)
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
@@ -3677,11 +3688,20 @@ local gtACTORS = {
   end,
   ["seamless_portal"] = function(beam, trace)
     beam:Finish(trace)
-    local ent = trace.Entity
-    local out = ent:ExitPortal()
+    local nwp = DATA.NWSID
+    local ent, out = trace.Entity
+    if(SERVER) then -- Locating open pair is server-side
+      out = ent:GetExitPortal() -- Retrieve open pair
+      if(LaserLib.IsValid(out)) then -- Validate portal
+        ent:SetNWInt(nwp, out:EntIndex()) -- Store pair
+      else ent:SetNWInt(nwp, 0); return end -- No linked pair
+    else -- Clienttakes entity form networking
+      out = Entity(ent:GetNWInt(nwp, 0))
+      if(not LaserLib.IsValid(out)) then return end -- No linked pair
+    end -- Assume that output portal will have the same surface offset
     if(not LaserLib.IsValid(out)) then return end
-    local esz = ent:GetExitSize()
-    local osz = out:GetExitSize()
+    local esz = ent:GetSize()
+    local osz = out:GetSize()
     local szx = (osz.x / esz.x)
     local szy = (osz.y / esz.y)
     local szz = (osz.z / esz.z)
