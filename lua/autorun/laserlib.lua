@@ -43,8 +43,7 @@ DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to crerate color
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
-DATA.NWPID = DATA.TOOL.."_or_portal" -- General key storing laser portal entity networking
-DATA.NWSID = DATA.TOOL.."_sm_portal" -- General key storing client seemles portals entity networking
+DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
@@ -3688,20 +3687,10 @@ local gtACTORS = {
   end,
   ["seamless_portal"] = function(beam, trace)
     beam:Finish(trace)
-    local nwp = DATA.NWSID
     local ent, out = trace.Entity
-    if(SERVER) then -- Locating open pair is server-side
-      out = ent:GetExitPortal() -- Retrieve open pair
-      if(LaserLib.IsValid(out)) then -- Validate portal
-        ent:SetNWInt(nwp, out:EntIndex()) -- Store pair
-      else ent:SetNWInt(nwp, 0); return end -- No linked pair
-    else -- Clienttakes entity form networking
-      out = Entity(ent:GetNWInt(nwp, 0))
-      if(not LaserLib.IsValid(out)) then return end -- No linked pair
-    end -- Assume that output portal will have the same surface offset
+    local out = ent:GetExitPortal() -- Retrieve open pair
     if(not LaserLib.IsValid(out)) then return end
-    local esz = ent:GetSize()
-    local osz = out:GetSize()
+    local esz, osz = ent:GetSize(), out:GetSize()
     local szx = (osz.x / esz.x)
     local szy = (osz.y / esz.y)
     local szz = (osz.z / esz.z)
