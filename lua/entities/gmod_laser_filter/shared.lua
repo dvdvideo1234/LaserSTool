@@ -29,7 +29,7 @@ local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
 local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
 
 function ENT:SetupDataTables()
-  local material = list.Get("LaserEmitterMaterials"); material["Empty"] = ""
+  local material = list.Get("LaserEmitterMaterials"); material["<Empty>"] = {name = "", icon = "stop"}
   self:EditableSetVector("NormalLocal"  , "General") -- Used as normal
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetBool  ("BeamPowerClamp", "General")
@@ -40,9 +40,7 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLength", "Internals", 0, cvMXBMLENG:GetFloat())
   self:EditableSetFloat ("InBeamDamage", "Internals", 0, cvMXBMDAMG:GetFloat())
   self:EditableSetFloat ("InBeamForce" , "Internals", 0, cvMXBMFORC:GetFloat())
-  local maticons = table.Copy(material)
-  for k, v in pairs(maticons) do maticons[k] = ((k == "Empty") and "stop" or "picture_edit") end
-  self:EditableSetStringCombo("InBeamMaterial", "Internals", material, nil, maticons)
+  self:EditableSetStringCombo("InBeamMaterial", "Internals", material, "name", "icon")
   self:EditableSetVectorColor("BeamColor", "Visuals")
   self:EditableSetFloat("BeamAlpha", "Visuals", 0, gnCLMX)
   LaserLib.Configure(self)

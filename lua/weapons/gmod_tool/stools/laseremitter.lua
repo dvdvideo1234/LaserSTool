@@ -495,7 +495,9 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   LaserLib.NumSlider(cPanel, "length"   , 0, cvMXBMLENG:GetFloat(), gtConvarList[gsTOOL.."_length"])
   LaserLib.NumSlider(cPanel, "damage"   , 0, cvMXBMDAMG:GetFloat(), gtConvarList[gsTOOL.."_damage"])
   LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
-  pItem = cPanel:MatSelect(gsTOOL.."_material", list.GetForEdit("LaserEmitterMaterials"), true, 0.15, 0.24)
+
+  local tMat = table.MemberValuesFromKey(list.GetForEdit("LaserEmitterMaterials"), "name")
+  pItem = cPanel:MatSelect(gsTOOL.."_material", tMat, true, 0.15, 0.24)
   pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
 
