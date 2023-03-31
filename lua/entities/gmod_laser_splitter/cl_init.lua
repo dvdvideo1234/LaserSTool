@@ -22,28 +22,16 @@ function ENT:Draw()
           width = LaserLib.GetWidth(width)
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
-      if(mcount > 1) then
+      if(mcount > 0) then
         local delta = gtAMAX[2] / mcount
         local forwd = self:GetDirectLocal()
         local upwrd = self:GetUpwardLocal()
-        local angle = LaserLib.GetLeanAngle(forwd, upwrd,
-                                            self:GetBeamLeanX(),
-                                            self:GetBeamLeanY(),
-                                            self:GetBeamLeanZ())
+        local angle = self:GetLeanAngle(forwd, upwrd)
         self:UpdateFlags()
         for idx = 1, mcount do
           self:DrawBeam(nil, angle:Forward(), idx)
-          angle:RotateAroundAxis(forwd, delta)
+          if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
         end
-      elseif(mcount == 1) then
-        local forwd = self:GetDirectLocal()
-        local upwrd = self:GetUpwardLocal()
-        local angle = LaserLib.GetLeanAngle(forwd, upwrd,
-                                            self:GetBeamLeanX(),
-                                            self:GetBeamLeanY(),
-                                            self:GetBeamLeanZ())
-        self:UpdateFlags()
-        self:DrawBeam(nil, angle:Forward())
       end
       self:SetHitReportMax(mcount)
     end
@@ -57,29 +45,13 @@ function ENT:Draw()
         local delta = gtAMAX[2] / mcount
         local forwd = self:GetDirectLocal()
         local upwrd = self:GetUpwardLocal()
-        local angle = LaserLib.GetLeanAngle(forwd, upwrd,
-                                            self:GetBeamLeanX(),
-                                            self:GetBeamLeanY(),
-                                            self:GetBeamLeanZ())
+        local angle = self:GetLeanAngle(forwd, upwrd)
         for idx = 1, mcount do
           local orend = angle:Forward(); orend:Mul(lndir)
           orend:Rotate(beang) orend:Add(orign)
           render.DrawLine(orign, orend, gcYELLOW)
-          angle:RotateAroundAxis(forwd, delta)
+          if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
         end
-      elseif(mcount == 1) then
-        render.SetColorMaterial()
-        local beang = self:GetAngles()
-        local orign = self:GetBeamOrigin()
-        local forwd = self:GetDirectLocal()
-        local upwrd = self:GetUpwardLocal()
-        local angle = LaserLib.GetLeanAngle(forwd, upwrd,
-                                            self:GetBeamLeanX(),
-                                            self:GetBeamLeanY(),
-                                            self:GetBeamLeanZ())
-        local orend = angle:Forward()
-        orend:Mul(lndir); orend:Rotate(beang); orend:Add(orign)
-        render.DrawLine(orign, orend, gcYELLOW)
       end
     end
     self:SetHitReportMax()

@@ -159,28 +159,14 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    if(mcount > 1) then
-      local delta = gtAMAX[2] / mcount
-        local forwd = self:GetDirectLocal()
-        local upwrd = self:GetUpwardLocal()
-        local angle = LaserLib.GetLeanAngle(forwd, upwrd,
-                                            self:GetBeamLeanX(),
-                                            self:GetBeamLeanY(),
-                                            self:GetBeamLeanZ())
-      self:UpdateFlags()
-      for idx = 1, mcount do
-        self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
-        angle:RotateAroundAxis(forwd, delta)
-      end
-    else
-      self:UpdateFlags()
-      local forwd = self:GetDirectLocal()
-      local upwrd = self:GetUpwardLocal()
-      local angle = LaserLib.GetLeanAngle(forwd, upwrd,
-                                          self:GetBeamLeanX(),
-                                          self:GetBeamLeanY(),
-                                          self:GetBeamLeanZ())
-      self:DoDamage(self:DoBeam(nil, angle:Forward()))
+    local delta = gtAMAX[2] / mcount
+    local forwd = self:GetDirectLocal()
+    local upwrd = self:GetUpwardLocal()
+    local angle = self:GetLeanAngle(forwd, upwrd)
+    self:UpdateFlags()
+    for idx = 1, mcount do
+      self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
+      if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
     end
     self:SetHitReportMax(mcount)
   else

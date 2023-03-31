@@ -153,39 +153,21 @@ end
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     local count = self.crCount; self:SetArrays(entity)
-    if(count > 1) then
+    if(count > 0) then
       local mnang = gtAMAX[2] / count
       local bsdir = Vector(trace.HitNormal)
       local bmorg = trace.HitPos; bsdir:Negate()
       local mdotm = math.abs(beam.VrDirect:Dot(bsdir))
       local mdotv = (self:GetBeamDimmer() and mdotm or 1)
       local upwrd = self:GetUpwardLocal(); upwrd:Rotate(self:GetAngles())
-      local angle = LaserLib.GetLeanAngle(bsdir, upwrd,
-                                          self:GetBeamLeanX(),
-                                          self:GetBeamLeanY(),
-                                          self:GetBeamLeanZ())
+      local angle = self:GetLeanAngle(bsdir, upwrd)
       for idx = 1, count do
         if(CLIENT) then
           self:DrawBeam(entity, bmorg, angle:Forward(), beam, mdotv)
         else
           self:DoDamage(self:DoBeam(entity, bmorg, angle:Forward(), beam, mdotv))
         end
-        angle:RotateAroundAxis(bsdir, mnang)
-      end
-    elseif(count == 1) then
-      local bsdir = Vector(trace.HitNormal)
-      local bmorg = trace.HitPos; bsdir:Negate()
-      local mdotm = math.abs(beam.VrDirect:Dot(bsdir))
-      local mdotv = (self:GetBeamDimmer() and mdotm or 1)
-      local upwrd = self:GetUpwardLocal(); upwrd:Rotate(self:GetAngles())
-      local angle = LaserLib.GetLeanAngle(bsdir, upwrd,
-                                          self:GetBeamLeanX(),
-                                          self:GetBeamLeanY(),
-                                          self:GetBeamLeanZ())
-      if(CLIENT) then
-        self:DrawBeam(entity, bmorg, angle:Forward(), beam, mdotv)
-      else
-        self:DoDamage(self:DoBeam(entity, bmorg, angle:Forward(), beam, mdotv))
+        if(count > 1) then angle:RotateAroundAxis(bsdir, mnang) end
       end
     end
   end -- Sources are located in the table hash part
@@ -210,6 +192,13 @@ function ENT:BeamColorSplit(idx, bmex)
     r, g, b = LaserLib.GetColorID(cnt, r, g, b)
     LaserLib.SetExColorRGBA(r, g, b, a)
   end; return self
+end
+
+function ENT:GetLeanAngle(forwd, upwrd)
+  return LaserLib.GetLeanAngle(forwd, upwrd,
+                               self:GetBeamLeanX(),
+                               self:GetBeamLeanY(),
+                               self:GetBeamLeanZ())
 end
 
 --[[

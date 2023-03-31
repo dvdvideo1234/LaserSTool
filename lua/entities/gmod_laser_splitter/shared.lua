@@ -171,6 +171,13 @@ function ENT:GetBeamSafety()
   return self:GetInBeamSafety()
 end
 
+function ENT:GetLeanAngle(forwd, upwrd)
+  return LaserLib.GetLeanAngle(forwd, upwrd,
+                               self:GetBeamLeanX(),
+                               self:GetBeamLeanY(),
+                               self:GetBeamLeanZ())
+end
+
 function ENT:DoBeam(org, dir, idx)
   local count  = self:GetBeamCount()
   local origin = self:GetBeamOrigin(org)
