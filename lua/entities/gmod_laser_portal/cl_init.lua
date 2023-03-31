@@ -27,11 +27,11 @@ function ENT:DrawTransfer(ang)
   local fit, mrg = self:IsTrueExit(), 5
   local r, w, h = 8, surface.GetTextSize(txt)
 
-  cam.Start3D2D(pos, ang, 0.16);
+  cam.Start3D2D(pos, ang, 0.16)
     self:DrawOverlay(r, w, h, mrg, BACKGR)
     if(fit) then self:DrawOverlay(r, w, h, mrg / 2, FOREGR) end
     draw.SimpleText(txt,DRFONT,0,-2,BLACK,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
-  cam.End3D2D();
+  cam.End3D2D()
 end
 
 function ENT:Draw()

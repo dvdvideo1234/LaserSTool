@@ -1415,7 +1415,7 @@ function LaserLib.GetTransformUnit(ent)
   if(not dir) then  dir = (ent.GetNormalLocal and ent:GetNormalLocal() or nil) end
   if(not (org and dir)) then return end
   local pos, ang = ent:GetPos(), ent:GetAngles()
-  local vor = Vector(org); vor:Rotate(ang); vor:Add(pos);
+  local vor = Vector(org); vor:Rotate(ang); vor:Add(pos)
   local vdr = Vector(dir); vdr:Rotate(ang)
   return vor, vdr
 end
