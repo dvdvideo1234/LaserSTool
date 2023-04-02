@@ -43,7 +43,7 @@ DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to crerate color
 DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
-DATA.NWPID = DATA.TOOL.."_portal"    -- General key storing laser portal entity networking
+DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
@@ -517,6 +517,29 @@ local function ProjectRay(pos, org, dir)
   local mar = vrs:Dot(dir); vrs:Set(dir)
         vrs:Mul(mar); vrs:Add(org)
   return vrs, mar
+end
+
+--[[
+ * Calculates the beam exit entity responsible for drawing beam
+ * When exit entity is only available at server side tetworrk the ID
+ * This is mainly used for link-pair portals. Exit may be invalid
+ * base > Base entity acting as a portal entrance
+ * from > The way to retrieve the exit enity on the server
+ * hash > Networking hash to store the exit entity ID
+ * Returns the exit entity for the beam to traverse from
+]]
+function LaserLib.GetBeamExit(base, from)
+  local hash = DATA.EXPLP -- Exit portal pair hash
+  if(SERVER) then -- Locating open pair is server-side
+    if(LaserLib.IsValid(from)) then -- Validate portal
+      base:SetNWInt(hash, from:EntIndex()) -- Store pair
+    else base:SetNWInt(hash, 0); return end -- No linked pair
+    return from -- Return the refreched exit entity
+  else -- Clienttakes entity form networking
+    local exit = (from or Entity(base:GetNWInt(hash, 0)))
+    if(not LaserLib.IsValid(exit)) then return end -- No linked pair
+    return exit -- Exit portal will have the same surface offset
+  end
 end
 
 --[[
@@ -3589,8 +3612,8 @@ local gtACTORS = {
   ["event_horizon"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
-    local pob, dir = trace.HitPos, beam.VrDirect
-    local eff, out = src.isEffect, ent.Target
+    local pob, dir, eff = trace.HitPos, beam.VrDirect, src.isEffect
+    local out = LaserLib.GetBeamExit(ent, ent.Target)
     if(out == ent) then return end -- We need to go somewhere
     if(not LaserLib.IsValid(out)) then return end
     local node = beam:GetNode(); node[5] = false -- Skip node
@@ -3648,19 +3671,12 @@ local gtACTORS = {
   end,
   ["prop_portal"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ent = trace.Entity
+    local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
-    local src = beam:GetSource()
-    local nwp, out = DATA.NWPID, nil
-    if(SERVER) then -- Locating open pair is server-side
-      out = ent:FindOpenPair() -- Retrieve open pair
-      if(LaserLib.IsValid(out)) then -- Validate portal
-        ent:SetNWInt(nwp, out:EntIndex()) -- Store pair
-      else ent:SetNWInt(nwp, 0); return end -- No linked pair
-    else -- Clienttakes entity form networking
-      out = Entity(ent:GetNWInt(nwp, 0))
-      if(not LaserLib.IsValid(out)) then return end -- No linked pair
-    end -- Assume that output portal will have the same surface offset
+    local opr = (SERVER and ent:FindOpenPair() or nil)
+    local out = LaserLib.GetBeamExit(ent, opr)
+    if(out == ent) then return end -- We need to go somewhere
+    if(not LaserLib.IsValid(out)) then return end
     local dir, pos = beam.VrDirect, trace.HitPos
     local mav, vsm = GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)

@@ -150,6 +150,13 @@ function ENT:IsHitNormal(trace)
   return (math.abs(normal:Dot(trace.HitNormal)) > (1 - gnDOTM))
 end
 
+function ENT:GetLeanAngle(forwd, upwrd)
+  return LaserLib.GetLeanAngle(forwd, upwrd,
+                               self:GetBeamLeanX(),
+                               self:GetBeamLeanY(),
+                               self:GetBeamLeanZ())
+end
+
 function ENT:EveryBeam(entity, index, beam, trace)
   if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
     local count = self.crCount; self:SetArrays(entity)
@@ -192,13 +199,6 @@ function ENT:BeamColorSplit(idx, bmex)
     r, g, b = LaserLib.GetColorID(cnt, r, g, b)
     LaserLib.SetExColorRGBA(r, g, b, a)
   end; return self
-end
-
-function ENT:GetLeanAngle(forwd, upwrd)
-  return LaserLib.GetLeanAngle(forwd, upwrd,
-                               self:GetBeamLeanX(),
-                               self:GetBeamLeanY(),
-                               self:GetBeamLeanZ())
 end
 
 --[[
