@@ -3872,22 +3872,21 @@ local gtACTORS = {
   end,
   ["gmod_laser_sensor"] = function(beam, trace)
     -- TODO: Find a way to clear data from previous pass
-    beam:Finish(trace) -- Assume that beam stops traversing
-    local ent = trace.Entity
+    local ent = trace.Entity; beam:Finish(trace)
     if(not ent:GetPassBeamTrough()) then return end
     if(SERVER) then
-      local srb = beam:GetSource()
-      local src = ent.pssSources
-      if(src[srb]) then
-        table.Empty(src)
+      ent.pssFlag = true
+      local src = beam:GetSource()
+      if(ent:IsStartPass(src)) then
         ent:UpdateDominant()
         ent:UpdateOn()
         ent:WireArrays()
         ent:ResetInternals()
+        print(10, ent.hitSize)
       end
+      print(1, beam, beam.VrDirect)
       ent.hitSize = ent.hitSize + 1
-      ent:EveryBeam(srb, ent.hitSize, beam, trace)
-      src[srb] = true
+      ent:EveryBeam(src, ent.hitSize, beam, trace)
     end
     beam.IsTrace = true
     beam:SetActor(ent) -- Makes beam pass the dimmer

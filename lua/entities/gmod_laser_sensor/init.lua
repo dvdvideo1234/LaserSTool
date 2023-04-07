@@ -12,9 +12,9 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:ResetInternals()
-  self.hitSize = 0
   self.crOrigin:SetUnpacked(0,0,0)
   self.crDirect:SetUnpacked(0,0,0)
+  self.hitSize , self.pssFlag  = 0, false
   self.crNormh , self.crDomsrc = false, nil
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
@@ -33,7 +33,7 @@ end
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {} -- Beam pass sources in notation `[ent] = true`
+  self.pssSources = {Key = NULL, Data = {}} -- Beam pass `[ent] = INT`
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -127,6 +127,9 @@ end
 function ENT:EveryBeam(entity, index, beam, trace)
   local norm = self:GetUnitDirection()
   local bdot, mdot = self:GetHitPower(norm, beam, trace)
+
+  print(21, bdot, trace.Hit, beam)
+
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
     if(bdot) then
@@ -134,6 +137,7 @@ function ENT:EveryBeam(entity, index, beam, trace)
       self.crWidth  = self.crWidth  + beam.NvWidth
       self.crDamage = self.crDamage + beam.NvDamage
       self.crForce  = self.crForce  + beam.NvForce
+      print(22, self.crOpower, self.crNpower)
       if(not self.crOpower or self.crNpower > self.crOpower) then
         self.crNormh  = true
         self.crOpower = self.crNpower
@@ -141,6 +145,7 @@ function ENT:EveryBeam(entity, index, beam, trace)
         self.crLength = beam.NvLength
         self.crOrigin:Set(beam.VrOrigin)
         self.crDirect:Set(beam.VrDirect)
+        print(23, beam, beam.VrDirect, self.crDirect)
       end
     end
   end -- Sources are located in the table hash part
@@ -153,6 +158,8 @@ function ENT:UpdateOutputs(dom, bon)
   self:WireWrite("Force" , self.crForce)
   self:WireWrite("Origin", self.crOrigin)
   self:WireWrite("Direct", self.crDirect)
+
+  print(31, self.crDirect)
 
   if(dom ~= nil) then
     self:WireWrite("Dominant", dom)
@@ -167,6 +174,26 @@ function ENT:UpdateOutputs(dom, bon)
   end
 
   return self
+end
+
+function ENT:IsStartPass(ekey)
+  local src = self.pssSources -- Passes
+  local set = src.Data -- Pass data set
+  if(LaserLib.IsValid(ekey)) then
+    if(not set[ekey]) then
+      set[ekey] = 1; src.Key = ekey
+      return false -- This is a new source
+    elseif(ekey == src.Key) then
+      set[ekey] = set[ekey] + 1
+      return false -- Beam N of same source
+    else -- Source exists  from last pass
+      table.Empty(set); src.Key = NULL
+      return true -- Have to reset state
+    end
+  else -- Entity is invalid reset all
+    table.Empty(set); src.Key = NULL
+    return true -- Trigger pass reset
+  end
 end
 
 function ENT:UpdateDominant(dom)
@@ -275,6 +302,14 @@ function ENT:Think()
     self:UpdateSources()
     self:UpdateOn()
     self:WireArrays()
+  else
+    if(self.pssFlag) then
+      print('>', self.pssFlag)
+      self:ResetInternals()
+      self:UpdateDominant()
+      self:UpdateOn()
+      self:WireArrays()
+    end
   end
 
   self:NextThink(CurTime())
