@@ -593,7 +593,6 @@ local function GetMarginPortal(entity, origin, direct, normal)
   return mav, vsm
 end
 
-
 --[[
  * Inserts consistent data in array notation {1,2,Size=2}
  * tArr > Array to modify
@@ -1096,6 +1095,9 @@ function LaserLib.Configure(unit)
   if(SERVER) then -- Do server configuration finalizer
     if(unit.WireRemove) then function unit:OnRemove() self:WireRemove() end end
     if(unit.WireRestored) then function unit:OnRestore() self:WireRestored() end end
+    if(unit.WirePreEntityCopy) then function unit:PreEntityCopy() self:WirePreEntityCopy() end end
+    if(unit.WirePostEntityPaste) then function unit:PostEntityPaste(ply, ent, created) self:WirePreEntityCopy(ply, ent, created) end end
+    if(unit.WireApplyDupeInfo) then function unit:ApplyDupeInfo(ply, ent, info, fentid) self:WirePreEntityCopy(ply, ent, info, fentid) end end
   else -- Do client configuration finalizer
     language.Add(uas, unit.Information)
     if(uas ~= cas) then -- Setup the same kill icon
@@ -3875,18 +3877,32 @@ local gtACTORS = {
     local ent = trace.Entity; beam:Finish(trace)
     if(not ent:GetPassBeamTrough()) then return end
     if(SERVER) then
-      ent.pssFlag = true
+      local pss = ent.pssSources
       local src = beam:GetSource()
-      if(ent:IsStartPass(src)) then
+      if(LaserLib.IsValid(src)) then
+        local idx = beam.BmIdenty
+        local key = src:EntIndex().."#"..idx
+        local ptm, pdt = pss.Time, pss.Data
+        pss.Time = CurTime(); pdt[key] = pss.Time
+
+        ent:ResetInternals()
+
+
+        print("======",ent,src)
+        PrintTable(pdt)
+        print("======",pss.Time,ent.hitSize)
+        for sky, tim in pairs(pdt) do
+          if(ent:IsTime(tim)) then pdt[sky] = nil end
+          print(">", sky, ent.hitSize, pss.Time - tim)
+        end
+        print("******")
+        ent.hitSize = ent.hitSize + 1
+        ent:EveryBeam(src, ent.hitSize, beam, trace)
+
         ent:UpdateDominant()
         ent:UpdateOn()
         ent:WireArrays()
-        ent:ResetInternals()
-        print(10, ent.hitSize)
       end
-      print(1, beam, beam.VrDirect)
-      ent.hitSize = ent.hitSize + 1
-      ent:EveryBeam(src, ent.hitSize, beam, trace)
     end
     beam.IsTrace = true
     beam:SetActor(ent) -- Makes beam pass the dimmer

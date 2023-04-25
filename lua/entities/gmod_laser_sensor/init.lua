@@ -14,10 +14,9 @@ end
 function ENT:ResetInternals()
   self.crOrigin:SetUnpacked(0,0,0)
   self.crDirect:SetUnpacked(0,0,0)
-  self.hitSize , self.pssFlag  = 0, false
-  self.crNormh , self.crDomsrc = false, nil
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
+  self.hitSize , self.crNormh , self.crDomsrc = 0, false, nil
 
   return self
 end
@@ -33,7 +32,7 @@ end
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {Key = NULL, Data = {}} -- Beam pass `[ent] = INT`
+  self.pssSources = {Time = 0, Data = {}} -- Beam pass `[ent] = INT`
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -159,8 +158,6 @@ function ENT:UpdateOutputs(dom, bon)
   self:WireWrite("Origin", self.crOrigin)
   self:WireWrite("Direct", self.crDirect)
 
-  print(31, self.crDirect)
-
   if(dom ~= nil) then
     self:WireWrite("Dominant", dom)
   else
@@ -174,26 +171,6 @@ function ENT:UpdateOutputs(dom, bon)
   end
 
   return self
-end
-
-function ENT:IsStartPass(ekey)
-  local src = self.pssSources -- Passes
-  local set = src.Data -- Pass data set
-  if(LaserLib.IsValid(ekey)) then
-    if(not set[ekey]) then
-      set[ekey] = 1; src.Key = ekey
-      return false -- This is a new source
-    elseif(ekey == src.Key) then
-      set[ekey] = set[ekey] + 1
-      return false -- Beam N of same source
-    else -- Source exists  from last pass
-      table.Empty(set); src.Key = NULL
-      return true -- Have to reset state
-    end
-  else -- Entity is invalid reset all
-    table.Empty(set); src.Key = NULL
-    return true -- Trigger pass reset
-  end
 end
 
 function ENT:UpdateDominant(dom)
@@ -297,14 +274,18 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
+function ENT:IsTime(tim)
+  return ((CurTime() - tim) > 0.3)
+end
+
 function ENT:Think()
   if(not self:GetPassBeamTrough()) then
     self:UpdateSources()
     self:UpdateOn()
     self:WireArrays()
   else
-    if(self.pssFlag) then
-      print('>', self.pssFlag)
+    if(self:IsTime(self.pssSources.Time)) then
+      self.pssSources.Time = CurTime()
       self:ResetInternals()
       self:UpdateDominant()
       self:UpdateOn()
