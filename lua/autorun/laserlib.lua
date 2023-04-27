@@ -22,6 +22,7 @@ DATA.WLMR = 10000            -- World vectors to be correctly converted to local
 DATA.TRWU = 50000            -- The distance to trace for finding water surface
 DATA.FMVA = "%f,%f,%f"       -- Utilized to outut formatted vectors in proper manner
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
+DATA.FPSS = "%d#%d"          -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 380, 750}      -- General wavelength limists for visible light
 DATA.WCOL = {  0 , 300}      -- Mapping for wavelenght to color hue conversion
@@ -735,6 +736,17 @@ function LaserLib.IsValid(arg)
 end
 
 --[[
+ * Compared when given time interval is passed
+ * tim > Time point to compare against
+ * com > time interval to compare with
+]]
+function LaserLib.IsTime(tim, com)
+  local dif = (CurTime() - tim)
+  local cmp = (tonumber(com) or 0)
+  return (dif > cmp)
+end
+
+--[[
  * Validates entity and checks for something else
  * arg > Entity object to be checked
 ]]
@@ -1380,9 +1392,9 @@ function LaserLib.Configure(unit)
   function unit:UpdateArrays()
     local set = self.hitSetup
     if(not set) then return self end
-    local idx = (tonumber(self.hitSize) or 0) + 1
-    for cnt = 1, set.Size do local arr = set[cnt]
-      if(arr and arr.Data) then LaserLib.Clear(arr.Data, idx) end
+    local idx = (tonumber(self.hitSize) or 0)
+    for cnt = 1, set.Size do local wsr = set[cnt]
+      if(wsr and wsr.Data) then LaserLib.Clear(wsr.Data, idx + 1) end
     end; set.Save = nil -- Clear the last top enntity
     return self -- Use coding effective API
   end
@@ -1395,12 +1407,16 @@ function LaserLib.Configure(unit)
     local set = self.hitSetup
     if(not set) then return self end
     local arg, idx = {...}, self.hitSize
+    print("1SetArrays", idx, self.hitSize, set.Save, arg[1])
     if(set.Save == arg[1]) then return self end
     if(not set.Save) then set.Save = arg[1] end
     idx = (tonumber(idx) or 0) + 1
+    print("2SetArrays", idx, self.hitSize)
     for cnt = 1, set.Size do
-      set[cnt].Data[idx] = arg[cnt]
+      local wsr = set[cnt]
+      wsr.Data[idx] = arg[cnt]
     end; self.hitSize = idx
+    print("3SetArrays", idx, self.hitSize)
     return self
   end
   --[[
@@ -1413,9 +1429,11 @@ function LaserLib.Configure(unit)
     local idx = (tonumber(self.hitSize) or 0)
     self:WireWrite("Count", idx)
     for cnt = 1, set.Size do -- Copy values to arrays
-      local nam = set[cnt].Name
-      local arr = (idx > 0 and set[cnt].Data or nil)
-      if(nam) then self:WireWrite(nam, arr) end
+      local wsr = set[cnt]
+      local nam, dat  = wsr.Name, wsr.Data
+      local arr = (idx > 0 and dat or nil)
+      if(wsr and dat) then LaserLib.Clear(dat, idx + 1) end
+      if(wsr and nam) then self:WireWrite(nam, arr) end
     end; return self
   end
 end
@@ -3880,28 +3898,28 @@ local gtACTORS = {
       local pss = ent.pssSources
       local src = beam:GetSource()
       if(LaserLib.IsValid(src)) then
-        local idx = beam.BmIdenty
-        local key = src:EntIndex().."#"..idx
-        local ptm, pdt = pss.Time, pss.Data
-        pss.Time = CurTime(); pdt[key] = pss.Time
-
-        ent:ResetInternals()
-
-
+        local idx, ptm, pdt = beam.BmIdenty, pss.Time, pss.Data
+        local pky = DATA.FPSS:format(src:EntIndex(), idx)
+        local dat = pdt[pky]; pss.Time = CurTime()
+        if(dat) then -- Update beam entry
+          dat.Tim, dat.Src = pss.Time, src
+          dat.Pbm, dat.Ptr = beam, trace
+        else -- Entry is missing so create one
+          pdt[pky] = {Tim = pss.Time, Src = src,
+                      Pbm = beam    , Ptr =trace}
+          dat = pdt[pky] -- Register beam entry
+        end
         print("======",ent,src)
-        PrintTable(pdt)
-        print("======",pss.Time,ent.hitSize)
-        for sky, tim in pairs(pdt) do
-          if(ent:IsTime(tim)) then pdt[sky] = nil end
-          print(">", sky, ent.hitSize, pss.Time - tim)
+        PrintTable(table.GetKeys(pdt))
+        print("======",pss.Time, ent.hitSize)
+        for key, set in pairs(pdt) do
+          print(">", key)
+          if(ent:IsPass(set.Tim)) then
+            print("-------------------", key)
+            pdt[key] = nil
+          end
         end
         print("******")
-        ent.hitSize = ent.hitSize + 1
-        ent:EveryBeam(src, ent.hitSize, beam, trace)
-
-        ent:UpdateDominant()
-        ent:UpdateOn()
-        ent:WireArrays()
       end
     end
     beam.IsTrace = true

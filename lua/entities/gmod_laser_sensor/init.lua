@@ -32,7 +32,7 @@ end
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {Time = 0, Data = {}} -- Beam pass `[ent] = INT`
+  self.pssSources = {ID = 0, Time = 0, Data = {}} -- Beam pass `[ent] = INT`
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -274,23 +274,37 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
-function ENT:IsTime(tim)
-  return ((CurTime() - tim) > 0.3)
+function ENT:IsPass(tim)
+  return LaserLib.IsTime(tim, 0.3)
 end
 
 function ENT:Think()
-  if(not self:GetPassBeamTrough()) then
-    self:UpdateSources()
-    self:UpdateOn()
-    self:WireArrays()
-  else
-    if(self:IsTime(self.pssSources.Time)) then
-      self.pssSources.Time = CurTime()
+  if(self:GetPassBeamTrough()) then
+    local pss = self.pssSources
+    if(self:IsPass(pss.Time)) then
+      print("TT", pss.Time)
+      pss.Time = 0
       self:ResetInternals()
+      self:UpdateDominant()
+      self:UpdateOn(); self:WireArrays()
+      table.Empty(pss.Data)
+    else -- Some beams still hit sensor
+      print("TU", pss.Time)
+      self:ResetInternals()
+      for key, set in pairs(pss.Data) do
+        pss.ID = pss.ID + 1
+        print("C", key, pss.ID, set.Src)
+        self:EveryBeam(set.Src, pss.ID, set.Pbm, set.Ptr)
+      end
+      print("CU", pss.Time, self.hitSize)
       self:UpdateDominant()
       self:UpdateOn()
       self:WireArrays()
     end
+  else
+    self:UpdateSources()
+    self:UpdateOn()
+    self:WireArrays()
   end
 
   self:NextThink(CurTime())
