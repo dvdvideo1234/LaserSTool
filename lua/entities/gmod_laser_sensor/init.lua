@@ -127,7 +127,20 @@ function ENT:EveryBeam(entity, index, beam, trace)
   local norm = self:GetUnitDirection()
   local bdot, mdot = self:GetHitPower(norm, beam, trace)
 
-  print(21, bdot, trace.Hit, beam)
+  local dir = Vector(norm)
+        dir:Rotate(self:GetAngles())
+
+  print(21, bdot, mdot, self)
+  print("N", norm)
+  print("D", dir)
+  print("T", trace.HitNormal)
+  print("R", dir:Dot(trace.HitNormal))
+
+  if(not bdot) then
+    print(">>>WARNING<<<")
+    self:SetNWVector("tr-pos2", trace.HitPos)
+    self:SetNWVector("tr-nrm2", trace.HitNormal)
+  end
 
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
@@ -289,14 +302,14 @@ function ENT:Think()
       self:UpdateOn(); self:WireArrays()
       table.Empty(pss.Data)
     else -- Some beams still hit sensor
-      print("TU", pss.Time)
+      print("---TU---", pss.Time)
       self:ResetInternals()
       for key, set in pairs(pss.Data) do
         pss.ID = pss.ID + 1
         print("C", key, pss.ID, set.Src)
         self:EveryBeam(set.Src, pss.ID, set.Pbm, set.Ptr)
       end
-      print("CU", pss.Time, self.hitSize)
+      print("---CU---", pss.Time, self.hitSize)
       self:UpdateDominant()
       self:UpdateOn()
       self:WireArrays()

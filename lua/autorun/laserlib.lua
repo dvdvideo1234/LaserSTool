@@ -1434,7 +1434,7 @@ function LaserLib.Configure(unit)
       local arr = (idx > 0 and dat or nil)
       if(wsr and dat) then LaserLib.Clear(dat, idx + 1) end
       if(wsr and nam) then self:WireWrite(nam, arr) end
-    end; return self
+    end; set.Save = nil; return self
   end
 end
 
@@ -3906,9 +3906,11 @@ local gtACTORS = {
           dat.Pbm, dat.Ptr = beam, trace
         else -- Entry is missing so create one
           pdt[pky] = {Tim = pss.Time, Src = src,
-                      Pbm = beam    , Ptr =trace}
+                      Pbm = beam    , Ptr = trace}
           dat = pdt[pky] -- Register beam entry
         end
+        ent:SetNWVector("tr-pos1", trace.HitPos)
+        ent:SetNWVector("tr-nrm1", trace.HitNormal)
         print("======",ent,src)
         PrintTable(table.GetKeys(pdt))
         print("======",pss.Time, ent.hitSize)
