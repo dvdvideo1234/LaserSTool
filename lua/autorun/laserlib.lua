@@ -2624,6 +2624,36 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
+ * Creates a beam snapshot copy data structure
+ * Snapshots have the same properties as the beam
+ * They are dedicated beam copies at specific time
+]]
+function mtBeam:GetSnapshot(tCpy, tPtr)
+  local snap = {} -- Snapshot data
+  for nam, vsm in pairs(self) do
+    local typ = type(vsm)
+    if(typ == "boolean" or
+       typ ==  "number" or
+       typ ==  "string" or
+       typ ==  "Entity"
+    ) then -- Call direct assignment
+      snap[nam] = vsm -- Assign
+    elseif(typ == "Vector") then
+      snap[nam] = Vector(vsm) -- Construct
+    elseif(typ == "Angle") then
+      snap[nam] = Angle(vsm) -- Construct
+    else -- Table or other case
+      if(tPtr and tPtr[nam]) then
+        snap[nam] = vsm -- Assign enable
+      elseif(tCpy and tCpy[nam]) then
+        snap[nam] = table.Copy(vsm)
+      end -- Assign a copy table
+    end -- The snapshot is completed
+  end; setmetatable(snap, mtBeam)
+  return snap
+end
+
+--[[
  * Validates beam nodes
  * When not valid returns nil
  * Returns validated beam nodes
@@ -3905,8 +3935,8 @@ local gtACTORS = {
           dat.Tim, dat.Src = pss.Time, src
           dat.Pbm, dat.Ptr = beam, trace
         else -- Entry is missing so create one
-          pdt[pky] = {Tim = pss.Time, Src = src,
-                      Pbm = beam    , Ptr = trace}
+          pdt[pky] = {Pbm = beam:GetSnapshot(), Src = src,
+                      Ptr = table.Copy(trace) , Tim = pss.Time}
           dat = pdt[pky] -- Register beam entry
           ord = true; pss.Size = (pss.Size + 1)
         end
