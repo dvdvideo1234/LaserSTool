@@ -2624,32 +2624,36 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
- * Creates a beam snapshot copy data structure
- * Snapshots have the same properties as the beam
- * They are dedicated beam copies at specific time
+ * Creates a beam snapshot sopy
+ * Snapshots have the same property as origina
+ * They represent dedicated beam copy at a time
+ * tSkp > Keys that are not processed or skipped
+ * tCpy > Keys that use table.Copy on data
+ * tPtr > Keys that are assigned as references
 ]]
-function mtBeam:GetSnapshot(tCpy, tPtr)
+function mtBeam:GetSnapshot(tSkp, tCpy, tPtr)
   local snap = {} -- Snapshot data
   for nam, vsm in pairs(self) do
-    local typ = type(vsm)
-    if(typ == "boolean" or
-       typ ==  "number" or
-       typ ==  "string" or
-       typ ==  "Entity"
-    ) then -- Call direct assignment
-      snap[nam] = vsm -- Assign
-    elseif(typ == "Vector") then
-      snap[nam] = Vector(vsm) -- Construct
-    elseif(typ == "Angle") then
-      snap[nam] = Angle(vsm) -- Construct
-    else -- Table or other case
-      if(tPtr and tPtr[nam]) then
-        snap[nam] = vsm -- Assign enable
-      elseif(tCpy and tCpy[nam]) then
-        snap[nam] = table.Copy(vsm)
-      end -- Assign a copy table
-    end -- The snapshot is completed
-  end; setmetatable(snap, mtBeam)
+    if(not tSkp or (tSkp and not tSkp[nam])) then
+      local typ = type(vsm)
+      if(typ == "boolean" or
+         typ ==  "number" or
+         typ ==  "string" or
+         typ ==  "Entity"
+      ) then -- Call direct assignment
+        snap[nam] = vsm -- Assign
+      elseif(typ == "Vector") then
+        snap[nam] = Vector(vsm) -- Construct
+      elseif(typ == "Angle") then
+        snap[nam] = Angle(vsm) -- Construct
+      else -- Table or other case
+        if(tPtr and tPtr[nam]) then
+          snap[nam] = vsm -- Assign enable
+        elseif(tCpy and tCpy[nam]) then
+          snap[nam] = table.Copy(vsm)
+        end -- Assign a copy table
+      end -- The snapshot is completed
+  end; end; setmetatable(snap, mtBeam)
   return snap
 end
 
