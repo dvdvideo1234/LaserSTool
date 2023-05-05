@@ -32,7 +32,7 @@ end
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {ID = 0, Time = 0, Data = {}} -- Beam pass `[ent] = INT`
+  self.pssSources = {Keys = {}, Size = 0, Time = 0, Data = {}} -- Pass
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -304,10 +304,11 @@ function ENT:Think()
     else -- Some beams still hit sensor
       print("---TU---", pss.Time)
       self:ResetInternals()
-      for key, set in pairs(pss.Data) do
-        pss.ID = pss.ID + 1
-        print("C", key, pss.ID, set.Src)
-        self:EveryBeam(set.Src, pss.ID, set.Pbm, set.Ptr)
+      for idx = 1, pss.Size do
+        local key = pss.Keys[idx]
+        local set = pss.Data[key]
+        print("C", idx, key, set.Ptr.HitNormal, set.Src)
+        self:EveryBeam(set.Src, idx, set.Pbm, set.Ptr)
       end
       print("---CU---", pss.Time, self.hitSize)
       self:UpdateDominant()

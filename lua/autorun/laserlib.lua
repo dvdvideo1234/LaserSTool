@@ -3900,7 +3900,7 @@ local gtACTORS = {
       if(LaserLib.IsValid(src)) then
         local idx, ptm, pdt = beam.BmIdenty, pss.Time, pss.Data
         local pky = DATA.FPSS:format(src:EntIndex(), idx)
-        local dat = pdt[pky]; pss.Time = CurTime()
+        local dat, ord = pdt[pky], false; pss.Time = CurTime()
         if(dat) then -- Update beam entry
           dat.Tim, dat.Src = pss.Time, src
           dat.Pbm, dat.Ptr = beam, trace
@@ -3908,21 +3908,29 @@ local gtACTORS = {
           pdt[pky] = {Tim = pss.Time, Src = src,
                       Pbm = beam    , Ptr = trace}
           dat = pdt[pky] -- Register beam entry
+          ord = true; pss.Size = (pss.Size + 1)
         end
         ent:SetNWVector("tr-pos1", trace.HitPos)
         ent:SetNWVector("tr-nrm1", trace.HitNormal)
         print("======",ent,src)
         PrintTable(table.GetKeys(pdt))
-        print("======",pss.Time, ent.hitSize)
+        print("======",pss.Time, ent.hitSize,trace.HitNormal)
         for key, set in pairs(pdt) do
           print(">", key)
           if(ent:IsPass(set.Tim)) then
             print("-------------------", key)
-            pdt[key] = nil
+            pdt[key] = nil; ord = true
+            pss.Size = (pss.Size - 1)
           end
         end
         print("******")
-      end
+        if(ord) then
+          pss.Keys = table.GetKeys(pss.Data)
+          table.sort(pss.Keys, function(cr, nx)
+            return (pss.Data[cr].Tim > pss.Data[nx].Tim)
+          end) -- Record with the biggest time is more recent
+        end -- Order by the time the beam hits the sensor
+      end -- Work only for valir entity sources
     end
     beam.IsTrace = true
     beam:SetActor(ent) -- Makes beam pass the dimmer
