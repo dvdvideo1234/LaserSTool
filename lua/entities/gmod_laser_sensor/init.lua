@@ -32,7 +32,35 @@ end
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {Keys = {}, Size = 0, Time = 0, Data = {}} -- Pass
+  self.pssSources = {
+    Keys = {}, -- Contains the ordered by time keys
+    Size = 0,  -- Contains the loop upper limit
+    Time = 0,  -- Contrains the current time for pass-trough
+    Data = {}, -- contain the data set used to call every beam
+    Copy = {   -- For pass-trough copy of current beam/trace is needed
+      Bm = {   -- Current beam object holding the status of the hit point
+        O = {  -- Beam copy ONLY the specified fields
+          ["NvWidth" ] = true, -- Copy beam width
+          ["NvDamage"] = true, -- Copy beam damage
+          ["NvForce" ] = true, -- Copy beam force
+          ["NvLength"] = true, -- Copy beam length
+          ["VrOrigin"] = true, -- Copy last trace origin
+          ["VrDirect"] = true, -- Copy last trace direction
+          ["BoSource"] = true, -- Copy reference to external source
+          ["BmSource"] = true  -- Copy reference to current source
+        },
+        P = {
+          ["BoSource"] = true, -- Copy external source as pointer
+          ["BmSource"] = true  -- Copy current source as pointer
+        }
+      },
+      Tr = { -- Copy trace structure
+        P = { -- Copy as pointer assigment
+          ["Entity"  ] = true -- Copy trace entity
+        }
+      }
+    }
+  } -- Pass
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -126,22 +154,6 @@ end
 function ENT:EveryBeam(entity, index, beam, trace)
   local norm = self:GetUnitDirection()
   local bdot, mdot = self:GetHitPower(norm, beam, trace)
-
-  local dir = Vector(norm)
-        dir:Rotate(self:GetAngles())
-
-  print(21, bdot, mdot, self)
-  print("N", norm)
-  print("D", dir)
-  print("T", trace.HitNormal)
-  print("R", dir:Dot(trace.HitNormal))
-
-  if(not bdot) then
-    print(">>>WARNING<<<")
-    self:SetNWVector("tr-pos2", trace.HitPos)
-    self:SetNWVector("tr-nrm2", trace.HitNormal)
-  end
-
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
     if(bdot) then
@@ -149,7 +161,6 @@ function ENT:EveryBeam(entity, index, beam, trace)
       self.crWidth  = self.crWidth  + beam.NvWidth
       self.crDamage = self.crDamage + beam.NvDamage
       self.crForce  = self.crForce  + beam.NvForce
-      print(22, self.crOpower, self.crNpower)
       if(not self.crOpower or self.crNpower > self.crOpower) then
         self.crNormh  = true
         self.crOpower = self.crNpower
@@ -157,7 +168,6 @@ function ENT:EveryBeam(entity, index, beam, trace)
         self.crLength = beam.NvLength
         self.crOrigin:Set(beam.VrOrigin)
         self.crDirect:Set(beam.VrDirect)
-        print(23, beam, beam.VrDirect, self.crDirect)
       end
     end
   end -- Sources are located in the table hash part
@@ -288,29 +298,28 @@ function ENT:UpdateSources()
 end
 
 function ENT:IsPass(tim)
-  return LaserLib.IsTime(tim, 0.3)
+  return LaserLib.IsTime(tim, 0.2)
 end
 
 function ENT:Think()
   if(self:GetPassBeamTrough()) then
     local pss = self.pssSources
     if(self:IsPass(pss.Time)) then
-      print("TT", pss.Time)
       pss.Time = 0
       self:ResetInternals()
       self:UpdateDominant()
-      self:UpdateOn(); self:WireArrays()
+      self:UpdateOn()
+      self:WireArrays()
       table.Empty(pss.Data)
     else -- Some beams still hit sensor
-      print("---TU---", pss.Time)
       self:ResetInternals()
       for idx = 1, pss.Size do
         local key = pss.Keys[idx]
         local set = pss.Data[key]
-        print("C", idx, key, set.Ptr.HitNormal, set.Src)
-        self:EveryBeam(set.Src, idx, set.Pbm, set.Ptr)
+        if(set) then
+          self:EveryBeam(set.Src, idx, set.Pbm, set.Ptr)
+        end
       end
-      print("---CU---", pss.Time, self.hitSize)
       self:UpdateDominant()
       self:UpdateOn()
       self:WireArrays()
