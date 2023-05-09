@@ -12,12 +12,11 @@ function ENT:RegisterSource(ent)
 end
 
 function ENT:ResetInternals()
-  self.hitSize = 0
   self.crOrigin:SetUnpacked(0,0,0)
   self.crDirect:SetUnpacked(0,0,0)
-  self.crNormh , self.crDomsrc = false, nil
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
+  self.hitSize , self.crNormh , self.crDomsrc = 0, false, nil
 
   return self
 end
@@ -33,7 +32,35 @@ end
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
-  self.pssSources = {} -- Beam pass sources in notation `[ent] = true`
+  self.pssSources = {
+    Keys = {}, -- Contains the ordered by time keys
+    Size = 0,  -- Contains the loop upper limit
+    Time = 0,  -- Contrains the current time for pass-trough
+    Data = {}, -- contain the data set used to call every beam
+    Copy = {   -- For pass-trough copy of current beam/trace is needed
+      Bm = {   -- Current beam object holding the status of the hit point
+        O = {  -- Beam copy ONLY the specified fields
+          ["NvWidth" ] = true, -- Copy beam width
+          ["NvDamage"] = true, -- Copy beam damage
+          ["NvForce" ] = true, -- Copy beam force
+          ["NvLength"] = true, -- Copy beam length
+          ["VrOrigin"] = true, -- Copy last trace origin
+          ["VrDirect"] = true, -- Copy last trace direction
+          ["BoSource"] = true, -- Copy reference to external source
+          ["BmSource"] = true  -- Copy reference to current source
+        },
+        P = {
+          ["BoSource"] = true, -- Copy external source as pointer
+          ["BmSource"] = true  -- Copy current source as pointer
+        }
+      },
+      Tr = { -- Copy trace structure
+        P = { -- Copy as pointer assigment
+          ["Entity"  ] = true -- Copy trace entity
+        }
+      }
+    }
+  } -- Pass
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -270,8 +297,34 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
+function ENT:IsPass(tim)
+  return LaserLib.IsTime(tim, 0.2)
+end
+
 function ENT:Think()
-  if(not self:GetPassBeamTrough()) then
+  if(self:GetPassBeamTrough()) then
+    local pss = self.pssSources
+    if(self:IsPass(pss.Time)) then
+      pss.Time = 0
+      self:ResetInternals()
+      self:UpdateDominant()
+      self:UpdateOn()
+      self:WireArrays()
+      table.Empty(pss.Data)
+    else -- Some beams still hit sensor
+      self:ResetInternals()
+      for idx = 1, pss.Size do
+        local key = pss.Keys[idx]
+        local set = pss.Data[key]
+        if(set) then
+          self:EveryBeam(set.Src, idx, set.Pbm, set.Ptr)
+        end
+      end
+      self:UpdateDominant()
+      self:UpdateOn()
+      self:WireArrays()
+    end
+  else
     self:UpdateSources()
     self:UpdateOn()
     self:WireArrays()

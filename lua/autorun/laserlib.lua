@@ -22,6 +22,7 @@ DATA.WLMR = 10000            -- World vectors to be correctly converted to local
 DATA.TRWU = 50000            -- The distance to trace for finding water surface
 DATA.FMVA = "%f,%f,%f"       -- Utilized to outut formatted vectors in proper manner
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
+DATA.FPSS = "%d#%d"          -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 380, 750}      -- General wavelength limists for visible light
 DATA.WCOL = {  0 , 300}      -- Mapping for wavelenght to color hue conversion
@@ -593,7 +594,6 @@ local function GetMarginPortal(entity, origin, direct, normal)
   return mav, vsm
 end
 
-
 --[[
  * Inserts consistent data in array notation {1,2,Size=2}
  * tArr > Array to modify
@@ -637,6 +637,39 @@ local function SelectData(tArr, iID, bOvr)
       return table.remove(tArr, idx)
     end
   end; return tArr
+end
+
+--[[
+ * Copies data contents from a table
+ * tArr > Array to copy from
+ * tSkp > Skipped columns list
+ * tOny >  Selected columns list
+ * tCpn > Columns to use table.Copy for
+ * tPtr > Columns to use assignment for
+ * tDst > Destination table when provided
+]]
+local function CopyData(tArr, tSkp, tOny, tCpn, tPtr, tDst)
+  local tCpy = (tDst or {}) -- Destination data
+  for nam, vsm in pairs(tArr) do
+    if((not tOny or (tOny and tOny[nam])) or
+       (not tSkp or (tSkp and not tSkp[nam]))
+    ) then local typ = type(vsm)
+      if(typ == "boolean" or typ ==  "number" or
+         typ ==  "string" or typ ==  "Entity"
+      ) then -- Call direct assignment
+        tCpy[nam] = vsm -- Assign
+      elseif(typ == "Vector") then
+        tCpy[nam] = Vector(vsm) -- Construct
+      elseif(typ == "Angle") then
+        tCpy[nam] = Angle(vsm) -- Construct
+      else -- Table or other case
+        if(tPtr and tPtr[nam]) then
+          tCpy[nam] = vsm -- Assign enable
+        elseif(tCpn and tCpn[nam]) then
+          tCpy[nam] = table.Copy(vsm)
+        end -- Assign a copy table
+      end -- The snapshot is completed
+  end; end; return tCpy
 end
 
 --[[
@@ -733,6 +766,17 @@ function LaserLib.IsValid(arg)
   if(arg == NULL) then return false end
   if(not arg.IsValid) then return false end
   return arg:IsValid()
+end
+
+--[[
+ * Compared when given time interval is passed
+ * tim > Time point to compare against
+ * com > time interval to compare with
+]]
+function LaserLib.IsTime(tim, com)
+  local dif = (CurTime() - tim)
+  local cmp = (tonumber(com) or 0)
+  return (dif > cmp)
 end
 
 --[[
@@ -1096,6 +1140,9 @@ function LaserLib.Configure(unit)
   if(SERVER) then -- Do server configuration finalizer
     if(unit.WireRemove) then function unit:OnRemove() self:WireRemove() end end
     if(unit.WireRestored) then function unit:OnRestore() self:WireRestored() end end
+    if(unit.WirePreEntityCopy) then function unit:PreEntityCopy() self:WirePreEntityCopy() end end
+    if(unit.WirePostEntityPaste) then function unit:PostEntityPaste(ply, ent, created) self:WirePreEntityCopy(ply, ent, created) end end
+    if(unit.WireApplyDupeInfo) then function unit:ApplyDupeInfo(ply, ent, info, fentid) self:WirePreEntityCopy(ply, ent, info, fentid) end end
   else -- Do client configuration finalizer
     language.Add(uas, unit.Information)
     if(uas ~= cas) then -- Setup the same kill icon
@@ -1378,9 +1425,9 @@ function LaserLib.Configure(unit)
   function unit:UpdateArrays()
     local set = self.hitSetup
     if(not set) then return self end
-    local idx = (tonumber(self.hitSize) or 0) + 1
-    for cnt = 1, set.Size do local arr = set[cnt]
-      if(arr and arr.Data) then LaserLib.Clear(arr.Data, idx) end
+    local idx = (tonumber(self.hitSize) or 0)
+    for cnt = 1, set.Size do local wsr = set[cnt]
+      if(wsr and wsr.Data) then LaserLib.Clear(wsr.Data, idx + 1) end
     end; set.Save = nil -- Clear the last top enntity
     return self -- Use coding effective API
   end
@@ -1397,7 +1444,8 @@ function LaserLib.Configure(unit)
     if(not set.Save) then set.Save = arg[1] end
     idx = (tonumber(idx) or 0) + 1
     for cnt = 1, set.Size do
-      set[cnt].Data[idx] = arg[cnt]
+      local wsr = set[cnt]
+      wsr.Data[idx] = arg[cnt]
     end; self.hitSize = idx
     return self
   end
@@ -1411,10 +1459,12 @@ function LaserLib.Configure(unit)
     local idx = (tonumber(self.hitSize) or 0)
     self:WireWrite("Count", idx)
     for cnt = 1, set.Size do -- Copy values to arrays
-      local nam = set[cnt].Name
-      local arr = (idx > 0 and set[cnt].Data or nil)
-      if(nam) then self:WireWrite(nam, arr) end
-    end; return self
+      local wsr = set[cnt]
+      local nam, dat  = wsr.Name, wsr.Data
+      local arr = (idx > 0 and dat or nil)
+      if(wsr and dat) then LaserLib.Clear(dat, idx + 1) end
+      if(wsr and nam) then self:WireWrite(nam, arr) end
+    end; set.Save = nil; return self
   end
 end
 
@@ -2601,6 +2651,19 @@ local function Beam(origin, direct, width, damage, length, force)
   self.RaLength = self.BmLength -- Range of the length. Just like wire ranger
   self.NvLength = self.BmLength -- The actual beam lengths subtracted after iterations
   return self
+end
+
+--[[
+ * Creates a beam snapshot sopy
+ * Snapshots have the same property as origina
+ * They represent dedicated beam copy at a time
+ * tSkp > Keys that are not processed or skipped
+ * tCpy > Keys that use table.Copy on data
+ * tPtr > Keys that are assigned as references
+]]
+function mtBeam:GetCopy(tSkp, tOny, tCpn, tPtr, tDst)
+  local cpBeam = CopyData(self, tSkp, tOny, tCpn, tPtr, tDst)
+  setmetatable(cpBeam, mtBeam); return cpBeam
 end
 
 --[[
@@ -3872,24 +3935,39 @@ local gtACTORS = {
   end,
   ["gmod_laser_sensor"] = function(beam, trace)
     -- TODO: Find a way to clear data from previous pass
-    beam:Finish(trace) -- Assume that beam stops traversing
-    local ent = trace.Entity
+    local ent = trace.Entity; beam:Finish(trace)
     if(not ent:GetPassBeamTrough()) then return end
     if(SERVER) then
-      local srb = beam:GetSource()
-      local src = ent.pssSources
-      if(src[srb]) then
-        table.Empty(src)
-        ent:UpdateDominant()
-        ent:UpdateOn()
-        ent:WireArrays()
-        ent:ResetInternals()
-      end
-      ent.hitSize = ent.hitSize + 1
-      ent:EveryBeam(srb, ent.hitSize, beam, trace)
-      src[srb] = true
-    end
-    beam.IsTrace = true
+      local pss = ent.pssSources
+      local src = beam:GetSource()
+      if(LaserLib.IsValid(src)) then
+        local idx, pdt = beam.BmIdenty, pss.Data
+        local pky = DATA.FPSS:format(src:EntIndex(), idx)
+        local dat = pdt[pky]; pss.Time = CurTime()
+        local tcb, tct, num = pss.Copy.Bm, pss.Copy.Tr, pss.Size
+        if(dat) then -- Update beam entry
+          dat.Ptr, dat.Src = CopyData(trace, nil, nil, nil, tct.P, dat.Ptr), src
+          dat.Pbm, dat.Tim = beam:GetCopy(nil, tcb.O, nil, tcb.P, dat.Pbm), pss.Time
+        else -- Entry is missing so create one
+          pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.O, nil, tcb.P), Src = src,
+                      Ptr = CopyData(trace, nil, nil, nil, tct.P)   , Tim = pss.Time}
+          dat = pdt[pky]; num = (num + 1)  -- Register beam entry
+        end -- Modify array size whenever item is added or removed
+        for key, set in pairs(pdt) do  -- Check all items
+          if(ent:IsPass(set.Tim)) then -- Time delta is passed
+            pdt[key] = nil   -- Remove and trigger ordering
+            num = (num - 1)  -- Reduce array size
+          end -- Entry is checked for removal
+        end -- Ordering is needed
+        if(num ~= pss.Size) then -- Order request
+          pss.Keys = table.GetKeys(pss.Data) -- Read key from key-table
+          table.sort(pss.Keys, function(cr, nx) -- Sort keys by data conten
+            return (pss.Data[cr].Tim > pss.Data[nx].Tim) -- Return boolean
+          end); pss.Size = num -- Record with the biggest time is more recent
+        end -- Order by the time the beam hits the sensor
+      end -- Work only for valir entity sources
+    end -- Continue to trace the beam
+    beam.IsTrace = true -- Still tracing
     beam:SetActor(ent) -- Makes beam pass the dimmer
   end
 }
