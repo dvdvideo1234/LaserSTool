@@ -663,7 +663,7 @@ end
 local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
   local tCpy = (tDst or {}) -- Destination data
   for nam, vsm in pairs(tSrc) do
-    if((not tOny or (tOny and tOny[nam])) or
+    if((not tOny or (tOny and tOny[nam])) and
        (not tSkp or (tSkp and not tSkp[nam]))
     ) then -- Field is selected to be copied
       local typ = type(vsm) -- Read data type
@@ -676,7 +676,7 @@ local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
         elseif(tCpn and tCpn[nam]) then
           tCpy[nam] = table.Copy(vsm) -- General copy table
         else -- Unhandled field. Report error to the user
-          error("Unhandled value ["..typ.."]["..nam.."]: "..tostring(vsm))
+          error("Value mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
         end -- Assign a copy table
       end -- The snapshot is completed
   end; end; return tCpy
@@ -3956,8 +3956,8 @@ local gtACTORS = {
         local dat = pdt[pky]; pss.Time = CurTime()
         local tcb, tct, num = pss.Copy.Bm, pss.Copy.Tr, pss.Size
         if(dat) then -- Update beam entry
-          dat.Ptr, dat.Src = CopyData(trace, nil, nil, tct.Asn, nil, dat.Ptr), src
-          dat.Pbm, dat.Tim = beam:GetCopy(nil, tcb.Ony, tcb.Asn, nil, dat.Pbm), pss.Time
+          dat.Pbm, dat.Src = beam:GetCopy(nil, tcb.Ony, tcb.Asn, nil, dat.Pbm), src
+          dat.Ptr, dat.Tim = CopyData(trace, nil, nil, tct.Asn, nil, dat.Ptr), pss.Time
         else -- Entry is missing so create one
           pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn), Src = src,
                       Ptr = CopyData(trace, nil, nil, tct.Asn), Tim = pss.Time}
