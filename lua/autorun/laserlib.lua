@@ -72,6 +72,7 @@ DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Tri
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
+DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -92,6 +93,17 @@ local gtCOLID = {
   ["b"] = 3, -- Blue
   ["a"] = 4, -- Alpha
   "r", "g", "b", "a"
+}
+
+-- Tells the `CopyData` function how to handle types
+local gtCOPYCV = {
+  ["boolean"] = function(arg) return arg end,
+  ["number" ] = function(arg) return arg end,
+  ["string" ] = function(arg) return arg end,
+  ["Entity" ] = function(arg) return arg end,
+  ["Player" ] = function(arg) return arg end,
+  ["Vector" ] = Vector,
+  ["Angle"  ] = Angle
 }
 
 local gtUNITS = {
@@ -641,32 +653,30 @@ end
 
 --[[
  * Copies data contents from a table
- * tArr > Array to copy from
- * tSkp > Skipped columns list
- * tOny >  Selected columns list
- * tCpn > Columns to use table.Copy for
- * tPtr > Columns to use assignment for
+ * tSrc > Array to copy from
+ * tSkp > Skipped fields list
+ * tOny > Selected fields list
+ * tAsn > Fields to use assignment for
+ * tCpn > Fields to use table.Copy for
  * tDst > Destination table when provided
 ]]
-local function CopyData(tArr, tSkp, tOny, tCpn, tPtr, tDst)
+local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
   local tCpy = (tDst or {}) -- Destination data
-  for nam, vsm in pairs(tArr) do
+  for nam, vsm in pairs(tSrc) do
     if((not tOny or (tOny and tOny[nam])) or
        (not tSkp or (tSkp and not tSkp[nam]))
-    ) then local typ = type(vsm)
-      if(typ == "boolean" or typ ==  "number" or
-         typ ==  "string" or typ ==  "Entity"
-      ) then -- Call direct assignment
-        tCpy[nam] = vsm -- Assign
-      elseif(typ == "Vector") then
-        tCpy[nam] = Vector(vsm) -- Construct
-      elseif(typ == "Angle") then
-        tCpy[nam] = Angle(vsm) -- Construct
+    ) then -- Field is selected to be copied
+      local typ = type(vsm) -- Read data type
+      local fcn = gtCOPYCV[typ] -- Constructor
+      if(fcn) then -- Copy-conversion exists
+        tCpy[nam] = fcn(vsm) -- Copy-convert
       else -- Table or other case
-        if(tPtr and tPtr[nam]) then
-          tCpy[nam] = vsm -- Assign enable
+        if(tAsn and tAsn[nam]) then
+          tCpy[nam] = vsm -- Assign enable for field
         elseif(tCpn and tCpn[nam]) then
-          tCpy[nam] = table.Copy(vsm)
+          tCpy[nam] = table.Copy(vsm) -- General copy table
+        else -- Unhandled field. Report error to the user
+          error("Unhandled value ["..typ.."]["..nam.."]: "..tostring(vsm))
         end -- Assign a copy table
       end -- The snapshot is completed
   end; end; return tCpy
@@ -770,13 +780,13 @@ end
 
 --[[
  * Compared when given time interval is passed
+ * Returns true when the insterval is passed
  * tim > Time point to compare against
- * com > time interval to compare with
 ]]
-function LaserLib.IsTime(tim, com)
+function LaserLib.IsTime(tim)
   local dif = (CurTime() - tim)
-  local cmp = (tonumber(com) or 0)
-  return (dif > cmp)
+  local cmp = DATA.TIMEASYN:GetFloat()
+  return (dif > cmp) -- Time has passed
 end
 
 --[[
@@ -2661,8 +2671,8 @@ end
  * tCpy > Keys that use table.Copy on data
  * tPtr > Keys that are assigned as references
 ]]
-function mtBeam:GetCopy(tSkp, tOny, tCpn, tPtr, tDst)
-  local cpBeam = CopyData(self, tSkp, tOny, tCpn, tPtr, tDst)
+function mtBeam:GetCopy(tSkp, tOny, tAsn, tCpn, tDst)
+  local cpBeam = CopyData(self, tSkp, tOny, tAsn, tCpn, tDst)
   setmetatable(cpBeam, mtBeam); return cpBeam
 end
 
@@ -3946,15 +3956,15 @@ local gtACTORS = {
         local dat = pdt[pky]; pss.Time = CurTime()
         local tcb, tct, num = pss.Copy.Bm, pss.Copy.Tr, pss.Size
         if(dat) then -- Update beam entry
-          dat.Ptr, dat.Src = CopyData(trace, nil, nil, nil, tct.P, dat.Ptr), src
-          dat.Pbm, dat.Tim = beam:GetCopy(nil, tcb.O, nil, tcb.P, dat.Pbm), pss.Time
+          dat.Ptr, dat.Src = CopyData(trace, nil, nil, tct.Asn, nil, dat.Ptr), src
+          dat.Pbm, dat.Tim = beam:GetCopy(nil, tcb.Ony, tcb.Asn, nil, dat.Pbm), pss.Time
         else -- Entry is missing so create one
-          pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.O, nil, tcb.P), Src = src,
-                      Ptr = CopyData(trace, nil, nil, nil, tct.P)   , Tim = pss.Time}
+          pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn), Src = src,
+                      Ptr = CopyData(trace, nil, nil, tct.Asn), Tim = pss.Time}
           dat = pdt[pky]; num = (num + 1)  -- Register beam entry
         end -- Modify array size whenever item is added or removed
         for key, set in pairs(pdt) do  -- Check all items
-          if(ent:IsPass(set.Tim)) then -- Time delta is passed
+          if(LaserLib.IsTime(set.Tim)) then -- Time delta is passed
             pdt[key] = nil   -- Remove and trigger ordering
             num = (num - 1)  -- Reduce array size
           end -- Entry is checked for removal

@@ -33,13 +33,13 @@ function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
   self.pssSources = {
-    Keys = {}, -- Contains the ordered by time keys
     Size = 0,  -- Contains the loop upper limit
     Time = 0,  -- Contrains the current time for pass-trough
+    Keys = {}, -- Contains the ordered by time keys
     Data = {}, -- contain the data set used to call every beam
     Copy = {   -- For pass-trough copy of current beam/trace is needed
       Bm = {   -- Current beam object holding the status of the hit point
-        O = {  -- Beam copy ONLY the specified fields
+        Ony = {  -- Beam copy ONLY the specified fields
           ["NvWidth" ] = true, -- Copy beam width
           ["NvDamage"] = true, -- Copy beam damage
           ["NvForce" ] = true, -- Copy beam force
@@ -48,19 +48,19 @@ function ENT:InitSources()
           ["VrDirect"] = true, -- Copy last trace direction
           ["BoSource"] = true, -- Copy reference to external source
           ["BmSource"] = true  -- Copy reference to current source
-        },
-        P = {
+        }, -- Copy only the needed fields. Nothing else
+        Asn = {
           ["BoSource"] = true, -- Copy external source as pointer
           ["BmSource"] = true  -- Copy current source as pointer
-        }
-      },
+        } -- Direct adssigment of beam source entity
+      }, -- Beam copy configuration
       Tr = { -- Copy trace structure
-        P = { -- Copy as pointer assigment
+        Asn = { -- Copy as pointer assigment
           ["Entity"  ] = true -- Copy trace entity
         }
-      }
-    }
-  } -- Pass
+      } -- Trace copy configuration
+    } -- Configure how node data is being copied
+  } -- Pass-trough internal congiguration data
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -297,14 +297,10 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
-function ENT:IsPass(tim)
-  return LaserLib.IsTime(tim, 0.2)
-end
-
 function ENT:Think()
   if(self:GetPassBeamTrough()) then
     local pss = self.pssSources
-    if(self:IsPass(pss.Time)) then
+    if(LaserLib.IsTime(pss.Time)) then
       pss.Time = 0
       self:ResetInternals()
       self:UpdateDominant()
