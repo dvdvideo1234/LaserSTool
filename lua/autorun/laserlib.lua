@@ -37,18 +37,16 @@ DATA.KEYA  = "*"             -- The all key in a collection point to return the 
 DATA.KEYX  = "~"             -- The first symbol used to disable given things
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
-DATA.VTEMP = Vector()        -- Global library temporary storage vector
 DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to crerate color
-DATA.WORLD = game.GetWorld() -- Store reference to the world to skip the call in realtime
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
 DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
-DATA.FILTW = function(ent) return (ent == DATA.WORLD) end -- Trace world filter function
+DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
 
 -- Server controlled flags for console variables
@@ -73,6 +71,7 @@ DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
+DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0    , DATA.FGSRVCN, "Enable or disable dispersion to component laser beams", 0, 1)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -269,7 +268,7 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
 --[[
  * Material configuration to use when override is missing
  * Acts like a reference key jump for to the REFLECT set
- * Convert all numbers to strings to preven memory gaps
+ * Convert all numbers to strings to prevent memory gaps
  * https://wiki.facepunch.com/gmod/Enums/MAT
 ]]
 local gtMATYPE = {
@@ -1572,10 +1571,9 @@ end
 function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   if(SERVER) then return end -- Server can go out now
   if(ray <= 0) then return end -- Ray assist disabled
-  local vndr = DATA.VTEMP -- Cube size
   local mray = DATA.MAXRAYAS:GetFloat()
   local nasr = DATA.NRASSIST:GetFloat()
-  vndr.x, vndr.y, vndr.z = nasr, nasr, nasr
+  local vndr = Vector(nasr, nasr, nasr)
   local vmax = Vector(org); vmax:Add(vndr)
   local vmin = Vector(org); vmin:Sub(vndr)
   local ncst = math.Clamp(ray, 0, mray)^2
