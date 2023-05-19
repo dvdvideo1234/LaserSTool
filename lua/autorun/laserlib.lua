@@ -2402,19 +2402,26 @@ if(SERVER) then
                              dissolve, noise , fcenter , safety)
     local phys = target:GetPhysicsObject()
     if(not LaserLib.IsUnit(target)) then
-      if(force and force > 0 and LaserLib.IsValid(phys)) then
+      local isphys = LaserLib.IsValid(phys)
+      if(force and force > 0 and isphys) then
         if(fcenter) then -- Force relative to mass center
           phys:ApplyForceCenter(direct * force)
         else -- Keep force separate from damage inflicting
           phys:ApplyForceOffset(direct * force, origin)
         end -- This is the way laser can be used as forcer
       end -- Do not apply force on laser units
-      if(target:IsPlayer() and damage > 0) then -- Portal beam safety
-        LaserLib.DoBurn(target, origin, direct, safety)
+      if(damage > 0) then
+        if(target:IsPlayer()) then -- Portal beam safety
+          LaserLib.DoBurn(target, origin, direct, safety)
+        elseif(isphys) then -- Do laser prop cutting below this point
+          local tmsh = phys:GetMesh()
+          print("----------|----------")
+          PrintTable(tmsh)
+        end
       end -- Target is not unit. Check emiter safety
     end
 
-    if(laser.isDamage) then
+    if(laser.isDamage) then -- Time to do next damage blast
       local cas = target:GetClass()
       if(cas and gtDAMAGE[cas]) then
         local suc, oux = pcall(gtDAMAGE[cas],
@@ -2457,6 +2464,7 @@ if(SERVER) then
         end
       end
 
+      -- When target is not supposed to be killed yet
       LaserLib.TakeDamage(target, damage, attacker, laser)
     end
   end
