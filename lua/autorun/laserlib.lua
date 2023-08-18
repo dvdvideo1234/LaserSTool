@@ -2402,19 +2402,66 @@ if(SERVER) then
                              dissolve, noise , fcenter , safety)
     local phys = target:GetPhysicsObject()
     if(not LaserLib.IsUnit(target)) then
-      if(force and force > 0 and LaserLib.IsValid(phys)) then
+      local isphys = LaserLib.IsValid(phys)
+      if(force and force > 0 and isphys) then
         if(fcenter) then -- Force relative to mass center
           phys:ApplyForceCenter(direct * force)
         else -- Keep force separate from damage inflicting
           phys:ApplyForceOffset(direct * force, origin)
         end -- This is the way laser can be used as forcer
       end -- Do not apply force on laser units
-      if(target:IsPlayer() and damage > 0) then -- Portal beam safety
-        LaserLib.DoBurn(target, origin, direct, safety)
+      if(damage > 0) then
+        if(target:IsPlayer()) then -- Portal beam safety
+          LaserLib.DoBurn(target, origin, direct, safety)
+        elseif(isphys) then -- Do laser prop cutting below this point
+          local tmsh = phys:GetMesh()
+          local triv = {To = 1, Sz = 0, Vx = {}}
+          local orgn = target:WorldToLocal(origin)
+          for idx = 1, #tmsh do
+            local v = tmsh[idx].pos
+            local r = v:DistToSqr(orgn)
+            local r1 = v:Distance(orgn)
+            local x = triv.Vx[1]
+            if(triv.Sz < triv.To) then
+              table.insert(triv.Vx, 1, {D = r, P = v, I = idx})
+              triv.Sz = triv.Sz + 1
+              print(" > ADD",idx, x, r, v)
+              if(triv.Sz == triv.To) then
+                table.sort(triv.Vx, function(rv, nx) return (rv.D < nx.D) end)
+                print(" > SRT",idx, x, r, v)
+              end
+            else
+              for cnt = 1, triv.Sz do
+                local x = triv.Vx[cnt]
+                if(r <= x.D) then
+                  x.D = r
+                  x.P:Set(v)
+                  x.I = idx
+                  print(" > OVR["..cnt.."]",idx, x, r, v)
+                  break
+                end
+              end
+            end
+          end
+          print("----------|----------")
+          PrintTable(triv)
+          print("----------|----------")
+          target:SetNWVector("laser_test_hit", origin)
+          local p = triv.Vx[2]
+          triv.Vx[2] = {D = 0, P = tmsh[triv.Vx[1].I-1].pos, I = 0}
+          triv.Vx[3] = {D = 0, P = tmsh[triv.Vx[1].I+1].pos, I = 0}
+
+          target:SetNWVector("laser_test_vtn", #triv.Vx)
+          for idx = 1, #triv.Vx do
+            local w = target:LocalToWorld(triv.Vx[idx].P)
+            target:SetNWVector("laser_test_vtx"..idx, w)
+          end
+          print(target:EntIndex(), v, w)
+        end
       end -- Target is not unit. Check emiter safety
     end
 
-    if(laser.isDamage) then
+    if(laser.isDamage) then -- Time to do next damage blast
       local cas = target:GetClass()
       if(cas and gtDAMAGE[cas]) then
         local suc, oux = pcall(gtDAMAGE[cas],
@@ -2457,6 +2504,7 @@ if(SERVER) then
         end
       end
 
+      -- When target is not supposed to be killed yet
       LaserLib.TakeDamage(target, damage, attacker, laser)
     end
   end
@@ -4238,6 +4286,17 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Update the sources and trigger the hit reports
   beam:UpdateSource(trace)
   -- Return what did the beam hit and stuff
+
+  LaserLib.DrawPoint(target:GetNWVector("laser_test_hit", Vector()), "GREEN")
+  for idx = 1, target:GetNWVector("laser_test_vtn", 0) do
+    local w = target:GetNWVector("laser_test_vtx"..idx)
+    LaserLib.DrawPoint(w)
+  end
+
+
+
+ -- print(target:EntIndex(), target:GetNWVector("laser_test_vtx"))
+
   return beam, trace
 end
 
