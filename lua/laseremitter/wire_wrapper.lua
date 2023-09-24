@@ -156,16 +156,16 @@ end
 --[[
  * Procedure. Applies duplicator needed wire information
  * Does not return anything. It is prcedure
- * ply    > Player to store the info for
- * ent    > Entity to store the info for
- * info   > Information table to apply
- * fentid > Pointer to function retrieving entity by ID
- * Usage: function ENT:ApplyDupeInfo(ply, ent, info, fentid)
-            self:WireApplyDupeInfo(ply, ent, info, fentid) end
+ * ply  > Player to store the info for
+ * ent  > Entity to store the info for
+ * info > Information table to apply
+ * feid > Pointer to function retrieving entity by ID
+ * Usage: function ENT:ApplyDupeInfo(ply, ent, info, feid)
+            self:WireApplyDupeInfo(ply, ent, info, feid) end
 ]]
-function ENT:WireApplyDupeInfo(ply, ent, info, fentid)
+function ENT:WireApplyDupeInfo(ply, ent, info, feid)
   if(not WireLib) then return self end
-  WireLib.ApplyDupeInfo(ply, ent, info, fentid)
+  WireLib.ApplyDupeInfo(ply, ent, info, feid)
   return self
 end
 
@@ -185,8 +185,8 @@ end
 --[[
  * Procedure. Must be run inside `ENT:PostEntityPaste`
  * Makes wire do the post-paste preparation for dupe info
- * Usage: function ENT:PostEntityPaste(player, entity, created)
-            self:WirePostEntityPaste(player, entity, created) end
+ * Usage: function ENT:PostEntityPaste(ply, ent, cre)
+            self:WirePostEntityPaste(ply, ent, cre) end
  * ply > The player calling the routune
  * ent > The entity being post-pasted
  * cre > The created entities list after paste

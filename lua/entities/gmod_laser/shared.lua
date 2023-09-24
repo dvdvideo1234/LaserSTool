@@ -161,7 +161,7 @@ function ENT:GetBeamSafety()
     return safe
   else
     local safe = self:GetInBeamSafety()
-    return self:GetNWFloat("GetInBeamSafety", safe)
+    return self:GetNWBool("GetInBeamSafety", safe)
   end
 end
 

@@ -67,7 +67,7 @@ function ENT:GetHitNormal()
     return normal
   else
     local normal = self:GetNormalLocal()
-    return self:GetNWFloat("GetNormalLocal", normal)
+    return self:GetNWVector("GetNormalLocal", normal)
   end
 end
 

@@ -10,12 +10,15 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal", "VECTOR", "Parallel surface normal"}
+    {"Normal", "VECTOR", "Parallel surface normal"},
+    {"Focus" , "NORMAL", "Parallel focus margin"  }
   ):WireCreateOutputs(
     {"Normal", "VECTOR", "Parallel surface normal"},
+    {"Focus" , "NORMAL", "Parallel focus margin"  },
     {"Entity", "ENTITY", "Parallel entity itself" }
   )
 
+  self:SetFocusMargin(0)
   self:SetBeamDimmer(false)
 
   local phys = self:GetPhysicsObject()

@@ -4,20 +4,12 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_portal.vmt")
 
-function ENT:PreEntityCopy()
-  self:WirePreEntityCopy()
-end
-
-function ENT:PostEntityPaste(ply, ent, created)
-  self:WirePostEntityPaste(ply, ent, created)
+function ENT:OverridePostEntityPaste(ply, ent, cre)
+  self:WirePostEntityPaste(ply, ent, cre)
   local idx = (tonumber(self:GetEntityExitID()) or 0)
-  local ent = created[idx]; self:SetEntityExitID(0)
-  if(not self:IsTrueExit(ent)) then return end
-  self:SetEntityExitID(tostring(ent:EntIndex()))
-end
-
-function ENT:ApplyDupeInfo(ply, ent, info, fentid)
-  self:WireApplyDupeInfo(ply, ent, info, fentid)
+  local out = cre[idx]; self:SetEntityExitID(0)
+  if(not self:IsTrueExit(out)) then return end
+  self:SetEntityExitID(tostring(out:EntIndex()))
 end
 
 function ENT:Initialize()

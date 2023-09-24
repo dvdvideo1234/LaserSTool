@@ -1147,11 +1147,21 @@ function LaserLib.Configure(unit)
   unit.meOrderInfo = nil; gtUNITS[uas] = true
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
-    if(unit.WireRemove) then function unit:OnRemove() self:WireRemove() end end
-    if(unit.WireRestored) then function unit:OnRestore() self:WireRestored() end end
-    if(unit.WirePreEntityCopy) then function unit:PreEntityCopy() self:WirePreEntityCopy() end end
-    if(unit.WirePostEntityPaste) then function unit:PostEntityPaste(ply, ent, created) self:WirePreEntityCopy(ply, ent, created) end end
-    if(unit.WireApplyDupeInfo) then function unit:ApplyDupeInfo(ply, ent, info, fentid) self:WirePreEntityCopy(ply, ent, info, fentid) end end
+    if(unit.OverrideOnRemove) then
+      function unit:OnRemove() self:OverrideOnRemove() end
+    else function unit:OnRemove() self:WireRemove() end end
+    if(unit.OverrideOnRestore) then
+      function unit:OnRemove() self:OverrideOnRestore() end
+    else function unit:OnRestore() self:WireRestored() end end
+    if(unit.OverridePreEntityCopy) then
+      function unit:PreEntityCopy() self:OverridePreEntityCopy() end
+    else function unit:PreEntityCopy() self:WirePreEntityCopy() end end
+    if(unit.OverridePostEntityPaste) then
+      function unit:PostEntityPaste(ply, ent, cre) self:OverridePostEntityPaste(ply, ent, cre) end
+    else function unit:PostEntityPaste(ply, ent, cre) self:WirePostEntityPaste(ply, ent, cre) end end
+    if(unit.OverrideApplyDupeInfo) then
+      function unit:ApplyDupeInfo(ply, ent, info, feid) self:OverrideApplyDupeInfo(ply, ent, info, feid) end
+    else function unit:ApplyDupeInfo(ply, ent, info, feid) self:WireApplyDupeInfo(ply, ent, info, feid) end end
   else -- Do client configuration finalizer
     language.Add(uas, unit.Information)
     if(uas ~= cas) then -- Setup the same kill icon
@@ -3907,10 +3917,17 @@ local gtACTORS = {
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
     if(trace and trace.Hit and beam and bdot) then
       beam.IsTrace = true -- Beam hits correct surface. Continue
+      local focu = ent:GetFocus() -- Apply custom focus
       local vdot = (ent:GetBeamDimmer() and mdot or 1)
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
-      beam.VrDirect:Set(trace.HitNormal); beam.VrDirect:Negate()
+      if(focu == 0) then
+        beam.VrDirect:Set(trace.HitNormal); beam.VrDirect:Negate()
+      else
+        local obb = ent:LocalToWorld(ent:OBBCenter())
+        local odv = Vector(obb); odv:Sub(trace.HitPos)
+        odv:Mul(focu); beam.VrDirect:Add(odv)
+      end
       beam:SetActor(ent) -- Makes beam pass the dimmer
     end
   end,

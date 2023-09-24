@@ -16,18 +16,6 @@ local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
 local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
 local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
 
-function ENT:PreEntityCopy()
-  self:WirePreEntityCopy()
-end
-
-function ENT:PostEntityPaste(ply, ent, cre)
-  self:WirePostEntityPaste(ply, ent, cre)
-end
-
-function ENT:ApplyDupeInfo(ply, ent, info, fentid)
-  self:WireApplyDupeInfo(ply, ent, info, fentid)
-end
-
 function ENT:Initialize()
   self:PhysicsInit(SOLID_VPHYSICS)
   self:SetMoveType(MOVETYPE_VPHYSICS)

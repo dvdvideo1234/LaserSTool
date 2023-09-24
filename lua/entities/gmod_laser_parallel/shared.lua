@@ -27,7 +27,7 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal", "General") -- Used as forward
   self:EditableSetBool  ("BeamDimmer" , "General")
   self:EditableSetBool  ("LinearMapping", "General")
-  self:EditableSetBool  ("InPowerOn"  , "Internals")
+  self:EditableSetFloat ("FocusMargin" , "General", -1, 1)
   LaserLib.Configure(self)
 end
 
@@ -49,13 +49,27 @@ function ENT:GetHitNormal()
     return normal
   else
     local normal = self:GetNormalLocal()
-    return self:GetNWFloat("GetNormalLocal", normal)
+    return self:GetNWVector("GetNormalLocal", normal)
+  end
+end
+
+function ENT:GetFocus()
+  if(SERVER) then
+    local focus = self:WireRead("Focus", true)
+    if(not focus) then
+      focus = self:GetFocusMargin()
+    end -- Make sure length is one unit
+    self:SetNWFloat("GetFocusMargin", focus)
+    self:WireWrite("Focus", focus)
+    return focus
+  else
+    local focus = self:GetFocusMargin()
+    return self:GetNWFloat("GetFocusMargin", normal)
   end
 end
 
 function ENT:GetHitPower(normal, beam, trace, bmln)
-  local norm = Vector(normal)
-        norm:Rotate(self:GetAngles())
+  local norm = Vector(normal); norm:Rotate(self:GetAngles())
   local dotv = math.abs(norm:Dot(beam.VrDirect))
   if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
   local dott = math.abs(norm:Dot(trace.HitNormal))

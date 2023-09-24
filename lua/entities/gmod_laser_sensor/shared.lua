@@ -42,7 +42,7 @@ function ENT:GetUnitDirection()
     return norm
   else
     local norm = self:GetDirectLocal()
-    return self:GetNWFloat("GetDirectLocal", norm)
+    return self:GetNWVector("GetDirectLocal", norm)
   end
 end
 
@@ -55,7 +55,7 @@ function ENT:GetUnitOrigin()
     return opos
   else
     local opos = self:GetOriginLocal()
-    return self:GetNWFloat("GetOriginLocal", opos)
+    return self:GetNWVector("GetOriginLocal", opos)
   end
 end
 
