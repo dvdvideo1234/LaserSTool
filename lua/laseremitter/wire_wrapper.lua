@@ -3,12 +3,13 @@
 --[[
  * Helper routine factory for `WirePostEntityPaste`
  * Returns wire specific and related entity picker
+ * cre > Created entity set by the duplicator
 ]]
-local function wireGetScanner(arg)
+local function wireLookup(cre)
   return function(id, def)
     if(id == nil) then return def
     elseif(id == 0) then return game.GetWorld() end
-    local ent = arg[id] or (isnumber(id) and ents.GetByIndex(id))
+    local ent = cre[id] or (isnumber(id) and ents.GetByIndex(id))
     if(IsValid(ent)) then return ent else return def end
   end
 end
@@ -193,9 +194,8 @@ end
 function ENT:WirePostEntityPaste(ply, ent, cre)
   if(not WireLib) then return self end
   if(not ent.EntityMods) then return self end
-  local set = ent.EntityMods.WireDupeInfo
-  if(not set) then return self end
-  self:WireApplyDupeInfo(ply, ent, set, wireGetScanner(cre))
+  if(not ent.EntityMods.WireDupeInfo) then return self end
+  self:WireApplyDupeInfo(ply, ent, ent.EntityMods.WireDupeInfo, wireLookup(cre))
   return self
 end
 

@@ -222,14 +222,14 @@ local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   [3] = "slime", -- Slime enumerator index 16
   [4] = "water", -- Water enumerator index 32
   [5] = "translucent", -- Translucent stuff 268435456
-  -- Used for prop updates and checks
+  -- Used for prop updates and checks `SetupMaterialsDataset`
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control. Status: [nil] = missing, [false] = disable
-  -- [1] : Medium refraction index for the material specified by sodium line
-  -- [2] : Medium refraction rating when the beam goes through reduces its power
-  -- [3] : Which index is the material found at when it is searched in array part
-  -- [4] : What contents does the specified index match when requested position checked
-  -- [5] : Reverse integer index for serch for medium contents sequential order
+  -- [1]   : Medium refraction index for the material specified by sodium line
+  -- [2]   : Medium refraction rating when the beam goes through reduces its power
+  -- [ID]  : Reverse integer index to serch for medium contents sequential order
+  -- [Key] : Which hash key material has been found when it is searched in array part
+  -- [Con] : What contents does the specified index match when requested position checked
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
@@ -533,7 +533,7 @@ end
 
 --[[
  * Calculates the beam exit entity responsible for drawing beam
- * When exit entity is only available at server side tetworrk the ID
+ * When exit entity is only available at server side network the ID
  * This is mainly used for link-pair portals. Exit may be invalid
  * base > Base entity acting as a portal entrance
  * from > The way to retrieve the exit enity on the server
@@ -2414,7 +2414,8 @@ if(SERVER) then
       end -- Target is not unit. Check emiter safety
     end
 
-    if(laser.isDamage) then
+    -- Time to do next damage blast when there is damage
+    if(laser.isDamage and damage and damage > 0) then
       local cas = target:GetClass()
       if(cas and gtDAMAGE[cas]) then
         local suc, oux = pcall(gtDAMAGE[cas],
@@ -2446,10 +2447,10 @@ if(SERVER) then
           local driver = target:GetDriver()
           if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
             if(driver:Health() <= damage) then driver:ExitVehicle()
-            local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
-                                   driver  , laser , attacker, origin ,
-                                   normal  , direct, damage  , force  ,
-                                   dissolve, noise , fcenter , safety)
+              local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
+                                     driver  , laser , attacker, origin ,
+                                     normal  , direct, damage  , force  ,
+                                     dissolve, noise , fcenter , safety)
               if(not suc) then driver:Kill(); error(err) end -- Remove target
               if(oux) then return end -- Exit main damage routine immediately
             end
@@ -2457,6 +2458,7 @@ if(SERVER) then
         end
       end
 
+      -- When target is not supposed to be killed yet
       LaserLib.TakeDamage(target, damage, attacker, laser)
     end
   end
