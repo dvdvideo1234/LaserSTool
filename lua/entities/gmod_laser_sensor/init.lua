@@ -34,7 +34,7 @@ function ENT:InitSources()
   self.hitSources = {} -- Entity sources in notation `[ent] = true`
   self.pssSources = {
     Size = 0,  -- Contains the loop upper limit
-    Time = 0,  -- Contrains the current time for pass-trough
+    Time = 0,  -- Contains the current time for pass-trough
     Keys = {}, -- Contains the ordered by time keys
     Data = {}, -- contain the data set used to call every beam
     Copy = {   -- For pass-trough copy of current beam/trace is needed
@@ -52,15 +52,15 @@ function ENT:InitSources()
         Asn = {
           ["BoSource"] = true, -- Copy external source as pointer
           ["BmSource"] = true  -- Copy current source as pointer
-        } -- Direct adssigment of beam source entity
+        } -- Direct assignment of beam source entity
       }, -- Beam copy configuration
       Tr = { -- Copy trace structure
-        Asn = { -- Copy as pointer assigment
+        Asn = { -- Copy as pointer assignment
           ["Entity"  ] = true -- Copy trace entity
         }
       } -- Trace copy configuration
     } -- Configure how node data is being copied
-  } -- Pass-trough internal congiguration data
+  } -- Pass-trough internal configuration data
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
 end
@@ -132,7 +132,7 @@ function ENT:SpawnFunction(ply, tr)
   local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
     LaserLib.SnapNormal(ent, tr, 90)
-    ent:SetAngles(ang) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Apply angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
@@ -212,7 +212,7 @@ function ENT:UpdateDominant(dom)
       como = (morigin:DistToSqr(self.crOrigin) >= mlength^2)
     end -- No need to calculate square root when zero
     if(not zdirect) then comd = self.crNormh end
-    -- Thrigger the wire inputs
+    -- Trigger the wire inputs
     self:UpdateOutputs(domsrc)
     -- Check whenever sensor has to turn on
     if((zorigin or (not zorigin and como)) and
@@ -246,7 +246,7 @@ function ENT:UpdateDominant(dom)
           local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
           mcoe = (mv:IsEqualTol(dv, gnCTOL) and (math.abs(ma - da) < gnCTOL))
         end
-        -- Compare the internal congiguration and trigger sensor
+        -- Compare the internal configuration and trigger sensor
         if((not mcomcor   or (mcomcor       and mcoe)) and
            (mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
            (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp)) and

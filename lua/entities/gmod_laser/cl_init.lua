@@ -6,7 +6,7 @@ local cvLNDIRACT = LaserLib.GetData("LNDIRACT")
  * This is actually faster than stuffing all the beams
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
- * trace  > Trace result recieved from the beam
+ * trace  > Trace result received from the beam
  * beam   > Information parameters of the current beam
  * source > Entity that has laser related properties
 ]]
@@ -36,7 +36,7 @@ function ENT:DrawBeam()
   local beam, trace = self:DoBeam()
   if(not beam) then return end
   self:DrawTrace(beam) -- Draws the beam trace
-  -- Handle drawing the effects when have to be drawwn
+  -- Handle drawing the effects when have to be drawn
   self:DrawEndingEffect(beam, trace)
 end
 

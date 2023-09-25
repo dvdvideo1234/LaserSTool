@@ -42,7 +42,7 @@ function ENT:GetOn()
   return (not table.IsEmpty(src))
 end
 
--- Override the beam transormation
+-- Override the beam transformation
 function ENT:SetBeamTransform()
   local normal = Vector(0,0,1) -- Local surface direction
   self:SetNormalLocal(normal)

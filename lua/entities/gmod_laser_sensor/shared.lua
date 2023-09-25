@@ -17,7 +17,7 @@ ENT.UnitID         = 6
 LaserLib.RegisterUnit(ENT, "models/props_lab/jar01a.mdl", "zup/ramps/ramp_metal")
 
 function ENT:SetupDataTables()
-  self.DoBeam = nil -- Recieve beams only
+  self.DoBeam = nil -- Receive beams only
   LaserLib.SetPrimary(self, true)
   self:EditableSetBool("CheckBeamColor", "Visuals")
   self:EditableSetBool("CheckDominant" , "General")

@@ -78,7 +78,7 @@ function ENT:GetBeamColorRGBA(bcol)
   end
 end
 
--- Override the beam transormation
+-- Override the beam transformation
 function ENT:SetBeamTransform()
   local normal = Vector(1,0,0) -- Local surface direction
   self:SetNormalLocal(normal)

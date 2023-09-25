@@ -84,7 +84,7 @@ function ENT:SpawnFunction(ply, tr)
   local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
     LaserLib.SnapNormal(ent, tr, 90)
-    ent:SetAngles(ang) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Apply angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)

@@ -8,7 +8,7 @@ function ENT:DrawBeam(org, dir, idx)
   local beam, trace = self:DoBeam(org, dir, idx)
   if(not beam) then return end
   self:DrawTrace(beam, nil, beam.BmColor)
-  -- Handle drawing the effects when have to be drawwn
+  -- Handle drawing the effects when have to be drawn
   self:DrawEndingEffect(beam, trace)
 end
 

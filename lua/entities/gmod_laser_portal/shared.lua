@@ -34,7 +34,7 @@ function ENT:SetupDataTables()
   LaserLib.Configure(self)
 end
 
--- Override the beam transormation
+-- Override the beam transformation
 function ENT:SetBeamTransform()
   self:SetNormalLocal(Vector(1,0,0)) -- Local surface normal
   self:SetUpwardLocal(Vector(0,0,1)) -- Local surface normal
@@ -71,8 +71,8 @@ end
 
 --[[
  * Converts the transit entity ID or entity itself
- * idx > Entiy ID to convert to transit
- * ent > Force entity outpout instead of string
+ * idx > Entity ID to convert to transit
+ * ent > Force entity output instead of string
 ]]
 function ENT:GetTransitID(idx, ent)
   local idx = (tonumber(idx) or 0) -- Convert the number

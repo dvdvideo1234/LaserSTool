@@ -36,7 +36,7 @@ function ENT:RegisterSource(ent)
   self.hitSources[ent] = true; return self
 end
 
--- Override the beam transormation
+-- Override the beam transformation
 function ENT:SetBeamTransform()
   local normal = Vector(0,0,1) -- Local surface normal
   self:SetNormalLocal(normal)

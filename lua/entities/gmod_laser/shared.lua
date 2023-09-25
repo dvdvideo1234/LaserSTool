@@ -96,7 +96,7 @@ function ENT:GetBeamWidth()
 end
 
 --[[
- * Length. The total laser beam lenght to be traced
+ * Length. The total laser beam length to be traced
 ]]
 function ENT:SetBeamLength(num)
   local length = math.abs(num)
@@ -193,7 +193,7 @@ function ENT:GetBeamMaterial(bool)
 end
 
 --[[
- * Sounds. Control the sounds the beam makes in varios conditions
+ * Sounds. Control the sounds the beam makes in various conditions
 ]]
 function ENT:SetStartSound(snd)
   local snd = tostring(snd or "")
@@ -252,7 +252,7 @@ function ENT:DoSound(state)
 end
 
 --[[
- * On/Off. Toggle shitch. Every unit must have one
+ * On/Off. Toggle switch. Every unit must have one
 ]]
 function ENT:SetOn(bool)
   local state = tobool(bool)
@@ -276,7 +276,7 @@ function ENT:GetOn()
 end
 
 --[[
- * Forece. Used for prop pushing when positive.
+ * Force. Used for prop pushing when positive.
 ]]
 function ENT:SetBeamForce(num)
   local force = math.max(num, 0)
@@ -330,7 +330,7 @@ function ENT:GetBeamColorRGBA(bcol)
 end
 
 --[[
- * Beam uses the original mateial override
+ * Beam uses the original material override
 ]]
 function ENT:SetNonOverMater(bool)
   local over = tobool(bool)

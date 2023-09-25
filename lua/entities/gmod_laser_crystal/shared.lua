@@ -21,7 +21,7 @@ function ENT:SetupDataTables()
   LaserLib.Configure(self)
 end
 
--- Override the beam transormation
+-- Override the beam transformation
 function ENT:SetBeamTransform()
   local direct = Vector(0,0,1) -- Local Direction
   local origin = LaserLib.GetBeamOrigin(self, direct)

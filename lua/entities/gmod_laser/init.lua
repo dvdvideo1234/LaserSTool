@@ -49,8 +49,8 @@ function ENT:Initialize()
 end
 
 --[[
- * Spawns the laser via the etities tab under laser category
- * Returning with no entity is intentional becaues undo is duplicated
+ * Spawns the laser via the entities tab under laser category
+ * Returning with no entity is intentional because undo is duplicated
  * https://github.com/Facepunch/garrysmod/blob/master/garrysmod/gamemodes/sandbox/gamemode/commands.lua#L828
 ]]
 function ENT:SpawnFunction(user, trace)
