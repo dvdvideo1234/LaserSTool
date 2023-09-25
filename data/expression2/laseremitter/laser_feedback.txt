@@ -1,31 +1,35 @@
 @name Laser Power Feedback
-@inputs Start Test:wirelink
+@inputs Start
 @outputs OW OD OF PW PD PF
 @persist Src:entity RW RD RF OW OD OF
 @trigger none
 
 if(first() || dupefinished())
 {
-    runOnTick(1)
     Src = entity():isConstrainedTo(1)
     RW = 10
-    RD = 100
+    RD = 12
     RF = 15
+
+    event tick()
+    {
+        if(Start)
+        {
+            if(Src:laserGetBeamPower() <= 0)
+            {
+                OW = 1
+            }else{
+                PW = Src:laserGetBeamWidth()
+                OW = OW + 0.1 * (RW - PW)
+                PD = Src:laserGetBeamDamage()
+                OD = OD + 0.1 * (RD - PD)
+                PF = Src:laserGetBeamForce()
+                OF = OF + 0.1 * (RF - PF)
+            }
+        }else{
+            OW = OD = OF = 0
+        }
+    }
 }
 
-if(Start)
-{
-    if(Src:laserGetBeamPower() <= 0)
-    {
-        OW = 1
-    }else{
-        PW = Src:laserGetBeamWidth()
-        OW = OW + 0.1 * (RW - PW)
-        PD = Src:laserGetBeamDamage()
-        OD = OD + 0.1 * (RD - PD)
-        PF = Src:laserGetBeamForce()
-        OF = OF + 0.1 * (RF - PF)
-    }
-}else{
-    OW = OD = OF = 0
-}
+

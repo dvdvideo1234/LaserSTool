@@ -501,7 +501,7 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
 
-  pItem = vgui.Create("CtrlColor", cPanel)
+  pItem = vgui.Create("DColorMixer", cPanel)
   pItem:Dock(TOP); pItem:SetTall(250)
   pItem:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".color"))
@@ -509,7 +509,7 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   pItem:SetConVarG(gsTOOL.."_colorg")
   pItem:SetConVarB(gsTOOL.."_colorb")
   pItem:SetConVarA(gsTOOL.."_colora")
-  cPanel:AddPanel(pItem)
+  cPanel:AddItem(pItem)
 
   pItem = vgui.Create("PropSelect", cPanel)
   pItem:Dock(TOP); pItem:SetTall(150)
