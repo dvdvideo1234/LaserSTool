@@ -2982,10 +2982,9 @@ end
  * the given position is inside the beam source
 ]]
 function mtBeam:IsMemory(index, pos)
-  local tmem = self.TrMedium.M
-  local bmem = (index ~= tmem[1][1])
-  local bent = InEntity(pos, self.BmSource)
-  return (bmem and not bent)
+  local ch = (index ~= self.TrMedium.M[1][1])
+  print(InEntity(pos, self.BmSource))
+  return (ch and not InEntity(pos, self.BmSource))
 end
 
 --[[
@@ -3577,6 +3576,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
   local bnex, bsam, vdir -- Refraction entity direction and reflection
   -- Call refraction cases and prepare to trace-back
   if(self.StRfract) then -- Bounces were decremented so move it up
+    LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "RED")
     if(self:IsFirst()) then
       vdir, bnex = Vector(self.VrDirect), true -- Node starts inside solid
     else -- When two props are stuck save the middle boundary and traverse
@@ -3591,6 +3591,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
     end -- Marking the fraction being zero and refracting from the last entity
     self.StRfract = false -- Make sure to disable the flag again
   else -- Otherwise do a normal water-entity-air refraction
+    LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "YELLOW")
     vdir, bnex, bsam = LaserLib.GetRefracted(self.VrDirect,
                    trace.HitNormal, self.TrMedium.S[1][1], index)
   end
