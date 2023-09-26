@@ -532,6 +532,34 @@ local function ProjectRay(pos, org, dir)
 end
 
 --[[
+ * Checks when the given position is inside the entity
+ * pos > Position origin being checked
+ * ent > Entity being used as an AABB cube
+ * https://wiki.facepunch.com/gmod/Vector:WithinAABox
+]]
+local function InEntity(pos, ent)
+  local vmin = ent:OBBMins()
+  local vmax = ent:OBBMaxs()
+  local vpos = ent:WorldToLocal(pos)
+  return vpos:WithinAABox(vmax, vmin)
+end
+
+--[[
+ * Intersects a ray (org, dir) with a surface (pos, nor)
+ * pos > Surface position as vector in 3D space
+ * nor > Surface normal as world direction vector
+ * org > Ray start origin position (trace.HitPos)
+ * dir > Ray direction world vector (trace.Normal)
+]]
+local function PierceRayFace(org, dir, pos, nor)
+  if(dir:Dot(nor) == 0) then return nil end
+  local vop = Vector(pos); vop:Sub(org)
+  local dst = vop:Dot(nor) / dir:Dot(nor)
+  vop:Set(dir); vop:Mul(dst); vop:Add(org)
+  return vop -- Water-air intersection point
+end
+
+--[[
  * Calculates the beam exit entity responsible for drawing beam
  * When exit entity is only available at server side network the ID
  * This is mainly used for link-pair portals. Exit may be invalid
@@ -2954,12 +2982,10 @@ end
  * the given position is inside the beam source
 ]]
 function mtBeam:IsMemory(index, pos)
-  local sent = self.BmSource
-  local vmin = sent:OBBMins()
-  local vmax = sent:OBBMaxs()
-  local vpos = sent:WorldToLocal(pos)
-  local bent = vpos:WithinAABox(vmax, vmin)
-  return ((index ~= self.TrMedium.M[1][1]) and not bent)
+  local tmem = self.TrMedium.M
+  local bmem = (index ~= tmem[1][1])
+  local bent = InEntity(pos, self.BmSource)
+  return (bmem and not bent)
 end
 
 --[[
@@ -3031,32 +3057,12 @@ function mtBeam:SetMediumMemory(medium, key, normal)
 end
 
 --[[
- * Intersects line (start, end) with a surface (position, normal)
- * This can be called then beam goes out of the water
- * To straight calculate the intersection point
- * this will ensure no overhead traces will be needed.
- * pos > Surface position as vector in 3D space
- * nor > Surface normal as world direction vector
- * org > Ray start origin position (trace.HitPos)
- * dir > Ray direction world vector (trace.Normal)
-]]
-function mtBeam:IntersectRaySurface(pos, nor, org, dir)
-  local org = (org or self.VrOrigin)
-  local dir = (dir or self.VrDirect)
-  if(dir:Dot(nor) == 0) then return nil end
-  local vop = Vector(pos); vop:Sub(org)
-  local dst = vop:Dot(nor) / dir:Dot(nor)
-  vop:Set(dir); vop:Mul(dst); vop:Add(org)
-  return vop -- Water-air intersection point
-end
-
---[[
  * Clears configuration parameters for trace medium
  * origin > Beam exit position
  * direct > Beam exit direction
 ]]
 function mtBeam:Redirect(origin, direct, reset)
-  -- Appy origin and direction when beam exits the medium
+  -- Apply origin and direction when beam exits the medium
   if(origin) then self.VrOrigin:Set(origin) end
   if(direct) then self.VrDirect:Set(direct) end
   -- Lower the refraction flag ( Not full internal reflection )
@@ -3357,7 +3363,13 @@ function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit outside the water
   local wat = self:GetWater() -- Local reference indexing water
   local vtm = self.__vtorg; self.VrDirect:Negate()
-  local vwa = self:IntersectRaySurface(wat.P, wat.N)
+  local org, dir = self.VrOrigin, self.VrDirect
+  -- This can be called then beam goes out of the water
+  -- To straight calculate the intersection point
+  -- this will ensure no overhead traces will be needed.
+  local vwa = PierceRayFace(org, dir, wat.P, wat.N)
+  -- Water-air intersection point is stored in `vwa`
+  -- The intersection point will never be empty in this case
   local mewat, meair = mtBeam.__mewat, mtBeam.__meair
   -- Registering the node cannot be done with direct subtraction
   self.VrDirect:Negate(); self:RegisterNode(vwa, true)
@@ -3371,7 +3383,7 @@ function mtBeam:RefractWaterAir()
     self:Redirect(vwa, vdir, true) -- Redirect and reset laser beam
   else -- Redirect the beam in case of going out reset medium
     self.NvMask = MASK_SOLID -- We stay in the water and hit stuff
-    self:Redirect(vwa, vdir) -- Redirect only reset laser beam
+    self:Redirect(vwa, vdir) -- Redirect only do not reset beam
   end -- Apply power ratio when requested
   if(self.BrRefrac) then self:SetPowerRatio(mewat[1][2]) end
   return self -- Coding effective API
@@ -3925,8 +3937,11 @@ local gtACTORS = {
         beam.VrDirect:Set(trace.HitNormal); beam.VrDirect:Negate()
       else
         local obb = ent:LocalToWorld(ent:OBBCenter())
-        local odv = Vector(obb); odv:Sub(trace.HitPos)
-        odv:Mul(focu); beam.VrDirect:Add(odv)
+        local irs = PierceRayFace(trace.HitPos, beam.VrDirect,
+                                  obb         , trace.HitNormal)
+        obb:Sub(irs); obb:Mul(focu)
+        beam.VrDirect:Add(odv)
+        beam.VrDirect:Normalize()
       end
       beam:SetActor(ent) -- Makes beam pass the dimmer
     end
@@ -4036,7 +4051,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   if(not beam) then return end -- Beam parameters are mismatched and traverse is not run
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local trace, target = {} -- Configure and target and shared trace reference
-  -- Store general definition of air adn water mediums for fast usage and indexing
+  -- Store general definition of air and water mediums for fast usage and indexing
   local mewat, meair = mtBeam.__mewat, mtBeam.__meair -- Local reference beam members
   -- Reports dedicated values that are being used by other entities and processes
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
