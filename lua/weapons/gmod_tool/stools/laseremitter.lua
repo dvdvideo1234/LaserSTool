@@ -270,7 +270,7 @@ function TOOL:LeftClick(trace)
     return true
   end
 
-  local laser = LaserLib.NewLaser(user        , pos         , ang         , model       ,
+  local laser = LaserLib.NewLaser(user       , pos         , ang         , model       ,
                                   trandata   , key         , width       , length      ,
                                   damage     , material    , dissolvetype, startsound  ,
                                   stopsound  , killsound   , toggle      , starton     ,
@@ -409,13 +409,16 @@ function TOOL:UpdateEmitterGhost(ent, user)
   if(ent:IsPlayer()) then return end
 
   local trace = user:GetEyeTrace()
+  local tre = trace.Entity
+  local pos = trace.HitPos
+  local ang = trace.HitNormal:Angle()
+  ent:SetPos(pos); ent:SetAngles(ang)
 
   LaserLib.ApplySpawn(ent, trace, self:GetTransform())
 
-  if(not trace.Hit
-      or trace.Entity:IsPlayer()
-      or trace.Entity:GetClass() == LaserLib.GetClass(1)
-      or trace.Entity:GetClass() == LaserLib.GetClass(9))
+  if(not trace.Hit or tre:IsPlayer()
+      or tre:GetClass() == LaserLib.GetClass(1)
+      or tre:GetClass() == LaserLib.GetClass(9))
   then
     ent:SetNoDraw(true); return
   end
