@@ -16,7 +16,8 @@ DATA.NUGE = 2                -- Nudge amount for origin vectors back-tracing
 DATA.MINW = 0.05             -- Minimum width to be considered visible
 DATA.DOTM = 0.01             -- Collinearity and dot product margin check
 DATA.POWL = 0.001            -- Lowest bounds of laser power
-DATA.ERAD = 1.12             -- Entity refract coefficient for back trace origins
+DATA.BRAD = 2.5              -- How much the bounding radius is scaled for back-trace
+DATA.ERAD = 1.5              -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.27             -- Beam back trace width when refracting
 DATA.WLMR = 10000            -- World vectors to be correctly converted to local
 DATA.TRWU = 50000            -- The distance to trace for finding water surface
@@ -106,6 +107,8 @@ local gtCOPYCV = {
 }
 
 local gtUNITS = {
+  -- https://wiki.facepunch.com/gmod/Structures/TraceResult
+  -- There is really no point in using IMaterial as (x,y) beam hit cannot be extracted from the trace
   -- Classes existing in the hash part are laser-enabled entities `LaserLib.Configure(self)`
   -- Classes are stored in notation `[ent:GetClass()] = true` and used in `LaserLib.IsUnit(ent)`
   ["gmod_laser"          ] = true, -- This is present for hot reload. You must register yours separately
@@ -214,7 +217,10 @@ local gtREFLECT = { -- Reflection descriptor
   ["bobsters_trains/chrome_dirty_black"] = {0.537}
 }; gtREFLECT.Size = #gtREFLECT
 
-local gtREFRACT = { -- https://en.wikipedia.org/wiki/List_of_refractive_indices
+local gtREFRACT = {
+  -- https://wiki.facepunch.com/gmod/Structures/TraceResult
+  -- https://en.wikipedia.org/wiki/List_of_refractive_indices
+  -- There is really no point in using IMaterial as (x,y) beam hit cannot be extracted from the trace
   -- Sequential keys must be ordered by contents inclusion
   -- Lower enumerator means higher priority for contents to be checked
   [1] = "air"  , -- Empty enumerator index 0
@@ -523,7 +529,7 @@ end
  * [1] > Projected position onto the ray
  * [2] > Position ray margin as dot product
 ]]
-local function ProjectRay(pos, org, dir)
+local function ProjectPointRay(pos, org, dir)
   local dir = dir:GetNormalized()
   local vrs = Vector(pos); vrs:Sub(org)
   local mar = vrs:Dot(dir); vrs:Set(dir)
@@ -600,13 +606,13 @@ local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
   pos:Set(base:WorldToLocal(pos)); dir:Mul(wmr)
   if(forigin) then local suc, err = pcall(forigin, pos)
-    if(not suc) then error("Origin error: "..err) end
+    if(not suc) then error("Origin: "..err) end
   else pos.x, pos.y = -pos.x, -pos.y end
   pos:Set(exit:LocalToWorld(pos))
   dir:Add(base:GetPos())
   dir:Set(base:WorldToLocal(dir))
   if(fdirect) then local suc, err = pcall(fdirect, dir)
-    if(not suc) then error("Direct error: "..err) end
+    if(not suc) then error("Direct: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
   dir:Rotate(exit:GetAngles()); dir:Div(wmr)
   return pos, dir
@@ -703,7 +709,7 @@ local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
         elseif(tCpn and tCpn[nam]) then
           tCpy[nam] = table.Copy(vsm) -- General copy table
         else -- Unhanded field. Report error to the user
-          error("Value mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
+          error("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
         end -- Assign a copy table
       end -- The snapshot is completed
   end; end; return tCpy
@@ -807,7 +813,7 @@ end
 
 --[[
  * Compared when given time interval is passed
- * Returns true when the insterval is passed
+ * Returns true when the interval is passed
  * tim > Time point to compare against
 ]]
 function LaserLib.IsTime(tim)
@@ -833,7 +839,7 @@ function LaserLib.IsOther(arg)
 end
 
 --[[
- * Checks whever an entity is player
+ * Checks whenever an entity is a player
 ]]
 function LaserLib.IsPlayer(arg)
   if(not LaserLib.IsValid(arg)) then return false end
@@ -1566,7 +1572,7 @@ function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   if(not (org and dir)) then return end
   local ctr = LaserLib.GetColor("GREEN")
   local csr = LaserLib.GetColor("YELLOW")
-  local vrs, mar = ProjectRay(vbb, org, dir)
+  local vrs, mar = ProjectPointRay(vbb, org, dir)
   local amr = vbb:DistToSqr(vrs)
   if(rev and mar < 0) then return end
   local so, sv = vbb:ToScreen(), vrs:ToScreen()
@@ -1741,7 +1747,8 @@ function LaserLib.GetSequenceData(set)
     if(not ser[key]) then -- Entry is not present
       if(type(val) == "table" and tostring(key):find("/")) then
         row = {Key = key, Draw = true}; ser[key] = true
-        ser.Size = table.insert(ser, row) -- Insert
+        table.insert(ser, row) -- Insert data entry
+        ser.Size = ser.Size + 1 -- Increment size
         for iD = 1, inf.Size do row[inf[iD]] = val[iD] end
       end -- Store info and return sequential table
     end -- Entry is added to the sequential list
@@ -2429,7 +2436,7 @@ if(SERVER) then
     if(smu <= 0) then return end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
     local obb = target:LocalToWorld(target:OBBCenter())
-    local pbb = ProjectRay(obb, origin, direct)
+    local pbb = ProjectPointRay(obb, origin, direct)
           obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
           obb.z = 0; target:SetVelocity(obb)
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
@@ -3019,10 +3026,10 @@ function mtBeam:SetMediumSours(medium, key)
 end
 
 --[[
- * Changes the source medium. Source is the medium that
- * surrounds all objects and acts line their environment
- * origin > Beam exit position
- * direct > Beam exit direction
+ * Changes the destination medium. Destination is the
+ * medium that the beam continues its trajectory trough
+ * medium > Medium information ( mandatory )
+ * key    > Registry key ( not mandatory )
 ]]
 function mtBeam:SetMediumDestn(medium, key)
   if(key) then
@@ -3036,10 +3043,10 @@ function mtBeam:SetMediumDestn(medium, key)
 end
 
 --[[
- * Changes the source medium. Source is the medium that
- * surrounds all objects and acts line their environment
- * origin > Beam exit position
- * direct > Beam exit direction
+ * Changes the memory medium. Memory is the medium that
+ * memorizes the last  environment
+ * medium > Medium information ( mandatory )
+ * key    > Registry key ( not mandatory )
 ]]
 function mtBeam:SetMediumMemory(medium, key, normal)
   if(key) then
@@ -3142,8 +3149,8 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
       self.NvLength = self.NvLength - vtmp:Length()
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
-  info.Size = table.insert(info, {node, width, damage, force, bedraw})
-  return self -- Coding effective API
+  table.insert(info, {node, width, damage, force, bedraw})
+  info.Size = info.Size + 1; return self -- Coding effective API
 end
 
 --[[
@@ -3185,33 +3192,6 @@ function mtBeam:IsNode()
 end
 
 --[[
- * Prepares the laser beam structure for entity refraction
- * origin  > New beam origin location vector
- * direct  > New beam ray direction vector
- * target  > New entity target being switched
- * refract > Refraction descriptor entry
- * key     > Refraction descriptor key
-]]
-function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
-  -- Register desination medium and raise calculate refraction flag
-  self:SetMediumDestn(refract, key)
-  -- Get the trace ready to check the other side and point and register the location
-  self.DmRfract = (2 * target:BoundingRadius())
-  self.VrDirect:Set(direct)
-  self.VrOrigin:Set(direct)
-  self.VrOrigin:Mul(self.DmRfract)
-  self.VrOrigin:Add(origin)
-  self.VrDirect:Negate()
-  -- Must trace only this entity otherwise invalid
-  self.TeFilter = function(ent) return (ent == target) end
-  self.NvIWorld = true -- We are interested only in the refraction entity
-  self.IsRfract = true -- Raise the bounce off refract flag
-  self.BmTracew = DATA.TRWD -- Increase the beam width for back track
-  self.TrRfract = (DATA.ERAD * self.DmRfract) -- Scale and again to make it hit
-  return self -- Coding effective API
-end
-
---[[
  * https://wiki.facepunch.com/gmod/Enums/MAT
  * https://wiki.facepunch.com/gmod/Entity:GetMaterialType
  * Retrieves material override for a trace or use the default
@@ -3224,9 +3204,10 @@ end
 function mtBeam:GetMaterialID(trace)
   if(not trace) then return nil end
   if(not trace.Hit) then return nil end
+  local mtc = "*" -- Fast check
   if(trace.HitWorld) then
     local mat = trace.HitTexture -- Use trace material type
-    if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
+    if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
       mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
     end -- **studio**, **displacement**, **empty**
     return mat
@@ -3239,7 +3220,7 @@ function mtBeam:GetMaterialID(trace)
         mat = ent:GetMaterials()[1] -- Just grab the first material
       else -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
-        if(mat:sub(1,1) == "*" and mat:sub(-1,-1) == "*") then
+        if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
           mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
         end -- **studio**, **displacement**, **empty**
       end -- Physics object has a single surface type related to model
@@ -3353,6 +3334,53 @@ function mtBeam:Trace(result)
 end
 
 --[[
+ * Calculates where the beam exits from the source
+ * origin  > Beam origin location vector
+ * direct  > Beam ray direction vector
+ * target  > Entity target being checked
+]]
+function mtBeam:SetTraceExit()
+  -- Get the trace ready to check the other side and point and register the location
+  local org, dir = self.__vtorg, self.__vtdir
+  local rau = (DATA.BRAD * target:BoundingRadius()) -- Diameter with a bit of margin
+  local len, tar = (DATA.ERAD * rau), self.BmSource -- Scale again to make it hit
+  local flt = function(ent) return (ent == tar) end
+  dir:Set(self.VrDirect) -- Forced direction available
+  org:Set(dir); org:Mul(rau) -- Offset the origin and scale direction
+  org:Add(self.VrOrigin); dir:Negate() -- Prepare trace ray
+  -- Must hit only this entity otherwise it is invalid
+  local tr = self:GetTrace(org, dir, len, flt, nil, nil, true)
+  self.VrOrigin:Set(tr.HitPos); return self -- Coding effective API
+end
+
+--[[
+ * Prepares the laser beam structure for entity refraction
+ * origin  > New beam origin location vector
+ * direct  > New beam ray direction vector
+ * target  > New entity target being switched
+ * refract > Refraction descriptor entry
+ * key     > Refraction descriptor key
+]]
+function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
+  -- Register destination medium and raise calculate refraction flag
+  if(refract) then self:SetMediumDestn(refract, key) end -- Change medium boundary
+  -- Get the trace ready to check the other side and point and register the location
+  self.DmRfract = (DATA.BRAD * target:BoundingRadius()) -- Diameter with a bit of margin
+  if(direct) then self.VrDirect:Set(direct) end -- Forced direction available
+  self.VrOrigin:Set(self.VrDirect)
+  self.VrOrigin:Mul(self.DmRfract)
+  self.VrOrigin:Add(origin)
+  self.VrDirect:Negate()
+  -- Must hit only this entity otherwise it is invalid
+  self.TeFilter = function(ent) return (ent == target) end
+  self.NvIWorld = true -- We are interested only in the refraction entity
+  self.IsRfract = true -- Raise the bounce off refract flag
+  self.BmTracew = DATA.TRWD -- Increase the beam width for back track
+  self.TrRfract = (DATA.ERAD * self.DmRfract) -- Scale again to make it hit
+  return self -- Coding effective API
+end
+
+--[[
  * Handles refraction of water to air
  * Redirects the beam from water to air at the boundary
  * point when water flag is triggered and hit position is
@@ -3426,7 +3454,7 @@ end
 ]]
 function mtBeam:SetRefractWorld(trace, refract, key)
   -- Register destination medium and raise calculate refraction flag
-  self:SetMediumDestn(refract, key)
+  if(refract) then self:SetMediumDestn(refract, key) end -- Change medium
   -- Subtract traced length from total length because we have hit something
   self.TrRfract = self.NvLength -- Remaining length in refract mode
   -- Separate control for water and non-water
@@ -4064,6 +4092,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam:SetMedium("S"); beam:SetMedium("D"); beam:SetMedium("M")
   -- Ignore the tracing entity and register first node
   beam:SourceFilter(entity); beam:RegisterNode(origin)
+  -- Calculate the output location
+  beam:SetTraceExit()
   -- Start tracing the beam
   repeat
     -- Run the trace using the defined conditional parameters
