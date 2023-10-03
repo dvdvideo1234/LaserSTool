@@ -551,21 +551,6 @@ local function InEntity(pos, ent)
 end
 
 --[[
- * Intersects a ray (org, dir) with a surface (pos, nor)
- * pos > Surface position as vector in 3D space
- * nor > Surface normal as world direction vector
- * org > Ray start origin position (trace.HitPos)
- * dir > Ray direction world vector (trace.Normal)
-]]
-local function PierceRayFace(org, dir, pos, nor)
-  if(dir:Dot(nor) == 0) then return nil end
-  local vop = Vector(pos); vop:Sub(org)
-  local dst = vop:Dot(nor) / dir:Dot(nor)
-  vop:Set(dir); vop:Mul(dst); vop:Add(org)
-  return vop -- Water-air intersection point
-end
-
---[[
  * Calculates the beam exit entity responsible for drawing beam
  * When exit entity is only available at server side network the ID
  * This is mainly used for link-pair portals. Exit may be invalid
@@ -3338,7 +3323,9 @@ end
  * origin  > Beam origin location vector
  * direct  > Beam ray direction vector
  * target  > Entity target being checked
+ * util.IntersectRayWithOBB
 ]]
+--[[
 function mtBeam:SetTraceExit()
   -- Get the trace ready to check the other side and point and register the location
   local org, dir = self.__vtorg, self.__vtdir
@@ -3352,6 +3339,18 @@ function mtBeam:SetTraceExit()
   local tr = self:GetTrace(org, dir, len, flt, nil, nil, true)
   self.VrOrigin:Set(tr.HitPos); return self -- Coding effective API
 end
+]]
+function mtBeam:SetTraceExit()
+  local org, dir = self.__vtorg, self.__vtdir
+  local ent, len = self:GetSource(), self:GetLength()
+  local mib, mab = ent:OBBMins(), ent:OBBMaxs()
+  local orb, anb = ent:OBBCenter(), ent:GetAngles()
+  org:Set(self.VrOrigin); dir:Set(self.VrDirect); dir:Mul()
+  local rox = util.IntersectRayWithOBB(org, dir, orb, anb, mib, mab)
+  if(not rox) then return self end; self.VrOrigin:Set(rox)
+  self:RegisterNode(rox, false, true); return self
+end
+
 
 --[[
  * Prepares the laser beam structure for entity refraction
@@ -3394,7 +3393,7 @@ function mtBeam:RefractWaterAir()
   -- This can be called then beam goes out of the water
   -- To straight calculate the intersection point
   -- this will ensure no overhead traces will be needed.
-  local vwa = PierceRayFace(org, dir, wat.P, wat.N)
+  local vwa = util.IntersectRayWithPlane(org, dir, wat.P, wat.N)
   -- Water-air intersection point is stored in `vwa`
   -- The intersection point will never be empty in this case
   local mewat, meair = mtBeam.__mewat, mtBeam.__meair
@@ -3965,9 +3964,11 @@ local gtACTORS = {
       if(focu == 0) then
         beam.VrDirect:Set(trace.HitNormal); beam.VrDirect:Negate()
       else
+        local nor = trace.HitNormal -- Surface normal
+        local pos, dir = beam.VrOrigin, beam.VrDirect
         local obb = ent:LocalToWorld(ent:OBBCenter())
-        local irs = PierceRayFace(trace.HitPos, beam.VrDirect,
-                                  obb         , trace.HitNormal)
+        local irs = util.IntersectRayWithPlane(pos, dir, obb, nor)
+        if(not irs) then return end
         obb:Sub(irs); obb:Mul(focu)
         beam.VrDirect:Add(odv)
         beam.VrDirect:Normalize()
