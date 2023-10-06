@@ -2994,20 +2994,36 @@ function mtBeam:SetMedium(index, data, mkey, norm)
 end
 
 --[[
+ * Updates medium data assigned to a given name
+ * Functions using this assume that the name exists
+ * name   > Medium name being updated ( mandatory )
+ * medium > Reference to medium data ( mandatory )
+ * key    > Medium key from the set
+ * normal > Normal vector being used
+]]
+function mtBeam:SetMediumName(name, medium, key, normal)
+  local info = self.TrMedium[name]
+  if(not info) then return self end
+  if(key) then
+    info[1] = medium -- Apply medium info
+    info[2] = key    -- Apply medium key
+  else
+    info[1] = medium[1] -- Apply medium info
+    info[2] = medium[2] -- Apply medium key
+  end
+  if(normal) then
+    info[3]:Set(normal)
+  end
+  return self -- Coding effective API
+end
+--[[
  * Changes the source medium. Source is the medium that
  * surrounds all objects and acts line their environment
  * origin > Beam exit position
  * direct > Beam exit direction
 ]]
 function mtBeam:SetMediumSours(medium, key)
-  if(key) then
-    self.TrMedium.S[1] = medium -- Apply medium info
-    self.TrMedium.S[2] = key    -- Apply medium key
-  else
-    self.TrMedium.S[1] = medium[1] -- Apply medium info
-    self.TrMedium.S[2] = medium[2] -- Apply medium key
-  end
-  return self -- Coding effective API
+  return self:SetMediumName("S", medium, key) -- Coding effective API
 end
 
 --[[
@@ -3017,14 +3033,7 @@ end
  * key    > Registry key ( not mandatory )
 ]]
 function mtBeam:SetMediumDestn(medium, key)
-  if(key) then
-    self.TrMedium.D[1] = medium -- Apply medium info
-    self.TrMedium.D[2] = key    -- Apply medium key
-  else
-    self.TrMedium.D[1] = medium[1] -- Apply medium info
-    self.TrMedium.D[2] = medium[2] -- Apply medium key
-  end
-  return self -- Coding effective API
+  return self:SetMediumName("D", medium, key) -- Coding effective API
 end
 
 --[[
@@ -3034,17 +3043,7 @@ end
  * key    > Registry key ( not mandatory )
 ]]
 function mtBeam:SetMediumMemory(medium, key, normal)
-  if(key) then
-    self.TrMedium.M[1] = medium -- Apply medium info
-    self.TrMedium.M[2] = key    -- Apply medium key
-  else
-    self.TrMedium.M[1] = medium[1] -- Apply medium info
-    self.TrMedium.M[2] = medium[2] -- Apply medium key
-  end
-  if(normal) then
-    self.TrMedium.M[3]:Set(normal)
-  end
-  return self -- Coding effective API
+  return self:SetMediumName("M", medium, key, normal) -- Coding effective API
 end
 
 --[[
@@ -3231,12 +3230,12 @@ function mtBeam:GetSolidMedium(origin, direct, filter)
   if(LaserLib.IsValid(ent)) then
     if(ent:GetClass() == LaserLib.GetClass(12)) then
       if(not refract) then return nil end
-      return ent:GetRefractInfo(refract), key -- Return the initial key
-    else
-      return refract, key
-    end
-  else
-    return refract, key
+      return ent:GetRefractInfo(refract), key
+    else -- Return the initial key
+      return refract, key -- Return texture behavior
+    end -- Entity is valid being refactor or not
+  else -- Return whatever is found for this material
+    return refract, key -- Invalid entity
   end
 end
 
@@ -3705,7 +3704,9 @@ function mtBeam:DrawEffect(sours, trace, endrw)
         util.Effect("AR2Impact", eff)
         -- Draw particle effects
         if(self.NvDamage > 0) then
-          if(not (ent:IsPlayer() or ent:IsNPC())) then
+          if(ent:IsPlayer() or ent:IsNPC()) then
+            util.Effect("BloodImpact", eff)
+          else
             local dmr = DATA.MXBMDAMG:GetFloat()
             local mul = (self.NvDamage / dmr)
             local dir = LaserLib.GetReflected(self.VrDirect,
@@ -3715,8 +3716,6 @@ function mtBeam:DrawEffect(sours, trace, endrw)
             eff:SetRadius(10 * mul)
             eff:SetMagnitude(3 * mul)
             util.Effect("Sparks", eff)
-          else
-            util.Effect("BloodImpact", eff)
           end
         end
       end
