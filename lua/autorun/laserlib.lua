@@ -2694,6 +2694,20 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
+ * Currently does nothing
+ * Intended for checking beam origin and stuff
+]]
+function mtBeam:IsStart(entity, origin, direct)
+  local org = (origin or self.VrOrigin)
+  local dir = (direct or self.VrDirect)
+  local ent = (entity or self:GetSource())
+  local obb = ent:LocalToWorld(ent:OBBCenter())
+        obb:Sub(org); obb:Negate()
+  local dot = obb:Dot(dir)
+  if(dot >= 0)
+end
+
+--[[
  * Creates a beam snapshot copy
  * Snapshots have the same property as origin
  * They represent dedicated beam copy at a time
@@ -2746,7 +2760,7 @@ function mtBeam:GetWater(key)
 end
 
 --[[
- * Returns the desired nore information
+ * Returns the desired node information
  * index > Node index to be used. Defaults to node size
 ]]
 function mtBeam:GetNode(index)
@@ -3019,8 +3033,8 @@ end
 --[[
  * Changes the source medium. Source is the medium that
  * surrounds all objects and acts line their environment
- * origin > Beam exit position
- * direct > Beam exit direction
+ * medium > Medium information ( mandatory )
+ * key    > Registry key
 ]]
 function mtBeam:SetMediumSours(medium, key)
   return self:SetMediumName("S", medium, key) -- Coding effective API
@@ -3030,7 +3044,7 @@ end
  * Changes the destination medium. Destination is the
  * medium that the beam continues its trajectory trough
  * medium > Medium information ( mandatory )
- * key    > Registry key ( not mandatory )
+ * key    > Registry key
 ]]
 function mtBeam:SetMediumDestn(medium, key)
   return self:SetMediumName("D", medium, key) -- Coding effective API
@@ -3038,9 +3052,10 @@ end
 
 --[[
  * Changes the memory medium. Memory is the medium that
- * memorizes the last  environment
+ * memorizes the last environment beam goes trough
  * medium > Medium information ( mandatory )
- * key    > Registry key ( not mandatory )
+ * key    > Registry key
+ * normal > Hit normal
 ]]
 function mtBeam:SetMediumMemory(medium, key, normal)
   return self:SetMediumName("M", medium, key, normal) -- Coding effective API
