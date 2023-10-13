@@ -36,6 +36,7 @@ DATA.BCOLR = nil             -- External forced beam color used in the current r
 DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"             -- The first symbol used to disable given things
+DATA.IMAT  = "*"             -- First and last symbol to match studio displacement empty mats
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
 DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
@@ -235,7 +236,7 @@ local gtREFRACT = {
   -- [2]   : Medium refraction rating when the beam goes through reduces its power
   -- [ID]  : Reverse integer index to search for medium contents sequential order
   -- [Key] : Which hash key material has been found when it is searched in array part
-  -- [Con] : What contents does the specified index match when requested position checked
+  -- [Con] : What contents does the specified index match when requested position check
   [""]                                          = false, -- Disable empty materials
   ["**empty**"]                                 = false, -- Disable empty world materials
   ["**studio**"]                                = false, -- Disable empty prop materials
@@ -300,7 +301,7 @@ local gtTRACE = {
 }
 
 if(CLIENT) then
-  DATA.CAPB = {} -- Store functions fof control panel
+  DATA.CAPB = {} -- Store functions for control panel
   DATA.TAHD = TEXT_ALIGN_CENTER -- Text alignment
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
@@ -309,6 +310,8 @@ if(CLIENT) then
   gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
   gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
+  surface.CreateFont("LaserRAY", {font = "Trebuchet24", size = 22, weight = 600})
+  surface.CreateFont("LaserOBB", {font = "Trebuchet18", size = 22, weight = 600})
   killicon.Add(gtUNITS[1][1], DATA.KILL, gtCOLOR["WHITE"])
 else -- Server-side initialization. Put server related code here
   AddCSLuaFile("autorun/laserlib.lua")
@@ -444,7 +447,7 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
 end
 
 --[[
- * Checks if contens content is present in binary
+ * Checks if contents content is present in binary
  * Returns true when content persists in trace
 ]]
 local function InContent(cont, comp)
@@ -1393,19 +1396,19 @@ function LaserLib.Configure(unit)
     if(not LaserLib.IsValid(ent)) then return false end
     if(apre) then local suc, err = pcall(apre, self, ent)
       if(not suc) then self:Remove(); error(err); return false end
-    end -- When whe have dedicated methor to apply on each source
+    end -- When the have dedicated method to apply on each source
     local idx = self:GetHitSourceID(ent)
     if(idx) then local siz = ent.hitReports.Size
       if(each) then local suc, err = pcall(each, self, ent, idx)
         if(not suc) then self:Remove(); error(err); return false end
-      end -- When whe have dedicated method to apply on each source
+      end -- When the have dedicated method to apply on each source
       if(proc) then -- Trigger the beam processing routine
         while(idx and idx <= siz) do -- First index always hits when present
           local beam, trace = ent:GetHitReport(idx) -- When the report hits us
           local suc, err = pcall(proc, self, ent, idx, beam, trace) -- Call process
           if(not suc) then self:Remove(); error(err); return false end
           idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
-        end -- When whe have dedicated method to apply on each source
+        end -- When the have dedicated method to apply on each source
       end -- Trigger the post-processing routine
       if(post) then local suc, err = pcall(post, self, ent)
         if(not suc) then self:Remove(); error(err); return false end
@@ -1574,7 +1577,7 @@ function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
       surface.SetDrawColor(csr)
     end
     surface.DrawLine(so.x, so.y, sv.x, sv.y)
-    surface.SetFont("Trebuchet18")
+    surface.SetFont("LaserOBB")
     surface.SetTextPos(sv.x, sv.y)
     if(rev) then surface.SetTextColor(csr)
     else surface.SetTextColor(ctr) end
@@ -1670,7 +1673,7 @@ function LaserLib.DrawPoint(pos, col, idx, msg)
   render.SetColorMaterial()
   render.DrawSphere(pos, 0.5, 25, 25, crw)
   if(idx or msg) then
-    local txt, mrg, fnt = "", 6, "Trebuchet24"
+    local txt, mrg, fnt = "", 6, "LaserRAY"
     if(idx) then txt = txt..tostring(idx)
       if(msg) then txt = txt..": " end end
     if(msg) then txt = txt..tostring(msg) end
@@ -1698,7 +1701,7 @@ function LaserLib.DrawVector(pos, dir, mag, col, idx, msg)
   render.DrawSphere(pos, 0.5, 25, 25, crw)
   render.DrawLine(pos, ven, crw, false)
   if(idx or msg) then
-    local txt, mrg, fnt = "", 6, "Trebuchet24"
+    local txt, mrg, fnt = "", 6, "LaserRAY"
     if(idx) then txt = txt..tostring(idx)
       if(msg) then txt = txt..": " end end
     if(msg) then txt = txt..tostring(msg) end
@@ -3203,7 +3206,7 @@ end
 function mtBeam:GetMaterialID(trace)
   if(not trace) then return nil end
   if(not trace.Hit) then return nil end
-  local mtc = "*" -- Fast check
+  local mtc = DATA.IMAT -- Fast check
   if(trace.HitWorld) then
     local mat = trace.HitTexture -- Use trace material type
     if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
