@@ -2697,20 +2697,6 @@ local function Beam(origin, direct, width, damage, length, force)
 end
 
 --[[
- * Currently does nothing
- * Intended for checking beam origin and stuff
-]]
-function mtBeam:IsStart(entity, origin, direct)
-  local org = (origin or self.VrOrigin)
-  local dir = (direct or self.VrDirect)
-  local ent = (entity or self:GetSource())
-  local obb = ent:LocalToWorld(ent:OBBCenter())
-        obb:Sub(org); obb:Negate()
-  local dot = obb:Dot(dir)
-  if(dot >= 0) then end
-end
-
---[[
  * Creates a beam snapshot copy
  * Snapshots have the same property as origin
  * They represent dedicated beam copy at a time
@@ -3357,7 +3343,6 @@ function mtBeam:SetTraceExit()
   if(not roe) then return self end; self.VrOrigin:Set(roe)
   self:RegisterNode(roe, false, true); return self
 end
-
 
 --[[
  * Prepares the laser beam structure for entity refraction
