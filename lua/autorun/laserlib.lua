@@ -306,12 +306,12 @@ if(CLIENT) then
   DATA.KILL = "vgui/entities/gmod_laser_killicon"
   DATA.HOVM = Material("gui/ps_hover.png", "nocull")
   DATA.HOVB = GWEN.CreateTextureBorder(0, 0, 64, 64, 8, 8, 8, 8, DATA.HOVM)
-  DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, gtCOLOR["WHITE"]) end
-  gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
-  gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
   surface.CreateFont("LaserRAY", {font = "Trebuchet24", size = 22, weight = 600})
   surface.CreateFont("LaserOBB", {font = "Trebuchet18", size = 22, weight = 600})
+  DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, gtCOLOR["WHITE"]) end
+  gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
+  gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
   killicon.Add(gtUNITS[1][1], DATA.KILL, gtCOLOR["WHITE"])
 else -- Server-side initialization. Put server related code here
   AddCSLuaFile("autorun/laserlib.lua")
@@ -2707,7 +2707,7 @@ function mtBeam:IsStart(entity, origin, direct)
   local obb = ent:LocalToWorld(ent:OBBCenter())
         obb:Sub(org); obb:Negate()
   local dot = obb:Dot(dir)
-  if(dot >= 0)
+  if(dot >= 0) then end
 end
 
 --[[
@@ -3361,11 +3361,16 @@ function mtBeam:SetTraceExit()
   local org, dir = self.__vtorg, self.__vtdir
   local ent, len = self:GetSource(), self:GetLength()
   local mib, mab = ent:OBBMins(), ent:OBBMaxs()
-  local orb, anb = ent:OBBCenter(), ent:GetAngles()
-  org:Set(self.VrOrigin); dir:Set(self.VrDirect); dir:Mul()
-  local rox = util.IntersectRayWithOBB(org, dir, orb, anb, mib, mab)
-  if(not rox) then return self end; self.VrOrigin:Set(rox)
-  self:RegisterNode(rox, false, true); return self
+  local anb, psb = ent:GetAngles(), ent:GetPos()
+  org:Set(self.VrOrigin); dir:Set(self.VrDirect); dir:Mul(len)
+  local rox = util.IntersectRayWithOBB(org, dir, psb, anb, mib, mab)
+  if(not rox) then return self end
+  local ren = (DATA.BRAD * ent:BoundingRadius())
+  local nor = dir:GetNormalized(); nor:Mul(ren)
+  rox:Add(nor); nor:Negate(); nor:Normalize(); nor:Mul(ren * DATA.ERAD)
+  local roe = util.IntersectRayWithOBB(rox, nor, psb, anb, mib, mab)
+  if(not roe) then return self end; self.VrOrigin:Set(roe)
+  self:RegisterNode(roe, false, true); return self
 end
 
 
@@ -3620,7 +3625,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
   local bnex, bsam, vdir -- Refraction entity direction and reflection
   -- Call refraction cases and prepare to trace-back
   if(self.StRfract) then -- Bounces were decremented so move it up
-    LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "RED")
+    --LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "RED")
     if(self:IsFirst()) then
       vdir, bnex = Vector(self.VrDirect), true -- Node starts inside solid
     else -- When two props are stuck save the middle boundary and traverse
@@ -3635,7 +3640,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
     end -- Marking the fraction being zero and refracting from the last entity
     self.StRfract = false -- Make sure to disable the flag again
   else -- Otherwise do a normal water-entity-air refraction
-    LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "YELLOW")
+    --LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "YELLOW")
     vdir, bnex, bsam = LaserLib.GetRefracted(self.VrDirect,
                    trace.HitNormal, self.TrMedium.S[1][1], index)
   end
