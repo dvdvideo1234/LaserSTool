@@ -3342,21 +3342,6 @@ end
  * target  > Entity target being checked
  * util.IntersectRayWithOBB
 ]]
---[[
-function mtBeam:SetTraceExit()
-  -- Get the trace ready to check the other side and point and register the location
-  local org, dir = self.__vtorg, self.__vtdir
-  local rau = (DATA.BRAD * target:BoundingRadius()) -- Diameter with a bit of margin
-  local len, tar = (DATA.ERAD * rau), self.BmSource -- Scale again to make it hit
-  local flt = function(ent) return (ent == tar) end
-  dir:Set(self.VrDirect) -- Forced direction available
-  org:Set(dir); org:Mul(rau) -- Offset the origin and scale direction
-  org:Add(self.VrOrigin); dir:Negate() -- Prepare trace ray
-  -- Must hit only this entity otherwise it is invalid
-  local tr = self:GetTrace(org, dir, len, flt, nil, nil, true)
-  self.VrOrigin:Set(tr.HitPos); return self -- Coding effective API
-end
-]]
 function mtBeam:SetTraceExit()
   local org, dir = self.__vtorg, self.__vtdir
   local ent, len = self:GetSource(), self:GetLength()
