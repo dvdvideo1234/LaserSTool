@@ -3379,19 +3379,19 @@ end
 ]]
 function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit outside the water
-  local wat = self:GetWater() -- Local reference indexing water
-  local vtm = self.__vtorg; self.VrDirect:Negate()
   local org, dir = self.VrOrigin, self.VrDirect
+  local vtm, wat = self.__vtorg, self:GetWater()
   -- This can be called then beam goes out of the water
   -- To straight calculate the intersection point
   -- this will ensure no overhead traces will be needed.
   local vwa = util.IntersectRayWithPlane(org, dir, wat.P, wat.N)
+  -- LaserLib.DrawVector(org  , dir  , 5, "YELLOW")
+  -- LaserLib.DrawVector(wat.P, wat.N, 5, "CYAN")
   -- Water-air intersection point is stored in `vwa`
   -- The intersection point will never be empty in this case
   local mewat, meair = mtBeam.__mewat, mtBeam.__meair
   -- Registering the node cannot be done with direct subtraction
-  self.VrDirect:Negate(); self:RegisterNode(vwa, true)
-  vtm:Set(wat.N); vtm:Negate()
+  self:RegisterNode(vwa, true); vtm:Set(wat.N); vtm:Negate()
   local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
                        vtm, mewat[1][1], meair[1][1])
   if(bnex) then
@@ -4089,8 +4089,20 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam:SetTraceExit()
   -- Start tracing the beam
   repeat
+    LaserLib.DrawVector(beam.VrOrigin, beam.VrDirect, 5, "RED", beam.NvBounce)
     -- Run the trace using the defined conditional parameters
     trace, target = beam:Trace(trace) -- Sample one trace and read contents
+
+    if(beam.NvBounce == -1) then
+      LaserLib.Call(1, function()
+        print("----------------")
+        print("MODEL     : ", IsValid(target) and target:GetModel() or "N/A")
+        print("MASK-SOLID: ", MASK_SOLID == bit.band(beam.NvMask, MASK_SOLID))
+        print("MASK-ALL  : ", MASK_ALL == bit.band(beam.NvMask, MASK_ALL))
+        PrintTable(trace)
+      end)
+    end
+
     -- Check medium contents to know what to do when beam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
