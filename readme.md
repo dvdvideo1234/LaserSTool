@@ -2,7 +2,7 @@
 
 [![][ref-iyt]][ref-yt]
 
-[![][rev-ws-down]][ref-workshop] [![][rev-ws-date]][ref-workshop]
+[![][ref-ws-down]][ref-workshop] [![][ref-ws-date]][ref-ws-updt]
 
 ### Description
 This is the `LaserSTool` I've originally ported to [Garry's mod 13][ref-gmod-link]
@@ -89,6 +89,8 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-adv-dupe2]: https://github.com/wiremod/advdupe2
 [ref-yt]: http://www.youtube.com/watch?v=QCbQLuknN9Y
 [ref-iyt]: https://img.youtube.com/vi/QCbQLuknN9Y/0.jpg
-[rev-ws-down]: https://img.shields.io/steam/downloads/2546685571
-[rev-ws-date]: https://img.shields.io/steam/update-date/2546685571
+[ref-ws-down]: https://img.shields.io/steam/downloads/2546685571
 [ref-workshop]: https://steamcommunity.com/sharedfiles/filedetails/?id=2546685571
+[ref-ws-date]: https://img.shields.io/steam/update-date/2546685571
+[ref-ws-updt]: https://steamcommunity.com/sharedfiles/filedetails/changelog/2546685571
+
