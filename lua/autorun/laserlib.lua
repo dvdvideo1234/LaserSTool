@@ -458,7 +458,7 @@ end
  * Checks if contents content is present in position
  * Returns true when content persists in trace
 ]]
-local function IsContent(cpos, comp)
+function LaserLib.IsContent(cpos, comp)
   return InContent(util.PointContents(cpos), comp)
 end
 
@@ -2976,10 +2976,11 @@ end
  * ignores the beam start entity. Checks when
  * the given position is inside the beam source
 ]]
-function mtBeam:IsMemory(index, pos)
-  local ch = (index ~= self.TrMedium.M[1][1])
-  print(InEntity(pos, self.BmSource))
-  return (ch and not InEntity(pos, self.BmSource))
+function mtBeam:IsMemory(index, pos, ent)
+  local cnm = (index ~= self.TrMedium.M[1][1])
+  if(not pos) then return cnm end
+  local src = (ent or self:GetSource())
+  return (cnm and not InEntity(pos, src))
 end
 
 --[[
@@ -3379,21 +3380,16 @@ end
 ]]
 function mtBeam:RefractWaterAir()
   -- When beam started inside the water and hit outside the water
-  local org, dir = self.VrOrigin, self.VrDirect
-  local vtm, wat = self.__vtorg, self:GetWater()
+  local org, dir, wat = self.VrOrigin, self.VrDirect, self:GetWater()
   -- This can be called then beam goes out of the water
-  -- To straight calculate the intersection point
-  -- this will ensure no overhead traces will be needed.
+  -- and will ensure no overhead traces will be needed.
   local vwa = util.IntersectRayWithPlane(org, dir, wat.P, wat.N)
-  -- LaserLib.DrawVector(org  , dir  , 5, "YELLOW")
-  -- LaserLib.DrawVector(wat.P, wat.N, 5, "CYAN")
   -- Water-air intersection point is stored in `vwa`
   -- The intersection point will never be empty in this case
-  local mewat, meair = mtBeam.__mewat, mtBeam.__meair
+  local mewat, meair, vtm = mtBeam.__mewat, mtBeam.__meair, self.__vtorg
   -- Registering the node cannot be done with direct subtraction
   self:RegisterNode(vwa, true); vtm:Set(wat.N); vtm:Negate()
-  local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
-                       vtm, mewat[1][1], meair[1][1])
+  local vdir, bnex = LaserLib.GetRefracted(dir, vtm, mewat[1][1], meair[1][1])
   if(bnex) then
     self.NvMask = MASK_ALL -- We change the medium to air
     self:ClearWater() -- Set water normal flag to zero
@@ -3593,26 +3589,23 @@ end
 ]]
 function mtBeam:GetBoundaryEntity(index, trace)
   local bnex, bsam, vdir -- Refraction entity direction and reflection
+  local dir, merum = self.VrDirect, self.TrMedium -- Localize medium
   -- Call refraction cases and prepare to trace-back
   if(self.StRfract) then -- Bounces were decremented so move it up
-    --LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "RED")
     if(self:IsFirst()) then
-      vdir, bnex = Vector(self.VrDirect), true -- Node starts inside solid
+      vdir, bnex = Vector(dir), true -- Node starts inside solid
     else -- When two props are stuck save the middle boundary and traverse
       -- When the traverse mediums is different and node is not inside a laser
-      if(self:IsMemory(index, trace.HitPos)) then
-        vdir, bnex, bsam = LaserLib.GetRefracted(self.VrDirect,
-                       self.TrMedium.M[3], self.TrMedium.M[1][1], index)
+      if(self:IsMemory(index)) then
+        vdir, bnex, bsam = LaserLib.GetRefracted(dir, merum.M[3], merum.M[1][1], index)
         -- Do not waste game ticks to refract the same refraction ratio
       else -- When there is no medium refractive index traverse change
-        vdir, bsam = Vector(self.VrDirect), true -- Keep the last beam direction
+        vdir, bsam = Vector(dir), true -- Keep the last beam direction
       end -- Finish start-refraction for current iteration
     end -- Marking the fraction being zero and refracting from the last entity
     self.StRfract = false -- Make sure to disable the flag again
   else -- Otherwise do a normal water-entity-air refraction
-    --LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 10, "YELLOW")
-    vdir, bnex, bsam = LaserLib.GetRefracted(self.VrDirect,
-                   trace.HitNormal, self.TrMedium.S[1][1], index)
+    vdir, bnex, bsam = LaserLib.GetRefracted(dir, trace.HitNormal, merum.S[1][1], index)
   end
   return bnex, bsam, vdir
 end
@@ -4089,20 +4082,8 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   beam:SetTraceExit()
   -- Start tracing the beam
   repeat
-    LaserLib.DrawVector(beam.VrOrigin, beam.VrDirect, 5, "RED", beam.NvBounce)
     -- Run the trace using the defined conditional parameters
     trace, target = beam:Trace(trace) -- Sample one trace and read contents
-
-    if(beam.NvBounce == -1) then
-      LaserLib.Call(1, function()
-        print("----------------")
-        print("MODEL     : ", IsValid(target) and target:GetModel() or "N/A")
-        print("MASK-SOLID: ", MASK_SOLID == bit.band(beam.NvMask, MASK_SOLID))
-        print("MASK-ALL  : ", MASK_ALL == bit.band(beam.NvMask, MASK_ALL))
-        PrintTable(trace)
-      end)
-    end
-
     -- Check medium contents to know what to do when beam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
