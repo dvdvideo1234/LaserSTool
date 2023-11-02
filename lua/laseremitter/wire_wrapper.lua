@@ -3,13 +3,13 @@
 --[[
  * Helper routine factory for `WirePostEntityPaste`
  * Returns wire specific and related entity picker
- * cre > Created entity set by the duplicator
+ * tC > Created entity set by the duplicator
 ]]
-local function wireLookup(cre)
+local function wireLookup(tC)
   return function(id, def)
     if(id == nil) then return def
     elseif(id == 0) then return game.GetWorld() end
-    local ent = cre[id] or (isnumber(id) and ents.GetByIndex(id))
+    local ent = tC[id] or (isnumber(id) and ents.GetByIndex(id))
     if(IsValid(ent)) then return ent else return def end
   end
 end
@@ -30,8 +30,8 @@ end
 --[[
  * Setups the ports information and calls the wire library
  * oE > Entity which white ports are being configured
- * sF > Function name of the wite library being called
- * tI > Ports information table name/type/desription
+ * sF > Function name of the wire library being called
+ * tI > Ports information table name/type/description
  * bL > The wire function can process a single port at a time
 ]]
 local function wireSetupPorts(oE, sF, tI, bL)
@@ -89,7 +89,7 @@ function ENT:WireIsOutput(sN)
 end
 
 --[[
- * Used to index a wite port and return its content
+ * Used to index a wire port and return its content
  * sT > Port key `Input` or `Output`
  * sN > Port name must be string
 ]]
@@ -155,47 +155,50 @@ end
 
 --[[
  * Procedure. Applies duplicator needed wire information
- * Does not return anything. It is prcedure
- * ply  > Player to store the info for
- * ent  > Entity to store the info for
- * info > Information table to apply
- * feid > Pointer to function retrieving entity by ID
- * Usage: function ENT:ApplyDupeInfo(ply, ent, info, feid)
-            self:WireApplyDupeInfo(ply, ent, info, feid) end
+ * Does not return anything. It is procedure
+ * uP > User player to store the info for
+ * eT > Entity target to store the info for
+ * tI > Information table to apply
+ * fD > Pointer to function retrieving entity by ID
+ * Usage: function ENT:ApplyDupeInfo(uP, eT, tI, fD)
+            self:WireApplyDupeInfo(uP, eT, tI, fD) end
 ]]
-function ENT:WireApplyDupeInfo(ply, ent, info, feid)
+function ENT:WireApplyDupeInfo(uP, eT, tI, fD)
   if(not WireLib) then return self end
-  WireLib.ApplyDupeInfo(ply, ent, info, feid)
+  WireLib.ApplyDupeInfo(uP, eT, tI, fD)
   return self
 end
 
 --[[
  * Procedure. Must be run inside `ENT:PreEntityCopy`
  * Makes wire do the pre-copy preparation for dupe info
+ * tI > Override dupe info with external one
  * Usage: function ENT:PreEntityCopy()
             self:WirePreEntityCopy() end
 ]]
-function ENT:WirePreEntityCopy()
+function ENT:WirePreEntityCopy(tI)
   if(not WireLib) then return self end
-  duplicator.StoreEntityModifier(
-    self, "WireDupeInfo", self:WireBuildDupeInfo())
+  local tI = (tI or self:WireBuildDupeInfo())
+  duplicator.StoreEntityModifier(self, "WireDupeInfo", tI)
   return self
 end
 
 --[[
  * Procedure. Must be run inside `ENT:PostEntityPaste`
  * Makes wire do the post-paste preparation for dupe info
- * Usage: function ENT:PostEntityPaste(ply, ent, cre)
-            self:WirePostEntityPaste(ply, ent, cre) end
- * ply > The player calling the routune
- * ent > The entity being post-pasted
- * cre > The created entities list after paste
+ * Usage: function ENT:PostEntityPaste(uP, eT, tC)
+            self:WirePostEntityPaste(uP, eT, tC) end
+ * uP > The user player calling the routine
+ * eT > The target entity being post-pasted
+ * tC > The created entities list after paste
+ * tI > Override dupe info with external one
 ]]
-function ENT:WirePostEntityPaste(ply, ent, cre)
+function ENT:WirePostEntityPaste(uP, eT, tC, tI)
   if(not WireLib) then return self end
-  if(not ent.EntityMods) then return self end
-  if(not ent.EntityMods.WireDupeInfo) then return self end
-  self:WireApplyDupeInfo(ply, ent, ent.EntityMods.WireDupeInfo, wireLookup(cre))
+  if(not eT.EntityMods) then return self end
+  if(not eT.EntityMods.WireDupeInfo) then return self end
+  local tI = (tI or eT.EntityMods.WireDupeInfo)
+  self:WireApplyDupeInfo(uP, eT, tI, wireLookup(tC))
   return self
 end
 

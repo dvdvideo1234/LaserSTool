@@ -1,6 +1,8 @@
 # LaserSTool
 
-[![](https://img.youtube.com/vi/QCbQLuknN9Y/0.jpg)](http://www.youtube.com/watch?v=QCbQLuknN9Y "")
+[![][ref-iyt]][ref-yt]
+
+[![][ref-ws-down]][ref-workshop] [![][ref-ws-date]][ref-ws-updt]
 
 ### Description
 This is the `LaserSTool` I've originally ported to [Garry's mod 13][ref-gmod-link]
@@ -76,7 +78,6 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-wiki-page]: https://github.com/dvdvideo1234/LaserSTool/wiki
 [ref-ent-edit]: https://wiki.facepunch.com/gmod/Editable_Entities
 [ref-mat-override]: https://wiki.facepunch.com/gmod/Entity:SetMaterial
-[ref-workshop]: https://steamcommunity.com/sharedfiles/filedetails/?id=2546685571
 [ref-gmod-link]: https://gmod.facepunch.com/
 [ref-laser-beam]: https://en.wikipedia.org/wiki/Laser
 [ref-author-org]: https://forum.facepunch.com/u/madjawa-legacy
@@ -86,3 +87,10 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-exp-irl]: https://www.grammarly.com/blog/irl-meaning/
 [ref-adv-dupe1]: https://github.com/wiremod/advduplicator
 [ref-adv-dupe2]: https://github.com/wiremod/advdupe2
+[ref-yt]: http://www.youtube.com/watch?v=QCbQLuknN9Y
+[ref-iyt]: https://img.youtube.com/vi/QCbQLuknN9Y/0.jpg
+[ref-ws-down]: https://img.shields.io/steam/downloads/2546685571
+[ref-workshop]: https://steamcommunity.com/sharedfiles/filedetails/?id=2546685571
+[ref-ws-date]: https://img.shields.io/steam/update-date/2546685571
+[ref-ws-updt]: https://steamcommunity.com/sharedfiles/filedetails/changelog/2546685571
+

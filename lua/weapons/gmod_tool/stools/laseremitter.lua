@@ -270,7 +270,7 @@ function TOOL:LeftClick(trace)
     return true
   end
 
-  local laser = LaserLib.NewLaser(user        , pos         , ang         , model       ,
+  local laser = LaserLib.NewLaser(user       , pos         , ang         , model       ,
                                   trandata   , key         , width       , length      ,
                                   damage     , material    , dissolvetype, startsound  ,
                                   stopsound  , killsound   , toggle      , starton     ,
@@ -409,13 +409,16 @@ function TOOL:UpdateEmitterGhost(ent, user)
   if(ent:IsPlayer()) then return end
 
   local trace = user:GetEyeTrace()
+  local tre = trace.Entity
+  local pos = trace.HitPos
+  local ang = trace.HitNormal:Angle()
+  ent:SetPos(pos); ent:SetAngles(ang)
 
   LaserLib.ApplySpawn(ent, trace, self:GetTransform())
 
-  if(not trace.Hit
-      or trace.Entity:IsPlayer()
-      or trace.Entity:GetClass() == LaserLib.GetClass(1)
-      or trace.Entity:GetClass() == LaserLib.GetClass(9))
+  if(not trace.Hit or tre:IsPlayer()
+      or tre:GetClass() == LaserLib.GetClass(1)
+      or tre:GetClass() == LaserLib.GetClass(9))
   then
     ent:SetNoDraw(true); return
   end
@@ -423,8 +426,9 @@ function TOOL:UpdateEmitterGhost(ent, user)
   ent:SetNoDraw(false)
 end
 
-function TOOL:GetSurface(ent)
+function TOOL:GetSurface(user, ent, pos)
   if(not LaserLib.IsValid(ent)) then return end
+  if(not LaserLib.IsValid(user)) then return end
   local ces = ent:GetClass()
   local mat = ent:GetMaterial()
   local row = LaserLib.DataReflect(mat)
@@ -441,8 +445,10 @@ function TOOL:GetSurface(ent)
         row[1] = math.Round(row[1], 3)
         row[2] = math.Round(row[2], 3)
       end
-      local fnm = "["..gsFNUH.."]"
-      local ang = LaserLib.GetRefractAngle(row[1], 1, true)
+      local rww = LaserLib.DataRefract("water")
+      local con = LaserLib.IsContent(pos, rww.Con)
+      local idx, fnm = (con and rww[1] or 1), "["..gsFNUH.."]"
+      local ang = LaserLib.GetRefractAngle(row[1], idx, true)
       return fnm:format(ang).."{"..table.concat(row, "|").."} "..mat
     end
   end
@@ -452,7 +458,7 @@ function TOOL:DrawHUD()
   local user = LocalPlayer()
   local tr = user:GetEyeTrace()
   if(not (tr and tr.Hit)) then return end
-  local txt = self:GetSurface(tr.Entity)
+  local txt = self:GetSurface(user, tr.Entity, tr.HitPos)
   local ray = self:GetClientNumber("rayassist", 0)
   LaserLib.DrawAssist(tr.HitPos, tr.HitNormal, ray)
   LaserLib.DrawTextHUD(txt)

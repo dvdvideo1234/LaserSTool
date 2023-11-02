@@ -1,7 +1,7 @@
 -- Instructions and info
 SWEP.Author                 = "DVD"
 SWEP.Contact                = "dvd_video@abv.bg"
-SWEP.Purpose                = "The laser pawer in your hands"
+SWEP.Purpose                = "The laser power in your hands"
 SWEP.Instructions           = "Primary attack to shoot a laser beam"
 SWEP.PrintName              = "Laser pistol"
 SWEP.Category               = LaserLib.GetData("CATG")
@@ -20,7 +20,7 @@ SWEP.DrawCrosshair          = true
 -- Visuals
 SWEP.ViewModel              = "models/weapons/c_pistol.mdl"
 SWEP.WorldModel             = "models/weapons/w_pistol.mdl"
--- Prmaray setup
+-- Primary setup
 SWEP.Primary.ClipSize       = -1
 SWEP.Primary.DefaultClip    = -1
 SWEP.Primary.Automatic      = false
