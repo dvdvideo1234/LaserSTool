@@ -4067,7 +4067,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local trace, target = {} -- Configure and target and shared trace reference
   -- Store general definition of air and water mediums for fast usage and indexing
-  local mewat, meair = mtBeam.__mewat, mtBeam.__meair -- Local reference beam members
+  local mewat, meair, merum = mtBeam.__mewat, mtBeam.__meair, beam.TrMedium -- Local reference
   -- Reports dedicated values that are being used by other entities and processes
   beam.BrReflec = tobool(usrfle) -- Beam reflection ratio flag. Reduce beam power when reflecting
   beam.BrRefrac = tobool(usrfre) -- Beam refraction ratio flag. Reduce beam power when refracting
@@ -4149,15 +4149,15 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(not beam:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
               -- Refract the hell out of this requested beam with entity destination
               local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
-                             trace.HitNormal, beam.TrMedium.D[1][1], beam.TrMedium.S[1][1])
+                             trace.HitNormal, merum.D[1][1], merum.S[1][1])
               if(bnex) then -- When the beam gets out of the medium
                 beam:Redirect(trace.HitPos, vdir, true)
                 beam:UpdateWaterSurface(mcons) -- Update the water surface
-                beam:SetMediumMemory(beam.TrMedium.D, nil, trace.HitNormal)
+                beam:SetMediumMemory(merum.D, nil, trace.HitNormal)
               else -- Get the trace ready to check the other side and register the location
                 beam:SetTraceNext(trace.HitPos, vdir)
               end -- Apply power ratio when requested
-              if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
+              if(usrfre) then beam:SetPowerRatio(merum.D[1][2]) end
             end -- We are already on red while traversing so do not redirect
           else beam.IsTrace = false end -- Exit now without redirecting
         else -- Put special cases for specific classes here
@@ -4174,7 +4174,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               beam:Reflect(trace, reflect[1]) -- Call reflection method
             else
               local refract, key = GetMaterialEntry(mat, gtREFRACT)
-              if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
+              if(beam.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
@@ -4219,12 +4219,12 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(beam.NvLength > 0) then
               if(not beam:IsTraverse(org, nil, nrm, target)) then
                 local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
-                                     nrm, beam.TrMedium.D[1][1], meair[1][1])
+                                     nrm, merum.D[1][1], meair[1][1])
                 if(bnex) then -- When the beam gets out of the medium
                   beam:Redirect(org, vdir, true)
                   beam:SetMediumSours(meair)
                   -- Memorizing will help when beam traverses from world to no-collided entity
-                  beam:SetMediumMemory(beam.TrMedium.D, nil, nrm)
+                  beam:SetMediumMemory(merum.D, nil, nrm)
                 else -- Get the trace ready to check the other side and register the location
                   beam:Redirect(org, vdir)
                 end
@@ -4235,7 +4235,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             beam:RegisterNode(org, beam.NvLength)
             beam:Finish(trace)
           end -- Apply power ratio when requested
-          if(usrfre) then beam:SetPowerRatio(beam.TrMedium.D[1][2]) end
+          if(usrfre) then beam:SetPowerRatio(merum.D[1][2]) end
         else
           if(cas and gtACTORS[cas]) then
             local suc, err = pcall(gtACTORS[cas], beam, trace)
@@ -4250,7 +4250,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
               beam:Reflect(trace, reflect[1]) -- Call reflection method
             else
               local refract, key = GetMaterialEntry(mat, gtREFRACT)
-              if(beam.StRfract or (refract and key ~= beam.TrMedium.S[2])) then -- Needs to be refracted
+              if(beam.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
@@ -4264,7 +4264,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
                   else -- Beam comes from the air and hits the water. Store water surface and refract
                     -- Get the trace ready to check the other side and point and register the location
                     local vdir, bnex = LaserLib.GetRefracted(beam.VrDirect,
-                                         trace.HitNormal, beam.TrMedium.S[1][1], refract[1])
+                                         trace.HitNormal, merum.S[1][1], refract[1])
                     beam:Redirect(trace.HitPos, vdir)
                   end
                   -- Need to make the traversed destination the new source

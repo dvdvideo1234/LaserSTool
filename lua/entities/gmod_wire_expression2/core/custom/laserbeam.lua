@@ -26,6 +26,14 @@ local function toNumber(src)
 end
 
 --[[
+ * Converts any value to wiremod dedicated string
+ * src > source value to be converted
+]]
+local function toString(src)
+  return tostring(src or "")
+end
+
+--[[
  * Returns the specified laser hit report entry under the requested index
  * ent > Entity to search for hit reports
  * idx > Hit report requested index entry to search for
@@ -67,21 +75,21 @@ __e2setcost(1)
 e2function string entity:laserGetStopSound()
   local src = getSource(this)
   if(not src) then return "" end
-  return src:GetStopSound()
+  return toString(src:GetStopSound())
 end
 
 __e2setcost(1)
 e2function string entity:laserGetKillSound()
   local src = getSource(this)
   if(not src) then return "" end
-  return src:GetKillSound()
+  return toString(src:GetKillSound())
 end
 
 __e2setcost(1)
 e2function string entity:laserGetStartSound()
   local src = getSource(this)
   if(not src) then return "" end
-  return src:GetStartSound()
+  return toString(src:GetStartSound())
 end
 
 __e2setcost(1)
@@ -95,21 +103,21 @@ __e2setcost(1)
 e2function string entity:laserGetBeamMaterial()
   local src = getSource(this)
   if(not src) then return "" end
-  return src:GetBeamMaterial()
+  return toString(src:GetBeamMaterial())
 end
 
 __e2setcost(1)
 e2function string entity:laserGetDissolveType()
   local src = getSource(this)
   if(not src) then return "" end
-  return src:GetDissolveType()
+  return toString(src:GetDissolveType())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDissolveTypeID()
   local src = getSource(this)
   if(not src) then return 0 end
-  return LaserLib.GetDissolveID(src:GetDissolveType())
+  return toNumber(LaserLib.GetDissolveID(src:GetDissolveType()))
 end
 
 __e2setcost(1)
@@ -153,35 +161,35 @@ e2function number entity:laserGetBeamPower()
   if(not src) then return 0 end
   local width  = src:GetBeamWidth()
   local damage = src:GetBeamDamage()
-  return LaserLib.GetPower(width, damage)
+  return toNumber(LaserLib.GetPower(width, damage))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamLength()
   local src = getSource(this)
   if(not src) then return 0 end
-  return src:GetBeamLength()
+  return toNumber(src:GetBeamLength())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamWidth()
   local src = getSource(this)
   if(not src) then return 0 end
-  return src:GetBeamWidth()
+  return toNumber(src:GetBeamWidth())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamDamage()
   local src = getSource(this)
   if(not src) then return 0 end
-  return src:GetBeamDamage()
+  return toNumber(src:GetBeamDamage())
 end
 
 __e2setcost(1)
 e2function number entity:laserGetBeamForce()
   local src = getSource(this)
   if(not src) then return 0 end
-  return src:GetBeamForce()
+  return toNumber(src:GetBeamForce())
 end
 
 __e2setcost(1)
@@ -229,7 +237,7 @@ __e2setcost(1)
 e2function number entity:laserGetDataLength(number idx)
   local beam = getReport(this, idx, "BM")
   if(not beam) then return 0 end
-  return beam:GetLength()
+  return toNumber(beam:GetLength())
 end
 
 __e2setcost(1)
@@ -298,21 +306,21 @@ __e2setcost(1)
 e2function number entity:laserGetDataPointWidth(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end; local set = ext[cnt]
-  if(not set) then return 0 end; return set[2]
+  if(not set) then return 0 end; return toNumber(set[2])
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointDamage(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end; local set = ext[cnt]
-  if(not set) then return 0 end; return set[3]
+  if(not set) then return 0 end; return toNumber(set[3])
 end
 
 __e2setcost(1)
 e2function number entity:laserGetDataPointForce(number idx, number cnt)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
   if(not ext) then return 0 end local set = ext[cnt]
-  if(not set) then return 0 end; return set[4]
+  if(not set) then return 0 end; return toNumber(set[4])
 end
 
 __e2setcost(1)
@@ -325,7 +333,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetDataPointSize(number idx)
   local ext = getReportKey(this, idx, "BM", "TvPoints")
-  return (ext and ext.Size or 0)
+  return toNumber(ext and ext.Size or 0)
 end
 
 __e2setcost(1)
@@ -337,13 +345,13 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceContents(number idx)
   local ext = getReportKey(this, idx, "TR", "Contents")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceDispFlags(number idx)
   local ext = getReportKey(this, idx, "TR", "DispFlags")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
@@ -355,13 +363,13 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceFraction(number idx)
   local ext = getReportKey(this, idx, "TR", "Fraction")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceFractionLS(number idx)
   local ext = getReportKey(this, idx, "TR", "FractionLeftSolid")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
@@ -373,13 +381,13 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceHitBox(number idx)
   local ext = getReportKey(this, idx, "TR", "HitBox")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitGroup(number idx)
   local ext = getReportKey(this, idx, "TR", "HitGroup")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
@@ -397,15 +405,13 @@ end
 __e2setcost(1)
 e2function vector entity:laserGetTraceHitNormal(number idx)
   local ext = getReportKey(this, idx, "TR", "HitNormal")
-  if(not ext) then return Vector() end
-  return Vector(ext)
+  if(not ext) then return Vector() end; return Vector(ext)
 end
 
 __e2setcost(1)
 e2function vector entity:laserGetTraceHitPos(number idx)
   local ext = getReportKey(this, idx, "TR", "HitPos")
-  if(not ext) then return Vector() end
-  return Vector(ext)
+  if(not ext) then return Vector() end; return Vector(ext)
 end
 
 __e2setcost(1)
@@ -417,7 +423,7 @@ end
 __e2setcost(1)
 e2function string entity:laserGetTraceHitTexture(number idx)
   local ext = getReportKey(this, idx, "TR", "HitTexture")
-  if(not ext) then return "" end; return ext
+  if(not ext) then return "" end; return toString(ext)
 end
 
 __e2setcost(1)
@@ -436,7 +442,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTracePhysicsBone(number idx)
   local ext = getReportKey(this, idx, "TR", "PhysicsBone")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
@@ -455,51 +461,66 @@ end
 __e2setcost(1)
 e2function number entity:laserGetTraceSurfaceFlags(number idx)
   local ext = getReportKey(this, idx, "TR", "SurfaceFlags")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceSurfacePropsID(number idx)
   local ext = getReportKey(this, idx, "TR", "SurfaceProps")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
 e2function string entity:laserGetTraceSurfacePropsName(number idx)
   local ext = getReportKey(this, idx, "TR", "SurfaceProps")
   if(not ext) then return "" end
-  return (util.GetSurfacePropName(ext) or "")
+  return toString(util.GetSurfacePropName(ext))
 end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceMatType(number idx)
   local ext = getReportKey(this, idx, "TR", "MatType")
-  if(not ext) then return 0 end; return ext
+  if(not ext) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
 e2function number laserGetReflectDataRatio(string idx)
-  local ext = gtREFLECT[idx]; return ((ext and ext[1] or 0) or 0)
+  local ext = gtREFLECT[idx]; return toNumber(ext and ext[1] or 0)
+end
+
+__e2setcost(1)
+e2function number laserGetReflectDataID(string idx)
+  local ext = gtREFLECT[idx]; return toNumber(ext and ext.ID or 0)
 end
 
 __e2setcost(1)
 e2function string laserGetReflectDataKey(string idx)
-  local ext = gtREFLECT[idx]; return ((ext and ext[2] or "") or "")
+  local ext = gtREFLECT[idx]; return toString(ext and ext.Key or "")
 end
 
 __e2setcost(1)
 e2function number laserGetRefractDataIndex(string idx)
-  local ext = gtREFRACT[idx]; return ((ext and ext[1] or 0) or 0)
+  local ext = gtREFRACT[idx]; return toNumber(ext and ext[1] or 0)
 end
 
 __e2setcost(1)
 e2function number laserGetRefractDataRatio(string idx)
-  local ext = gtREFRACT[idx]; return ((ext and ext[2] or 0) or 0)
+  local ext = gtREFRACT[idx]; return toNumber(ext and ext[2] or 0)
+end
+
+__e2setcost(1)
+e2function number laserGetRefractDataID(string idx)
+  local ext = gtREFRACT[idx]; return toNumber(ext and ext.ID or 0)
+end
+
+__e2setcost(1)
+e2function number laserGetRefractDataContent(string idx)
+  local ext = gtREFRACT[idx]; return toNumber(ext and ext.Con or 0)
 end
 
 __e2setcost(1)
 e2function string laserGetRefractDataKey(string idx)
-  local ext = gtREFRACT[idx]; return ((ext and ext[3] or "") or "")
+  local ext = gtREFRACT[idx]; return toString(ext and ext.Key or "")
 end
 
 __e2setcost(1)
@@ -516,36 +537,36 @@ end
 
 __e2setcost(1)
 e2function number laserGetRefractIsNext()
-  return (gbRNEXT and 1 or 0)
+  return toBool(gbRNEXT)
 end
 
 __e2setcost(1)
 e2function number laserGetRefractIsSame()
-  return (gbRSAME and 1 or 0)
+  return toBool(gbRSAME)
 end
 
 __e2setcost(1)
 e2function number laserGetBeamPower(number width, number damage)
-  return LaserLib.GetPower(width, damage)
+  return toNumber(LaserLib.GetPower(width, damage))
 end
 
 __e2setcost(1)
 e2function number laserGetBeamIsPower(number width, number damage)
-  return (LaserLib.IsPower(width, damage) and 1 or 0)
+  return toBool(LaserLib.IsPower(width, damage))
 end
 
 __e2setcost(1)
 e2function number laserGetDissolveID(string type)
-  return LaserLib.GetDissolveID(type)
+  return toNumber(LaserLib.GetDissolveID(type))
 end
 
 __e2setcost(1)
 e2function number laserGetRefractAngleRad(number source, number destin)
-  return LaserLib.GetRefractAngle(source, destin, false)
+  return toNumber(LaserLib.GetRefractAngle(source, destin, false))
 end
 
 __e2setcost(1)
 e2function number laserGetRefractAngleDeg(number source, number destin)
-  return LaserLib.GetRefractAngle(source, destin, true)
+  return toNumber(LaserLib.GetRefractAngle(source, destin, true))
 end
 

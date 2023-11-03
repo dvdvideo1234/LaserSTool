@@ -93,4 +93,3 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-workshop]: https://steamcommunity.com/sharedfiles/filedetails/?id=2546685571
 [ref-ws-date]: https://img.shields.io/steam/update-date/2546685571
 [ref-ws-updt]: https://steamcommunity.com/sharedfiles/filedetails/changelog/2546685571
-
