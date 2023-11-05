@@ -49,6 +49,7 @@ version anymore. This was the only way I could support the things I needed the m
 15. Wiremod [API][ref-wire-api] for retrieving beam source settings and make control feedback
 16. A bunch of different laser addon dedicated elements you can find [here in the wiki page][ref-wiki-page]
 17. Coding effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
+18. You can combine the refraction with [Shadowscion's primitive][ref-primitive] for using lenses
 
 ### Workshop
 I see many copies of this tool everywhere, but still, there is none that
@@ -93,3 +94,4 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-workshop]: https://steamcommunity.com/sharedfiles/filedetails/?id=2546685571
 [ref-ws-date]: https://img.shields.io/steam/update-date/2546685571
 [ref-ws-updt]: https://steamcommunity.com/sharedfiles/filedetails/changelog/2546685571
+[ref-primitive]: https://github.com/shadowscion/Primitive
