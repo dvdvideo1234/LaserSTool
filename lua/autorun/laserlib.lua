@@ -1117,43 +1117,36 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     error("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     error("Suffix empty: "..tostring(usrc)) end
-  local vset = gtUNITS[index] -- Attempt to index class info
-  if(not vset or (vset and not vset[2])) then -- Empty table
-    -- Allocate class configuration. Make it accessible to the library
-    local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
-    local vset = {ucas, vidx, mdef, vdef}; gtUNITS[index] = vset -- Index variable name
-    -- Configure arrays and corresponding console variables
-    local vmod = tostring(mdef or ""):lower()
-    local vmat = tostring(vdef or ""):lower()
-    local vaum, vauv = ("mu"..vidx), ("vu"..vidx)
-    local varm = CreateConVar(DATA.TOOL.."_"..vaum, vmod, DATA.FGSRVCN, "Controls the "..udrr.." model")
-    local varv = CreateConVar(DATA.TOOL.."_"..vauv, vmat, DATA.FGSRVCN, "Controls the "..udrr.." material")
-    DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
-    -- Configure model visual
-    local vanm = varm:GetName()
-    cvars.RemoveChangeCallback(vanm, vanm)
-    cvars.AddChangeCallback(vanm, function(name, o, n)
-      local m = tostring(n):Trim()
-      if(m:sub(1,1) ~= DATA.KEYD) then LaserLib.GetModel(index, m) else
-        varm:SetString(LaserLib.GetModel(index, varm:GetDefault()))
-      end -- Update current model at index [4]
-    end, vanm); LaserLib.GetModel(index, varm:GetString():lower())
-    -- Configure material visual
-    local vanv = varv:GetName()
-    cvars.RemoveChangeCallback(vanv, vanv)
-    cvars.AddChangeCallback(vanv, function(name, o, n)
-      local v = tostring(n):Trim()
-      if(v:sub(1,1) ~= DATA.KEYD) then LaserLib.GetMaterial(index, v) else
-        varv:SetString(LaserLib.GetMaterial(index, varv:GetDefault()))
-      end -- Update current material at index [5]
-    end, vanv); LaserLib.GetMaterial(index, varv:GetString():lower())
-    -- Return the class extracted from folder
-    return ucas -- This is passed to `ents.Create`
-  else -- The class is already present so return it
-    if(vset[1] ~= ucas) then -- Index taken so raise error
-      error("Index ["..index.."]["..vset[1].."] exists: "..tostring(usrc)) end
-    return ucas -- Already cashed value returned
-  end
+  -- Allocate class configuration. Make it accessible to the library
+  local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
+  local vset = {ucas, vidx, mdef, vdef}; gtUNITS[index] = vset -- Index variable name
+  -- Configure arrays and corresponding console variables
+  local vmod = tostring(mdef or ""):lower()
+  local vmat = tostring(vdef or ""):lower()
+  local vaum, vauv = ("mu"..vidx), ("vu"..vidx)
+  local varm = CreateConVar(DATA.TOOL.."_"..vaum, vmod, DATA.FGSRVCN, "Controls the "..udrr.." model")
+  local varv = CreateConVar(DATA.TOOL.."_"..vauv, vmat, DATA.FGSRVCN, "Controls the "..udrr.." material")
+  DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
+  -- Configure model visual
+  local vanm = varm:GetName()
+  cvars.RemoveChangeCallback(vanm, vanm)
+  cvars.AddChangeCallback(vanm, function(name, o, n)
+    local m = tostring(n):Trim()
+    if(m:sub(1,1) ~= DATA.KEYD) then LaserLib.GetModel(index, m) else
+      varm:SetString(LaserLib.GetModel(index, varm:GetDefault()))
+    end -- Update current model at index [4]
+  end, vanm); LaserLib.GetModel(index, varm:GetString():lower())
+  -- Configure material visual
+  local vanv = varv:GetName()
+  cvars.RemoveChangeCallback(vanv, vanv)
+  cvars.AddChangeCallback(vanv, function(name, o, n)
+    local v = tostring(n):Trim()
+    if(v:sub(1,1) ~= DATA.KEYD) then LaserLib.GetMaterial(index, v) else
+      varv:SetString(LaserLib.GetMaterial(index, varv:GetDefault()))
+    end -- Update current material at index [5]
+  end, vanv); LaserLib.GetMaterial(index, varv:GetString():lower())
+  -- Return the class extracted from folder
+  return ucas -- This is passed to `ents.Create`
 end
 
 --[[
@@ -2372,9 +2365,11 @@ if(SERVER) then
       ent:SetPos(tre:GetPos()) -- Use trace position
       ent:SetAngles(tre:GetAngles()) -- Use trace angle
       ent:SetModel(tre:GetModel()); tre:Remove()
+      ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
       LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
     else -- Conditions are not met so work normally
       ent:SetModel(LaserLib.GetModel(idx))
+      ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
       LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
     end
   end
