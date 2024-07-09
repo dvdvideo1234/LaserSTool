@@ -129,6 +129,7 @@ local gtUNITS = {
   -- [2] Extension for folder and variable name indices. Stores which folder are entity specific files located
   -- [3] Contains the current model ( last path ) cashed being used for the given entity unit ID
   -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
+  -- [5] Whenever the unit is initialized successfully. Must contain nil, true or false
   {"gmod_laser"          , nil, nil, nil}, -- Laser entity class `PriarySource`
   {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal class `EveryBeam`
   {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors class `DoBeam`
@@ -1117,16 +1118,21 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     error("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     error("Suffix empty: "..tostring(usrc)) end
+  local vset = (gtUNITS[index] or {}); if(vset and vset[5]) then
+    error("Unit present ["..index.."]["..vset[1].."]: "..ucas) end
+  local uset = vset[1]; if(uset and uset ~= ucas) then
+    error("Unit mismatch ["..index.."]["..vset[1].."]: "..ucas) end
   -- Allocate class configuration. Make it accessible to the library
   local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
-  local vset = {ucas, vidx, mdef, vdef}; gtUNITS[index] = vset -- Index variable name
+  vset[1], vset[2], vset[3], vset[4], vset[5] = ucas, vidx, mdef, vdef, true
   -- Configure arrays and corresponding console variables
   local vmod = tostring(mdef or ""):lower()
   local vmat = tostring(vdef or ""):lower()
   local vaum, vauv = ("mu"..vidx), ("vu"..vidx)
   local varm = CreateConVar(DATA.TOOL.."_"..vaum, vmod, DATA.FGSRVCN, "Controls the "..udrr.." model")
   local varv = CreateConVar(DATA.TOOL.."_"..vauv, vmat, DATA.FGSRVCN, "Controls the "..udrr.." material")
-  DATA[vaum:upper()], DATA[vauv:upper()] = varm, varv
+  -- Store convar objects
+  DATA[vaum:upper()], DATA[vauv:upper()], gtUNITS[index] = varm, varv, vset
   -- Configure model visual
   local vanm = varm:GetName()
   cvars.RemoveChangeCallback(vanm, vanm)
