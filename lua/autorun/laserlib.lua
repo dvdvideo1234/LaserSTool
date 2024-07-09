@@ -2371,11 +2371,9 @@ if(SERVER) then
       ent:SetPos(tre:GetPos()) -- Use trace position
       ent:SetAngles(tre:GetAngles()) -- Use trace angle
       ent:SetModel(tre:GetModel()); tre:Remove()
-      ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
       LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
     else -- Conditions are not met so work normally
       ent:SetModel(LaserLib.GetModel(idx))
-      ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
       LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
     end
   end
