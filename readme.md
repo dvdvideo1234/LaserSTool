@@ -42,7 +42,7 @@ version anymore. This was the only way I could support the things I needed the m
 8. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
 9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
 10. Better model for the crystal entity not to get confused where beam comes out
-11. [Material override][ref-mat-override] can be saved and restored with advanced duplicator 1 and 2
+11. [Material override][ref-mat-override] can be saved and restored with advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
 12. [Editable entity][ref-ent-edit] support option for changing internals of the laser elements
 13. User customizable models for active entities and reflectors via convar tweak
 14. Absorption [degradation and self sustain beam loop][ref-crystal] for crystal entities
