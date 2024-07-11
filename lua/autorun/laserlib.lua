@@ -39,8 +39,8 @@ DATA.KEYX  = "~"             -- The first symbol used to disable given things
 DATA.IMAT  = "*"             -- First and last symbol to match studio displacement empty mats
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
-DATA.VDFWD = Vector(1, 0, 0) -- Global forward vector used across all sources
-DATA.VDRGH = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
+DATA.VDRFW = Vector(1, 0, 0) -- Global forward vector used across all sources
+DATA.VDRRG = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
 DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to create color
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
@@ -48,6 +48,7 @@ DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pai
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
+DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
 
@@ -98,11 +99,11 @@ local gtCOLID = {
 
 -- Tells the `CopyData` function how to handle types
 local gtCOPYCV = {
-  ["boolean"] = function(arg) return arg end,
-  ["number" ] = function(arg) return arg end,
-  ["string" ] = function(arg) return arg end,
-  ["Entity" ] = function(arg) return arg end,
-  ["Player" ] = function(arg) return arg end,
+  ["boolean"] = DATA.FSELF,
+  ["number" ] = DATA.FSELF,
+  ["string" ] = DATA.FSELF,
+  ["Entity" ] = DATA.FSELF,
+  ["Player" ] = DATA.FSELF,
   ["Vector" ] = Vector,
   ["Angle"  ] = Angle
 }
@@ -448,19 +449,24 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
 end
 
 --[[
- * Checks if contents content is present in binary
+ * Checks if the content is present in binary
+ * Complementary content exists in base content
  * Returns true when content persists in trace
+ * cont > Base content including all properties
+ * comp > Complementary property being checked
 ]]
-local function InContent(cont, comp)
+function LaserLib.InContent(cont, comp)
   return (bit.band(cont, comp) == comp)
 end
 
 --[[
- * Checks if contents content is present in position
+ * Checks if content is present in the position
  * Returns true when content persists in trace
+ * cpos > Origin content position being checked
+ * comp > Complementary property being checked
 ]]
 function LaserLib.IsContent(cpos, comp)
-  return InContent(util.PointContents(cpos), comp)
+  return LaserLib.InContent(util.PointContents(cpos), comp)
 end
 
 --[[
@@ -474,11 +480,13 @@ local function GetContentsID(cont)
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
     if(row) then local conr = row.Con -- Read row contents
-      if(conr ~= nil) then if(conr ~= 0) then -- Row contents
-        if(InContent(cont, conr)) then return idx end
-      else -- Compare directly when zero to avoid mismatch
-        if(cont == conr) then return idx end -- Air contents
-      end end -- Contents are compared and index is extracted
+      if(conr ~= nil) then -- Row contents exists check it
+        if(conr ~= 0) then -- Row contents is non-zero
+          if(LaserLib.InContent(cont, conr)) then return idx end
+        else -- Compare directly when zero to avoid mismatch
+          if(cont == conr) then return idx end -- Air contents
+        end -- Contents are compared and index is extracted
+      end -- Contents have been specified successfully
     end -- Check if we have the corresponding bit or be equal
   end; return nil -- The contents did not get matched to entry
 end
@@ -2906,7 +2914,7 @@ end
  * vncon > Content enumerator value for current medium definition
 ]]
 function mtBeam:UpdateWaterSurface(vncon)
-  if(InContent(vncon, CONTENTS_WATER)) then -- Point in the water
+  if(LaserLib.InContent(vncon, CONTENTS_WATER)) then -- Point in the water
     if(self:IsAir()) then -- No water surface defined. Traverse to water
       self:SetWaterSurface()
       self.NvMask = MASK_SOLID -- Start traversing below the water
@@ -3411,7 +3419,7 @@ end
 ]]
 function mtBeam:SetSurfaceWorld(mekey, mecon, trace)
   local wat, mewat = self:GetWater(), mtBeam.__mewat
-  local vae, air = InContent(mecon, CONTENTS_WATER), self:IsAir()
+  local vae, air = LaserLib.InContent(mecon, CONTENTS_WATER), self:IsAir()
   if(not vae and mekey) then vae = mekey:find(mewat[2], 1, true) end
   if(self.StRfract) then
     if(vae and air) then -- Water is not yet registered for transition
