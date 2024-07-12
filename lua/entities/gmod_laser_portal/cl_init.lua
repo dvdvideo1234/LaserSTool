@@ -22,7 +22,7 @@ function ENT:DrawTransfer(ang)
   surface.SetFont(DRFONT)
   local obb = self:LocalToWorld(self:OBBCenter())
   local mul = self:BoundingRadius() * 0.9
-  local pos = obb + mul * Vector(0,0,1)
+  local pos = Vector(0,0,1); pos:Mul(mul); pos:Add(obb)
   local txt = self:GetOverlayTransfer()
   local fit, mrg = self:IsTrueExit(), 5
   local r, w, h = 8, surface.GetTextSize(txt)
