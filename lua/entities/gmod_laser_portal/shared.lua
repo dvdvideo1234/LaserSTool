@@ -76,7 +76,7 @@ end
 ]]
 function ENT:GetTransitID(idx, ent)
   local idx = (tonumber(idx) or 0) -- Convert the number
-  if(ent) then return ((idx ~= 0) and Entity(idx) or nil)
+  if(ent) then return ((idx ~= 0) and ents.GetByIndex(idx) or nil)
   else return ((idx ~= 0) and tostring(idx) or gsNOAV) end
 end
 

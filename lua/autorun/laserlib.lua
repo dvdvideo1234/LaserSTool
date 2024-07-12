@@ -23,7 +23,7 @@ DATA.WLMR = 10000            -- World vectors to be correctly converted to local
 DATA.TRWU = 50000            -- The distance to trace for finding water surface
 DATA.FMVA = "%f,%f,%f"       -- Utilized to output formatted vectors in proper manner
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
-DATA.FPSS = "%d#%d"          -- Formats pass-trough sensor keys
+DATA.FPSS = "%09d#%09d"      -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 380, 750}      -- General wavelength limits for visible light
 DATA.WCOL = {  0 , 300}      -- Mapping for wavelength to color hue conversion
@@ -475,7 +475,7 @@ end
  * On success will return the content ID to update trace
  * cont > The trace contents being checked and matched
 ]]
-local function GetContentsID(cont)
+function LaserLib.GetContentsID(cont)
   for idx = 1, gtREFRACT.Size do -- Check contents
     local key = gtREFRACT[idx] -- Index content key
     local row = gtREFRACT[key] -- Index entry row
@@ -541,7 +541,7 @@ end
  * [1] > Projected position onto the ray
  * [2] > Position ray margin as dot product
 ]]
-local function ProjectPointRay(pos, org, dir)
+function LaserLib.ProjectPointRay(pos, org, dir)
   local dir = dir:GetNormalized()
   local vrs = Vector(pos); vrs:Sub(org)
   local mar = vrs:Dot(dir); vrs:Set(dir)
@@ -555,7 +555,7 @@ end
  * ent > Entity being used as an AABB cube
  * https://wiki.facepunch.com/gmod/Vector:WithinAABox
 ]]
-local function InEntity(pos, ent)
+function LaserLib.InEntity(pos, ent)
   local vmin = ent:OBBMins()
   local vmax = ent:OBBMaxs()
   local vpos = ent:WorldToLocal(pos)
@@ -579,7 +579,7 @@ function LaserLib.GetBeamExit(base, from)
     else base:SetNWInt(hash, 0); return end -- No linked pair
     return from -- Return the refreshed exit entity
   else -- Client takes entity form networking
-    local exit = (from or Entity(base:GetNWInt(hash, 0)))
+    local exit = (from or ents.GetByIndex(base:GetNWInt(hash, 0)))
     if(not LaserLib.IsValid(exit)) then return end -- No linked pair
     return exit -- Exit portal will have the same surface offset
   end
@@ -597,7 +597,7 @@ end
  * fdirect > Direction custom modifier function. Negates X, Y by default
  * Returns the output beam ray position and direction
 ]]
-local function GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
+function LaserLib.GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   if(not (base and base:IsValid())) then return origin, direct end
   if(not (exit and exit:IsValid())) then return origin, direct end
   local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
@@ -626,7 +626,7 @@ end
  * normal > Surface normal vector. Usually portal:GetForward()
  * Returns the output beam ray margin transition
 ]]
-local function GetMarginPortal(entity, origin, direct, normal)
+function LaserLib.GetMarginPortal(entity, origin, direct, normal)
   local normal = (normal or entity:GetForward())
   local pos, mav = entity:GetPos(), Vector(direct)
   local wvc = Vector(origin); wvc:Sub(pos)
@@ -1567,7 +1567,7 @@ function LaserLib.DrawAssistOBB(vbb, org, dir, nar, rev)
   if(not (org and dir)) then return end
   local ctr = LaserLib.GetColor("GREEN")
   local csr = LaserLib.GetColor("YELLOW")
-  local vrs, mar = ProjectPointRay(vbb, org, dir)
+  local vrs, mar = LaserLib.ProjectPointRay(vbb, org, dir)
   local amr = vbb:DistToSqr(vrs)
   if(rev and mar < 0) then return end
   local so, sv = vbb:ToScreen(), vrs:ToScreen()
@@ -2431,7 +2431,7 @@ if(SERVER) then
     if(smu <= 0) then return end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
     local obb = target:LocalToWorld(target:OBBCenter())
-    local pbb = ProjectPointRay(obb, origin, direct)
+    local pbb = LaserLib.ProjectPointRay(obb, origin, direct)
           obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
           obb.z = 0; target:SetVelocity(obb)
     timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
@@ -2987,7 +2987,7 @@ function mtBeam:IsMemory(index, pos, ent)
   local cnm = (index ~= self.TrMedium.M[1][1])
   if(not pos) then return cnm end
   local src = (ent or self:GetSource())
-  return (cnm and not InEntity(pos, src))
+  return (cnm and not LaserLib.InEntity(pos, src))
 end
 
 --[[
@@ -3085,7 +3085,7 @@ end
  * Returns a flag when the trace is updated
 ]]
 function mtBeam:SetRefractContent(mcont, trace)
-  local idx = GetContentsID(mcont)
+  local idx = LaserLib.GetContentsID(mcont)
   if(not idx) then return false end
   local nam = gtREFRACT[idx]
   if(not nam) then return false end
@@ -3757,7 +3757,7 @@ local gtACTORS = {
     local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
     local mir = ent:GetMirrorExitPos()
     local pos, dir = trace.HitPos, beam.VrDirect
-    local nps, ndr = GetBeamPortal(ent, out, pos, dir,
+    local nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(ppos)
         if(mir and bnr) then
           local v, a = ent:ToCustomUCS(ppos)
@@ -3793,9 +3793,9 @@ local gtACTORS = {
     if(out == ent) then return end -- We need to go somewhere
     if(not LaserLib.IsValid(out)) then return end
     local dir, pos = beam.VrDirect, trace.HitPos
-    local mav, vsm = GetMarginPortal(ent, pos, dir)
+    local mav, vsm = LaserLib.GetMarginPortal(ent, pos, dir)
     beam:RegisterNode(mav, false, false)
-    local nps, ndr = GetBeamPortal(ent, out, pos, dir)
+    local nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir)
     beam:RegisterNode(nps); nps:Add(vsm * ndr)
     beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
     beam:RegisterNode(nps)
@@ -3825,9 +3825,9 @@ local gtACTORS = {
     local szy = (osz.y / esz.y)
     local szz = (osz.z / esz.z)
     local pos, dir = trace.HitPos, beam.VrDirect
-    local mav, vsm = GetMarginPortal(ent, pos, dir, trace.HitNormal)
+    local mav, vsm = LaserLib.GetMarginPortal(ent, pos, dir, trace.HitNormal)
     beam:RegisterNode(mav, false, false)
-    local nps, ndr = GetBeamPortal(ent, out, pos, dir,
+    local nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(vpos)
           vpos.x =  vpos.x * szx
           vpos.y = -vpos.y * szy
