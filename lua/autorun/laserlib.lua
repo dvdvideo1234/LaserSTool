@@ -3213,7 +3213,9 @@ function mtBeam:GetMaterialID(trace)
     local mat = ent:GetMaterial() -- Entity may not have override
     if(mat == "") then -- Empty then use the material type
       if(self.BmNoover) then -- No override is available use original
-        mat = ent:GetMaterials()[1] -- Just grab the first material
+        local phy = ent:GetPhysicsObject() -- No overrive use physmat
+        if(phy and phy:IsValid()) then mat = phy:GetMaterial() end
+        if(mat == "") then mat = ent:GetMaterials()[1] end -- Just grab the first material
       else -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
         if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
@@ -3996,6 +3998,45 @@ local gtACTORS = {
       end
     end -- Apply refraction ratio. Entity may absorb the power
     if(beam.BrRefrac) then beam:SetPowerRatio(refcopy[2]) end
+  end,
+  ["glua_custom_props"] = function(beam, trace)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local ref = beam:GetMaterialID(trace)
+    local r_reflect = GetMaterialEntry(ref, gtREFLECT)
+    local r_refract = GetMaterialEntry(ref, gtREFRACT)
+    if(not r_reflect and not r_refract) then return end
+    local phy = trace.Entity:GetPhysicsObject()
+    if(not (phy and phy:IsValid())) then return end
+    local mat = phy:GetMaterial()
+    local refract, key = GetMaterialEntry(mat, gtREFRACT)
+    if(not refract) then return end
+    local ent = trace.Entity; beam.IsTrace = true
+    local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
+    if(bnex or bsam) then -- We have to change mediums
+      beam:SetRefractEntity(trace.HitPos, vdir, ent, refract, key)
+    else -- Redirect the beam with the reflected ray
+      beam:Redirect(trace.HitPos, vdir)
+    end
+    if(beam.BrRefrac) then beam:SetPowerRatio(refract[2]) end
+  end,
+  ["procedural_shard"] = function(beam, trace)
+    beam:Finish(trace) -- Assume that beam stops traversing
+    local mat = beam:GetMaterialID(trace) -- Current extracted material as string
+    local reflect = GetMaterialEntry(mat, gtREFLECT)
+    if(reflect) then beam.IsTrace = true
+      beam:Reflect(trace, reflect[1]) -- Call reflection method
+    else
+      local refract, key = GetMaterialEntry(mat, gtREFRACT)
+      if(not refract) then return end
+      local ent = trace.Entity; beam.IsTrace = true
+      local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
+      if(bnex or bsam) then -- We have to change mediums
+        beam:SetRefractEntity(trace.HitPos, vdir, ent, refract, key)
+      else -- Redirect the beam with the reflected ray
+        beam:Redirect(trace.HitPos, vdir)
+      end
+      if(beam.BrRefrac) then beam:SetPowerRatio(refract[2]) end
+    end
   end,
   ["gmod_laser_sensor"] = function(beam, trace)
     local ent = trace.Entity; beam:Finish(trace)
