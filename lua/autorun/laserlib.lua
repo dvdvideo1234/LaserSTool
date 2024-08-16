@@ -4001,16 +4001,25 @@ local gtACTORS = {
   end,
   ["glua_custom_props"] = function(beam, trace)
     beam:Finish(trace) -- Assume that beam stops traversing
-    local ref = beam:GetMaterialID(trace)
-    local r_reflect = GetMaterialEntry(ref, gtREFLECT)
-    local r_refract = GetMaterialEntry(ref, gtREFRACT)
-    if(not r_reflect and not r_refract) then return end
-    local phy = trace.Entity:GetPhysicsObject()
-    if(not (phy and phy:IsValid())) then return end
-    local mat = phy:GetMaterial()
+    local ent = trace.Entity
+    if(not LaserLib.IsValid(ent)) then return end
+    local dim, mat = ent:GetColor()["a"]
+    if(dim == 255) then
+      mat = beam:GetMaterialID(trace)
+    else
+      local phy = ent:GetPhysicsObject()
+      if(not LaserLib.IsValid(phy)) then return end
+      mat = phy:GetMaterial()
+    end
+    if(dim == 255) then
+      local reflect = GetMaterialEntry(mat, gtREFLECT)
+      if(reflect) then beam.IsTrace = true
+        beam:Reflect(trace, reflect[1]) -- Call reflection
+        return -- Bail out with making just the reflection
+      end
+    end
     local refract, key = GetMaterialEntry(mat, gtREFRACT)
-    if(not refract) then return end
-    local ent = trace.Entity; beam.IsTrace = true
+    if(not refract) then return end; beam.IsTrace = true
     local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
     if(bnex or bsam) then -- We have to change mediums
       beam:SetRefractEntity(trace.HitPos, vdir, ent, refract, key)
@@ -4028,13 +4037,14 @@ local gtACTORS = {
     else
       local refract, key = GetMaterialEntry(mat, gtREFRACT)
       if(not refract) then return end
-      local ent = trace.Entity; beam.IsTrace = true
+      local ent = trace.Entity
+      if(not LaserLib.IsValid(ent)) then return end
       local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
       if(bnex or bsam) then -- We have to change mediums
         beam:SetRefractEntity(trace.HitPos, vdir, ent, refract, key)
       else -- Redirect the beam with the reflected ray
         beam:Redirect(trace.HitPos, vdir)
-      end
+      end; beam.IsTrace = true
       if(beam.BrRefrac) then beam:SetPowerRatio(refract[2]) end
     end
   end,
@@ -4132,6 +4142,10 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   repeat
     -- Run the trace using the defined conditional parameters
     trace, target = beam:Trace(trace) -- Sample one trace and read contents
+    if(beam.NvBounce == 100) then
+      print(trace, target)
+      LaserLib.DrawPoint(trace.HitPos, nol, 100)
+    end
     -- Check medium contents to know what to do when beam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
