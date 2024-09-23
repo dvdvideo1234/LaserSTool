@@ -42,7 +42,7 @@ end
 
 function ENT:Draw()
   self:DrawModel()
-
+  self:DrawShadow(false)
   if(self:GetOn()) then
     local width = self:GetBeamWidth()
           width = LaserLib.GetWidth(width)

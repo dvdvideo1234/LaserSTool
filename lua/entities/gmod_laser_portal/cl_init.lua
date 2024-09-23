@@ -36,7 +36,7 @@ end
 
 function ENT:Draw()
   self:DrawModel()
-
+  self:DrawShadow(true)
   if(self:GetDrawTransfer()) then
     local ply = LocalPlayer()
     local ang = ply:EyeAngles()
