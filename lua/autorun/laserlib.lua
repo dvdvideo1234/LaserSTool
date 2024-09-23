@@ -3689,31 +3689,28 @@ function mtBeam:DrawEffect(sours, trace, endrw)
     if(not sours.dtEffect) then
       sours.dtEffect = EffectData()
     end -- Allocate effect class
-    if(trace.Hit) then
-      local ent = trace.Entity
-      local eff = sours.dtEffect
-      if(not LaserLib.IsUnit(ent)) then
-        eff:SetStart(trace.HitPos)
-        eff:SetOrigin(trace.HitPos)
-        eff:SetNormal(trace.HitNormal)
-        util.Effect("AR2Impact", eff)
-        -- Draw particle effects
-        if(self.NvDamage > 0) then
-          if(ent:IsPlayer() or ent:IsNPC()) then
-            util.Effect("BloodImpact", eff)
-          else
-            local dmr = DATA.MXBMDAMG:GetFloat()
-            local mul = (self.NvDamage / dmr)
-            local dir = LaserLib.GetReflected(self.VrDirect,
-                                              trace.HitNormal)
-            eff:SetNormal(dir)
-            eff:SetScale(0.5)
-            eff:SetRadius(10 * mul)
-            eff:SetMagnitude(3 * mul)
-            util.Effect("Sparks", eff)
-          end
-        end
-      end
+    if(not trace.Hit) then return self end
+    if(trace.NoEffect) then return self end
+    local ent, eff = trace.Entity, sours.dtEffect
+    if(LaserLib.IsUnit(ent)) then return self end
+    eff:SetStart(trace.HitPos)
+    eff:SetOrigin(trace.HitPos)
+    eff:SetNormal(trace.HitNormal)
+    util.Effect("AR2Impact", eff)
+    -- Draw particle effects
+    if(self.NvDamage <= 0) then return self end
+    if(ent:IsPlayer() or ent:IsNPC()) then
+      util.Effect("BloodImpact", eff)
+    else
+      local dmr = DATA.MXBMDAMG:GetFloat()
+      local mul = (self.NvDamage / dmr)
+      local dir = LaserLib.GetReflected(self.VrDirect,
+                                        trace.HitNormal)
+      eff:SetNormal(dir)
+      eff:SetScale(0.5)
+      eff:SetRadius(10 * mul)
+      eff:SetMagnitude(3 * mul)
+      util.Effect("Sparks", eff)
     end
   end; return self
 end
@@ -4048,6 +4045,10 @@ local gtACTORS = {
       if(beam.BrRefrac) then beam:SetPowerRatio(refract[2]) end
     end
   end,
+  ["gwater_blackhole"] = function(beam, trace)
+    trace.NoEffect = true
+    beam:Finish(trace)
+  end,
   ["gmod_laser_sensor"] = function(beam, trace)
     local ent = trace.Entity; beam:Finish(trace)
     if(not ent:GetPassBeamTrough()) then return end
@@ -4142,10 +4143,6 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
   repeat
     -- Run the trace using the defined conditional parameters
     trace, target = beam:Trace(trace) -- Sample one trace and read contents
-    if(beam.NvBounce == 100) then
-      print(trace, target)
-      LaserLib.DrawPoint(trace.HitPos, nol, 100)
-    end
     -- Check medium contents to know what to do when beam starts inside map solid
     if(beam:IsFirst()) then -- Initial start so the beam separates from the laser
       beam.TeFilter = nil -- The trace starts inside solid, switch content medium
