@@ -3213,9 +3213,10 @@ function mtBeam:GetMaterialID(trace)
     local mat = ent:GetMaterial() -- Entity may not have override
     if(mat == "") then -- Empty then use the material type
       if(self.BmNoover) then -- No override is available use original
-        local phy = ent:GetPhysicsObject() -- No overrive use physmat
+        local phy = ent:GetPhysicsObject() -- No override use physics
         if(phy and phy:IsValid()) then mat = phy:GetMaterial() end
-        if(mat == "") then mat = ent:GetMaterials()[1] end -- Just grab the first material
+        -- Just grab the first material. Not the best option
+        if(mat == "") then mat = ent:GetMaterials()[1] end
       else -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
         if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
@@ -4225,7 +4226,7 @@ function LaserLib.DoBeam(entity, origin, direct, length, width, damage, force, u
             if(not suc) then beam.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             beam:Finish(trace) -- When the entity is unit but does not have actor function
-          else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
+          else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
             local mat = beam:GetMaterialID(trace) -- Current extracted material as string
             beam.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, gtREFLECT)
