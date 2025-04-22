@@ -3321,7 +3321,7 @@ end
 ]]
 function mtBeam:Trace(result)
   local length = (self.IsRfract and self.TrRfract or self.NvLength)
-  if(not self.IsRfract) then -- CAP trace is not needed wen we are refracting
+  if(not self.IsRfract) then -- CAP trace is not needed when we are refracting
     local tr = TraceCAP(self.VrOrigin, self.VrDirect, length, self.TeFilter)
     if(tr) then if(result) then -- Merge CAP result into the beam result
       return self:SetTraceWidth(table.Merge(result, tr), length)
@@ -3495,10 +3495,10 @@ function mtBeam:IsTraverse(origin, direct, normal, target)
     self.IsRfract, self.StRfract = false, true -- Force start-refract
     self:Redirect(org, nil, true) -- The beam did not traverse mediums
     self:SetMediumMemory(self.TrMedium.D, nil, normal)
-    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
+    if(self.BrRefrac and not bsam) then self:SetPowerRatio(refract[2]) end
   else -- Get the trace ready to check the other side and register the location
     self:SetTraceNext(org, vdir) -- The beam did not traverse mediums
-    if(self.BrRefrac) then self:SetPowerRatio(self.TrMedium.D[1][2]) end
+    if(self.BrRefrac and not bsam) then self:SetPowerRatio(self.TrMedium.D[1][2]) end
   end; return true -- Apply power ratio when requested
 end
 
