@@ -2739,7 +2739,7 @@ function mtBeam:Clear(key)
     self[key] = nil
   else
     for k, v in pairs(self) do
-      self[key] = nil end
+      self[k] = nil end
   end; return self
 end
 
