@@ -2695,6 +2695,7 @@ local function Beam(origin, direct, width, damage, length, force)
   self.TrFActor = false -- Trace filter was updated by actor and must be cleared
   self.NvIWorld = false -- Ignore world flag to make it hit the other side
   self.IsRfract = false -- The beam is refracting inside and entity or world solid
+  self.NxRgnode = true  -- Enables adding a node to the direction change nodes stack
   self.NvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
   self.NvCGroup = COLLISION_GROUP_NONE -- Collision group. Missing then COLLISION_GROUP_NONE
   self.NvBounce = self.MxBounce -- Amount of bounces to control the infinite loop
@@ -3145,8 +3146,12 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
       self.NvLength = self.NvLength - vtmp:Length()
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
-  table.insert(info, {node, width, damage, force, bedraw})
-  info.Size = info.Size + 1; return self -- Coding effective API
+  if(self.NxRgnode) then
+    table.insert(info, {node, width, damage, force, bedraw})
+    info.Size = info.Size + 1 -- Register the node in stack
+  else -- Skip registering this node and write the next one
+    self.NxRgnode = true -- Mark the next node for insertion
+  end; return self -- Coding effective API
 end
 
 --[[
@@ -3204,27 +3209,32 @@ function mtBeam:GetMaterialID(trace)
   if(trace.HitWorld) then
     local mat = trace.HitTexture -- Use trace material type
     if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
-      mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
+      mat = (gtMATYPE[tostring(trace.MatType)] or "") -- Material lookup
     end -- **studio**, **displacement**, **empty**
-    return mat
+    if(mat == "") then
+      local sur = util.GetSurfaceData(trace.SurfaceProps)
+      mat = (gtMATYPE[tostring(sur.material)] or sur.name)
+    end -- Trace material type is unavailable. Use the surface
+    return (mat or "")
   else
     local ent = trace.Entity
     if(not LaserLib.IsValid(ent)) then return nil end
     local mat = ent:GetMaterial() -- Entity may not have override
     if(mat == "") then -- Empty then use the material type
-      if(self.BmNoover) then -- No override is available use original
-        local phy = ent:GetPhysicsObject() -- No override use physics
-        if(phy and phy:IsValid()) then mat = phy:GetMaterial() end
-        -- Just grab the first material. Not the best option
-        if(mat == "") then mat = ent:GetMaterials()[1] end
-      else -- Gmod cannot simply decide which material is hit
+      if(self.BmNoover) then mat = (ent:GetMaterials()[1] or "")
+      else -- No override is enabled return original
+        -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
         if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
-          mat = gtMATYPE[tostring(trace.MatType)] -- Material lookup
+          mat = (gtMATYPE[tostring(trace.MatType)] or "") -- Material lookup
         end -- **studio**, **displacement**, **empty**
+        if(mat == "") then
+          local sur = util.GetSurfaceData(trace.SurfaceProps)
+          mat = (gtMATYPE[tostring(sur.material)] or sur.name)
+        end -- Trace material type is unavailable. Use the surface
       end -- Physics object has a single surface type related to model
     end
-    return mat
+    return (mat or "")
   end
 end
 
