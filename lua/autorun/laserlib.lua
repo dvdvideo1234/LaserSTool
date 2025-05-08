@@ -2637,15 +2637,15 @@ function LaserLib.SetExColorRGBA(mr, mg, mb, ma)
     local m = DATA.CLMX -- Localize max
     local c = Color(0,0,0,0); DATA.BCOLR = c
     if(istable(mr)) then -- Color object
-      c.r = math.Clamp(mr[1] or mr["r"], 0, m)
-      c.g = math.Clamp(mr[2] or mr["g"], 0, m)
-      c.b = math.Clamp(mr[3] or mr["b"], 0, m)
-      c.a = math.Clamp(mr[4] or mr["a"], 0, m)
+      c.r = math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m)
+      c.g = math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m)
+      c.b = math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m)
+      c.a = math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
     else -- Must utilize numbers
-      c.r =  math.Clamp(mr or 0, 0, m)
-      c.g =  math.Clamp(mg or 0, 0, m)
-      c.b =  math.Clamp(mb or 0, 0, m)
-      c.a =  math.Clamp(ma or 0, 0, m)
+      c.r =  math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m)
+      c.g =  math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m)
+      c.b =  math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m)
+      c.a =  math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)
     end -- We have input parameter
   end -- We do not have input parameter
 end
@@ -3566,15 +3566,15 @@ function mtBeam:SetColorRGBA(mr, mg, mb, ma)
   local c, m = self.NvColor, DATA.CLMX
   if(not c) then c = Color(0,0,0,0); self.NvColor = c end
   if(istable(mr)) then
-    c.r = math.Clamp(mr[1] or mr["r"], 0, m)
-    c.g = math.Clamp(mr[2] or mr["g"], 0, m)
-    c.b = math.Clamp(mr[3] or mr["b"], 0, m)
-    c.a = math.Clamp(mr[4] or mr["a"], 0, m)
+    c.r = math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m)
+    c.g = math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m)
+    c.b = math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m)
+    c.a = math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
   else
-    c.r =  math.Clamp(mr or 0, 0, m)
-    c.g =  math.Clamp(mg or 0, 0, m)
-    c.b =  math.Clamp(mb or 0, 0, m)
-    c.a =  math.Clamp(ma or 0, 0, m)
+    c.r =  math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m)
+    c.g =  math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m)
+    c.b =  math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m)
+    c.a =  math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)
   end; return self
 end
 

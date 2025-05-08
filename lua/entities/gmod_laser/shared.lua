@@ -302,17 +302,17 @@ end
  * Handling color setup and conversion
 ]]
 function ENT:SetBeamColorRGBA(mr, mg, mb, ma)
-  local v, a = Vector(), gnCLMX
+  local v, a, m = Vector(), gnCLMX, gnCLMX
   if(istable(mr)) then
-    v.x = LaserLib.GetNumber(3, mr[1], mr["r"], gnCLMX) / gnCLMX
-    v.y = LaserLib.GetNumber(3, mr[2], mr["g"], gnCLMX) / gnCLMX
-    v.z = LaserLib.GetNumber(3, mr[3], mr["b"], gnCLMX) / gnCLMX
-      a = LaserLib.GetNumber(3, mr[4], mr["a"], gnCLMX)
+    v.x = math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m) / m
+    v.y = math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m) / m
+    v.z = math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m) / m
+      a = math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
   else
-    v.x = LaserLib.GetNumber(2, mr, gnCLMX) / gnCLMX -- [0-1]
-    v.y = LaserLib.GetNumber(2, mg, gnCLMX) / gnCLMX -- [0-1]
-    v.z = LaserLib.GetNumber(2, mb, gnCLMX) / gnCLMX -- [0-1]
-      a = LaserLib.GetNumber(2, ma, gnCLMX) -- [0-255]
+    v.x = math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m) / m -- [0-1]
+    v.y = math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m) / m -- [0-1]
+    v.z = math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m) / m -- [0-1]
+      a = math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)  -- [0-255]
   end
   self:SetBeamColor(v)
   self:SetBeamAlpha(a)
