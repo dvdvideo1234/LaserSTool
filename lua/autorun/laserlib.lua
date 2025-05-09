@@ -859,6 +859,30 @@ function LaserLib.GetNumber(n, ...)
 end
 
 --[[
+ * Extracts the color components from RGBA arguments when valid
+ * In case not being valid the max component luminosity is returned
+ * Automatically handles the input arguments in range of [0-255]
+ * mr  > Red component of the picked color channel
+ * mg  > Green component of the picked color channel
+ * mb  > Blue component of the picked color channel
+ * ma  > Alpha component of the picked color channel
+]]
+function LaserLib.GetColorRGBA(mr, mg, mb, ma)
+  local m = DATA.CLMX
+  if(istable(mr)) then
+    return math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m),
+           math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m),
+           math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m),
+           math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
+  else
+    return math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m),
+           math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m),
+           math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m),
+           math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)
+  end
+end
+
+--[[
  * Clears an array table from specified index
  * arr > Array to be cleared
  * idx > Start clear index (not mandatory)
@@ -2636,17 +2660,7 @@ function LaserLib.SetExColorRGBA(mr, mg, mb, ma)
   if(mr or mg or mb or ma) then
     local m = DATA.CLMX -- Localize max
     local c = Color(0,0,0,0); DATA.BCOLR = c
-    if(istable(mr)) then -- Color object
-      c.r = math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m)
-      c.g = math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m)
-      c.b = math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m)
-      c.a = math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
-    else -- Must utilize numbers
-      c.r =  math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m)
-      c.g =  math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m)
-      c.b =  math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m)
-      c.a =  math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)
-    end -- We have input parameter
+    c.r, c.g, c.b, c.a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
   end -- We do not have input parameter
 end
 
@@ -3560,22 +3574,13 @@ function mtBeam:GetColorRGBA(bcol)
 end
 
 --[[
- * Cashes the currently used beam color when needed
+ * Caches the currently used beam color when needed
 ]]
 function mtBeam:SetColorRGBA(mr, mg, mb, ma)
   local c, m = self.NvColor, DATA.CLMX
   if(not c) then c = Color(0,0,0,0); self.NvColor = c end
-  if(istable(mr)) then
-    c.r = math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m)
-    c.g = math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m)
-    c.b = math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m)
-    c.a = math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
-  else
-    c.r =  math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m)
-    c.g =  math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m)
-    c.b =  math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m)
-    c.a =  math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)
-  end; return self
+  c.r, c.g, c.b, c.a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
+  return self
 end
 
 --[[
