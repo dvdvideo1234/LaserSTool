@@ -5,6 +5,7 @@ local gsKEYA     = LaserLib.GetData("KEYA")
 local gnGRAT     = LaserLib.GetData("GRAT")
 local gnWLMR     = LaserLib.GetData("WLMR")
 local gsFNUH     = LaserLib.GetData("FNUH")
+local gsLSEP     = LaserLib.GetData("LSEP")
 local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
 local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
@@ -342,12 +343,12 @@ function TOOL:RightClick(trace)
       local dir = Vector(trace.HitNormal); dir:Mul(gnWLMR)
       dir:Add(ent:GetPos()); dir:Set(ent:WorldToLocal(dir)); dir:Div(gnWLMR)
       local org = Vector(trace.HitPos); org:Set(ent:WorldToLocal(org))
-      dir = tostring(dir):Trim():gsub("%s+", ",")
-      org = tostring(org):Trim():gsub("%s+", ",")
+      dir = tostring(dir):Trim():gsub("%s+", gsLSEP)
+      org = tostring(org):Trim():gsub("%s+", gsLSEP)
       if(user:KeyDown(IN_DUCK)) then -- Easy export selected model
         if(user:KeyDown(IN_SPEED)) then -- Easy export custom model
-          dir = "\""..tostring(dir):Trim():gsub("%s+", ",").."\""
-          org = "\""..tostring(org):Trim():gsub("%s+", ",").."\""
+          dir = "\""..tostring(dir):Trim():gsub("%s+", gsLSEP).."\""
+          org = "\""..tostring(org):Trim():gsub("%s+", gsLSEP).."\""
           print("table.insert(moar, {\""..mod.."\",0,"..org..","..dir.."})")
         else
           print("table.insert(moar, {\""..mod.."\","..ang.."})")

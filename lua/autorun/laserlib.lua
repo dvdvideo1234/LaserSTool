@@ -37,6 +37,7 @@ DATA.KEYD  = "#"             -- The default key in a collection point to take wh
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"             -- The first symbol used to disable given things
 DATA.IMAT  = "*"             -- First and last symbol to match studio displacement empty mats
+DATA.LSEP  = ","             -- General list separator. Used for string splits and concatenation
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
 DATA.VDRFW = Vector(1, 0, 0) -- Global forward vector used across all sources
@@ -230,7 +231,9 @@ local gtREFRACT = {
   [2] = "glass", -- Glass enumerator index 2
   [3] = "slime", -- Slime enumerator index 16
   [4] = "water", -- Water enumerator index 32
-  [5] = "translucent", -- Translucent stuff 268435456
+  [5] = "transparent", -- Translucent stuff 268435456
+  [6] = "translucent", -- Translucent stuff 268435456
+  [7] = "opaque", -- Translucent stuff 268435456
   -- Used for prop updates and checks `SetupMaterialsDataset`
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control. Status: [nil] = missing, [false] = disable
@@ -246,7 +249,9 @@ local gtREFRACT = {
   ["water"]                                     = {1.333, 0.955, Con = CONTENTS_WATER      }, -- Water refraction index
   ["slime"]                                     = {1.387, 0.731, Con = CONTENTS_SLIME      }, -- Slime refraction index
   ["glass"]                                     = {1.521, 0.999, Con = CONTENTS_WINDOW     }, -- Glass refraction index
-  ["translucent"]                               = {1.437, 0.575, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
+  ["transparent"]                               = {1.437, 0.874, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
+  ["translucent"]                               = {1.437, 0.545, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
+  ["opaque"]                                    = {1.437, 0.321, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
   ["models/dog/eyeglass"]                       = {1.612, 0.955}, -- Non pure glass 2
@@ -869,12 +874,12 @@ end
 ]]
 function LaserLib.GetColorRGBA(mr, mg, mb, ma)
   local m = DATA.CLMX
-  if(istable(mr)) then
-    return math.Clamp(LaserLib.GetNumber(3, mr[1], mr["r"], m), 0, m),
-           math.Clamp(LaserLib.GetNumber(3, mr[2], mr["g"], m), 0, m),
-           math.Clamp(LaserLib.GetNumber(3, mr[3], mr["b"], m), 0, m),
-           math.Clamp(LaserLib.GetNumber(3, mr[4], mr["a"], m), 0, m)
-  else
+  if(istable(mr)) then -- Color object or table
+    return math.Clamp(LaserLib.GetNumber(3, mr["r"], mr[1], m), 0, m),
+           math.Clamp(LaserLib.GetNumber(3, mr["g"], mr[2], m), 0, m),
+           math.Clamp(LaserLib.GetNumber(3, mr["b"], mr[3], m), 0, m),
+           math.Clamp(LaserLib.GetNumber(3, mr["a"], mr[4], m), 0, m)
+  else -- Everything else
     return math.Clamp(LaserLib.GetNumber(2, mr, m), 0, m),
            math.Clamp(LaserLib.GetNumber(2, mg, m), 0, m),
            math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m),
@@ -968,7 +973,7 @@ end
 ]]
 function LaserLib.SetPlayer(ent, user)
   if(not LaserLib.IsValid(ent)) then return end
-  if(not LaserLib.IsValid(user)) then return end
+  if(not LaserLib.IsPlayer(user)) then return end
   ent.ply, ent.player = user, user -- Used for PPs and wire
   ent:SetVar("Player", user) -- Used in sandbox on spawn
 end
@@ -999,7 +1004,7 @@ end
 
 function LaserLib.ByString(str)
   local str = tostring(str or ""):Trim()
-  local tav = (","):Explode(str)
+  local tav = DATA.LSEP:Explode(str)
   local a = (tonumber(tav[1]) or 0)
   local b = (tonumber(tav[2]) or 0)
   local c = (tonumber(tav[3]) or 0)
@@ -4709,5 +4714,5 @@ if(CLIENT) then
   end)
 end
 
-SetupMaterialsDataset(gtREFRACT, 5)
 SetupMaterialsDataset(gtREFLECT, 7)
+SetupMaterialsDataset(gtREFRACT, 7)
