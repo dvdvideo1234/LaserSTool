@@ -234,7 +234,7 @@ local gtREFRACT = {
   [5] = "transparent", -- Translucent stuff 268435456
   [6] = "translucent", -- Translucent stuff 268435456
   [7] = "opaque", -- Translucent stuff 268435456
-  -- Used for prop updates and checks `SetupMaterialsDataset`
+  -- Used for prop updates and checks `CheckMaterials`
   [DATA.KEYD] = "models/props_combine/health_charger_glass",
   -- User for general class control. Status: [nil] = missing, [false] = disable
   -- [1]   : Medium refraction index for the material specified by sodium line
@@ -335,7 +335,7 @@ end
  * data > Data set for reflect or refract being validated
  * size > Search array size that is being forced on the check
 ]]
-local function SetupMaterialsDataset(data, size)
+local function CheckMaterials(data, size)
   -- Validate default key
   local key, set = data[DATA.KEYD]
   -- Check forced size and compare with internal
@@ -4714,5 +4714,5 @@ if(CLIENT) then
   end)
 end
 
-SetupMaterialsDataset(gtREFLECT, 7)
-SetupMaterialsDataset(gtREFRACT, 7)
+CheckMaterials(gtREFLECT, 7)
+CheckMaterials(gtREFRACT, 7)
