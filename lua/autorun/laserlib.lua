@@ -538,6 +538,19 @@ local function GetInteractIndex(iK, set)
 end
 
 --[[
+ * Calculates a Gauss bell curve distribution
+ * Center and deviation are not mandatory
+ * xin > X axis to calculate the distribution for
+ * cen > Distribution center. Maximum location
+ * oev > Distribution deviation. Value spread on value 0.5
+ * Returns
+ * [1] > The calculated standard Gaussian distribution
+]]
+function LaserLib.Gauss(xin, cen, oev)
+  return 1 / math.exp((xin - (cen or 0))^2 / (2 * (oev or 0)^2))
+end
+
+--[[
  * Project a position onto ray defines as origin and direction
  * pos > Position being projected onto a ray
  * org > Ray origin that we are projecting onto
