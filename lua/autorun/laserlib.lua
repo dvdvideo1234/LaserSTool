@@ -547,7 +547,7 @@ end
  * [1] > The calculated standard Gaussian distribution
 ]]
 function LaserLib.Gauss(xin, cen, oev)
-  return 1 / math.exp((xin - (cen or 0))^2 / (2 * (oev or 0)^2))
+  return 1 / math.exp((xin - (cen or 0))^2 / (2 * (oev or 0.5)^2))
 end
 
 --[[
@@ -590,14 +590,14 @@ end
  * Returns the exit entity for the beam to traverse from
 ]]
 function LaserLib.GetBeamExit(base, from)
-  local hash = DATA.EXPLP -- Exit portal pair hash
+  local hash, exit = DATA.EXPLP, from -- Exit portal pair hash
   if(SERVER) then -- Locating open pair is server-side
-    if(LaserLib.IsValid(from)) then -- Validate portal
-      base:SetNWInt(hash, from:EntIndex()) -- Store pair
+    if(LaserLib.IsValid(exit)) then -- Validate portal
+      base:SetNWInt(hash, exit:EntIndex()) -- Store pair
     else base:SetNWInt(hash, 0); return end -- No linked pair
-    return from -- Return the refreshed exit entity
+    return exit -- Return the refreshed exit entity
   else -- Client takes entity form networking
-    local exit = (from or ents.GetByIndex(base:GetNWInt(hash, 0)))
+    exit = (exit or ents.GetByIndex(base:GetNWInt(hash, 0)))
     if(not LaserLib.IsValid(exit)) then return end -- No linked pair
     return exit -- Exit portal will have the same surface offset
   end
