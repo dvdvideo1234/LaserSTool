@@ -333,26 +333,22 @@ function ENT:GetNonOverMater()
 end
 
 function ENT:DoBeam(org, dir, idx)
-  local force  = self:GetBeamForce()
-  local width  = self:GetBeamWidth()
   local origin = self:GetBeamOrigin(org)
+  local direct = self:GetBeamDirection(dir)
   local length = self:GetBeamLength()
-  local damage = self:GetBeamDamage()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
-  local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
-  local beam, trace = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
+  local beam   = LaserLib.Beam(origin, direct, length)
+        beam:SetSource(self, self)
+        beam:SetWidth(self:GetBeamWidth())
+        beam:SetDamage(self:GetBeamDamage())
+        beam:SetForce(self:GetBeamForce())
+        beam:SetFgDivert(usrfle, usrfre)
+        beam:SetFgTexture(noverm, false)
+  if(not beam:IsValid()) then
+    beam:Clear(); self:Remove(); return end
+  local trace = beam:Run(idx)
   return beam, trace
 end
 
