@@ -2653,6 +2653,7 @@ function LaserLib.Beam(origin, direct, length)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
+  self.BmTarget = {} -- Stores the trace result when the beam is run
   self.NvDamage = 0 -- Initial current beam damage
   self.NvWidth  = 0 -- Initial current beam width
   self.NvForce  = 0 -- Initial current beam force
@@ -2722,37 +2723,37 @@ end
 --[[
  * Returns the current beam force
 ]]
-function mtBeam:GetDamage(nW)
+function mtBeam:GetForce()
   return self.NvForce
 end
 
 --[[
  * Updates the current beam force
 ]]
-function mtBeam:SetDamage(nW)
-  self.NvForce = math.max(tonumber(force) or 0, 0)
+function mtBeam:SetForce(nF)
+  self.NvForce = math.max(tonumber(nF) or 0, 0)
   return self
 end
 
 --[[
  * Returns the current beam damage
 ]]
-function mtBeam:GetDamage(nW)
+function mtBeam:GetDamage()
   return self.NvDamage
 end
 
 --[[
  * Updates the current beam damage
 ]]
-function mtBeam:SetDamage(nW)
-  self.NvDamage = math.max(tonumber(damage) or 0, 0)
+function mtBeam:SetDamage(nD)
+  self.NvDamage = math.max(tonumber(nD) or 0, 0)
   return self
 end
 
 --[[
  * Returns the current beam width
 ]]
-function mtBeam:GetWidth(nW)
+function mtBeam:GetWidth()
   return self.NvWidth
 end
 
@@ -2760,7 +2761,7 @@ end
  * Updates the current beam width
 ]]
 function mtBeam:SetWidth(nW)
-  self.NvWidth  = math.max(tonumber(width) or 0, 0)
+  self.NvWidth  = math.max(tonumber(nW) or 0, 0)
   return self
 end
 
@@ -4204,15 +4205,15 @@ local gtACTORS = {
  * Registers and actor function for entity specified class
  * The function argument are (beam, trace) and define
  * what will happen if the beam loop meats this entity class
- * entity > Entity of the desired class to have a handler
- * action > Action function (beam, trace) to handle entity
+ * eEnt > Entity of the desired class to have a handler
+ * fAct > Action function (beam, trace) to handle entity
 ]]
-function LaserLib.SetActor(entity, action)
-  if(not LaserLib.IsValid(entity)) then
-    error("Entity mismatch: "..tostring(entity)) end
-  local ty = type(action); if(ty ~= "function") then
+function LaserLib.SetActor(eEnt, fAct)
+  if(not LaserLib.IsValid(eEnt)) then
+    error("Entity mismatch: "..tostring(eEnt)) end
+  local ty = type(fAct); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
-  gtACTORS[entity:GetClass()] = action
+  gtACTORS[eEnt:GetClass()] = fAct
 end
 
 --[[
@@ -4222,7 +4223,7 @@ end
 ]]
 function mtBeam:Run(iIdx, iStg)
   -- Temporary values that are considered local and do not need to be accessed by hit reports
-  local trace, target = {} -- Configure and target and shared trace reference
+  local trace, target = self.BmTarget -- Configure and target and shared trace reference
   -- Store general definition of air and water mediums for fast usage and indexing
   local mewat, meair, merum = mtBeam.__mewat, mtBeam.__meair, self.TrMedium -- Local reference
   -- Reports dedicated values that are being used by other entities and processes
@@ -4438,11 +4439,11 @@ function mtBeam:Run(iIdx, iStg)
   -- Clear the water trigger refraction flag
   self:ClearWater()
   -- The beam ends inside transparent entity
-  if(not self:IsNode()) then return beam end
+  if(not self:IsNode()) then self.BmTarget = nil; return self end
   -- Update the sources and trigger the hit reports
   self:UpdateSource(trace)
   -- Return what did the beam hit and stuff
-  return trace
+  return self
 end
 
 function LaserLib.NumSlider(panel, convar, nmin, nmax, ndef, ndig)
