@@ -348,8 +348,7 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetFgTexture(noverm, false)
   if(not beam:IsValid()) then
     beam:Clear(); self:Remove(); return end
-  local trace = beam:Run(idx)
-  return beam, trace
+  return beam:Run(idx)
 end
 
 function ENT:Setup(width      , length      , damage    , material   , dissolveType,

@@ -100,7 +100,7 @@ function ENT:SpawnFunction(ply, tr)
   local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
     LaserLib.SnapNormal(ent, tr, 90)
-    ent:SetAngles(ang) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Apply angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
@@ -119,7 +119,8 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-function ENT:EveryBeam(entity, index, beam, trace)
+function ENT:EveryBeam(entity, index, beam)
+  local trace = beam:GetTarget()
   if(trace and trace.Hit and beam) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
@@ -233,7 +234,8 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:UpdateFlags()
-    local beam, trace = self:DoBeam()
+    local beam  = self:DoBeam()
+    local trace = beam:GetTarget()
 
     if(beam) then
       self:WireWrite("Range", beam.RaLength)

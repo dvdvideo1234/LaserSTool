@@ -2654,6 +2654,7 @@ function LaserLib.Beam(origin, direct, length)
   --   [6] > Color updated by various filters (color)
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
+  self.BmBranch = nil -- In case this beam is branched stores the branch objects
   self.NvDamage = 0 -- Initial current beam damage
   self.NvWidth  = 0 -- Initial current beam width
   self.NvForce  = 0 -- Initial current beam force
@@ -2686,6 +2687,17 @@ function mtBeam:IsValid()
   if(not LaserLib.IsValid(self.BmSource)) then return false end
   if(not LaserLib.IsValid(self.BoSource)) then return false end
   return true
+end
+
+--[[
+ * Returns the beam target
+]]
+function mtBeam:GetTagret(nT)
+  local nT, pT = tonumber(nT), nil
+  if(not nT) then return self.BmTarget end
+  pT = self.BmBranch; if(not pT) then return nil end
+  pT = pT[nT]; if(not pT) then return nil end
+  return pT.BmTarget
 end
 
 --[[
@@ -3745,6 +3757,7 @@ function mtBeam:Draw(sours, imatr, color)
   local tvpnt, szv = self:GetPoints()
   if(not tvpnt) then return self end
   -- Update rendering boundaries
+  local tbran = self.BmBranch
   local sours = (sours or self.BmSource)
   local bmin, bmax = sours:GetRenderBounds()
         bmin:Set(sours:LocalToWorld(bmin))
@@ -3783,7 +3796,12 @@ function mtBeam:Draw(sours, imatr, color)
       render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
     end -- Draw the actual beam texture
   end -- Adjust the render bounds with world-space coordinates
-  sours:SetRenderBoundsWS(bmin, bmax); return self
+  sours:SetRenderBoundsWS(bmin, bmax)
+  if(tbran and tbran.Size and tbran.Size > 0) then
+    for idx = 1, tbran.Size do
+      tbran[idx]:Draw(sours, imatr, color)
+    end
+  end; return self
 end
 
 --[[
@@ -3791,12 +3809,12 @@ end
  * information for every laser in a dedicated table and
  * draw the table elements one by one at once.
  * sours > Entity keeping the beam effects internals
- * trace > Trace result received from the beam
  * endrw > Draw enabled flag from beam sources
 ]]
-function mtBeam:DrawEffect(sours, trace, endrw)
+function mtBeam:DrawEffect(sours, endrw)
   if(SERVER) then return self end
   local sours = (sours or self:GetSource())
+  local trace = self:GetTagret()
   if(trace and not trace.HitSky and
      endrw and sours.isEffect)
   then -- Drawing effects is enabled
