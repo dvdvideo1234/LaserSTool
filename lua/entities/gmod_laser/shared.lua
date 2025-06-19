@@ -33,14 +33,14 @@ function ENT:SetupDataTables()
   LaserLib.Configure(self)
 end
 
-function ENT:SetBeamTransform(tranData)
-  if(tranData[2] and tranData[3]) then
-    local orgn = (tranData[2] or gvVZERO)
-    local dirc = (tranData[3] or gvVDRUP):GetNormalized()
+function ENT:SetBeamTransform(trData)
+  if(trData[2] and trData[3]) then
+    local orgn = (trData[2] or gvVZERO)
+    local dirc = (trData[3] or gvVDRUP):GetNormalized()
     self:SetOriginLocal(orgn)
     self:SetDirectLocal(dirc)
   else
-    local val = (tonumber(tranData[1]) or 0)
+    local val = (tonumber(trData[1]) or 0)
     local ang = math.Clamp(val, gtAMAX[1], gtAMAX[2])
     local dir = LaserLib.GetBeamDirection(self, ang)
     local org = LaserLib.GetBeamOrigin(self, dir)
@@ -346,6 +346,7 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
         beam:SetFgTexture(noverm, false)
+        beam:SetBounces()
   if(not beam:IsValid()) then
     beam:Clear(); self:Remove(); return end
   return beam:Run(idx)

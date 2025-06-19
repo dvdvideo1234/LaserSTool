@@ -138,7 +138,7 @@ function ENT:Think()
   if(self:GetOn()) then
     self:UpdateFlags()
     local beam  = self:DoBeam()
-    local trace = beam:GetTagret()
+    local trace = beam:GetTarget()
 
     if(beam) then
       self:WireWrite("Range", beam.RaLength)

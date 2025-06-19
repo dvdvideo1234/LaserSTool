@@ -1448,7 +1448,7 @@ function LaserLib.Configure(unit)
       if(proc) then -- Trigger the beam processing routine
         while(idx and idx <= siz) do -- First index always hits when present
           local beam, trace = ent:GetHitReport(idx) -- When the report hits us
-          local suc, err = pcall(proc, self, ent, idx, beam, trace) -- Call process
+          local suc, err = pcall(proc, self, ent, idx, beam) -- Call process
           if(not suc) then self:Remove(); error(err); return false end
           idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
         end -- When the have dedicated method to apply on each source
@@ -2669,6 +2669,8 @@ function LaserLib.Beam(origin, direct, length)
   self.NxRgnode = true  -- Enables adding a node to the direction change nodes stack
   self.NvMask   = MASK_ALL -- Trace mask. When not provided negative one is used
   self.NvCGroup = COLLISION_GROUP_NONE -- Collision group. Missing then COLLISION_GROUP_NONE
+  self.RaLength = self.BmLength -- Range of the length. Just like wire ranger
+  self.NvLength = self.BmLength -- The actual beam lengths subtracted after iterations
   return self
 end
 
@@ -2684,6 +2686,8 @@ function mtBeam:IsValid()
   if(self.BrRefrac == nil) then return false end
   if(self.BmNoover == nil) then return false end
   if(self.BmDisper == nil) then return false end
+  if(self.NvLength == nil) then return false end
+  if(self.NvBounce == nil) then return false end
   if(not LaserLib.IsValid(self.BmSource)) then return false end
   if(not LaserLib.IsValid(self.BoSource)) then return false end
   return true
@@ -2692,7 +2696,7 @@ end
 --[[
  * Returns the beam target
 ]]
-function mtBeam:GetTagret(nT)
+function mtBeam:GetTarget(nT)
   local nT, pT = tonumber(nT), nil
   if(not nT) then return self.BmTarget end
   pT = self.BmBranch; if(not pT) then return nil end
@@ -2781,7 +2785,7 @@ end
  * Forces max bounces count
  * iBns > Maximum bounces used during run
 ]]
-function mtBeam:Bounces(iBns)
+function mtBeam:SetBounces(iBns)
   if(iBns) then -- These is forced bounce count
     self.MxBounce = math.max(tonumber(iBns) or 0, 0)
   else -- Use the global convar value
@@ -2827,7 +2831,7 @@ end
  * entity > Reference to the current entity
  * former > Reference to the source from last split
 ]]
-function LaserLib.SetSource(base, ...)
+function mtBeam:SetSource(base, ...)
   if(LaserLib.IsValid(base)) then
     self.BmSource = base end
   for idx, ent in pairs({...}) do
@@ -3814,7 +3818,7 @@ end
 function mtBeam:DrawEffect(sours, endrw)
   if(SERVER) then return self end
   local sours = (sours or self:GetSource())
-  local trace = self:GetTagret()
+  local trace = self:GetTarget()
   if(trace and not trace.HitSky and
      endrw and sours.isEffect)
   then -- Drawing effects is enabled
@@ -4808,4 +4812,4 @@ if(CLIENT) then
 end
 
 CheckMaterials(gtREFLECT, 7)
-CheckMaterials(gtREFRACT, 7)
+CheckMaterials(gtREFRACT, 6)

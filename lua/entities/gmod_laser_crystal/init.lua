@@ -120,8 +120,9 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:EveryBeam(entity, index, beam)
+  if(not beam) then return end
   local trace = beam:GetTarget()
-  if(trace and trace.Hit and beam) then
+  if(trace and trace.Hit) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
     if(mrg) then self.crNcolor = beam:GetColorRGBA(true) end
