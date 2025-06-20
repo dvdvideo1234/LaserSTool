@@ -254,7 +254,7 @@ function ENT:Think()
       end
     end
 
-    self:DoDamage(beam, trace)
+    self:DoDamage(beam)
   else
     self:SetHitReportMax()
     self:WireWrite("Hit", 0)

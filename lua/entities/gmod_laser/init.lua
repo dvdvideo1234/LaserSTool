@@ -105,7 +105,9 @@ function ENT:SpawnFunction(user, trace)
   end
 end
 
-function ENT:DoDamage(beam, trace)
+function ENT:DoDamage(beam)
+  if(not beam) then return self end
+  local trace = beam:GetTarget()
   if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
@@ -129,9 +131,7 @@ function ENT:DoDamage(beam, trace)
                           sors:GetBeamSafety())
       end
     end
-  end
-
-  return self
+  end; return self
 end
 
 function ENT:Think()

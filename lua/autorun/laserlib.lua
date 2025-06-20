@@ -1376,11 +1376,13 @@ function LaserLib.Configure(unit)
     local ros = ent.hitReports -- Retrieve and localize hit reports
     if(not ros) then return nil end -- No hit reports. Exit at once
     if(idx and not bri) then -- Retrieve the report requested by ID
-      local beam, trace = ent:GetHitReport(idx) -- Retrieve beam report
-      if(trace and trace.Hit and self == trace.Entity) then return idx end
+      local beam  = ent:GetHitReport(idx) -- Retrieve beam report
+      if(beam) then local trace = beam:GetTarget()
+        if(trace and trace.Hit and self == trace.Entity) then return idx end end
     else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
-      for cnt = anc, ros.Size do local beam, trace = ent:GetHitReport(cnt)
-        if(trace and trace.Hit and self == trace.Entity) then return cnt end
+      for cnt = anc, ros.Size do local beam = ent:GetHitReport(cnt)
+        if(beam) then local trace = beam:GetTarget()
+          if(trace and trace.Hit and self == trace.Entity) then return cnt end end
       end -- The hit report list is scanned and no reports are found hitting us `self`
     end; return nil -- Tell requestor we did not find anything that hits us `self`
   end
@@ -1391,13 +1393,12 @@ function LaserLib.Configure(unit)
    * Make sure to provide unique beam identification ID
    * This is called only for units that run `DoBeam`
    * Unit: My `[idx]`-th beam passed trough there and hit that
-   * trace > Trace result structure to register
    * beam  > Beam structure to register
   ]]
-  function unit:SetHitReport(beam, trace)
+  function unit:SetHitReport(beam)
     local ros, idx = self.hitReports, beam.BmIdenty -- Read hit reports
     if(not ros) then ros = {Size = 0}; self.hitReports = ros end
-    InsertData(ros, {["BM"] = beam, ["TR"] = trace}, idx, true)
+    InsertData(ros, beam, idx, true)
     return self -- Coding effective API
   end
 
@@ -1409,9 +1410,7 @@ function LaserLib.Configure(unit)
     if(not index) then return end
     local ros = self.hitReports
     if(not ros) then return nil end
-    ros = SelectData(ros, index, true)
-    if(not ros) then return nil end
-    return ros["BM"], ros["TR"]
+    return SelectData(ros, index, true)
   end
 
   --[[
@@ -3703,6 +3702,7 @@ end
  * trace > Trace result after the last iteration
 ]]
 function mtBeam:UpdateSource(trace)
+  local trace = trace or self.BmTarget
   local entity, target = self.BmSource, trace.Entity
   -- Calculates the range as beam distance traveled
   if(trace.Hit and self.RaLength > self.NvLength) then
@@ -4463,7 +4463,7 @@ function mtBeam:Run(iIdx, iStg)
   -- The beam ends inside transparent entity
   if(not self:IsNode()) then self.BmTarget = nil; return self end
   -- Update the sources and trigger the hit reports
-  self:UpdateSource(trace)
+  self:UpdateSource()
   -- Return what did the beam hit and stuff
   return self
 end
