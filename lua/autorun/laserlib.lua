@@ -128,18 +128,18 @@ local gtUNITS = {
   -- [3] Contains the current model ( last path ) cashed being used for the given entity unit ID
   -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
   -- [5] Whenever the unit is initialized successfully. Must contain nil, true or false
-  {"gmod_laser"          , nil, nil, nil}, -- Laser entity class `PriarySource`
-  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors `ACTOR`
-  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser beam splitter `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam divider `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- Laser beam sensor `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam dimmer `ACTOR`
-  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam splitterm `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser beam portal  `ACTOR`
-  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam parallel `ACTOR`
-  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser beam filter `ACTOR`
-  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser beam refractor `ACTOR`
+  {"gmod_laser"          , nil        , nil                                      , nil                                        }, -- V Laser entity `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- V Laser crystal `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- V Laser reflectors `ACTOR`
+  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- V Laser splitter `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser divider `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- ? Laser sensor `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser dimmer `ACTOR`
+  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser splitterm `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- V Laser portal  `ACTOR`
+  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser parallel `ACTOR`
+  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- V Laser filter `ACTOR`
+  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- X Laser refractor `ACTOR`
 }; gtUNITS.Size = #gtUNITS
 
 local gtCOLOR = {
@@ -244,7 +244,7 @@ local gtREFRACT = {
   ["water"]                                     = {1.333, 0.955, Con = CONTENTS_WATER      }, -- Water refraction index
   ["slime"]                                     = {1.387, 0.731, Con = CONTENTS_SLIME      }, -- Slime refraction index
   ["glass"]                                     = {1.521, 0.999, Con = CONTENTS_WINDOW     }, -- Glass refraction index
-  ["transparent"]                               = {1.437, 0.874, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
+  ["transparent"]                               = {1.437, 0.874, Con = CONTENTS_TRANSLUCENT}, -- Transparent stuff
   ["translucent"]                               = {1.437, 0.455, Con = CONTENTS_TRANSLUCENT}, -- Translucent stuff
   -- Materials that are overridden and directly hash searched
   ["models/spawn_effect"]                       = {1.153, 0.954}, -- Closer to air (pixelated)
@@ -2141,9 +2141,8 @@ end
  * damage > Complete the power damage formula
 ]]
 function LaserLib.IsPower(width, damage)
-  local margn = (DATA.KWID * DATA.MINW)
   local power = LaserLib.GetPower(width, damage)
-  return (math.Round(power, DATA.RNDB) > margn)
+  return (math.Round(power, DATA.RNDB) > DATA.MINW)
 end
 
 function GetCollectionData(key, set)
@@ -2844,18 +2843,25 @@ end
 
 --[[
  * Returns the beam current active length
+ bS > Swap lenght priority
 ]]
-function mtBeam:GetLength()
-  return (self.BoLength or self.BmLength)
+function mtBeam:GetLength(bS)
+  if(bS) then
+    return (self.BmLength or self.BoLength)
+  else
+    return (self.BoLength or self.BmLength)
+  end
 end
 
 --[[
  * Makes the laser trace loop use pre-defined length
  * This is done so the next unit will know the
  * actual length when SIMO entities are used
- * length > The actual external length for SIMO
+ * nB > Base lenght according to this entity
+ * nO > Origin lenght according to source
+ * bS > Swap lenght priority
 ]]
-function LaserLib.SetLength(nB, nO)
+function mtBeam:SetLength(nB, nO, bS)
   local nB = math.max(tonumber(nB) or 0, 0)
     if(nB > 0) then self.BmLength = nB end
   if(nO) then
@@ -2863,9 +2869,9 @@ function LaserLib.SetLength(nB, nO)
     if(nO > 0) then self.BoLength = nO end
   end
   -- Range of the length. Just like wire ranger
-  self.RaLength = self.BmLength
+  self.RaLength = self:GetLength(bS)
   -- The actual beam length subtracted after iterations
-  self.NvLength = self.BmLength
+  self.NvLength = self:GetLength(bS)
 end
 
 --[[
@@ -3948,7 +3954,7 @@ local gtACTORS = {
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
-    if(trace and trace.Hit and beam and bdot) then
+    if(trace and trace.Hit and bdot) then
       beam.IsTrace = true -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
       local node = beam:SetPowerRatio(vdot) -- May absorb
@@ -4009,7 +4015,7 @@ local gtACTORS = {
     local ent, src = trace.Entity, beam:GetSource()
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, beam, trace)
-    if(trace and trace.Hit and beam and bdot) then
+    if(trace and trace.Hit and bdot) then
       local node = beam:GetNode() -- Extract last node
       local sc = beam:GetColorRGBA(true)
       local ec = ent:GetBeamColorRGBA(true)
@@ -4092,7 +4098,7 @@ local gtACTORS = {
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
-    if(trace and trace.Hit and beam and bdot) then
+    if(trace and trace.Hit and bdot) then
       beam.IsTrace = true -- Beam hits correct surface. Continue
       local focu = ent:GetFocus() -- Apply custom focus
       local vdot = (ent:GetBeamDimmer() and mdot or 1)
@@ -4107,7 +4113,7 @@ local gtACTORS = {
         local irs = util.IntersectRayWithPlane(pos, dir, obb, nor)
         if(not irs) then return end
         obb:Sub(irs); obb:Mul(focu)
-        beam.VrDirect:Add(odv)
+        beam.VrDirect:Add(obb)
         beam.VrDirect:Normalize()
       end
       beam:SetActor(ent) -- Makes beam pass the dimmer
@@ -4213,16 +4219,17 @@ local gtACTORS = {
         local idx, pdt = beam.BmIdenty, pss.Data
         local pky = DATA.FPSS:format(src:EntIndex(), idx)
         local dat = pdt[pky]; pss.Time = CurTime()
-        local tcb, tct, num = pss.Copy.Bm, pss.Copy.Tr, pss.Size
+        local tcb, num = pss.Copy.Bm, pss.Size
         if(dat) then -- Update beam entry
-          dat.Pbm, dat.Src = beam:GetCopy(nil, tcb.Ony, tcb.Asn, nil, dat.Pbm), src
-          dat.Ptr, dat.Tim = CopyData(trace, nil, nil, tct.Asn, nil, dat.Ptr), pss.Time
+          dat.Src = src; dat.Tim = pss.Time
+          dat.Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn, nil, dat.Pbm)
         else -- Entry is missing so create one
-          pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn), Src = src,
-                      Ptr = CopyData(trace, nil, nil, tct.Asn), Tim = pss.Time}
+          pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn), Src = src, Tim = pss.Time}
           dat = pdt[pky]; num = (num + 1)  -- Register beam entry
+          print("Create:", pky)
         end -- Modify array size whenever item is added or removed
         for key, set in pairs(pdt) do  -- Check all items
+          print("Remove:", key, CurTime() - set.Tim, LaserLib.IsTime(set.Tim))
           if(LaserLib.IsTime(set.Tim)) then -- Time delta is passed
             pdt[key] = nil   -- Remove and trigger ordering
             num = (num - 1)  -- Reduce array size

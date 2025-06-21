@@ -30,6 +30,12 @@ function ENT:SetBeamTransform()
   return self
 end
 
+function ENT:GetOn()
+  local state = self:GetInPowerOn()
+  if(SERVER) then self:DoSound(state) end
+  return state
+end
+
 function ENT:SetOn(bool)
   local state = tobool(bool)
   self:SetInPowerOn(state)
@@ -37,10 +43,11 @@ function ENT:SetOn(bool)
   return self
 end
 
-function ENT:GetOn()
-  local state = self:GetInPowerOn()
-  if(SERVER) then self:DoSound(state) end
-  return state
+--[[
+ * Length. Produced beam length
+]]
+function ENT:GetBeamLength()
+  return self:GetInBeamLength()
 end
 
 function ENT:SetBeamLength(num)
@@ -50,8 +57,11 @@ function ENT:SetBeamLength(num)
   return self
 end
 
-function ENT:GetBeamLength()
-  return self:GetInBeamLength()
+--[[
+ * Width. Produced beam width
+]]
+function ENT:GetBeamWidth()
+  return self:GetInBeamWidth()
 end
 
 function ENT:SetBeamWidth(num)
@@ -61,8 +71,11 @@ function ENT:SetBeamWidth(num)
   return self
 end
 
-function ENT:GetBeamWidth()
-  return self:GetInBeamWidth()
+--[[
+ * Damage. Produced beam damage
+]]
+function ENT:GetBeamDamage()
+  return self:GetInBeamDamage()
 end
 
 function ENT:SetBeamDamage(num)
@@ -72,8 +85,11 @@ function ENT:SetBeamDamage(num)
   return self
 end
 
-function ENT:GetBeamDamage()
-  return self:GetInBeamDamage()
+--[[
+ * Force. Produced beam force
+]]
+function ENT:GetBeamForce()
+  return self:GetInBeamForce()
 end
 
 function ENT:SetBeamForce(num)
@@ -83,14 +99,14 @@ function ENT:SetBeamForce(num)
   return self
 end
 
-function ENT:GetBeamForce()
-  return self:GetInBeamForce()
-end
-
 --[[
  * Safety. Makes the beam acts like in the
  * portal series towards all players
 ]]
+function ENT:GetBeamSafety()
+  return self:GetInBeamSafety()
+end
+
 function ENT:SetBeamSafety(bool)
   local safe = tobool(bool)
   self:SetInBeamSafety(safe)
@@ -98,6 +114,3 @@ function ENT:SetBeamSafety(bool)
   return self
 end
 
-function ENT:GetBeamSafety()
-  return self:GetInBeamSafety()
-end

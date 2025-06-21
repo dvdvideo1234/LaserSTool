@@ -347,7 +347,7 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetFgDivert(usrfle, usrfre)
         beam:SetFgTexture(noverm, false)
         beam:SetBounces()
-  if(not beam:IsValid()) then
+  if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
   return beam:Run(idx)
 end

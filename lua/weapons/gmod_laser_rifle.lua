@@ -3,8 +3,9 @@ SWEP.Author                 = "DVD"
 SWEP.Contact                = "dvd_video@abv.bg"
 SWEP.Purpose                = "The laser power in your hands"
 SWEP.Instructions           = "Primary attack to shoot a laser beam"
-SWEP.PrintName              = "Laser pistol"
 SWEP.Category               = LaserLib.GetData("CATG")
+SWEP.PrintName              = SWEP.Category.." Rifle"
+SWEP.Information            = SWEP.PrintName
 -- Control values
 SWEP.Weight                 = 5
 SWEP.Slot                   = 3
@@ -18,8 +19,8 @@ SWEP.AutoSwitchFrom         = false
 SWEP.DrawAmmo               = false
 SWEP.DrawCrosshair          = true
 -- Visuals
-SWEP.ViewModel              = "models/weapons/c_pistol.mdl"
-SWEP.WorldModel             = "models/weapons/w_pistol.mdl"
+SWEP.ViewModel              = "models/weapons/c_irifle.mdl"
+SWEP.WorldModel             = "models/weapons/w_irifle.mdl"
 -- Primary setup
 SWEP.Primary.ClipSize       = -1
 SWEP.Primary.DefaultClip    = -1
@@ -45,7 +46,7 @@ local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
 local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 if(SERVER) then
-  resource.AddFile("materials/vgui/entities/gmod_laser_pistol.vmt")
+  resource.AddFile("materials/vgui/entities/gmod_laser_rifle.vmt")
 end
 
 function SWEP:Setup()
@@ -64,7 +65,7 @@ function SWEP:Setup()
     self.WA = self:LookupAttachment("muzzle")
     self.MO, self.MD = Vector(), Vector()
   end
-
+  self:SetHoldType("ar2")
   LaserLib.Configure(self)
 end
 
@@ -220,26 +221,22 @@ function SWEP:GetBeamDirect()
 end
 
 function SWEP:DoBeam(origin, direct)
-  LaserLib.SetExBounces(1)
-  local user   = self:GetOwner()
-  local width  = self:GetBeamWidth()
-  local damage = self:GetBeamDamage()
-  local length = self:GetBeamLength()
-  local force  = self:GetBeamForce()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
-  local beam, trace = LaserLib.DoBeam(user,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm)
-  return beam, trace
+  local r, g, b, a = self:GetBeamColorRGBA()
+  local beam = LaserLib.Beam(origin, direct, self:GetBeamLength())
+        beam:SetSource(self:GetOwner(), self)
+        beam:SetWidth(LaserLib.GetWidth(self:GetBeamWidth()))
+        beam:SetDamage(self:GetBeamDamage())
+        beam:SetForce(self:GetBeamForce())
+        beam:SetFgDivert(usrfle, usrfre)
+        beam:SetFgTexture(noverm, false)
+        beam:SetBounces(1)
+        beam:SetColorRGBA(r, g, b, a)
+  if(not beam:IsValid() and SERVER) then
+    beam:Clear(); self:Remove(); return end
+  return beam:Run()
 end
 
 function SWEP:ServerBeam()
@@ -248,14 +245,18 @@ function SWEP:ServerBeam()
   if(self:GetOn()) then
     local vorg = self:GetBeamOrigin()
     local vdir = self:GetBeamDirect()
-    local beam, trace = self:DoBeam(vorg, vdir)
-
-    if(beam and trace and
+    local beam = self:DoBeam(vorg, vdir)
+    if(not beam) then return end
+    local trace = beam:GetTarget()
+    if(trace.StartSolid) then return end
+    local ueye = self:GetOwner():EyePos()
+    local dist = (trace.HitPos - ueye):LengthSqr()
+    if(dist < 1500) then return end
+    if(trace and trace.Hit and
        LaserLib.IsValid(trace.Entity) and not
        LaserLib.IsUnit(trace.Entity))
     then
       local dtyp = self:GetDissolveType()
-
       LaserLib.DoDamage(trace.Entity,
                         self,
                         self:GetOwner(),
@@ -274,6 +275,10 @@ end
 
 if(SERVER) then
 
+  function SWEP:OverrideOnRemove()
+    -- Does nothing
+  end
+
   function SWEP:Think()
     self:ServerBeam()
     self:NextThink(CurTime())
@@ -285,21 +290,24 @@ else
   function SWEP:DrawBeam(origin, direct)
     self:UpdateFlags()
 
-    local beam, trace = self:DoBeam(origin, direct)
+    local beam = self:DoBeam(origin, direct)
     if(not beam) then return end
-    if(not trace) then return end
+    local trace = beam:GetTarget()
+    if(trace.StartSolid) then return end
+    local ueye = self:GetOwner():EyePos()
+    local dist = (trace.HitPos - ueye):LengthSqr()
+    if(dist < 1500) then return end
 
     local eeff = self:GetEndingEffect()
     local matr = self:GetBeamMaterial(true)
     local colr = self:GetBeamColorRGBA(true)
 
     beam:Draw(self, matr, colr)
-    beam:DrawEffect(self, trace, eeff)
+    beam:DrawEffect(self, eeff)
   end
 
-  function SWEP:GetBeamRay(mussle, udotp)
+  function SWEP:GetBeamRay(mussle)
     if(not mussle) then return end
-    local musfwd = mussle.Ang:Forward()
     local hitpos = self:GetOwner():GetEyeTrace().HitPos
     local direct = self.MD; direct:Set(hitpos)
     local origin = self.MO; origin:Set(mussle.Pos)
@@ -308,7 +316,7 @@ else
     return origin, direct
   end
 
-  -- How the local player sees the laser pistol
+  -- How the local player sees the laser rifle
   function SWEP:PreDrawViewModel()
     self:DrawModel()
     if(self:GetOn()) then
@@ -320,14 +328,14 @@ else
     end
   end
 
-  -- How others players see the laser pistol
+  -- How others players see the laser rifle
   function SWEP:DrawWorldModel()
     self:DrawModel()
     if(self:GetOn()) then
       if(not self.WA) then return end
       local mussle = self:GetAttachment(self.WA)
       if(not mussle) then return end
-      local org, dir = self:GetBeamRay(mussle, true)
+      local org, dir = self:GetBeamRay(mussle)
       if(not org) then return end
       self:DrawBeam(org, dir)
     end
