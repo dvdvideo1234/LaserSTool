@@ -129,17 +129,17 @@ local gtUNITS = {
   -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
   -- [5] Whenever the unit is initialized successfully. Must contain nil, true or false
   {"gmod_laser"          , nil, nil, nil}, -- Laser entity class `PriarySource`
-  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal class `EveryBeam`
-  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors class `DoBeam`
-  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser beam splitter `EveryBeam`
-  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam divider `DoBeam`
-  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- Laser beam sensor `EveryBeam`
-  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam dimmer `DoBeam`
-  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam splitter multy `EveryBeam`
-  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser beam portal  `DoBeam`
-  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam parallel `DoBeam`
-  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser beam filter `DoBeam`
-  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser beam refractor `DoBeam`
+  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors `ACTOR`
+  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser beam splitter `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam divider `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- Laser beam sensor `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam dimmer `ACTOR`
+  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam splitterm `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser beam portal  `ACTOR`
+  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser beam parallel `ACTOR`
+  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser beam filter `ACTOR`
+  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser beam refractor `ACTOR`
 }; gtUNITS.Size = #gtUNITS
 
 local gtCOLOR = {
@@ -3862,8 +3862,8 @@ end
 ]]
 local gtACTORS = {
   ["event_horizon"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     local pob, dir, eff = trace.HitPos, beam.VrDirect, src.isEffect
     local out = LaserLib.GetBeamExit(ent, ent.Target)
@@ -3883,8 +3883,8 @@ local gtACTORS = {
     beam.IsTrace = true -- CAP networking is correct. Continue
   end,
   ["gmod_laser_portal"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsHitNormal(trace)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
@@ -3924,8 +3924,8 @@ local gtACTORS = {
     beam.IsTrace = true -- Output model is validated. Continue
   end,
   ["prop_portal"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
     local opr = (SERVER and ent:FindOpenPair() or nil)
@@ -3943,8 +3943,8 @@ local gtACTORS = {
     beam.IsTrace = true -- Output portal is validated. Continue
   end,
   ["gmod_laser_dimmer"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
@@ -3957,8 +3957,8 @@ local gtACTORS = {
     end
   end,
   ["seamless_portal"] = function(beam)
-    beam:Finish(trace)
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent, out = trace.Entity
     local out = ent:GetExitPortal() -- Retrieve open pair
     if(not LaserLib.IsValid(out)) then return end
@@ -3986,8 +3986,8 @@ local gtACTORS = {
     beam.IsTrace = true -- Output portal is validated. Continue
   end,
   ["gmod_laser_rdivider"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, beam, trace)
@@ -4004,8 +4004,8 @@ local gtACTORS = {
     end
   end,
   ["gmod_laser_filter"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, beam, trace)
@@ -4087,8 +4087,8 @@ local gtACTORS = {
     end
   end,
   ["gmod_laser_parallel"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
@@ -4114,6 +4114,7 @@ local gtACTORS = {
     end
   end,
   ["gmod_laser_reflector"] = function(beam)
+    local trace = beam:GetTarget() -- Read current trace
     beam:Finish(trace, false) -- Disable passing. Stops traversing
     local trace = beam:GetTarget() -- Read current trace
     local mat = beam:GetMaterialID(trace)
@@ -4124,8 +4125,8 @@ local gtACTORS = {
     beam:Reflect(trace, (rat > 0) and rat or reflect[1]) -- Call reflection method
   end,
   ["gmod_laser_refractor"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
     local refract, key = GetMaterialEntry(mat, gtREFRACT)
     if(not refract) then return end
@@ -4145,8 +4146,8 @@ local gtACTORS = {
     if(beam.BrRefrac) then beam:SetPowerRatio(refcopy[2]) end
   end,
   ["glua_custom_props"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not LaserLib.IsValid(ent)) then return end
     local dim, mat = ent:GetColor()["a"]
@@ -4175,8 +4176,8 @@ local gtACTORS = {
     if(beam.BrRefrac) then beam:SetPowerRatio(refract[2]) end
   end,
   ["procedural_shard"] = function(beam)
-    beam:Finish(trace) -- Assume that beam stops traversing
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
     local reflect = GetMaterialEntry(mat, gtREFLECT)
     if(reflect) then beam.IsTrace = true
@@ -4196,13 +4197,13 @@ local gtACTORS = {
     end
   end,
   ["gwater_blackhole"] = function(beam)
-    beam:Finish(trace)
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     trace.NoEffect = true
   end,
   ["gmod_laser_sensor"] = function(beam)
-    beam:Finish(trace)
     local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not ent:GetPassBeamTrough()) then return end
     if(SERVER) then
@@ -4253,6 +4254,15 @@ function LaserLib.SetActor(eEnt, fAct)
   local ty = type(fAct); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
   gtACTORS[eEnt:GetClass()] = fAct
+end
+
+function LaserLib.GetActor(eEnt)
+  if(not LaserLib.IsValid(eEnt)) then
+    error("Entity mismatch: "..tostring(eEnt)) end
+  local fAct = gtACTORS[eEnt:GetClass()]
+  local ty = type(fAct); if(ty ~= "function") then
+    error("Actor mismatch: ".. ty) end
+  return fAct
 end
 
 --[[
@@ -4356,7 +4366,7 @@ function mtBeam:Run(iIdx, iStg)
           else self.IsTrace = false end -- Exit now without redirecting
         else -- Put special cases for specific classes here
           if(cas and gtACTORS[cas]) then
-            local suc, err = pcall(gtACTORS[cas], beam)
+            local suc, err = pcall(gtACTORS[cas], self)
             if(not suc) then self.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             self:Finish(trace) -- When the entity is unit but does not have actor function
@@ -4432,7 +4442,7 @@ function mtBeam:Run(iIdx, iStg)
           if(usrfre) then self:SetPowerRatio(merum.D[1][2]) end
         else
           if(cas and gtACTORS[cas]) then
-            local suc, err = pcall(gtACTORS[cas], beam)
+            local suc, err = pcall(gtACTORS[cas], self)
             if(not suc) then self.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             self:Finish(trace) -- When the entity is unit but does not have actor function
