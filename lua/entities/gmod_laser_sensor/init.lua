@@ -17,7 +17,6 @@ function ENT:ResetInternals()
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
   self.hitSize , self.crNormh , self.crDomsrc = 0, false, nil
-
   return self
 end
 
@@ -25,7 +24,6 @@ function ENT:UpdateInternals()
   self.crOrigin = Vector()
   self.crDirect = Vector()
   self:ResetInternals()
-
   return self
 end
 
@@ -46,6 +44,7 @@ function ENT:InitSources()
           ["NvLength"] = true, -- Copy beam length
           ["VrOrigin"] = true, -- Copy last trace origin
           ["VrDirect"] = true, -- Copy last trace direction
+          ["BmTarget"] = true, -- Copy current trace data
           ["BoSource"] = true, -- Copy reference to external source
           ["BmSource"] = true  -- Copy reference to current source
         }, -- Copy only the needed fields. Nothing else
@@ -54,11 +53,6 @@ function ENT:InitSources()
           ["BmSource"] = true  -- Copy current source as pointer
         } -- Direct assignment of beam source entity
       }, -- Beam copy configuration
-      Tr = { -- Copy trace structure
-        Asn = { -- Copy as pointer assignment
-          ["Entity"  ] = true -- Copy trace entity
-        }
-      } -- Trace copy configuration
     } -- Configure how node data is being copied
   } -- Pass-trough internal configuration data
   self:InitArrays("Array", "Index", "Level", "Front")
@@ -151,10 +145,12 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-function ENT:EveryBeam(entity, index, beam, trace)
-  local norm = self:GetUnitDirection()
-  local bdot, mdot = self:GetHitPower(norm, beam, trace)
-  if(trace and trace.Hit and beam) then
+function ENT:EveryBeam(entity, index, beam)
+  if(not beam) then return end
+  local trace = beam:GetTarget()
+  if(trace and trace.Hit) then
+    local norm = self:GetUnitDirection()
+    local bdot, mdot = self:GetHitPower(norm, beam, trace)
     self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
     if(bdot) then
       self.crNpower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
@@ -300,7 +296,9 @@ end
 function ENT:Think()
   if(self:GetPassBeamTrough()) then
     local pss = self.pssSources
+    --print("Time:", pss.Time)
     if(LaserLib.IsTime(pss.Time)) then
+      print("Reset:", pss.Time)
       pss.Time = 0
       self:ResetInternals()
       self:UpdateDominant()
@@ -308,12 +306,14 @@ function ENT:Think()
       self:WireArrays()
       table.Empty(pss.Data)
     else -- Some beams still hit sensor
+      --print("Work:", pss.Time)
       self:ResetInternals()
       for idx = 1, pss.Size do
         local key = pss.Keys[idx]
         local set = pss.Data[key]
+        print(key, set, idx)
         if(set) then
-          self:EveryBeam(set.Src, idx, set.Pbm, set.Ptr)
+          self:EveryBeam(set.Src, idx, set.Pbm)
         end
       end
       self:UpdateDominant()

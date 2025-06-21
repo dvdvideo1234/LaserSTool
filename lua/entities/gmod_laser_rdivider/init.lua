@@ -73,7 +73,9 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-function ENT:DoDamage(beam, trace)
+function ENT:DoDamage(beam)
+  if(not beam) then return self end
+  local trace = beam:GetTarget()
   if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then

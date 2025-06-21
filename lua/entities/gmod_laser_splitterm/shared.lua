@@ -157,8 +157,10 @@ function ENT:GetLeanAngle(forwd, upwrd)
                                self:GetBeamLeanZ())
 end
 
-function ENT:EveryBeam(entity, index, beam, trace)
-  if(trace and trace.Hit and beam and self:IsHitNormal(trace)) then
+function ENT:EveryBeam(entity, index, beam)
+  if(not beam) then return end
+  local trace = beam:GetTarget()
+  if(trace and trace.Hit and self:IsHitNormal(trace)) then
     local count = self.crCount; self:SetArrays(entity)
     if(count > 0) then
       local mnang = gtAMAX[2] / count
@@ -192,15 +194,6 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
-function ENT:BeamColorSplit(idx, bmex)
-  if(self:GetBeamColorSplit()) then
-    local cnt = (idx % self.crCount + 1)
-    local r, g, b, a = bmex:GetColorRGBA()
-    r, g, b = LaserLib.GetColorID(cnt, r, g, b)
-    LaserLib.SetExColorRGBA(r, g, b, a)
-  end; return self
-end
-
 --[[
  * Specific beam traced for divider
  * ent  > Entity source to be divided
@@ -211,26 +204,22 @@ end
 ]]
 function ENT:DoBeam(ent, org, dir, bmex, vdot)
   self.crHdx = self.crHdx + 1
-  LaserLib.SetExSources(ent, bmex:GetSource())
-  LaserLib.SetExLength(bmex:GetLength())
-  local length = bmex.NvLength
-  local usrfle = bmex.BrReflec
-  local usrfre = bmex.BrRefrac
-  local noverm = bmex.BmNoover
-  local todiv  = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
-  local damage = (bmex.NvDamage / todiv)
-  local force  = (bmex.NvForce  / todiv)
-  local width  = LaserLib.GetWidth((bmex.NvWidth / todiv))
-  local beam, trace = LaserLib.DoBeam(self:BeamColorSplit(self.crHdx, bmex),
-                                      org,
-                                      dir,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      self.crHdx)
-  return beam, trace
+  local todiv = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
+  local beam = LaserLib.Beam(org, dir, bmex.NvLength)
+        beam:SetSource(self, ent, bmex:GetSource())
+        beam:SetWidth(LaserLib.GetWidth(bmex.NvWidth / todiv))
+        beam:SetDamage(bmex.NvDamage / todiv)
+        beam:SetForce(bmex.NvForce  / todiv)
+        beam:SetFgDivert(bmex.BrReflec, bmex.BrRefrac)
+        beam:SetFgTexture(bmex.BmNoover, false)
+        beam:SetBounces()
+  if(self:GetBeamColorSplit()) then
+    local cnt = (self.crHdx % self.crCount + 1)
+    local r, g, b, a = bmex:GetColorRGBA()
+          r, g, b = LaserLib.GetColorID(cnt, r, g, b)
+    beam:SetColorRGBA(r, g, b, a)
+  end
+  if(not beam:IsValid() and SERVER) then
+    beam:Clear(); self:Remove(); return end
+  return beam:Run(self.crHdx)
 end

@@ -107,8 +107,10 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-function ENT:EveryBeam(entity, index, beam, trace)
-  if(trace and trace.Hit and beam) then
+function ENT:EveryBeam(entity, index, beam)
+  if(not beam) then return end
+  local trace = beam:GetTarget()
+  if(trace and trace.Hit) then
     local npower = LaserLib.GetPower(beam.NvWidth,
                                      beam.NvDamage)
     if(not self.crOpower or npower > self.crOpower) then
