@@ -1376,7 +1376,7 @@ function LaserLib.Configure(unit)
     local ros = ent.hitReports -- Retrieve and localize hit reports
     if(not ros) then return nil end -- No hit reports. Exit at once
     if(idx and not bri) then -- Retrieve the report requested by ID
-      local beam  = ent:GetHitReport(idx) -- Retrieve beam report
+      local beam = ent:GetHitReport(idx) -- Retrieve beam report
       if(beam) then local trace = beam:GetTarget()
         if(trace and trace.Hit and self == trace.Entity) then return idx end end
     else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
@@ -1446,7 +1446,7 @@ function LaserLib.Configure(unit)
       end -- When the have dedicated method to apply on each source
       if(proc) then -- Trigger the beam processing routine
         while(idx and idx <= siz) do -- First index always hits when present
-          local beam, trace = ent:GetHitReport(idx) -- When the report hits us
+          local beam = ent:GetHitReport(idx) -- When the report hits us
           local suc, err = pcall(proc, self, ent, idx, beam) -- Call process
           if(not suc) then self:Remove(); error(err); return false end
           idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
