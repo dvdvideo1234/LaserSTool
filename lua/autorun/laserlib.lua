@@ -79,14 +79,14 @@ DATA.LNDIRACT = CreateConVar(DATA.TOOL.."_lndiract"  , 10   , DATA.FGINDCN, "How
 DATA.DRWBMSPD = CreateConVar(DATA.TOOL.."_drwbmspd"  , 8    , DATA.FGINDCN, "The speed used to render the beam in the main routine", 0, 16)
 DATA.EFFECTDT = CreateConVar(DATA.TOOL.."_effectdt"  , 0.15 , DATA.FGINDCN, "Controls the time between effect drawing", 0, 5)
 
-local gtTCUST = {
+DATA.TCUST = {
   "Forward", "Right", "Up",
   H = {ID = 0, M = 0, V = 0},
   L = {ID = 0, M = 0, V = 0}
 }
 
 -- Translates color from index/key to key/index
-local gtCOLID = {
+DATA.COLID = {
   ["r"] = 1, -- Red
   ["g"] = 2, -- Green
   ["b"] = 3, -- Blue
@@ -95,7 +95,7 @@ local gtCOLID = {
 }
 
 -- Tells the `CopyData` function how to handle types
-local gtCOPYCV = {
+DATA.COPYCV = {
   ["boolean"] = DATA.FSELF,
   ["number" ] = DATA.FSELF,
   ["string" ] = DATA.FSELF,
@@ -105,7 +105,7 @@ local gtCOPYCV = {
   ["Angle"  ] = Angle
 }
 
-local gtUNITS = {
+DATA.UNITS = {
   -- https://wiki.facepunch.com/gmod/Structures/TraceResult
   -- There is really no point in using IMaterial as (x,y) beam hit cannot be extracted from the trace
   -- Classes existing in the hash part are laser-enabled entities `LaserLib.Configure(self)`
@@ -140,9 +140,9 @@ local gtUNITS = {
   {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser parallel `ACTOR`
   {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- V Laser filter `ACTOR`
   {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- X Laser refractor `ACTOR`
-}; gtUNITS.Size = #gtUNITS
+}; DATA.UNITS.Size = #DATA.UNITS
 
-local gtCOLOR = {
+DATA.COLOR = {
   [DATA.KEYD] = "BLACK",
   ["BACKGND"] = Color(150, 150, 255, 180),
   ["BLACK"]   = Color( 0 ,  0 ,  0 , 255),
@@ -157,7 +157,7 @@ local gtCOLOR = {
   ["FOREGR"]  = Color(150, 255, 150, 240)
 }
 
-local gtDISTYPE = {
+DATA.DISTYPE = {
   [DATA.KEYD]   = "core",
   ["energy"]    = 0,
   ["heavyelec"] = 1,
@@ -165,7 +165,7 @@ local gtDISTYPE = {
   ["core"]      = 3
 }
 
-local gtREFLECT = { -- Reflection descriptor
+DATA.REFLECT = { -- Reflection descriptor
   [1] = "cubemap", -- Cube maps textures
   [2] = "reflect", -- Has reflect in the name
   [3] = "mirror" , -- Regular mirror surface
@@ -215,9 +215,9 @@ local gtREFLECT = { -- Reflection descriptor
   ["phoenix_storms/pack2/bluelight"]     = {0.734}, -- PHX blue light
   ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943}, -- Shiny wheel material
   ["bobsters_trains/chrome_dirty_black"] = {0.537}
-}; gtREFLECT.Size = #gtREFLECT
+}; DATA.REFLECT.Size = #DATA.REFLECT
 
-local gtREFRACT = {
+DATA.REFRACT = {
   -- https://wiki.facepunch.com/gmod/Structures/TraceResult
   -- https://en.wikipedia.org/wiki/List_of_refractive_indices
   -- There is really no point in using IMaterial as (x,y) beam hit cannot be extracted from the trace
@@ -271,7 +271,26 @@ local gtREFRACT = {
   ["models/props_combine/pipes01"]              = {1.583, 0.761}, -- Dark glass other
   ["models/props_combine/pipes03"]              = {1.583, 0.761}, -- Dark glass other
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
-}; gtREFRACT.Size = #gtREFRACT
+}; DATA.REFRACT.Size = #DATA.REFRACT
+
+-- Black hole type handlers
+DATA.BLHOLE = {
+  ["gwater_blackhole"] = {
+    GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end
+    GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end
+    GetRadius = function(ent) return ent:GetRadius() end
+    GetWeight = function(ent) return ent:GetStrength() end
+    GetRevise = function(beam, hit)
+      if(not beam) then return Vector(DATA.VZERO) end
+      local cen = ent:LocalToWorld(ent:OBBCenter())
+      local grv = Vector(cen); grv:Sub(hit)
+      local rav = grv:LengthSqr(); grv:Normalize()
+            grv:Mul(ent:GetStrength() / rav)
+      return rav
+    end,
+    Registry = {}
+  }
+}
 
 --[[
  * Material configuration to use when override is missing
@@ -279,7 +298,7 @@ local gtREFRACT = {
  * Convert all numbers to strings to prevent memory gaps
  * https://wiki.facepunch.com/gmod/Enums/MAT
 ]]
-local gtMATYPE = {
+DATA.MATYPE = {
   [tostring(MAT_SNOW      )] = "white",
   [tostring(MAT_GRATE     )] = "metal",
   [tostring(MAT_CLIP      )] = "metal",
@@ -289,7 +308,7 @@ local gtMATYPE = {
   [tostring(MAT_WARPSHIELD)] = "glass"
 }
 
-local gtTRACE = {
+DATA.TRACE = {
   filter         = nil,
   output         = nil,
   ignoreworld    = false,
@@ -310,10 +329,10 @@ if(CLIENT) then
   surface.CreateFont("LaserHUD", {font = "Arial", size = 22, weight = 600})
   surface.CreateFont("LaserRAY", {font = "Trebuchet24", size = 22, weight = 600})
   surface.CreateFont("LaserOBB", {font = "Trebuchet18", size = 22, weight = 600})
-  DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, gtCOLOR["WHITE"]) end
-  gtREFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
-  gtREFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
-  killicon.Add(gtUNITS[1][1], DATA.KILL, gtCOLOR["WHITE"])
+  DATA.HOVP = function(pM, iW, iH) DATA.HOVB(0, 0, iW, iH, DATA.COLOR["WHITE"]) end
+  DATA.REFLECT.Sort = {Size = 0, Info = {"Rate", "Type", Size = 2}, Mpos = 0}
+  DATA.REFRACT.Sort = {Size = 0, Info = {"Ridx", "Rate", "Type", Size = 3}, Mpos = 0}
+  killicon.Add(DATA.UNITS[1][1], DATA.KILL, DATA.COLOR["WHITE"])
 else -- Server-side initialization. Put server related code here
   AddCSLuaFile("autorun/laserlib.lua")
   AddCSLuaFile(DATA.TOOL.."/wire_wrapper.lua")
@@ -322,6 +341,12 @@ else -- Server-side initialization. Put server related code here
   DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
   -- User notification configuration type. Used to format notifications via string.format
   DATA.NTIF = {"GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)", "surface.PlaySound(\"ambient/water/drip%d.wav\")"}
+end
+
+--[[
+ * Registers a hook and registry client/server even fill for special cases
+]]
+local function RegisterHandlerHook()
 end
 
 --[[
@@ -374,13 +399,14 @@ end
 ]]
 local function TraceCAP(origin, direct, length, filter)
   if(StarGate) then
-    gtTRACE.start:Set(origin) -- By default CAP uses origin position ray
-    gtTRACE.endpos:Set(direct) -- By default CAP uses direction ray length
+    local gtrace = DATA.TRACE
+    gtrace.start:Set(origin) -- By default CAP uses origin position ray
+    gtrace.endpos:Set(direct) -- By default CAP uses direction ray length
     if(length and length > 0) then -- Length is available. Use it instead
-      gtTRACE.endpos:Normalize() -- Normalize ending position
-      gtTRACE.endpos:Mul(length) -- Scale using the external length
+      gtrace.endpos:Normalize() -- Normalize ending position
+      gtrace.endpos:Mul(length) -- Scale using the external length
     end -- The data is ready as the CAP trace accepts it and call the thing
-    local tr = StarGate.Trace:New(gtTRACE.start, gtTRACE.endpos, filter)
+    local tr = StarGate.Trace:New(gtrace.start, gtrace.endpos, filter)
     if(StarGate.Trace.Entities[tr.Entity]) then return tr end
     -- If CAP specific entity is hit return and override the trace
   end; return nil -- Otherwise use the regular trace for refraction control
@@ -399,51 +425,52 @@ end
  * result > Trace output destination table as standard config
 ]]
 local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, result)
-  gtTRACE.start:Set(origin)
-  gtTRACE.endpos:Set(direct)
-  gtTRACE.endpos:Normalize()
+  local gtrace = DATA.TRACE
+  gtrace.start:Set(origin)
+  gtrace.endpos:Set(direct)
+  gtrace.endpos:Normalize()
   if(length and length > 0) then
-    gtTRACE.endpos:Mul(length)
+    gtrace.endpos:Mul(length)
   else -- Use proper length even if missing
-    gtTRACE.endpos:Mul(direct:Length())
+    gtrace.endpos:Mul(direct:Length())
   end -- Utilize direction length when not provided
-  gtTRACE.endpos:Add(origin)
-  gtTRACE.filter = filter
+  gtrace.endpos:Add(origin)
+  gtrace.filter = filter
   if(width and width > 0) then
     local m = width / 2
-    gtTRACE.action = util.TraceHull
-    gtTRACE.mins:SetUnpacked(-m, -m, -m)
-    gtTRACE.maxs:SetUnpacked( m,  m,  m)
+    gtrace.action = util.TraceHull
+    gtrace.mins:SetUnpacked(-m, -m, -m)
+    gtrace.maxs:SetUnpacked( m,  m,  m)
   else
     if(SeamlessPortals) then -- Mee's Seamless-Portals
-      gtTRACE.action = SeamlessPortals.TraceLine
+      gtrace.action = SeamlessPortals.TraceLine
     else -- Seamless portals are not installed
-      gtTRACE.action = util.TraceLine
+      gtrace.action = util.TraceLine
     end -- Use the original no detour trace line
   end
   if(mask) then
-    gtTRACE.mask = mask
+    gtrace.mask = mask
   else -- Default trace mask
-    gtTRACE.mask = MASK_SOLID
+    gtrace.mask = MASK_SOLID
   end
   if(iworld) then
-    gtTRACE.ignoreworld = iworld
+    gtrace.ignoreworld = iworld
   else -- Default world ignore
-    gtTRACE.ignoreworld = false
+    gtrace.ignoreworld = false
   end
   if(colgrp) then
-    gtTRACE.collisiongroup = colgrp
+    gtrace.collisiongroup = colgrp
   else -- Default collision group
-    gtTRACE.collisiongroup = COLLISION_GROUP_NONE
+    gtrace.collisiongroup = COLLISION_GROUP_NONE
   end
   if(result) then
-    gtTRACE.output = result
-    gtTRACE.action(gtTRACE)
-    gtTRACE.output = nil
+    gtrace.output = result
+    gtrace.action(gtrace)
+    gtrace.output = nil
     return result
   else
-    gtTRACE.output = nil
-    return gtTRACE.action(gtTRACE)
+    gtrace.output = nil
+    return gtrace.action(gtrace)
   end
 end
 
@@ -475,9 +502,10 @@ end
  * cont > The trace contents being checked and matched
 ]]
 function LaserLib.GetContentsID(cont)
-  for idx = 1, gtREFRACT.Size do -- Check contents
-    local key = gtREFRACT[idx] -- Index content key
-    local row = gtREFRACT[key] -- Index entry row
+  local grefract = DATA.REFRACT
+  for idx = 1, grefract.Size do -- Check contents
+    local key = grefract[idx] -- Index content key
+    local row = grefract[key] -- Index entry row
     if(row) then local conr = row.Con -- Read row contents
       if(conr ~= nil) then -- Row contents exists check it
         if(conr ~= 0) then -- Row contents is non-zero
@@ -709,7 +737,7 @@ local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
        (not tSkp or (tSkp and not tSkp[nam]))
     ) then -- Field is selected to be copied
       local typ = type(vsm) -- Read data type
-      local fcn = gtCOPYCV[typ] -- Constructor
+      local fcn = DATA.COPYCV[typ] -- Constructor
       if(fcn) then -- Copy-conversion exists
         tCpy[nam] = fcn(vsm) -- Copy-convert
       else -- Table or other case
@@ -788,23 +816,23 @@ end
  * iC > Column index. Same as value requested
 ]]
 function LaserLib.GetClass(iR)
-  local tU = gtUNITS[tonumber(iR) or 0]
+  local tU = DATA.UNITS[tonumber(iR) or 0]
   return (tU and tU[1] or nil)
 end
 
 function LaserLib.GetSuffix(iR)
-  local tU = gtUNITS[tonumber(iR) or 0]
+  local tU = DATA.UNITS[tonumber(iR) or 0]
   return (tU and tU[2] or nil)
 end
 
 function LaserLib.GetModel(iR, vR)
-  local tU = gtUNITS[tonumber(iR) or 0]
+  local tU = DATA.UNITS[tonumber(iR) or 0]
   if(tU and vR) then tU[3] = vR end
   return (tU and tU[3] or nil)
 end
 
 function LaserLib.GetMaterial(iR, vR)
-  local tU = gtUNITS[tonumber(iR) or 0]
+  local tU = DATA.UNITS[tonumber(iR) or 0]
   if(tU and vR) then tU[4] = vR end
   return (tU and tU[4] or nil)
 end
@@ -1069,7 +1097,7 @@ end
 ]]
 function LaserLib.IsUnit(ent)
   if(LaserLib.IsValid(ent)) then
-    return gtUNITS[ent:GetClass()]
+    return DATA.UNITS[ent:GetClass()]
   else return false end
 end
 
@@ -1162,7 +1190,7 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     error("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     error("Suffix empty: "..tostring(usrc)) end
-  local vset = (gtUNITS[index] or {}); if(vset and vset[5]) then
+  local vset = (DATA.UNITS[index] or {}); if(vset and vset[5]) then
     error("Unit present ["..index.."]["..vset[1].."]: "..ucas) end
   local uset = vset[1]; if(uset and uset ~= ucas) then
     error("Unit mismatch ["..index.."]["..vset[1].."]: "..ucas) end
@@ -1176,7 +1204,7 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   local varm = CreateConVar(DATA.TOOL.."_"..vaum, vmod, DATA.FGSRVCN, "Controls the "..udrr.." model")
   local varv = CreateConVar(DATA.TOOL.."_"..vauv, vmat, DATA.FGSRVCN, "Controls the "..udrr.." material")
   -- Store convar objects
-  DATA[vaum:upper()], DATA[vauv:upper()], gtUNITS[index] = varm, varv, vset
+  DATA[vaum:upper()], DATA[vauv:upper()], DATA.UNITS[index] = varm, varv, vset
   -- Configure model visual
   local vanm = varm:GetName()
   cvars.RemoveChangeCallback(vanm, vanm)
@@ -1209,7 +1237,7 @@ function LaserLib.Configure(unit)
   local uas, cas = unit:GetClass(), LaserLib.GetClass(1)
   if(not uas:find(cas)) then error("Invalid unit: "..uas) end
   -- Delete temporary order info and register unit
-  unit.meOrderInfo = nil; gtUNITS[uas] = true
+  unit.meOrderInfo = nil; DATA.UNITS[uas] = true
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
     if(unit.OverrideOnRemove) then
@@ -2157,19 +2185,19 @@ end
 
 -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
 function LaserLib.GetDissolveID(idx)
-  return GetCollectionData(idx, gtDISTYPE)
+  return GetCollectionData(idx, DATA.DISTYPE)
 end
 
 function LaserLib.GetColor(idx)
-  return GetCollectionData(idx, gtCOLOR)
+  return GetCollectionData(idx, DATA.COLOR)
 end
 
 function LaserLib.DataReflect(iK)
-  return GetInteractIndex(iK, gtREFLECT)
+  return GetInteractIndex(iK, DATA.REFLECT)
 end
 
 function LaserLib.DataRefract(iK)
-  return GetInteractIndex(iK, gtREFRACT)
+  return GetInteractIndex(iK, DATA.REFRACT)
 end
 
 --[[
@@ -2203,7 +2231,7 @@ end
 function LaserLib.GetColorID(idx, mr, mg, mb)
   if(not (idx and idx > 0)) then return end
   local idc = ((idx - 1) % 3) + 1 -- Index component
-  local key = gtCOLID[idc] -- Key color component
+  local key = DATA.COLID[idc] -- Key color component
   if(istable(mr)) then local cov = mr[key]
     if(mg) then local c = Color(0,0,0,mr.a); c[key] = cov; return c
     else mr.r, mr.g, mr.b = 0, 0, 0; mr[key] = cov; return mr end
@@ -2281,7 +2309,7 @@ end
 function LaserLib.GetCustomAngle(base, direct)
   local tab = base:GetTable(); if(tab.anCustom) then
     return tab.anCustom else tab.anCustom = Angle() end
-  local az, mt = DATA.AZERO, gtTCUST
+  local az, mt = DATA.AZERO, DATA.TCUST
   local th, tl = mt.H, mt.L; th.ID, tl.ID = 0, 0 -- Wipe ID
   for idx = 1, #mt do -- Pick up min/max projection lengths
     local vec = az[mt[idx]](az) -- Read primal direction vector
@@ -2630,8 +2658,8 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__index = mtBeam -- If not found in self search here
       mtBeam.__vtorg = Vector() -- Temporary calculation origin vector
       mtBeam.__vtdir = Vector() -- Temporary calculation direct vector
-      mtBeam.__meair = {gtREFRACT["air"  ], "air"  } -- General air info
-      mtBeam.__mewat = {gtREFRACT["water"], "water"} -- General water info
+      mtBeam.__meair = {DATA.REFRACT["air"  ], "air"  } -- General air info
+      mtBeam.__mewat = {DATA.REFRACT["water"], "water"} -- General water info
 function LaserLib.Beam(origin, direct, length)
   local self = {}; setmetatable(self, mtBeam)
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
@@ -3256,9 +3284,10 @@ end
  * Returns a flag when the trace is updated
 ]]
 function mtBeam:SetRefractContent(mcont, trace)
+  local grefract = DATA.REFRACT
   local idx = LaserLib.GetContentsID(mcont)
   if(not idx) then return false end
-  local nam = gtREFRACT[idx]
+  local nam = grefract[idx]
   if(not nam) then return false end
   if(trace) then
     trace.Fraction = 0
@@ -3266,7 +3295,7 @@ function mtBeam:SetRefractContent(mcont, trace)
     trace.HitTexture = nam
     trace.HitPos:Set(self.VrOrigin)
   end
-  self:SetMediumSours(gtREFRACT[nam], nam)
+  self:SetMediumSours(grefract[nam], nam)
   return true, idx, nam
 end
 
@@ -3375,15 +3404,15 @@ end
 function mtBeam:GetMaterialID(trace)
   if(not trace) then return nil end
   if(not trace.Hit) then return nil end
-  local mtc = DATA.IMAT -- Fast check
+  local mtc, gmat = DATA.IMAT, DATA.MATYPE -- Fast check
   if(trace.HitWorld) then
     local mat = trace.HitTexture -- Use trace material type
     if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
-      mat = (gtMATYPE[tostring(trace.MatType)] or "") -- Material lookup
+      mat = (gmat[tostring(trace.MatType)] or "") -- Material lookup
     end -- **studio**, **displacement**, **empty**
     if(mat == "") then
       local sur = util.GetSurfaceData(trace.SurfaceProps)
-      mat = (gtMATYPE[tostring(sur.material)] or sur.name)
+      mat = (gmat[tostring(sur.material)] or sur.name)
     end -- Trace material type is unavailable. Use the surface
     return (mat or "")
   else
@@ -3396,11 +3425,11 @@ function mtBeam:GetMaterialID(trace)
         -- Gmod cannot simply decide which material is hit
         mat = trace.HitTexture -- Use trace material type
         if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
-          mat = (gtMATYPE[tostring(trace.MatType)] or "") -- Material lookup
+          mat = (gmat[tostring(trace.MatType)] or "") -- Material lookup
         end -- **studio**, **displacement**, **empty**
         if(mat == "") then
           local sur = util.GetSurfaceData(trace.SurfaceProps)
-          mat = (gtMATYPE[tostring(sur.material)] or sur.name)
+          mat = (gmat[tostring(sur.material)] or sur.name)
         end -- Trace material type is unavailable. Use the surface
       end -- Physics object has a single surface type related to model
     end
@@ -3421,7 +3450,7 @@ function mtBeam:GetSolidMedium(origin, direct, filter)
   if(not (tr or tr.Hit)) then return nil end -- Nothing traces
   if(tr.Fraction > 0) then return nil end -- Has physical air gap
   local ent, mat = tr.Entity, self:GetMaterialID(tr)
-  local refract, key = GetMaterialEntry(mat, gtREFRACT)
+  local refract, key = GetMaterialEntry(mat, DATA.REFRACT)
   if(LaserLib.IsValid(ent)) then
     if(ent:GetClass() == LaserLib.GetClass(12)) then
       if(not refract) then return nil end
@@ -3863,10 +3892,9 @@ end
  * Function handler for calculating SISO actor routines
  * These are specific handlers for specific classes
  * having single input beam and single output beam
- * trace > Reference to trace result structure
  * beam  > Reference to laser beam class
 ]]
-local gtACTORS = {
+DATA.ACTORS = {
   ["event_horizon"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
     beam:Finish(trace) -- Assume that beam stops traversing
@@ -4124,7 +4152,7 @@ local gtACTORS = {
     beam:Finish(trace, false) -- Disable passing. Stops traversing
     local trace = beam:GetTarget() -- Read current trace
     local mat = beam:GetMaterialID(trace)
-    local reflect = GetMaterialEntry(mat, gtREFLECT)
+    local reflect = GetMaterialEntry(mat, DATA.REFLECT)
     if(not reflect) then return end -- No reflective surface. Exit
     local ent = trace.Entity; beam.IsTrace = true
     local rat = ent:GetReflectRatio() -- Read reflection ratio from entity
@@ -4134,7 +4162,7 @@ local gtACTORS = {
     local trace = beam:GetTarget() -- Read current trace
     beam:Finish(trace) -- Assume that beam stops traversing
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
-    local refract, key = GetMaterialEntry(mat, gtREFRACT)
+    local refract, key = GetMaterialEntry(mat, DATA.REFRACT)
     if(not refract) then return end
     local ent = trace.Entity; beam.IsTrace = true
     local refcopy = ent:GetRefractInfo(refract)
@@ -4165,13 +4193,13 @@ local gtACTORS = {
       mat = phy:GetMaterial()
     end
     if(dim == 255) then
-      local reflect = GetMaterialEntry(mat, gtREFLECT)
+      local reflect = GetMaterialEntry(mat, DATA.REFLECT)
       if(reflect) then beam.IsTrace = true
         beam:Reflect(trace, reflect[1]) -- Call reflection
         return -- Bail out with making just the reflection
       end
     end
-    local refract, key = GetMaterialEntry(mat, gtREFRACT)
+    local refract, key = GetMaterialEntry(mat, DATA.REFRACT)
     if(not refract) then return end; beam.IsTrace = true
     local bnex, bsam, vdir = beam:GetBoundaryEntity(refract[1], trace)
     if(bnex or bsam) then -- We have to change mediums
@@ -4185,11 +4213,11 @@ local gtACTORS = {
     local trace = beam:GetTarget() -- Read current trace
     beam:Finish(trace) -- Assume that beam stops traversing
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
-    local reflect = GetMaterialEntry(mat, gtREFLECT)
+    local reflect = GetMaterialEntry(mat, DATA.REFLECT)
     if(reflect) then beam.IsTrace = true
       beam:Reflect(trace, reflect[1]) -- Call reflection method
     else
-      local refract, key = GetMaterialEntry(mat, gtREFRACT)
+      local refract, key = GetMaterialEntry(mat, DATA.REFRACT)
       if(not refract) then return end
       local ent = trace.Entity
       if(not LaserLib.IsValid(ent)) then return end
@@ -4260,13 +4288,13 @@ function LaserLib.SetActor(eEnt, fAct)
     error("Entity mismatch: "..tostring(eEnt)) end
   local ty = type(fAct); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
-  gtACTORS[eEnt:GetClass()] = fAct
+  DATA.ACTORS[eEnt:GetClass()] = fAct
 end
 
 function LaserLib.GetActor(eEnt)
   if(not LaserLib.IsValid(eEnt)) then
     error("Entity mismatch: "..tostring(eEnt)) end
-  local fAct = gtACTORS[eEnt:GetClass()]
+  local fAct = DATA.ACTORS[eEnt:GetClass()]
   local ty = type(fAct); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
   return fAct
@@ -4278,8 +4306,10 @@ end
  * iStg > Recursion stage used to identify recursion depth
 ]]
 function mtBeam:Run(iIdx, iStg)
+  -- References to reflect and refract definitions
+  local greflect, grefract = DATA.REFLECT, DATA.REFRACT
   -- Temporary values that are considered local and do not need to be accessed by hit reports
-  local trace, target = self.BmTarget, nil -- Configure and target and shared trace reference
+  local trace, gactors, target = self.BmTarget, DATA.ACTORS, nil -- Configure and target and shared trace reference
   -- Store general definition of air and water mediums for fast usage and indexing
   local mewat, meair, merum = mtBeam.__mewat, mtBeam.__meair, self.TrMedium -- Local reference
   -- Reports dedicated values that are being used by other entities and processes
@@ -4372,19 +4402,19 @@ function mtBeam:Run(iIdx, iStg)
             end -- We are already on red while traversing so do not redirect
           else self.IsTrace = false end -- Exit now without redirecting
         else -- Put special cases for specific classes here
-          if(cas and gtACTORS[cas]) then
-            local suc, err = pcall(gtACTORS[cas], self)
+          if(cas and gactors[cas]) then
+            local suc, err = pcall(gactors[cas], self)
             if(not suc) then self.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             self:Finish(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
             self.IsTrace  = true -- Still tracing the beam
-            local reflect = GetMaterialEntry(mat, gtREFLECT)
+            local reflect = GetMaterialEntry(mat, greflect)
             if(reflect and not self.StRfract) then -- Just call reflection and get done with it..
               self:Reflect(trace, reflect[1]) -- Call reflection method
             else
-              local refract, key = GetMaterialEntry(mat, gtREFRACT)
+              local refract, key = GetMaterialEntry(mat, grefract)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
@@ -4448,19 +4478,19 @@ function mtBeam:Run(iIdx, iStg)
           end -- Apply power ratio when requested
           if(usrfre) then self:SetPowerRatio(merum.D[1][2]) end
         else
-          if(cas and gtACTORS[cas]) then
-            local suc, err = pcall(gtACTORS[cas], self)
+          if(cas and gactors[cas]) then
+            local suc, err = pcall(gactors[cas], self)
             if(not suc) then self.IsTrace = false; target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             self:Finish(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
             self.IsTrace  = true -- Still tracing the beam
-            local reflect = GetMaterialEntry(mat, gtREFLECT)
+            local reflect = GetMaterialEntry(mat, greflect)
             if(reflect and not self.StRfract) then
               self:Reflect(trace, reflect[1]) -- Call reflection method
             else
-              local refract, key = GetMaterialEntry(mat, gtREFRACT)
+              local refract, key = GetMaterialEntry(mat, grefract)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
@@ -4845,5 +4875,5 @@ if(CLIENT) then
   end)
 end
 
-CheckMaterials(gtREFLECT, 7)
-CheckMaterials(gtREFRACT, 6)
+CheckMaterials(DATA.REFLECT, 7)
+CheckMaterials(DATA.REFRACT, 6)
