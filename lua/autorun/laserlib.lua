@@ -275,13 +275,26 @@ DATA.REFRACT = {
 
 -- Black hole type handlers
 DATA.BLHOLE = {
-  ["gwater_blackhole"] = {
-    GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end
-    GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end
-    GetRadius = function(ent) return ent:GetRadius() end
-    GetWeight = function(ent) return ent:GetStrength() end
-    GetRevise = function(beam, hit)
-      if(not beam) then return Vector(DATA.VZERO) end
+  ["gwater_blackhole"] = { -- Mee's Gwater 1
+    GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end,
+    GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
+    GetRadius = function(ent) return ent:GetRadius() end,
+    GetWeight = function(ent) return ent:GetStrength() end,
+    GetRevise = function(ent, hit)
+      local cen = ent:LocalToWorld(ent:OBBCenter())
+      local grv = Vector(cen); grv:Sub(hit)
+      local rav = grv:LengthSqr(); grv:Normalize()
+            grv:Mul(ent:GetStrength() / rav)
+      return rav
+    end,
+    Registry = {}
+  },
+  ["gwater2_blackhole"] = { -- Mee's Gwater 2
+    GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end,
+    GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
+    GetRadius = function(ent) return ent:GetRadius() end,
+    GetWeight = function(ent) return ent:GetStrength() end,
+    GetRevise = function(ent, hit)
       local cen = ent:LocalToWorld(ent:OBBCenter())
       local grv = Vector(cen); grv:Sub(hit)
       local rav = grv:LengthSqr(); grv:Normalize()
@@ -346,7 +359,38 @@ end
 --[[
  * Registers a hook and registry client/server even fill for special cases
 ]]
-local function RegisterHandlerHook()
+local function RegisterHandlerHook(set, name)
+  for cas, cnf in pairs(set) do
+    local sid = DATA.TOOL.."_"..name.."_"..cas
+    if(SERVER) then
+      util.AddNetworkString(sid.."_add")
+      util.AddNetworkString(sid.."_rem")
+      hook.Remove("PlayerSpawnedSENT", sid)
+      hook.Add("PlayerSpawnedSENT", sid,
+        function(ply, ent)
+          print("Regster1:", ent, ent:GetClass(), cas)
+          if(ent:GetClass() ~= cas) then return end
+          cnf.Registry[ent] = true
+          ent:CallOnRemove(sid, function()
+            cnf.Registry[ent] = nil
+            net.Start(sid.."_rem")
+              net.WriteEntity(ent)
+            net.Broadcast()
+          end)
+          net.Start(sid.."_add")
+            net.WriteEntity(ent)
+          net.Broadcast()
+          print("Regster2:", ent, ent:GetClass(), cas)
+        end)
+    else
+      net.Receive(sid.."_add", function()
+        local ent = net.ReadEntity()
+        cnf.Registry[ent] = true end)
+      net.Receive(sid.."_rem", function()
+        local ent = net.ReadEntity()
+        cnf.Registry[ent] = nil end)
+    end
+  end
 end
 
 --[[
@@ -4235,6 +4279,11 @@ DATA.ACTORS = {
     beam:Finish(trace) -- Assume that beam stops traversing
     trace.NoEffect = true
   end,
+  ["gwater2_blackhole"] = function(beam)
+    local trace = beam:GetTarget() -- Read current trace
+    beam:Finish(trace) -- Assume that beam stops traversing
+    trace.NoEffect = true
+  end,
   ["gmod_laser_sensor"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
     beam:Finish(trace) -- Assume that beam stops traversing
@@ -4307,7 +4356,7 @@ end
 ]]
 function mtBeam:Run(iIdx, iStg)
   -- References to reflect and refract definitions
-  local greflect, grefract = DATA.REFLECT, DATA.REFRACT
+  local greflect, grefract, gblhole = DATA.REFLECT, DATA.REFRACT, DATA.BLHOLE
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local trace, gactors, target = self.BmTarget, DATA.ACTORS, nil -- Configure and target and shared trace reference
   -- Store general definition of air and water mediums for fast usage and indexing
@@ -4323,6 +4372,33 @@ function mtBeam:Run(iIdx, iStg)
   self:SetTraceExit()
   -- Start tracing the beam
   repeat
+    -- Black holes. Treat them something N-layer direction deviation
+    if(self:IsAir() and not self.IsRfract) then
+      local vgrav = Vector()
+      for cash, data in pairs(gblhole) do
+        for hole, bool in pairs(data.Registry) do
+          if(LaserLib.IsValid(hole)) then
+            local org, dir = self.VrOrigin, self.VrDirect
+            local cen = data.GetCenter(hole)
+            local rad = data.GetRadius(hole)
+            local frn, frf = util.IntersectRayWithSphere(org, dir, cen, rad)
+            if(frn and frf) then
+              if(frn > 0 and frf > 0) then -- Trace will enter a gravity well
+                -- The beam entry point is at `frn` fraction relative to the origin
+              elseif(frn < 0 and frf > 0) then -- Trace starts inside a well
+                -- Start to ament the trace direction instantly towards the well
+              else -- This gravity well does not influence the beam trace
+                -- Generally the last two option will go trough here
+                -- 1. Both fractions are negative. Trace starts outside a well
+                -- 2. Fraction `frn` is positive and `frf` is negative. Impossible
+              end
+              LaserLib.DrawPoint(org + dir * frn, "RED")
+              LaserLib.DrawPoint(org + dir * frf, "GREEN")
+            end
+          else data.Registry[hole] = nil end
+        end
+      end
+    end
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
     -- Check medium contents to know what to do when beam starts inside map solid
@@ -4877,3 +4953,4 @@ end
 
 CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
+RegisterHandlerHook(DATA.BLHOLE, "blhole")
