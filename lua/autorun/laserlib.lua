@@ -3872,15 +3872,14 @@ function mtBeam:ApplyGravity()
       else data.Registry[hole] = nil end
     end
   end
-  if(vgrv) then self.VrDirect:Add(vgrv); return end
+  if(vgrv) then self.VrDirect:Add(vgrv); return self end
   if(xgrv) then
     if(self.NvLength > xgrv) then
       self.IsHoleGv = true
       self.NvHoleLn = xgrv
-    else self.IsHoleGv = false end
-    return
-  end
-  if(mgrv) then self.IsHoleGv = false; return end
+    else self.IsHoleGv = false end; return self
+  end; if(mgrv) then self.IsHoleGv = false; return self end
+  return self
 end
 
 --[[
