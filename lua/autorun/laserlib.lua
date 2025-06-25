@@ -71,7 +71,8 @@ DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
-DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0    , DATA.FGSRVCN, "Enable or disable dispersion to component laser beams", 0, 1)
+DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0    , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
+DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 0    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -273,7 +274,7 @@ DATA.REFRACT = {
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
--- Black hole type handlers
+-- Black hole interfaces
 DATA.BLHOLE = {
   ["gwater_blackhole"] = { -- Mee's Gwater 1
     GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end,
@@ -2722,6 +2723,7 @@ function LaserLib.Beam(origin, direct, length)
   --   [4] > Node beam current force automatic (number)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
+  self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
   self.BmBranch = nil -- In case this beam is branched stores the branch objects
@@ -2915,7 +2917,7 @@ end
 
 --[[
  * Returns the beam current active length
- bS > Swap lenght priority
+ bS > Swap length priority
 ]]
 function mtBeam:GetLength(bS)
   if(bS) then
@@ -2929,9 +2931,9 @@ end
  * Makes the laser trace loop use pre-defined length
  * This is done so the next unit will know the
  * actual length when SIMO entities are used
- * nB > Base lenght according to this entity
- * nO > Origin lenght according to source
- * bS > Swap lenght priority
+ * nB > Base length according to this entity
+ * nO > Origin length according to source
+ * bS > Swap length priority
 ]]
 function mtBeam:SetLength(nB, nO, bS)
   local nB = math.max(tonumber(nB) or 0, 0)
@@ -3831,6 +3833,41 @@ function mtBeam:GetBoundaryEntity(index, trace)
 end
 
 --[[
+ * Handles black hole gravity field effects
+ * Generally light path being bend by heavy objects
+ * Black holes. Treat them something N-layer direction deviation
+]]
+function mtBeam:ApplyGravity()
+  if(self.IsRfract) then return self end
+  if(self.BmHoleLn <= 0) then return self end
+  local vgrav = Vector()
+  for cash, data in pairs(gblhole) do
+    for hole, bool in pairs(data.Registry) do
+      if(LaserLib.IsValid(hole)) then
+        local org, dir = self.VrOrigin, self.VrDirect
+        local cen, rad = data.GetCenter(hole), data.GetRadius(hole)
+        local frn, frf = util.IntersectRayWithSphere(org, dir, cen, rad)
+        if(frn and frf) then
+          if(frn > 0 and frf > 0) then -- Ray will enter a gravity well
+            -- The beam entry point is at `frn` fraction relative to the origin
+          elseif(frn < 0 and frf < 0) then -- Ray is outside this black hole
+            -- Beam has already exited the well
+          elseif(frn < 0 and frf > 0) then -- Ray starts inside a well
+            -- Start to amend the trace direction instantly towards the well
+          else -- This gravity well does not influence the beam trace
+            -- Generally the last two option will go trough here
+            -- 1. Both fractions are negative. Ray starts outside a well
+            -- 2. Fraction `frn` is positive and `frf` is negative. Impossible
+          end
+          LaserLib.DrawPoint(org + dir * frn, "RED")
+          LaserLib.DrawPoint(org + dir * frf, "GREEN")
+        end
+      else data.Registry[hole] = nil end
+    end
+  end
+end
+
+--[[
  * This traps the beam by following the trace
  * You can mark trace view points as visible
  * sours > Override for laser unit entity `self`
@@ -4031,7 +4068,7 @@ DATA.ACTORS = {
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
-      beam:SetActor(ent) -- Makes beam pass the dimmer
+      beam:SetActor(ent) -- Makes beam pass the unit
     end
   end,
   ["seamless_portal"] = function(beam)
@@ -4060,7 +4097,7 @@ DATA.ACTORS = {
     beam:RegisterNode(nps); nps:Add(vsm * ndr)
     beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
     beam:RegisterNode(nps)
-    beam:SetActor(out) -- Makes beam pass the dimmer
+    beam:SetActor(out) -- Makes beam pass the unit
     beam.IsTrace = true -- Output portal is validated. Continue
   end,
   ["gmod_laser_rdivider"] = function(beam)
@@ -4116,7 +4153,7 @@ DATA.ACTORS = {
           if(ec.a > 0 and mca) then return end
         end
         beam.VrOrigin:Set(trace.HitPos)
-        beam:SetActor(ent) -- Makes beam pass the dimmer
+        beam:SetActor(ent) -- Makes beam pass the unit
         beam.IsTrace = true -- Beam hits correct surface. Continue
       else -- The beam did not fell victim to direct draw filtering
         local width, damage, force, length
@@ -4159,7 +4196,7 @@ DATA.ACTORS = {
         beam.NvDamage  = damage; node[3] = damage
         beam.NvForce   = force ; node[4] = force
         beam.VrOrigin:Set(trace.HitPos)
-        beam:SetActor(ent) -- Makes beam pass the dimmer
+        beam:SetActor(ent) -- Makes beam pass the unit
         beam.IsTrace = true -- Beam hits correct surface. Continue
       end
     end
@@ -4173,6 +4210,7 @@ DATA.ACTORS = {
     if(trace and trace.Hit and bdot) then
       beam.IsTrace = true -- Beam hits correct surface. Continue
       local focu = ent:GetFocus() -- Apply custom focus
+      local rx, ry = ent:GetDeviation() -- Beam deviation
       local vdot = (ent:GetBeamDimmer() and mdot or 1)
       local node = beam:SetPowerRatio(vdot) -- May absorb
       beam.VrOrigin:Set(trace.HitPos)
@@ -4188,7 +4226,17 @@ DATA.ACTORS = {
         beam.VrDirect:Add(obb)
         beam.VrDirect:Normalize()
       end
-      beam:SetActor(ent) -- Makes beam pass the dimmer
+      if(rx ~= 0 or ry ~= 0) then
+        local brnd = ent:DeviateRandom()
+        local sang = beam.VrDirect:Angle()
+        local axsX, axsY = sang:Up(), sang:Right()
+        --Randomize the exit direction
+        local rand = (brnd and (math.random() - 0.5) or 1)
+        sang:RotateAroundAxis(axsX, rx * rand)
+        sang:RotateAroundAxis(axsY, ry * rand)
+        beam.VrDirect:Set(sang:Forward())
+      end
+      beam:SetActor(ent) -- Makes beam pass the unit
     end
   end,
   ["gmod_laser_reflector"] = function(beam)
@@ -4213,7 +4261,7 @@ DATA.ACTORS = {
     local bnex, bsam, vdir = beam:GetBoundaryEntity(refcopy[1], trace)
     if(ent:GetHitSurfaceMode()) then
       beam:Divert(trace.HitPos, vdir) -- Divert the beam on the surface
-      beam:SetActor(ent) -- Makes beam pass the dimmer
+      beam:SetActor(ent) -- Makes beam pass the unit
     else -- Refraction done using multiple surfaces
       if(bnex or bsam) then -- We have to change mediums
         beam:SetRefractEntity(trace.HitPos, vdir, ent, refcopy, key)
@@ -4321,7 +4369,7 @@ DATA.ACTORS = {
       end -- Work only for valid entity sources
     end -- Continue to trace the beam
     beam.IsTrace = true -- Still tracing
-    beam:SetActor(ent) -- Makes beam pass the dimmer
+    beam:SetActor(ent) -- Makes beam pass the unit
   end
 }
 
@@ -4372,33 +4420,7 @@ function mtBeam:Run(iIdx, iStg)
   self:SetTraceExit()
   -- Start tracing the beam
   repeat
-    -- Black holes. Treat them something N-layer direction deviation
-    if(self:IsAir() and not self.IsRfract) then
-      local vgrav = Vector()
-      for cash, data in pairs(gblhole) do
-        for hole, bool in pairs(data.Registry) do
-          if(LaserLib.IsValid(hole)) then
-            local org, dir = self.VrOrigin, self.VrDirect
-            local cen = data.GetCenter(hole)
-            local rad = data.GetRadius(hole)
-            local frn, frf = util.IntersectRayWithSphere(org, dir, cen, rad)
-            if(frn and frf) then
-              if(frn > 0 and frf > 0) then -- Trace will enter a gravity well
-                -- The beam entry point is at `frn` fraction relative to the origin
-              elseif(frn < 0 and frf > 0) then -- Trace starts inside a well
-                -- Start to ament the trace direction instantly towards the well
-              else -- This gravity well does not influence the beam trace
-                -- Generally the last two option will go trough here
-                -- 1. Both fractions are negative. Trace starts outside a well
-                -- 2. Fraction `frn` is positive and `frf` is negative. Impossible
-              end
-              LaserLib.DrawPoint(org + dir * frn, "RED")
-              LaserLib.DrawPoint(org + dir * frf, "GREEN")
-            end
-          else data.Registry[hole] = nil end
-        end
-      end
-    end
+    self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
     -- Check medium contents to know what to do when beam starts inside map solid

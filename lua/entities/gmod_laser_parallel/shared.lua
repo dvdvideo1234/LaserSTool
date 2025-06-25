@@ -28,6 +28,9 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamDimmer" , "General")
   self:EditableSetBool  ("LinearMapping", "General")
   self:EditableSetFloat ("FocusMargin" , "General", -1, 1)
+  self:EditableSetBool  ("DeviateRandom", "General")
+  self:EditableSetFloat ("DeviationX" , "General", -180, 180)
+  self:EditableSetFloat ("DeviationY" , "General", -180, 180)
   LaserLib.Configure(self)
 end
 
@@ -65,6 +68,24 @@ function ENT:GetFocus()
   else
     local focus = self:GetFocusMargin()
     return self:GetNWFloat("GetFocusMargin", normal)
+  end
+end
+
+function ENT:GetDeviation()
+  if(SERVER) then
+    local wx = self:WireRead("DeviateX", true)
+    if(not wx) then wx = self:GetDeviationX() end
+    local wy = self:WireRead("DeviateY", true)
+    if(not wy) then wy = self:GetDeviationY() end
+    self:SetNWFloat("GetDeviationX", wx)
+    self:SetNWFloat("GetDeviationY", wy)
+    self:WireWrite("DeviateX", wx)
+    self:WireWrite("DeviateY", wy)
+    return wx, wy
+  else
+    local wx = self:GetNWFloat("GetDeviationX", self:GetDeviationX())
+    local wy = self:GetNWFloat("GetDeviationY", self:GetDeviationY())
+    return wx, wy
   end
 end
 
