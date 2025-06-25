@@ -3545,6 +3545,8 @@ function mtBeam:GetActorID(target)
   -- If filter was a special actor and the clear flag is enabled
   -- Make sure to reset the filter if needed to enter actor again
   if(self.TrFActor) then self:SetActor() end -- Custom filter clear
+  -- If we were about to enter a black hole reset the step for next iteration
+  if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
   -- Filter is present and we have request to clear the value
   -- Validate trace target and extract its class if available
   local suc, cas = LaserLib.IsValid(target), nil -- Validate target
@@ -3576,7 +3578,8 @@ end
 ]]
 function mtBeam:Trace(result)
   local destin = (result or self.BmTarget)
-  local length = (self.IsRfract and self.TrRfract or self.NvLength)
+  local length = (self.IsHoleGv and self.NvHoleLn or self.NvLength)
+        length = (self.IsRfract and self.TrRfract or length)
   if(not self.IsRfract) then -- CAP trace is not needed when we are refracting
     local tr = TraceCAP(self.VrOrigin, self.VrDirect, length, self.TeFilter)
     if(tr) then if(destin) then -- Merge CAP result into the beam result
@@ -3835,12 +3838,8 @@ end
 --[[
  * Handles black hole gravity field effects
  * Generally light path being bend by heavy objects
- * Black holes. Treat them something N-layer direction deviation
-
-  self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
-  self.IsHoleGv = false -- Is is currently affected by gravity wells
-  self.NvHoleLn = 0 -- Trace length used in case of gravity wells
-  self.NvLength
+ * Black holes. Treat them as direction vector deviation
+ * In case of refraction. The gravity direction is unaffected
 ]]
 function mtBeam:ApplyGravity()
   if(self.IsRfract) then return self end
