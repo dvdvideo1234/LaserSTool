@@ -277,7 +277,6 @@ DATA.REFRACT = {
 -- Black hole interfaces
 DATA.BLHOLE = {
   ["gwater_blackhole"] = { -- Mee's Gwater 1
-    GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end,
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
     GetWeight = function(ent) return ent:GetStrength() end,
@@ -291,7 +290,6 @@ DATA.BLHOLE = {
     Registry = {}
   },
   ["gwater2_blackhole"] = { -- Mee's Gwater 2
-    GetLayers = function(ent) return (ent:GetRadius() / ent:GetStrength()) end,
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
     GetWeight = function(ent) return ent:GetStrength() end,
@@ -2724,6 +2722,8 @@ function LaserLib.Beam(origin, direct, length)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
   self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
+  self.IsHoleGv = false -- Is is currently affected by gravity wells
+  self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
   self.BmBranch = nil -- In case this beam is branched stores the branch objects
@@ -3836,35 +3836,52 @@ end
  * Handles black hole gravity field effects
  * Generally light path being bend by heavy objects
  * Black holes. Treat them something N-layer direction deviation
+
+  self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
+  self.IsHoleGv = false -- Is is currently affected by gravity wells
+  self.NvHoleLn = 0 -- Trace length used in case of gravity wells
+  self.NvLength
 ]]
 function mtBeam:ApplyGravity()
   if(self.IsRfract) then return self end
   if(self.BmHoleLn <= 0) then return self end
-  local vgrav = Vector()
+  local gblhole = DATA.BLHOLE
+  local vgrv, xgrv, mgrv = nil, nil, nil
   for cash, data in pairs(gblhole) do
     for hole, bool in pairs(data.Registry) do
       if(LaserLib.IsValid(hole)) then
         local org, dir = self.VrOrigin, self.VrDirect
         local cen, rad = data.GetCenter(hole), data.GetRadius(hole)
-        local frn, frf = util.IntersectRayWithSphere(org, dir, cen, rad)
-        if(frn and frf) then
-          if(frn > 0 and frf > 0) then -- Ray will enter a gravity well
-            -- The beam entry point is at `frn` fraction relative to the origin
-          elseif(frn < 0 and frf < 0) then -- Ray is outside this black hole
+        local nFFr, nFBa = util.IntersectRayWithSphere(org, dir, cen, rad)
+        if(nFFr and nFBa) then
+          if(nFFr > 0 and nFBa > 0) then -- Ray will enter a gravity well
+            -- The beam entry point is at `nFFr` fraction relative to the origin
+            xgrv = (xgrv and math.min(xgrv, nFFr) or nFFr)
+          elseif(nFFr < 0 and nFBa < 0) then -- Ray is outside this black hole
             -- Beam has already exited the well
-          elseif(frn < 0 and frf > 0) then -- Ray starts inside a well
+            mgrv = (mgrv and math.max(mgrv, nFFr) or nFFr)
+          elseif(nFFr < 0 and nFBa > 0) then -- Ray starts inside a well
             -- Start to amend the trace direction instantly towards the well
-          else -- This gravity well does not influence the beam trace
-            -- Generally the last two option will go trough here
-            -- 1. Both fractions are negative. Ray starts outside a well
-            -- 2. Fraction `frn` is positive and `frf` is negative. Impossible
+            if(not vgrv) then vgrv = Vector() end
+            vgrv:Add(data.GetRevise(hole, org))
+            self.IsHoleGv = true
+            self.NvHoleLn = self.BmHoleLn
           end
-          LaserLib.DrawPoint(org + dir * frn, "RED")
-          LaserLib.DrawPoint(org + dir * frf, "GREEN")
+          LaserLib.DrawPoint(org + dir * nFFr, "RED")
+          LaserLib.DrawPoint(org + dir * nFBa, "GREEN")
         end
       else data.Registry[hole] = nil end
     end
   end
+  if(vgrv) then self.VrDirect:Add(vgrv); return end
+  if(xgrv) then
+    if(self.NvLength > xgrv) then
+      self.IsHoleGv = true
+      self.NvHoleLn = xgrv
+    else self.IsHoleGv = false end
+    return
+  end
+  if(mgrv) then self.IsHoleGv = false; return end
 end
 
 --[[
@@ -4404,7 +4421,7 @@ end
 ]]
 function mtBeam:Run(iIdx, iStg)
   -- References to reflect and refract definitions
-  local greflect, grefract, gblhole = DATA.REFLECT, DATA.REFRACT, DATA.BLHOLE
+  local greflect, grefract = DATA.REFLECT, DATA.REFRACT
   -- Temporary values that are considered local and do not need to be accessed by hit reports
   local trace, gactors, target = self.BmTarget, DATA.ACTORS, nil -- Configure and target and shared trace reference
   -- Store general definition of air and water mediums for fast usage and indexing
