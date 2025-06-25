@@ -285,7 +285,7 @@ DATA.BLHOLE = {
       local grv = Vector(cen); grv:Sub(hit)
       local rav = grv:LengthSqr(); grv:Normalize()
             grv:Mul(ent:GetStrength() / rav)
-      return rav
+      return grv
     end,
     Registry = {}
   },
@@ -298,7 +298,7 @@ DATA.BLHOLE = {
       local grv = Vector(cen); grv:Sub(hit)
       local rav = grv:LengthSqr(); grv:Normalize()
             grv:Mul(ent:GetStrength() / rav)
-      return rav
+      return grv
     end,
     Registry = {}
   }
@@ -367,7 +367,6 @@ local function RegisterHandlerHook(set, name)
       hook.Remove("PlayerSpawnedSENT", sid)
       hook.Add("PlayerSpawnedSENT", sid,
         function(ply, ent)
-          print("Regster1:", ent, ent:GetClass(), cas)
           if(ent:GetClass() ~= cas) then return end
           cnf.Registry[ent] = true
           ent:CallOnRemove(sid, function()
@@ -379,7 +378,6 @@ local function RegisterHandlerHook(set, name)
           net.Start(sid.."_add")
             net.WriteEntity(ent)
           net.Broadcast()
-          print("Regster2:", ent, ent:GetClass(), cas)
         end)
     else
       net.Receive(sid.."_add", function()
@@ -3016,10 +3014,13 @@ end
 --[[
  * Passes some of the dedicated distance
 ]]
-function mtBeam:Pass(trace)
+function mtBeam:Pass(trace, extern)
   -- We have to register that the beam has passed trough a medium
-  self.NvLength = self.NvLength - self.NvLength * trace.Fraction
-  return self -- Coding effective API
+  if(extern) then -- Use external lenght reduction
+    self.NvLength = self.NvLength - extern -- Use extern
+  else -- By default we are hitting something with fraction
+    self.NvLength = self.NvLength - self.NvLength * trace.Fraction
+  end; return self -- Coding effective API
 end
 
 --[[
@@ -3391,6 +3392,7 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
       self.NvLength = self.NvLength - vtmp:Length()
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
+  -- LaserLib.DrawPoint(node, "YELLOW")
   if(self.NxRgnode) then
     table.insert(info, {node, width, damage, force, bedraw})
     info.Size = info.Size + 1 -- Register the node in stack
@@ -3545,8 +3547,6 @@ function mtBeam:GetActorID(target)
   -- If filter was a special actor and the clear flag is enabled
   -- Make sure to reset the filter if needed to enter actor again
   if(self.TrFActor) then self:SetActor() end -- Custom filter clear
-  -- If we were about to enter a black hole reset the step for next iteration
-  if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
   -- Filter is present and we have request to clear the value
   -- Validate trace target and extract its class if available
   local suc, cas = LaserLib.IsValid(target), nil -- Validate target
@@ -3580,6 +3580,7 @@ function mtBeam:Trace(result)
   local destin = (result or self.BmTarget)
   local length = (self.IsHoleGv and self.NvHoleLn or self.NvLength)
         length = (self.IsRfract and self.TrRfract or length)
+  print("TR", self.IsHoleGv, self.NvHoleLn, length)
   if(not self.IsRfract) then -- CAP trace is not needed when we are refracting
     local tr = TraceCAP(self.VrOrigin, self.VrDirect, length, self.TeFilter)
     if(tr) then if(destin) then -- Merge CAP result into the beam result
@@ -3852,22 +3853,21 @@ function mtBeam:ApplyGravity()
         local org, dir = self.VrOrigin, self.VrDirect
         local cen, rad = data.GetCenter(hole), data.GetRadius(hole)
         local nFFr, nFBa = util.IntersectRayWithSphere(org, dir, cen, rad)
-        if(nFFr and nFBa) then
-          if(nFFr > 0 and nFBa > 0) then -- Ray will enter a gravity well
+        if(nFFr and nFBa) then -- Ray intersects with gravity well
+          local rFFr, rFBa = math.Round(nFFr, 1), math.Round(nFBa, 1)
+          if(rFFr > 0 and rFBa > 0) then -- Ray will enter a gravity well
             -- The beam entry point is at `nFFr` fraction relative to the origin
             xgrv = (xgrv and math.min(xgrv, nFFr) or nFFr)
-          elseif(nFFr < 0 and nFBa < 0) then -- Ray is outside this black hole
+          elseif(rFFr < 0 and rFBa < 0) then -- Ray is outside this black hole
             -- Beam has already exited the well
             mgrv = (mgrv and math.max(mgrv, nFFr) or nFFr)
-          elseif(nFFr < 0 and nFBa > 0) then -- Ray starts inside a well
+          elseif(rFFr <= 0 and rFBa > 0) then -- Ray starts inside a well
             -- Start to amend the trace direction instantly towards the well
             if(not vgrv) then vgrv = Vector() end
             vgrv:Add(data.GetRevise(hole, org))
             self.IsHoleGv = true
             self.NvHoleLn = self.BmHoleLn
           end
-          LaserLib.DrawPoint(org + dir * nFFr, "RED")
-          LaserLib.DrawPoint(org + dir * nFBa, "GREEN")
         end
       else data.Registry[hole] = nil end
     end
@@ -4436,10 +4436,14 @@ function mtBeam:Run(iIdx, iStg)
   self:SetTraceExit()
   -- Start tracing the beam
   repeat
+    print("------------------")
     self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
     -- Check medium contents to know what to do when beam starts inside map solid
+
+    LaserLib.DrawVector(self.VrOrigin, self.VrDirect, trace.LengthFR, "YELLOW")
+
     if(self:IsFirst()) then -- Initial start so the beam separates from the laser
       self.TeFilter = nil -- The trace starts inside solid, switch content medium
       if(trace.StartSolid) then -- The beam starts in solid map environment
@@ -4463,6 +4467,7 @@ function mtBeam:Run(iIdx, iStg)
         end
       end
     end
+   -- print("CR", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
     local suc, cas = self:GetActorID(target)
@@ -4634,8 +4639,25 @@ function mtBeam:Run(iIdx, iStg)
           end -- We are neither hit a valid entity nor a map water
         end
       else self:Finish(trace) end; self:Bounce() -- Refresh medium pass through information
-    else self:Finish(trace) end -- Trace did not hit anything to be bounced off from
+    else
+      if(self.IsHoleGv) then
+        print("TG1", self.IsTrace, self.NvBounce, self.NvLength, self.NvHoleLn, self.BmHoleLn)
+        self:Pass(trace, self.NvHoleLn)
+        print("TG2", self.IsTrace, self.NvBounce, self.NvLength)
+        self:Bounce()
+        print("TG3", self.IsTrace, self.NvBounce, self.NvLength)
+        self:Divert(trace.HitPos)
+        print("TG5", self.NvBounce, trace.Hit, trace.Fraction, trace.LengthFR)
+        -- If we were about to enter a black hole reset the step for next iteration
+        if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
+        print("TG6", self.IsTrace, self.NvBounce, self.NvLength)
+      else
+        self:Finish(trace)
+      end
+    end -- Trace did not hit anything to be bounced off from
   until(self:IsFinish())
+
+  print("FN", self.NvBounce, trace.Entity)
   -- Clear the water trigger refraction flag
   self:ClearWater()
   -- The beam ends inside transparent entity
