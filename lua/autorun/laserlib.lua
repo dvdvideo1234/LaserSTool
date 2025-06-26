@@ -279,8 +279,7 @@ DATA.BLHOLE = {
   ["gwater_blackhole"] = { -- Mee's Gwater 1
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
-    GetWeight = function(ent) return ent:GetStrength() end,
-    GetRevise = function(ent, hit)
+    GetAffect = function(ent, hit)
       local cen = ent:LocalToWorld(ent:OBBCenter())
       local grv = Vector(cen); grv:Sub(hit)
       local rav = grv:LengthSqr(); grv:Normalize()
@@ -292,8 +291,7 @@ DATA.BLHOLE = {
   ["gwater2_blackhole"] = { -- Mee's Gwater 2
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
-    GetWeight = function(ent) return ent:GetStrength() end,
-    GetRevise = function(ent, hit)
+    GetAffect = function(ent, hit)
       local cen = ent:LocalToWorld(ent:OBBCenter())
       local grv = Vector(cen); grv:Sub(hit)
       local rav = grv:LengthSqr(); grv:Normalize()
@@ -3846,39 +3844,42 @@ function mtBeam:ApplyGravity()
   if(self.IsRfract) then return self end
   if(self.BmHoleLn <= 0) then return self end
   local gblhole = DATA.BLHOLE
-  local vgrv, xgrv, mgrv = nil, nil, nil
-  for cash, data in pairs(gblhole) do
-    for hole, bool in pairs(data.Registry) do
+  local vgrv, ngrv, xgrv = nil, nil, nil
+  for case, info in pairs(gblhole) do
+    for hole, bool in pairs(info.Registry) do
       if(LaserLib.IsValid(hole)) then
         local org, dir = self.VrOrigin, self.VrDirect
-        local cen, rad = data.GetCenter(hole), data.GetRadius(hole)
+        local cen, rad = info.GetCenter(hole), info.GetRadius(hole)
         local nFFr, nFBa = util.IntersectRayWithSphere(org, dir, cen, rad)
         if(nFFr and nFBa) then -- Ray intersects with gravity well
           local rFFr, rFBa = math.Round(nFFr, 1), math.Round(nFBa, 1)
           if(rFFr > 0 and rFBa > 0) then -- Ray will enter a gravity well
             -- The beam entry point is at `nFFr` fraction relative to the origin
-            xgrv = (xgrv and math.min(xgrv, nFFr) or nFFr)
+            ngrv = (ngrv and math.min(ngrv, nFFr) or nFFr)
           elseif(rFFr < 0 and rFBa < 0) then -- Ray is outside this black hole
             -- Beam has already exited the well
-            mgrv = (mgrv and math.max(mgrv, nFFr) or nFFr)
-          elseif(rFFr <= 0 and rFBa > 0) then -- Ray starts inside a well
+            xgrv = (xgrv and math.max(xgrv, nFFr) or nFFr)
+          elseif(rFFr <= 0 and rFBa >= 0) then -- Ray starts inside a well
             -- Start to amend the trace direction instantly towards the well
             if(not vgrv) then vgrv = Vector() end
-            vgrv:Add(data.GetRevise(hole, org))
+            vgrv:Add(info.GetAffect(hole, org))
             self.IsHoleGv = true
             self.NvHoleLn = self.BmHoleLn
           end
         end
-      else data.Registry[hole] = nil end
+      else info.Registry[hole] = nil end
     end
   end
   if(vgrv) then self.VrDirect:Add(vgrv); return self end
-  if(xgrv) then
-    if(self.NvLength > xgrv) then
-      self.IsHoleGv = true
-      self.NvHoleLn = xgrv
+  if(ngrv) then
+    if(self.NvLength > ngrv) then
+      self.IsHoleGv, self.NvHoleLn = true, ngrv
     else self.IsHoleGv = false end; return self
-  end; if(mgrv) then self.IsHoleGv = false; return self end
+  end
+  if(xgrv) then
+    self.IsHoleGv = false
+    return self
+  end
   return self
 end
 
