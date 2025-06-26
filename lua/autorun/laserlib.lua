@@ -4647,25 +4647,23 @@ function mtBeam:Run(iIdx, iStg)
           end -- We are neither hit a valid entity nor a map water
         end
       else self:Finish(trace) end; self:Bounce() -- Refresh medium pass through information
-    else
-      if(self.IsHoleGv) then
-        if(self.NvLength > 0) then
-          print("TG1", self.IsTrace, self.NvBounce, self.NvLength, self.NvHoleLn, self.BmHoleLn)
-          self:Pass(trace, self.NvHoleLn)
-          print("TG2", self.IsTrace, self.NvBounce, self.NvLength)
-          self:Bounce()
-          print("TG3", self.IsTrace, self.NvBounce, self.NvLength)
-          self:Divert(trace.HitPos)
-          print("TG5", self.NvBounce, trace.Hit, trace.Fraction, trace.LengthFR)
-          -- If we were about to enter a black hole reset the step for next iteration
-          if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
-          print("TG6", self.IsTrace, self.NvBounce, self.NvLength)
-        else
-          self.IsTrace = false
-        end
+    elseif(self.IsTrace and self.IsHoleGv) then
+      if(self.NvLength > 0) then
+        print("TG1", self.IsTrace, self.NvBounce, self.NvLength, self.NvHoleLn, self.BmHoleLn)
+        self:Pass(trace, self.NvHoleLn)
+        print("TG2", self.IsTrace, self.NvBounce, self.NvLength)
+        self:Bounce()
+        print("TG3", self.IsTrace, self.NvBounce, self.NvLength)
+        self:Divert(trace.HitPos)
+        print("TG5", self.NvBounce, trace.Hit, trace.Fraction, trace.LengthFR)
+        -- If we were about to enter a black hole reset the step for next iteration
+        if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
+        print("TG6", self.IsTrace, self.NvBounce, self.NvLength)
       else
-        self:Finish(trace)
+        self.IsTrace
       end
+    else
+      self:Finish(trace)
     end -- Trace did not hit anything to be bounced off from
   until(self:IsFinish())
 
