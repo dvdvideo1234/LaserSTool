@@ -29,8 +29,8 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("LinearMapping", "General")
   self:EditableSetFloat ("FocusMargin" , "General", -1, 1)
   self:EditableSetBool  ("DeviateRandom", "General")
-  self:EditableSetFloat ("DeviationX" , "General", -180, 180)
-  self:EditableSetFloat ("DeviationY" , "General", -180, 180)
+  self:EditableSetFloat ("DeviationX" , "General", -90, 90)
+  self:EditableSetFloat ("DeviationY" , "General", -90, 90)
   LaserLib.Configure(self)
 end
 
