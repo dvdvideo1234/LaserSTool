@@ -3017,7 +3017,7 @@ function mtBeam:Pass(trace, extern)
   if(extern) then -- Use external lenght reduction
     self.NvLength = self.NvLength - extern -- Use extern
   else -- By default we are hitting something with fraction
-    self.NvLength = self.NvLength - self.NvLength * trace.Fraction
+    self.NvLength = self.NvLength - trace.LengthFR
   end; return self -- Coding effective API
 end
 
@@ -3363,6 +3363,9 @@ function mtBeam:SetTraceWidth(trace, length)
   trace.LengthFR = length * trace.Fraction -- Length fraction in units
   trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
   trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
+
+  print("LN", trace.LengthBS, trace.LengthFR, trace.LengthLS, trace.LengthNR)
+
   return trace, trace.Entity
 end
 
@@ -3575,26 +3578,34 @@ end
  * result > Trace output destination table as standard config
 ]]
 function mtBeam:Trace(result)
-  local destin = (result or self.BmTarget)
+  local destin, tr, ta = (result or self.BmTarget), nil, nil
   local length = (self.IsHoleGv and self.NvHoleLn or self.NvLength)
         length = (self.IsRfract and self.TrRfract or length)
 
+  print("TR1", self.IsHoleGv, self.NvHoleLn, self.NvLength)
+  print("TR2", self.IsRfract, self.TrRfract, length)
+--[[
   LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 5, "YELLOW", self.NvBounce,
       tostring(self.IsRfract)..":"..
       tostring(self.IsHoleGv)..":"..
       math.Round(self.NvHoleLn, 2)..":"..
       math.Round(self.NvLength, 2)..":"..
       math.Round(self.TrRfract, 2).."="..math.Round(length, 2))
-
+]]
   if(not self.IsRfract) then -- CAP trace is not needed when we are refracting
-    local tr = TraceCAP(self.VrOrigin, self.VrDirect, length, self.TeFilter)
-    if(tr) then if(destin) then -- Merge CAP result into the beam result
-      return self:SetTraceWidth(table.Merge(destin, tr), length)
-    else return self:SetTraceWidth(tr, length) end end -- Return CAP currently hit
+    tr = TraceCAP(self.VrOrigin, self.VrDirect, length, self.TeFilter)
+    if(tr) then -- Return CAP currently hit and fill up destination
+      if(destin) then -- Merge CAP result into the beam result
+        tr, ta = self:SetTraceWidth(table.Merge(destin, tr), length)
+      else tr, ta = self:SetTraceWidth(tr, length) end
+      print("TR2", self.IsRfract, self.TrRfract, length, 1)
+      return tr, ta -- Return what has been provided by CAP
+    end -- Traces done by CAP did not register anything
   end -- When the trace is not specific CAP entity continue
-  return self:SetTraceWidth(TraceBeam( -- Otherwise use the standard trace
+  tr, ta = self:SetTraceWidth(TraceBeam( -- Otherwise use the standard trace
     self.VrOrigin, self.VrDirect, length       , self.TeFilter,
     self.NvMask  , self.NvCGroup, self.NvIWorld, self.BmTracew, destin), length)
+  return tr, ta
 end
 
 --[[
@@ -3640,7 +3651,6 @@ function mtBeam:SetRefractEntity(origin, direct, target, refract, key)
   self.VrDirect:Negate()
   -- Must hit only this entity otherwise it is invalid
   self.TeFilter = function(ent) return (ent == target) end
-  self.IsHoleGv = false -- Gravity wells do not affect the beam in solids
   self.NvIWorld = true -- We are interested only in the refraction entity
   self.IsRfract = true -- Raise the bounce off refract flag
   self.BmTracew = DATA.TRWD -- Increase the beam width for back track
@@ -4444,13 +4454,12 @@ function mtBeam:Run(iIdx, iStg)
   self:SetTraceExit()
   -- Start tracing the beam
   repeat
-    -- print("------------------")
+    print("------------------")
     self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
     -- Check medium contents to know what to do when beam starts inside map solid
-
-    -- LaserLib.DrawVector(self.VrOrigin, self.VrDirect, trace.LengthFR, "YELLOW")
+    print("CR1", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
 
     if(self:IsFirst()) then -- Initial start so the beam separates from the laser
       self.TeFilter = nil -- The trace starts inside solid, switch content medium
@@ -4475,7 +4484,7 @@ function mtBeam:Run(iIdx, iStg)
         end
       end
     end
-   -- print("CR", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
+    print("CR2", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
     local suc, cas = self:GetActorID(target)
@@ -4500,10 +4509,16 @@ function mtBeam:Run(iIdx, iStg)
       self.StRfract = true -- Do not alter the beam direction
     end -- Do not put a node when beam does not traverse
     -- When we are still tracing and hit something that is not specific unit
+    print("FG1", self.IsTrace,  trace.Hit)
+    print("FG2", self.IsTrace, self.IsHoleGv)
+
     if(self.IsTrace and trace.Hit) then
+      -- Gravity wells do not affect the beam in solids
+      self.IsHoleGv = false
       -- Register a hit so reduce bounces count
       if(suc) then
         if(self.IsRfract) then
+          print("CR3", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
           local mcons = util.PointContents(trace.HitPos)
           -- Check when bounce position is inside the water
           self.IsTrace = true -- Produce next ray. Well the beam is still tracing
@@ -4525,10 +4540,12 @@ function mtBeam:Run(iIdx, iStg)
               else -- Get the trace ready to check the other side and register the location
                 self:SetTraceNext(trace.HitPos, vdir)
               end -- Apply power ratio when requested
-              if(usrfre) then self:SetPowerRatio(merum.D[1][2]) end
+              if(self.BrRefrac) then self:SetPowerRatio(merum.D[1][2]) end
             end -- We are already on red while traversing so do not redirect
           else self.IsTrace = false end -- Exit now without redirecting
+          print("CR4", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
         else -- Put special cases for specific classes here
+          print("CR5", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
           if(cas and gactors[cas]) then
             local suc, err = pcall(gactors[cas], self)
             if(not suc) then self.IsTrace = false; target:Remove(); error(err) end
@@ -4538,31 +4555,41 @@ function mtBeam:Run(iIdx, iStg)
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
             self.IsTrace  = true -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, greflect)
+            print("CR6", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
             if(reflect and not self.StRfract) then -- Just call reflection and get done with it..
               self:Reflect(trace, reflect[1]) -- Call reflection method
             else
+              print("CR7", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
               local refract, key = GetMaterialEntry(mat, grefract)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
+                print("CR8", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
+                  print("CR9", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
+                  LaserLib.DrawVector(self.VrOrigin, self.VrDirect, trace.LengthFR, "RED")
                   self:Pass(trace) -- Register beam passing to the new surface
                   -- Calculated refraction ray. Reflect when not possible
+                  print("CR10", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
                   local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
                   -- Check refraction medium boundary and perform according actions
+                  print("CR11", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
                   if(bnex or bsam) then -- We have to change mediums
                     self:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
                   else -- Divert the beam with the reflected ray
                     self:Divert(trace.HitPos, vdir)
                   end
+                  print("CR12", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
                   -- Apply power ratio when requested
-                  if(usrfre) then self:SetPowerRatio(refract[2]) end
+                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- We cannot be able to refract as the requested beam is missing
+                  print("CR13", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
                 else self:Finish(trace) end
                 -- We are neither reflecting nor refracting and have hit a wall
               else self:Finish(trace) end -- All triggers are processed
             end
           end
+          print("CR99", self.NvBounce, trace.Hit, trace.Fraction, self.NvLength)
         end -- Comes from air then hits and refracts in water or starts in water
       elseif(trace.HitWorld) then
         if(self.IsRfract) then
@@ -4603,7 +4630,7 @@ function mtBeam:Run(iIdx, iStg)
             self:RegisterNode(org, self.NvLength)
             self:Finish(trace)
           end -- Apply power ratio when requested
-          if(usrfre) then self:SetPowerRatio(merum.D[1][2]) end
+          if(self.BrRefrac) then self:SetPowerRatio(merum.D[1][2]) end
         else
           if(cas and gactors[cas]) then
             local suc, err = pcall(gactors[cas], self)
@@ -4638,7 +4665,7 @@ function mtBeam:Run(iIdx, iStg)
                   -- Need to make the traversed destination the new source
                   self:SetRefractWorld(trace, refract, key)
                   -- Apply power ratio when requested
-                  if(usrfre) then self:SetPowerRatio(refract[2]) end
+                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- We cannot be able to refract as the requested entry is missing
                 else self:Finish(trace) end
                 -- All triggers when reflecting and refracting are processed
@@ -4649,29 +4676,28 @@ function mtBeam:Run(iIdx, iStg)
       else self:Finish(trace) end; self:Bounce() -- Refresh medium pass through information
     elseif(self.IsTrace and self.IsHoleGv) then
       if(self.NvLength > 0) then
-        print("TG1", self.IsTrace, self.NvBounce, self.NvLength, self.NvHoleLn, self.BmHoleLn)
-        self:Pass(trace, self.NvHoleLn)
-        print("TG2", self.IsTrace, self.NvBounce, self.NvLength)
+        print("TG1", self.IsTrace, self.NvLength, self.NvHoleLn, self.BmHoleLn)
+        -- self:Pass(trace, self.NvHoleLn)
+        print("TG2", self.IsTrace, self.NvLength)
         self:Bounce()
-        print("TG3", self.IsTrace, self.NvBounce, self.NvLength)
+        print("TG3", self.IsTrace, self.NvLength)
         self:Divert(trace.HitPos)
-        print("TG5", self.NvBounce, trace.Hit, trace.Fraction, trace.LengthFR)
+        print("TG5", trace.Hit, trace.Fraction, trace.LengthFR)
         -- If we were about to enter a black hole reset the step for next iteration
         if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
-        print("TG6", self.IsTrace, self.NvBounce, self.NvLength)
-      else
-        self.IsTrace
-      end
+        print("TG6", self.IsTrace, self.NvLength)
+      else self.IsTrace = false end
     else
       self:Finish(trace)
     end -- Trace did not hit anything to be bounced off from
   until(self:IsFinish())
 
-  -- print("FN", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
+  print("FN", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
+  print("ND", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
   -- Clear the water trigger refraction flag
   self:ClearWater()
   -- The beam ends inside transparent entity
-  if(not self:IsNode()) then self.BmTarget = nil; return self end
+  --if(not self:IsNode()) then self.BmTarget = nil; return self end
   -- Update the sources and trigger the hit reports
   self:UpdateSource()
   -- Return what did the beam hit and stuff
