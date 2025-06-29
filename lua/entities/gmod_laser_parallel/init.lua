@@ -10,12 +10,16 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Normal", "VECTOR", "Parallel surface normal"},
-    {"Focus" , "NORMAL", "Parallel focus margin"  }
+    {"Normal"  , "VECTOR", "Parallel surface normal"  },
+    {"DeviateX", "NORMAL", "Parallel deviation cone X"},
+    {"DeviateY", "NORMAL", "Parallel deviation cone Y"},
+    {"Focus"   , "NORMAL", "Parallel focus margin"    }
   ):WireCreateOutputs(
-    {"Normal", "VECTOR", "Parallel surface normal"},
-    {"Focus" , "NORMAL", "Parallel focus margin"  },
-    {"Entity", "ENTITY", "Parallel entity itself" }
+    {"Normal"  , "VECTOR", "Parallel surface normal"  },
+    {"DeviateX", "NORMAL", "Parallel deviation cone X"},
+    {"DeviateY", "NORMAL", "Parallel deviation cone Y"},
+    {"Focus"   , "NORMAL", "Parallel focus margin"    },
+    {"Entity"  , "ENTITY", "Parallel entity itself"   }
   )
 
   self:SetFocusMargin(0)
@@ -38,7 +42,7 @@ function ENT:SpawnFunction(ply, tr)
   local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
     LaserLib.SnapNormal(ent, tr, 90)
-    ent:SetAngles(ang) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Apply angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)

@@ -54,7 +54,7 @@ function ENT:SpawnFunction(ply, tr)
   local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
     LaserLib.SnapNormal(ent, tr, 90)
-    ent:SetAngles(ang) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Apply angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
@@ -73,7 +73,9 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-function ENT:DoDamage(beam, trace)
+function ENT:DoDamage(beam)
+  if(not beam) then return self end
+  local trace = beam:GetTarget()
   if(trace and trace.Hit) then
     local trent = trace.Entity
     if(LaserLib.IsValid(trent)) then
