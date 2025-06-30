@@ -3148,7 +3148,7 @@ function mtBeam:SetTraceLength(trace, length)
   trace.LengthBS = length -- Actual trace beam user requested length
   trace.LengthFR = length * trace.Fraction -- Length fraction in units
   trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
-  trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
+  trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or trace.LengthFR
   return self -- Coding effective API
 end
 
@@ -4559,11 +4559,11 @@ function mtBeam:Run(iIdx, iStg)
           else self:Finish() end -- Exit now without redirecting
         else -- Put special cases for specific classes here
           if(cas and g_actors[cas]) then
-            self:Finish(); self:Pass(trace) -- Assume that beam stops traversing
+            self:Finish() -- Assume that beam stops traversing
             local suc, err = pcall(g_actors[cas], self)
             if(not suc) then self:Finish(); target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
-            self:Finish(); self:Pass(trace) -- When the entity is unit but does not have actor function
+            self:Finish() -- When the entity is unit but does not have actor function
           else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
             print("EMAT", self.NvBounce, self.NvLength, mat)
@@ -4571,7 +4571,6 @@ function mtBeam:Run(iIdx, iStg)
             local reflect = GetMaterialEntry(mat, g_reflect)
             if(reflect and not self.StRfract) then -- Just call reflection and get done with it..
               self:Reflect(trace, reflect[1]) -- Call reflection method
-              self:Pass(trace)
               print("EREL", self.NvBounce, self.NvLength, mat)
             else
               local refract, key = GetMaterialEntry(mat, g_refract)
@@ -4581,7 +4580,6 @@ function mtBeam:Run(iIdx, iStg)
                   -- Subtract traced length from total length
                   LaserLib.DrawVector(self.VrOrigin, self.VrDirect, trace.LengthFR, "RED")
                   print("ERER", self.NvBounce, self.NvLength, mat)
-                  self:Pass(trace) -- Register beam passing to the new surface
                   -- Calculated refraction ray. Reflect when not possible
                   local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
                   -- Check refraction medium boundary and perform according actions
