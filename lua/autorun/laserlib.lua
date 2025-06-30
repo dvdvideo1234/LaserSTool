@@ -3139,7 +3139,9 @@ function mtBeam:Divert(origin, direct, reset)
 end
 
 --[[
- * Update trace lenght fractions and use it in the run method
+ * Update trace length fractions and use it in the run method
+ * trace > The trace result structure being expanded
+ * Initial trace requested length for the current iteration
 ]]
 function mtBeam:SetTraceLength(trace, length)
   -- In this case the value of node register length is calculated
@@ -3147,6 +3149,7 @@ function mtBeam:SetTraceLength(trace, length)
   trace.LengthFR = length * trace.Fraction -- Length fraction in units
   trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
   trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or nil
+  return self -- Coding effective API
 end
 
 --[[
@@ -3820,7 +3823,6 @@ end
 DATA.ACTORS = {
   ["event_horizon"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     local pob, dir, eff = trace.HitPos, beam.VrDirect, src.isEffect
     local out = LaserLib.GetBeamExit(ent, ent.Target)
@@ -3840,7 +3842,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_portal"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsHitNormal(trace)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
@@ -3881,7 +3882,6 @@ DATA.ACTORS = {
   end,
   ["prop_portal"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     if(not ent:IsLinked()) then return end -- No linked pair
     local opr = (SERVER and ent:FindOpenPair() or nil)
@@ -3900,7 +3900,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_dimmer"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
@@ -3914,7 +3913,6 @@ DATA.ACTORS = {
   end,
   ["seamless_portal"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent, out = trace.Entity
     local out = ent:GetExitPortal() -- Retrieve open pair
     if(not LaserLib.IsValid(out)) then return end
@@ -3961,7 +3959,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_filter"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent, src = trace.Entity, beam:GetSource()
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, beam, trace)
@@ -4044,7 +4041,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_parallel"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
     local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
@@ -4082,8 +4078,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_reflector"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Disable passing. Stops traversing
-    local trace = beam:GetTarget() -- Read current trace
     local mat = beam:GetMaterialID(trace)
     local reflect = GetMaterialEntry(mat, DATA.REFLECT)
     if(not reflect) then return end -- No reflective surface. Exit
@@ -4094,7 +4088,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_refractor"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
     local refract, key = GetMaterialEntry(mat, DATA.REFRACT)
     if(not refract) then return end
@@ -4115,7 +4108,6 @@ DATA.ACTORS = {
   end,
   ["glua_custom_props"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not LaserLib.IsValid(ent)) then return end
     local dim, mat = ent:GetColor()["a"]
@@ -4145,7 +4137,6 @@ DATA.ACTORS = {
   end,
   ["procedural_shard"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish(); beam:Pass(trace) -- Assume that beam stops traversing
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
     print(mat)
     local reflect = GetMaterialEntry(mat, DATA.REFLECT)
@@ -4568,10 +4559,11 @@ function mtBeam:Run(iIdx, iStg)
           else self:Finish() end -- Exit now without redirecting
         else -- Put special cases for specific classes here
           if(cas and g_actors[cas]) then
+            self:Finish(); self:Pass(trace) -- Assume that beam stops traversing
             local suc, err = pcall(g_actors[cas], self)
             if(not suc) then self:Finish(); target:Remove(); error(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
-            self:Finish() -- When the entity is unit but does not have actor function
+            self:Finish(); self:Pass(trace) -- When the entity is unit but does not have actor function
           else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
             print("EMAT", self.NvBounce, self.NvLength, mat)
