@@ -75,30 +75,5 @@ end
 
 function ENT:DoDamage(beam)
   if(not beam) then return self end
-  local trace = beam:GetTarget()
-  if(trace and trace.Hit) then
-    local trent = trace.Entity
-    if(LaserLib.IsValid(trent)) then
-      -- Check whenever target is beam source
-      if(not LaserLib.IsUnit(trent)) then
-        local sors = beam:GetSource()
-        local user = (self.ply or self.player)
-        local dtyp = sors:GetDissolveType()
-        LaserLib.DoDamage(trent,
-                          sors,
-                          (user or sors:GetCreator()),
-                          trace.HitPos,
-                          trace.Normal,
-                          beam.VrDirect,
-                          beam.NvDamage,
-                          beam.NvForce,
-                          LaserLib.GetDissolveID(dtyp),
-                          sors:GetKillSound(),
-                          sors:GetForceCenter(),
-                          sors:GetBeamSafety())
-      end
-    end
-  end
-
-  return self
+  beam:DoDamage(self); return self
 end

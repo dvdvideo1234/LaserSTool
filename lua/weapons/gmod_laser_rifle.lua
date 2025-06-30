@@ -252,24 +252,7 @@ function SWEP:ServerBeam()
     local ueye = self:GetOwner():EyePos()
     local dist = (trace.HitPos - ueye):LengthSqr()
     if(dist < 1500) then return end
-    if(trace and trace.Hit and
-       LaserLib.IsValid(trace.Entity) and not
-       LaserLib.IsUnit(trace.Entity))
-    then
-      local dtyp = self:GetDissolveType()
-      LaserLib.DoDamage(trace.Entity,
-                        self,
-                        self:GetOwner(),
-                        trace.HitPos,
-                        trace.Normal,
-                        beam.VrDirect,
-                        beam.NvDamage,
-                        beam.NvForce,
-                        LaserLib.GetDissolveID(dtyp),
-                        self:GetKillSound(),
-                        self:GetForceCenter(),
-                        self:GetBeamSafety())
-    end
+    beam:DoDamage(self)
   end
 end
 

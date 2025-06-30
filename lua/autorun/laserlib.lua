@@ -9,7 +9,7 @@ DATA.NOAV = "N/A"            -- Not available as string
 DATA.CATG = "Laser"          -- Category name in the entities tab
 DATA.TOLD = SysTime()        -- Reduce debug function calls
 DATA.RNDB = 3                -- Decimals beam round for visibility check
-DATA.RNNM = 1                -- Dedicated rounding for comparision
+DATA.RNNM = 1                -- Dedicated rounding for comparison
 DATA.KWID = 5                -- Width coefficient used to calculate power
 DATA.CLMX = 255              -- Maximum value for valid coloring
 DATA.CTOL = 0.01             -- Color vectors and alpha comparison tolerance
@@ -2394,75 +2394,6 @@ function LaserLib.SnapCustom(base, trrs, origin, direct)
 end
 
 if(SERVER) then
-
-  --[[
-   * Function handler for calculating target custom damage
-   * These are specific handlers for specific classes
-   * Arguments are the same as `LaserLib.DoDamage`
-  ]]
-  local gtDAMAGE = {
-    ["shield"] = function(target  , laser , attacker, origin ,
-                          normal  , direct, damage  , force  ,
-                          dissolve, noise , fcenter , safety)
-      local damage = math.Clamp(damage / 2500 * 3, 0, 4)
-      target:Hit(laser, origin, damage, -1 * normal)
-      return true -- Exit main damage routine
-    end,
-    ["#ISPLAYER#"] = function(target  , laser , attacker, origin ,
-                              normal  , direct, damage  , force  ,
-                              dissolve, noise , fcenter , safety)
-      LaserLib.DoSound(target, noise) -- Play sound for breakable props
-      local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
-      if(LaserLib.IsValid(torch)) then
-        local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
-        LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
-        local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
-        if(LaserLib.IsValid(doll)) then
-          if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
-          doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
-          LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
-          return true -- Exit main damage routine
-        else
-          LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE)
-          target:Kill(); return true -- Exit main damage routine
-        end
-      else
-        LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE)
-        target:Kill(); return true -- Exit main damage routine
-      end
-    end,
-    ["#ISNPC#"] = function(target  , laser , attacker, origin ,
-                           normal  , direct, damage  , force  ,
-                           dissolve, noise , fcenter , safety)
-      LaserLib.DoSound(target, noise) -- Play sound for breakable props
-      local torch = LaserLib.NewDissolver(laser, target:GetPos(), attacker, dissolve)
-      if(LaserLib.IsValid(torch)) then
-        local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
-        if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end -- Mark weapon
-        target:SetName(torch.Target) -- The NPC does not have kill method. Mark it
-        LaserLib.TakeDamage(target, damage, attacker, laser) -- Do damage to generate the ragdoll
-        LaserLib.DoDissolve(torch) -- Dissolver only for player and NPC
-        return true -- Exit main damage routine
-      else
-        LaserLib.TakeDamage(target, damage, attacker, laser, DMG_DISSOLVE)
-        target:Remove(); return true -- Exit main damage routine
-      end
-    end
-  }
-
-  --[[
-   * Registers how a custom class handles damage
-   * ent  > Entity class as key to be registered
-   * func > Function for handling custom damage
-  ]]
-  function LaserLib.SetDamage(ent, func)
-    if(not LaserLib.IsValid(ent)) then
-      error("Entity mismatch: "..tostring(ent)) end
-    local ty = type(func); if(ty ~= "function") then
-      error("Damage mismatch: ".. ty) end
-    gtDAMAGE[ent:GetClass()] = func
-  end
-
   --[[
    * Configures visuals material and model for a unit
    * ply > Entity class unit owner or the player
@@ -2487,123 +2418,6 @@ if(SERVER) then
     else -- Conditions are not met so work normally
       ent:SetModel(LaserLib.GetModel(idx))
       LaserLib.SetMaterial(ent, LaserLib.GetMaterial(idx))
-    end
-  end
-
-  -- https://wiki.facepunch.com/gmod/Global.DamageInfo
-  function LaserLib.TakeDamage(victim, damage, attacker, laser, dmtype)
-    local dmg = DATA.DMGI
-    dmg:SetDamage(damage)
-    dmg:SetAttacker(attacker)
-    dmg:SetInflictor(laser)
-    dmg:SetDamageType(dmtype or DMG_ENERGYBEAM)
-    victim:TakeDamageInfo(dmg)
-  end
-
-  -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
-  function LaserLib.NewDissolver(base, position, attacker, disstype)
-    local torch = ents.Create("env_entity_dissolver")
-    if(not LaserLib.IsValid(torch)) then return nil end
-    torch.Target = DATA.DISID:format(base:EntIndex())
-    torch:SetKeyValue("dissolvetype", disstype)
-    torch:SetKeyValue("magnitude", 0)
-    torch:SetPos(position)
-    torch:SetPhysicsAttacker(attacker)
-    torch:Spawn()
-    return torch
-  end
-
-  function LaserLib.DoDissolve(torch)
-    if(not LaserLib.IsValid(torch)) then return end
-    torch:Fire("Dissolve", torch.Target, 0)
-    torch:Fire("Kill", "", 0.1)
-    torch:Remove()
-  end
-
-  function LaserLib.DoSound(target, noise)
-    if(not LaserLib.IsValid(target)) then return end
-    if(noise and (target:Health() > 0 or target:IsPlayer())) then
-      sound.Play(noise, target:GetPos())
-      target:EmitSound(Sound(noise))
-    end
-  end
-
-  function LaserLib.DoBurn(target, origin, direct, safety)
-    if(not safety) then return end -- Beam safety skipped
-    if(not LaserLib.IsValid(target)) then return end
-    local smu = DATA.VESFBEAM:GetFloat()
-    if(smu <= 0) then return end -- General setting
-    local idx = target:StartLoopingSound(DATA.BURN)
-    local obb = target:LocalToWorld(target:OBBCenter())
-    local pbb = LaserLib.ProjectPointRay(obb, origin, direct)
-          obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
-          obb.z = 0; target:SetVelocity(obb)
-    timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
-  end
-
-  function LaserLib.DoDamage(target  , laser , attacker, origin ,
-                             normal  , direct, damage  , force  ,
-                             dissolve, noise , fcenter , safety)
-    local phys = target:GetPhysicsObject()
-    if(not LaserLib.IsUnit(target)) then
-      if(force and force > 0 and LaserLib.IsValid(phys)) then
-        if(fcenter) then -- Force relative to mass center
-          phys:ApplyForceCenter(direct * force)
-        else -- Keep force separate from damage inflicting
-          phys:ApplyForceOffset(direct * force, origin)
-        end -- This is the way laser can be used as forcer
-      end -- Do not apply force on laser units
-      if(target:IsPlayer() and damage > 0) then -- Portal beam safety
-        LaserLib.DoBurn(target, origin, direct, safety)
-      end -- Target is not unit. Check emiter safety
-    end
-
-    -- Time to do next damage blast when there is damage
-    if(laser.isDamage and damage and damage > 0) then
-      local cas = target:GetClass()
-      if(cas and gtDAMAGE[cas]) then
-        local suc, oux = pcall(gtDAMAGE[cas],
-                               target  , laser , attacker, origin ,
-                               normal  , direct, damage  , force  ,
-                               dissolve, noise , fcenter , safety)
-        if(not suc) then target:Remove(); error(err) end -- Remove target
-        if(oux) then return end -- Exit main damage routine immediately
-      else
-        if(target:IsPlayer()) then
-          if(target:Health() <= damage) then
-            local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
-                                   target  , laser , attacker, origin ,
-                                   normal  , direct, damage  , force  ,
-                                   dissolve, noise , fcenter , safety)
-            if(not suc) then target:Kill(); error(err) end -- Remove target
-            if(oux) then return end -- Exit main damage routine immediately
-          end
-        elseif(target:IsNPC()) then
-          if(target:Health() <= damage) then
-            local suc, oux = pcall(gtDAMAGE["#ISNPC#"],
-                                   target  , laser , attacker, origin ,
-                                   normal  , direct, damage  , force  ,
-                                   dissolve, noise , fcenter , safety)
-            if(not suc) then target:Remove(); error(err) end -- Remove target
-            if(oux) then return end -- Exit main damage routine immediately
-          end
-        elseif(target:IsVehicle()) then
-          local driver = target:GetDriver()
-          if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
-            if(driver:Health() <= damage) then driver:ExitVehicle()
-              local suc, oux = pcall(gtDAMAGE["#ISPLAYER#"],
-                                     driver  , laser , attacker, origin ,
-                                     normal  , direct, damage  , force  ,
-                                     dissolve, noise , fcenter , safety)
-              if(not suc) then driver:Kill(); error(err) end -- Remove target
-              if(oux) then return end -- Exit main damage routine immediately
-            end
-          end
-        end
-      end
-
-      -- When target is not supposed to be killed yet
-      LaserLib.TakeDamage(target, damage, attacker, laser)
     end
   end
 
@@ -2661,7 +2475,7 @@ end
  * Returns the dynamic refraction index based on wavelength
  * This is mainly used for calculating component light dispersion
  * wave > Wavelength of the input beam traversing the medium
- * nidx > Wavelenght for the sodium line according to the material
+ * nidx > Wavelength for the sodium line according to the material
  * https://en.wikipedia.org/wiki/List_of_refractive_indices
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
@@ -4402,26 +4216,247 @@ DATA.ACTORS = {
 
 --[[
  * Registers and actor function for entity specified class
- * The function argument are (beam, trace) and define
+ * The function argument are (beam) and define
  * what will happen if the beam loop meats this entity class
- * eEnt > Entity of the desired class to have a handler
- * fAct > Action function (beam, trace) to handle entity
+ * ent > Entity of the desired class to have a handler
+ * act > Action function (beam) to handle entity
 ]]
-function LaserLib.SetActor(eEnt, fAct)
-  if(not LaserLib.IsValid(eEnt)) then
-    error("Entity mismatch: "..tostring(eEnt)) end
-  local ty = type(fAct); if(ty ~= "function") then
+function LaserLib.SetActor(ent, act)
+  if(not LaserLib.IsValid(ent)) then
+    error("Entity mismatch: "..tostring(ent)) end
+  local ty = type(act); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
-  DATA.ACTORS[eEnt:GetClass()] = fAct
+  DATA.ACTORS[ent:GetClass()] = act
 end
 
-function LaserLib.GetActor(eEnt)
-  if(not LaserLib.IsValid(eEnt)) then
-    error("Entity mismatch: "..tostring(eEnt)) end
-  local fAct = DATA.ACTORS[eEnt:GetClass()]
-  local ty = type(fAct); if(ty ~= "function") then
+function LaserLib.GetActor(ent)
+  if(not LaserLib.IsValid(ent)) then
+    error("Entity mismatch: "..tostring(ent)) end
+  local act = DATA.ACTORS[ent:GetClass()]
+  local ty = type(act); if(ty ~= "function") then
     error("Actor mismatch: ".. ty) end
-  return fAct
+  return act
+end
+
+if(SERVER) then
+  --[[
+   * Function handler for calculating target custom damage
+   * These are specific handlers for specific classes
+   * Arguments are the same as `LaserLib.DoDamage`
+  ]]
+  DATA.DAMAGE = {
+    ["shield"] = function(param)
+      local origin, normal = param.origin, param.normal
+      local laser , target = param.laser , param.target
+      local damage = math.Clamp(param.damage / 2500 * 3, 0, 4)
+      target:Hit(laser, origin, damage, -1 * normal)
+      return true -- Exit main damage routine
+    end,
+    ["#ISPLAYER#"] = function(param)
+      beam:DoSound(param) -- Play sound for breakable props
+      local torch = beam:GetTorch(param)
+      if(LaserLib.IsValid(torch)) then
+        local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
+        beam:TakeDamage(param) -- Do damage to generate the ragdoll
+        local doll = target:GetRagdollEntity() -- We need to kill the player first to get his ragdoll
+        if(LaserLib.IsValid(doll)) then
+          if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end
+          doll:SetName(torch.Target) -- Allowing us to dissolve him the cleanest way
+          beam:DoDissolve(torch) -- Dissolver only for player and NPC
+          return true -- Exit main damage routine
+        else
+          beam:TakeDamage(param, DMG_DISSOLVE)
+          target:Kill(); return true -- Exit main damage routine
+        end
+      else
+        beam:TakeDamage(param, DMG_DISSOLVE)
+        target:Kill(); return true -- Exit main damage routine
+      end
+    end,
+    ["#ISNPC#"] = function(param)
+      beam:DoSound(param) -- Play sound for breakable props
+      local torch = beam:GetTorch(param)
+      if(LaserLib.IsValid(torch)) then
+        local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
+        if(LaserLib.IsValid(swep)) then swep:SetName(torch.Target) end -- Mark weapon
+        target:SetName(torch.Target) -- The NPC does not have kill method. Mark it
+        beam:TakeDamage(param) -- Do damage to generate the ragdoll
+        beam:DoDissolve(torch) -- Dissolver only for player and NPC
+        return true -- Exit main damage routine
+      else
+        beam:TakeDamage(param, DMG_DISSOLVE)
+        target:Remove(); return true -- Exit main damage routine
+      end
+    end
+  }
+
+  --[[
+   * Registers how a custom class handles damage
+   * ent > Entity class as key to be registered
+   * act > Function for handling custom damage
+  ]]
+  function LaserLib.GetDamage(ent)
+    if(not LaserLib.IsValid(ent)) then
+      error("Entity mismatch: "..tostring(ent)) end
+    local act = DATA.DAMAGE[ent:GetClass()]
+    local ty = type(act); if(ty ~= "function") then
+      error("Damage mismatch: ".. ty) end
+    return act
+  end
+
+  function LaserLib.SetDamage(ent, act)
+    if(not LaserLib.IsValid(ent)) then
+      error("Entity mismatch: "..tostring(ent)) end
+    local ty = type(act); if(ty ~= "function") then
+      error("Damage mismatch: ".. ty) end
+    DATA.DAMAGE[ent:GetClass()] = act
+  end
+
+  -- https://wiki.facepunch.com/gmod/Global.DamageInfo
+  function mtBeam:TakeDamage(param, dmtype)
+    local target = param.target
+    if(not LaserLib.IsValid(target)) then return end
+    local laser = param.laser
+    if(not LaserLib.IsValid(laser)) then return end
+    local attacker = param.attacker
+    if(not LaserLib.IsValid(attacker)) then return end
+    local damage = param.damage
+    if(not damage or (damage and damage <= 0)) then return end
+    local dmtype = (dmtype and dmtype or param.dmtype)
+    local dmg = DATA.DMGI -- Local reference to damage info object
+    dmg:SetDamage(damage) -- Modifies the damage amount. Any positive number
+    dmg:SetAttacker(attacker) -- Sets the attacker. For example a player or an NPC
+    dmg:SetInflictor(laser) --Sets the inflictor. For example a weapon
+    dmg:SetDamageType(dmtype) -- Damage type. comes form DMG enumerators
+    target:TakeDamageInfo(dmg) -- Pass the damage info object
+  end
+
+  -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
+  function mtBeam:GetTorch(param)
+    local laser  = param.laser
+    if(not LaserLib.IsValid(laser)) then return nil end
+    local attacker = param.attacker
+    if(not LaserLib.IsValid(attacker)) then return nil end
+    local target = param.target
+    if(not LaserLib.IsValid(target)) then return nil end
+    local dissolve = param.dissolve
+    local origin = target:GetPos()
+    local torch = ents.Create("env_entity_dissolver")
+    if(not LaserLib.IsValid(torch)) then return nil end
+    torch.Target = DATA.DISID:format(laser:EntIndex())
+    torch:SetKeyValue("dissolvetype", dissolve)
+    torch:SetKeyValue("magnitude", 0)
+    torch:SetPos(origin)
+    torch:SetPhysicsAttacker(attacker)
+    torch:Spawn()
+    return torch
+  end
+
+  function mtBeam:DoDissolve(torch)
+    if(not LaserLib.IsValid(torch)) then return end
+    torch:Fire("Dissolve", torch.Target, 0)
+    torch:Fire("Kill", "", 0.1)
+    torch:Remove()
+  end
+
+  function mtBeam:DoSound(param)
+    local target, noise = param.target, param.noise
+    if(not LaserLib.IsValid(target)) then return end
+    if(noise and (target:Health() > 0 or target:IsPlayer())) then
+      sound.Play(noise, target:GetPos())
+      target:EmitSound(Sound(noise))
+    end
+  end
+
+  function mtBeam:DoBurn(param)
+    local target, origin = param.target, param.origin
+    if(not LaserLib.IsValid(target)) then return end
+    local direct, safety = param.direct, param.safety
+    if(not safety) then return end -- Beam safety skipped
+    local smu = DATA.VESFBEAM:GetFloat()
+    if(smu <= 0) then return end -- General setting
+    local idx = target:StartLoopingSound(DATA.BURN)
+    local obb = target:LocalToWorld(target:OBBCenter())
+    local pbb = LaserLib.ProjectPointRay(obb, origin, direct)
+          obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
+          obb.z = 0; target:SetVelocity(obb)
+    timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
+  end
+
+  function mtBeam:DoDamage(laser)
+    local trace = self:GetTarget()
+    if(not (trace and trace.Hit)) then return end
+    local target = trace.Entity
+    if(not LaserLib.IsValid(target)) then return end
+    if(LaserLib.IsUnit(target)) then return end
+    local sours = self:GetSource()
+    if(not LaserLib.IsValid(sours)) then return end
+    local param = {
+      target   = target,
+      laser    = laser,
+      attacker = (self.ply or self.player) or sours:GetCreator(),
+      origin   = trace.HitPos,
+      normal   = trace.HitNormal,
+      direct   = self.VrDirect,
+      damage   = self.NvDamage,
+      dmtype   = DMG_ENERGYBEAM,
+      force    = self.NvForce,
+      dissolve = LaserLib.GetDissolveID(sours:GetDissolveType()),
+      noise    = sours:GetKillSound(),
+      fcenter  = sours:GetForceCenter(),
+      safety   = sours:GetBeamSafety()
+    } -- Localize the calculated parameters
+    local direct, damage = param.direct, param.damage
+    local force , origin = param.force , param.origin
+    -- Read damage configuration and physics
+    local g_damage, phys = DATA.DAMAGE, target:GetPhysicsObject()
+    -- In case the target is not a unit force it or burn it
+    if(not LaserLib.IsUnit(target)) then
+      if(force and force > 0 and LaserLib.IsValid(phys)) then
+        if(fcenter) then -- Force relative to mass center
+          phys:ApplyForceCenter(direct * force)
+        else -- Keep force separate from damage inflicting
+          phys:ApplyForceOffset(direct * force, origin)
+        end -- This is the way laser can be used as forcer
+      end -- Do not apply force on laser units
+      if(target:IsPlayer() and damage > 0) then -- Portal beam safety
+        self:DoBurn(param)
+      end -- Target is not unit. Check emiter safety
+    end
+    -- Time to do next damage blast when there is damage
+    if(laser.isDamage and damage and damage > 0) then
+      local cas = target:GetClass()
+      if(cas and g_damage[cas]) then
+        local suc, oux = pcall(g_damage[cas], param)
+        if(not suc) then target:Remove(); error(err) end -- Remove target
+        if(oux) then return end -- Exit main damage routine immediately
+      else
+        if(target:IsPlayer()) then
+          if(target:Health() <= damage) then
+            local suc, oux = pcall(g_damage["#ISPLAYER#"], param)
+            if(not suc) then target:Kill(); error(err) end -- Remove target
+            if(oux) then return end -- Exit main damage routine immediately
+          end
+        elseif(target:IsNPC()) then
+          if(target:Health() <= damage) then
+            local suc, oux = pcall(g_damage["#ISNPC#"], param)
+            if(not suc) then target:Remove(); error(err) end -- Remove target
+            if(oux) then return end -- Exit main damage routine immediately
+          end
+        elseif(target:IsVehicle()) then
+          local driver = target:GetDriver()
+          if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
+            if(driver:Health() <= damage) then driver:ExitVehicle()
+              local suc, oux = pcall(g_damage["#ISPLAYER#"], param)
+              if(not suc) then driver:Kill(); error(err) end -- Remove target
+              if(oux) then return end -- Exit main damage routine immediately
+            end
+          end
+        end
+      end -- When target is not supposed to be killed yet
+      self:TakeDamage(param)
+    end
+  end
 end
 
 --[[
