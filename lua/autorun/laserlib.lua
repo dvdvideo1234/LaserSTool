@@ -2843,7 +2843,7 @@ function mtBeam:Pass(trace, extern)
   local decrem = extern and extern or trace.LengthFR
   -- We have to register that the beam has passed trough a medium
   local newrem = (self.NvLength - decrem)
-  print("PSS", self.NvBounce, self.NvLength, decrem, newrem)
+  -- print("PSS", self.NvBounce, self.NvLength, decrem, newrem)
   self.NvLength = self.NvLength - decrem
   return self -- Coding effective API
 end
@@ -4159,7 +4159,6 @@ DATA.ACTORS = {
   ["procedural_shard"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
     local mat = beam:GetMaterialID(trace) -- Current extracted material as string
-    print(mat)
     local reflect = GetMaterialEntry(mat, DATA.REFLECT)
     if(reflect) then beam:Finish(false)
       beam:Reflect(trace, reflect[1]) -- Call reflection method
@@ -4257,15 +4256,16 @@ if(SERVER) then
    * Arguments are the same as `LaserLib.DoDamage`
   ]]
   DATA.DAMAGE = {
-    ["shield"] = function(param)
+    ["shield"] = function(beam, param)
       local origin, normal = param.origin, param.normal
       local laser , target = param.laser , param.target
       local damage = math.Clamp(param.damage / 2500 * 3, 0, 4)
       target:Hit(laser, origin, damage, -1 * normal)
       return true -- Exit main damage routine
     end,
-    ["#ISPLAYER#"] = function(param)
+    ["#ISPLAYER#"] = function(beam, param)
       beam:DoSound(param) -- Play sound for breakable props
+      local target = param.target
       local torch = beam:GetTorch(param)
       if(LaserLib.IsValid(torch)) then
         local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
@@ -4285,8 +4285,9 @@ if(SERVER) then
         target:Kill(); return true -- Exit main damage routine
       end
     end,
-    ["#ISNPC#"] = function(param)
+    ["#ISNPC#"] = function(beam, param)
       beam:DoSound(param) -- Play sound for breakable props
+      local target = param.target
       local torch = beam:GetTorch(param)
       if(LaserLib.IsValid(torch)) then
         local swep = target:GetActiveWeapon() -- Do we have weapon to wipe
@@ -4439,34 +4440,35 @@ if(SERVER) then
     if(laser.isDamage and damage and damage > 0) then
       local cas = target:GetClass()
       if(cas and g_damage[cas]) then
-        local suc, oux = pcall(g_damage[cas], param)
-        if(not suc) then target:Remove(); error(err) end -- Remove target
+        local suc, oux = pcall(g_damage[cas], self, param)
+        if(not suc) then target:Remove(); error(oux) end -- Remove target
         if(oux) then return end -- Exit main damage routine immediately
       else
         if(target:IsPlayer()) then
           if(target:Health() <= damage) then
-            local suc, oux = pcall(g_damage["#ISPLAYER#"], param)
-            if(not suc) then target:Kill(); error(err) end -- Remove target
+            local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
+            if(not suc) then target:Kill(); error(oux) end -- Remove target
             if(oux) then return end -- Exit main damage routine immediately
           end
         elseif(target:IsNPC()) then
           if(target:Health() <= damage) then
-            local suc, oux = pcall(g_damage["#ISNPC#"], param)
-            if(not suc) then target:Remove(); error(err) end -- Remove target
+            local suc, oux = pcall(g_damage["#ISNPC#"], self, param)
+            if(not suc) then target:Remove(); error(oux) end -- Remove target
             if(oux) then return end -- Exit main damage routine immediately
           end
         elseif(target:IsVehicle()) then
           local driver = target:GetDriver()
           if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
             if(driver:Health() <= damage) then driver:ExitVehicle()
-              local suc, oux = pcall(g_damage["#ISPLAYER#"], param)
-              if(not suc) then driver:Kill(); error(err) end -- Remove target
+              param.target = driver -- Switch target to the driver on kill
+              local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
+              if(not suc) then driver:Kill(); error(oux) end -- Remove target
               if(oux) then return end -- Exit main damage routine immediately
             end
           end
         end
       end -- When target is not supposed to be killed yet
-      self:TakeDamage(param)
+      self:TakeDamage(param) -- Make it eat one more slap
     end
   end
 end
@@ -4494,7 +4496,7 @@ function mtBeam:Run(iIdx, iStg)
   self:SetTraceExit()
   -- Start tracing the beam
   repeat
-    print("---------------------------")
+    -- print("---------------------------")
     self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
@@ -4522,7 +4524,7 @@ function mtBeam:Run(iIdx, iStg)
         end
       end
     end
-    print("TRC", self.NvBounce, self.NvLength, target)
+    -- print("TRC", self.NvBounce, self.NvLength, target)
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
     local suc, cas = self:GetActorID(target)
@@ -4547,7 +4549,7 @@ function mtBeam:Run(iIdx, iStg)
       self.StRfract = true -- Do not alter the beam direction
     end -- Do not put a node when beam does not traverse
     -- When we are still tracing and hit something that is not specific unit
-    print("SET", self.NvBounce, self.NvLength, trace.Hit, self.IsHoleGv)
+    -- print("SET", self.NvBounce, self.NvLength, trace.Hit, self.IsHoleGv)
     if(self.IsTrace and trace.Hit) then
       -- Gravity wells do not affect the beam in solids
       self.IsHoleGv = false
@@ -4587,7 +4589,7 @@ function mtBeam:Run(iIdx, iStg)
             self:Finish() -- When the entity is unit but does not have actor function
           else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
-            print("EMAT", self.NvBounce, self.NvLength, mat)
+            -- print("EMAT", self.NvBounce, self.NvLength, mat)
             self:Finish(false) -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, g_reflect)
             if(reflect and not self.StRfract) then -- Just call reflection and get done with it..
@@ -4717,7 +4719,7 @@ function mtBeam:Run(iIdx, iStg)
     end -- Trace did not hit anything to be bounced off from
   until(self:IsFinish())
 
-   print("FN", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
+   -- print("FN", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
   -- Clear the water trigger refraction flag
   self:ClearWater()
   -- The beam ends inside transparent entity
