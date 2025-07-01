@@ -2505,6 +2505,15 @@ function LaserLib.WaveToColor(wave, bobc)
   end; return tab.r, tab.g, tab.b, tab.a
 end
 
+function LaserLib.ColorToWave(mr, mg, mb, ma)
+  local wvis, wcol, wtcol = DATA.WVIS, DATA.WCOL, DATA.WTCOL
+  local r, g, b, a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
+        wtcol.r, wtcol.g, wtcol.b = r, g, b
+  local mh, ms, mv = ColorToHSV(wtcol)
+  local rm = math.Remap(mh, 0, 360, wcol[1], wcol[2])
+  return math.Remap(rm, wcol[1], wcol[2], wvis[1], wvis[2])
+end
+
 --[[
  * This implements beam OOP with all its specifics
 ]]
@@ -3315,7 +3324,7 @@ function mtBeam:GetMaterialID(trace)
     if(mat == "") then -- Empty then use the original material
       if(self.BmNoover) then mat = ent:GetMaterials()[1]
       else -- No override is enabled return original surface
-        mat = self:GetMaterialAuto(trace)
+        mat = self:GetMaterialAuto(trace) -- Use surface type
       end -- Physics object has a single surface type related to model
     end; return (mat or "")
   end
