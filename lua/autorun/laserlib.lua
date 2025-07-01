@@ -3264,8 +3264,37 @@ function mtBeam:IsNode()
 end
 
 --[[
+ * Checks whenever the material is studio
+ * Either **studio**, **displacement**, **empty**
+ * Includes empty strings as well
+]]
+function mtBeam:IsMaterial(mat)
+  local g_mtc = DATA.IMAT
+  local ms, me = mat:sub(1,1), mat:sub(-1,-1)
+  local su = (ms == g_mtc and me == g_mtc)
+  return (mat != "" and not su)
+end
+
+--[[
+ * Auto fills the material using various methods
+ * Uses the hit texture and overrides it in case if *
+ * https://wiki.facepunch.com/gmod/util.GetSurfaceData
+ * https://wiki.facepunch.com/gmod/Structures/TraceResult
+]]
+function mtBeam:GetMaterialAuto(trace)
+  local mat, g_mat = trace.HitTexture, DATA.MATYPE
+  if(not self:IsMaterial(mat)) then -- String is not material
+    local sur = util.GetSurfaceData(trace.SurfaceProps)
+    if(sur) then mat = (sur.name or g_mat[tostring(sur.material)])
+      -- In case the surface data exists and returns invalid mat
+      if(not self:IsMaterial(mat)) then -- String is not material
+        mat = g_mat[tostring(trace.MatType)] end -- Material lookup
+    else mat = g_mat[tostring(trace.MatType)] end -- Material lookup
+  end; return mat -- Return the override material
+end
+
+--[[
  * https://wiki.facepunch.com/gmod/Enums/MAT
- * https://wiki.facepunch.com/gmod/Entity:GetMaterialType
  * Retrieves material override for a trace or use the default
  * Toggles material original selection when not available
  * When flag is disabled uses the material type for checking
@@ -3276,36 +3305,19 @@ end
 function mtBeam:GetMaterialID(trace)
   if(not trace) then return nil end
   if(not trace.Hit) then return nil end
-  local mtc, g_mat = DATA.IMAT, DATA.MATYPE -- Fast check
-  if(trace.HitWorld) then
-    local mat = trace.HitTexture -- Use trace material type
-    if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
-      mat = (g_mat[tostring(trace.MatType)] or "") -- Material lookup
-    end -- **studio**, **displacement**, **empty**
-    if(mat == "") then
-      local sur = util.GetSurfaceData(trace.SurfaceProps)
-      mat = (g_mat[tostring(sur.material)] or sur.name)
-    end -- Trace material type is unavailable. Use the surface
-    return (mat or "")
-  else
-    local ent = trace.Entity
+  if(trace.HitWorld) then -- Use trace material type
+    -- Trace material type is unavailable. Use the surface
+    return (self:GetMaterialAuto(trace) or "")
+  else -- The trace is hitting a prop. Read the material
+    local ent = trace.Entity -- Trace entity object
     if(not LaserLib.IsValid(ent)) then return nil end
     local mat = ent:GetMaterial() -- Entity may not have override
-    if(mat == "") then -- Empty then use the material type
-      if(self.BmNoover) then mat = (ent:GetMaterials()[1] or "")
-      else -- No override is enabled return original
-        -- Gmod cannot simply decide which material is hit
-        mat = trace.HitTexture -- Use trace material type
-        if(mat:sub(1,1) == mtc and mat:sub(-1,-1) == mtc) then
-          mat = (g_mat[tostring(trace.MatType)] or "") -- Material lookup
-        end -- **studio**, **displacement**, **empty**
-        if(mat == "") then
-          local sur = util.GetSurfaceData(trace.SurfaceProps)
-          mat = (g_mat[tostring(sur.material)] or sur.name)
-        end -- Trace material type is unavailable. Use the surface
+    if(mat == "") then -- Empty then use the original material
+      if(self.BmNoover) then mat = ent:GetMaterials()[1]
+      else -- No override is enabled return original surface
+        mat = self:GetMaterialAuto(trace)
       end -- Physics object has a single surface type related to model
-    end
-    return (mat or "")
+    end; return (mat or "")
   end
 end
 
