@@ -2843,7 +2843,7 @@ function mtBeam:Pass(trace, extern)
   local decrem = extern and extern or trace.LengthFR
   -- We have to register that the beam has passed trough a medium
   local newrem = (self.NvLength - decrem)
-  -- print("PSS", self.NvBounce, self.NvLength, decrem, newrem)
+  LaserLib.Print("PSS", self.NvBounce, self.NvLength, decrem, newrem)
   self.NvLength = self.NvLength - decrem
   return self -- Coding effective API
 end
@@ -3225,7 +3225,7 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
       self:Pass(nil, vtmp:Length())
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
-  LaserLib.DrawPoint(node, "YELLOW", self.NvBounce, self.NxRgnode)
+  -- LaserLib.DrawPoint(node, "YELLOW", self.NvBounce, self.NxRgnode)
   if(self.NxRgnode) then
     table.insert(info, {node, width, damage, force, bedraw})
     info.Size = info.Size + 1 -- Register the node in stack
@@ -4495,8 +4495,9 @@ function mtBeam:Run(iIdx, iStg)
   -- Calculate the output location
   self:SetTraceExit()
   -- Start tracing the beam
+  LaserLib.PrintOff()
   repeat
-    -- print("---------------------------")
+    LaserLib.Print("---------------------------")
     self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
@@ -4524,7 +4525,7 @@ function mtBeam:Run(iIdx, iStg)
         end
       end
     end
-    -- print("TRC", self.NvBounce, self.NvLength, target)
+    LaserLib.Print("TRC", self.NvBounce, self.NvLength, target)
     -- Check current target for being a valid specific actor
     -- Stores whenever the trace is valid entity or not and the class
     local suc, cas = self:GetActorID(target)
@@ -4549,7 +4550,7 @@ function mtBeam:Run(iIdx, iStg)
       self.StRfract = true -- Do not alter the beam direction
     end -- Do not put a node when beam does not traverse
     -- When we are still tracing and hit something that is not specific unit
-    -- print("SET", self.NvBounce, self.NvLength, trace.Hit, self.IsHoleGv)
+    LaserLib.Print("SET", self.NvBounce, self.NvLength, trace.Hit, self.IsHoleGv)
     if(self.IsTrace and trace.Hit) then
       -- Gravity wells do not affect the beam in solids
       self.IsHoleGv = false
@@ -4589,12 +4590,12 @@ function mtBeam:Run(iIdx, iStg)
             self:Finish() -- When the entity is unit but does not have actor function
           else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
-            -- print("EMAT", self.NvBounce, self.NvLength, mat)
+            LaserLib.Print("EMAT", self.NvBounce, self.NvLength, mat)
             self:Finish(false) -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, g_reflect)
             if(reflect and not self.StRfract) then -- Just call reflection and get done with it..
               self:Reflect(trace, reflect[1]) -- Call reflection method
-              print("EREL", self.NvBounce, self.NvLength, mat)
+              LaserLib.Print("EREL", self.NvBounce, self.NvLength, mat)
             else
               local refract, key = GetMaterialEntry(mat, g_refract)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
@@ -4602,11 +4603,11 @@ function mtBeam:Run(iIdx, iStg)
                 if(refract) then -- When refraction entry is available do the thing
                   -- Subtract traced length from total length
                   LaserLib.DrawVector(self.VrOrigin, self.VrDirect, trace.LengthFR, "RED")
-                  print("ERER", self.NvBounce, self.NvLength, mat)
+                  LaserLib.Print("ERER", self.NvBounce, self.NvLength, mat)
                   -- Calculated refraction ray. Reflect when not possible
                   local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
                   -- Check refraction medium boundary and perform according actions
-                  print("ERER-1", self.NvBounce, self.NvLength, mat)
+                  LaserLib.Print("ERER-1", self.NvBounce, self.NvLength, mat)
                   if(bnex or bsam) then -- We have to change mediums
                     self:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
                   else -- Divert the beam with the reflected ray
@@ -4669,19 +4670,19 @@ function mtBeam:Run(iIdx, iStg)
             self:Finish() -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
             local mat = self:GetMaterialID(trace) -- Current extracted material as string
-            print("WMAT", self.NvBounce, self.NvLength, mat)
+            LaserLib.Print("WMAT", self.NvBounce, self.NvLength, mat)
             self:Finish(false) -- Still tracing the beam
             local reflect = GetMaterialEntry(mat, g_reflect)
             if(reflect and not self.StRfract) then
               self:Reflect(trace, reflect[1]) -- Call reflection method
-              print("WREL", self.NvBounce, self.NvLength, mat)
+              LaserLib.Print("WREL", self.NvBounce, self.NvLength, mat)
             else
               local refract, key = GetMaterialEntry(mat, g_refract)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   LaserLib.DrawVector(self.VrOrigin, self.VrDirect, trace.LengthFR, "GREEN")
-                  print("WRER", self.NvBounce, self.NvLength, mat)
+                  LaserLib.Print("WRER", self.NvBounce, self.NvLength, mat)
                   -- Define water surface as of air-water beam interaction
                   self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
                   -- Calculated refraction ray. Reflect when not possible
@@ -4699,7 +4700,7 @@ function mtBeam:Run(iIdx, iStg)
                   -- Apply power ratio when requested
                   if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- We cannot be able to refract as the requested entry is missing
-                  print("WRER-1", self.NvBounce, self.NvLength, mat)
+                  LaserLib.Print("WRER-1", self.NvBounce, self.NvLength, mat)
                 else self:Finish() end
                 -- All triggers when reflecting and refracting are processed
               else self:Finish() end -- Not traversing and have hit a wall
@@ -4719,7 +4720,7 @@ function mtBeam:Run(iIdx, iStg)
     end -- Trace did not hit anything to be bounced off from
   until(self:IsFinish())
 
-   -- print("FN", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
+  LaserLib.Print("FN", self.IsTrace, self.NvBounce, self.NvLength, trace.Entity)
   -- Clear the water trigger refraction flag
   self:ClearWater()
   -- The beam ends inside transparent entity
