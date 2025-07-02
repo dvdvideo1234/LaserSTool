@@ -35,24 +35,25 @@ function ENT:InitSources()
     Time = 0,  -- Contains the current time for pass-trough
     Keys = {}, -- Contains the ordered by time keys
     Data = {}, -- contain the data set used to call every beam
-    Copy = {   -- For pass-trough copy of current beam/trace is needed
-      Bm = {   -- Current beam object holding the status of the hit point
-        Ony = {  -- Beam copy ONLY the specified fields
-          ["NvWidth" ] = true, -- Copy beam width
-          ["NvDamage"] = true, -- Copy beam damage
-          ["NvForce" ] = true, -- Copy beam force
-          ["NvLength"] = true, -- Copy beam length
-          ["VrOrigin"] = true, -- Copy last trace origin
-          ["VrDirect"] = true, -- Copy last trace direction
-          ["BmTarget"] = true, -- Copy current trace data
-          ["BoSource"] = true, -- Copy reference to external source
-          ["BmSource"] = true  -- Copy reference to current source
-        }, -- Copy only the needed fields. Nothing else
-        Asn = {
-          ["BoSource"] = true, -- Copy external source as pointer
-          ["BmSource"] = true  -- Copy current source as pointer
-        } -- Direct assignment of beam source entity
-      }, -- Beam copy configuration
+    Copy = {   -- For pass-trough copy of current beam is needed
+      Ony = {  -- Beam copy ONLY the specified fields
+        ["NvWidth" ] = true, -- Copy beam width
+        ["NvDamage"] = true, -- Copy beam damage
+        ["NvForce" ] = true, -- Copy beam force
+        ["NvLength"] = true, -- Copy beam length
+        ["VrOrigin"] = true, -- Copy last trace origin
+        ["VrDirect"] = true, -- Copy last trace direction
+        ["BmTarget"] = true, -- Copy current trace data
+        ["BoSource"] = true, -- Copy reference to external source
+        ["BmSource"] = true  -- Copy reference to current source
+      }, -- Copy only the needed fields. Nothing else
+      Asn = {
+        ["BoSource"] = true, -- Copy external source as pointer
+        ["BmSource"] = true  -- Copy current source as pointer
+      }, -- Direct assignment of beam source entity
+      Cpn = {
+        ["BmTarget"] = true -- Copy current trace data
+      }
     } -- Configure how node data is being copied
   } -- Pass-trough internal configuration data
   self:InitArrays("Array", "Index", "Level", "Front")
@@ -296,9 +297,7 @@ end
 function ENT:Think()
   if(self:GetPassBeamTrough()) then
     local pss = self.pssSources
-    --print("Time:", pss.Time)
     if(LaserLib.IsTime(pss.Time)) then
-      print("Reset:", pss.Time)
       pss.Time = 0
       self:ResetInternals()
       self:UpdateDominant()
@@ -306,14 +305,15 @@ function ENT:Think()
       self:WireArrays()
       table.Empty(pss.Data)
     else -- Some beams still hit sensor
-      --print("Work:", pss.Time)
       self:ResetInternals()
       for idx = 1, pss.Size do
         local key = pss.Keys[idx]
-        local set = pss.Data[key]
-        print(key, set, idx)
-        if(set) then
-          self:EveryBeam(set.Src, idx, set.Pbm)
+        if(key) then local set = pss.Data[key]
+          if(set) then self:EveryBeam(set.Src, idx, set.Pbm) end
+        else -- If something gets messy reset the frame
+          table.Empty(pss.Keys)
+          table.Empty(pss.Data)
+          pss.Size = 0; break
         end
       end
       self:UpdateDominant()

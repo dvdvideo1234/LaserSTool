@@ -9,7 +9,7 @@ DATA.NOAV = "N/A"            -- Not available as string
 DATA.CATG = "Laser"          -- Category name in the entities tab
 DATA.TOLD = SysTime()        -- Reduce debug function calls
 DATA.RNDB = 3                -- Decimals beam round for visibility check
-DATA.RNNM = 1                -- Dedicated rounding for comparison
+DATA.RNBH = 2                -- Dedicated rounding for black hole comparison
 DATA.KWID = 5                -- Width coefficient used to calculate power
 DATA.CLMX = 255              -- Maximum value for valid coloring
 DATA.CTOL = 0.01             -- Color vectors and alpha comparison tolerance
@@ -73,7 +73,7 @@ DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Con
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0    , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
-DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 0    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
+DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -2775,8 +2775,10 @@ end
  * Snapshots have the same property as origin
  * They represent dedicated beam copy at a time
  * tSkp > Keys that are not processed or skipped
- * tCpy > Keys that use table.Copy on data
- * tPtr > Keys that are assigned as references
+ * tOny > Keys that are copied nothing else
+ * tAsn > Keys beig copied via direct assigment
+ * tCpn > Keys that are copied via table.copy
+ * tDst > Store the beam copy in this table
 ]]
 function mtBeam:GetCopy(tSkp, tOny, tAsn, tCpn, tDst)
   local cpBeam = CopyData(self, tSkp, tOny, tAsn, tCpn, tDst)
@@ -3437,6 +3439,7 @@ function mtBeam:Trace(result)
   tr, ta = self:SetTraceWidth(TraceBeam( -- Otherwise use the standard trace
     self.VrOrigin, self.VrDirect, length       , self.TeFilter,
     self.NvMask  , self.NvCGroup, self.NvIWorld, self.BmTracew, destin), length)
+  LaserLib.DrawVector(self.VrOrigin, self.VrDirect, 5, "CYAN")
   return tr, ta
 end
 
@@ -3693,7 +3696,7 @@ end
 function mtBeam:ApplyGravity()
   if(self.IsRfract) then return self end
   if(self.BmHoleLn <= 0) then return self end
-  local g_blhole = DATA.BLHOLE
+  local g_blhole, g_rnd = DATA.BLHOLE, DATA.RNBH
   local vgrv, ngrv, xgrv = nil, nil, nil
   for case, info in pairs(g_blhole) do
     for hole, bool in pairs(info.Registry) do
@@ -3702,7 +3705,7 @@ function mtBeam:ApplyGravity()
         local cen, rad = info.GetCenter(hole), info.GetRadius(hole)
         local nFFr, nFBa = util.IntersectRayWithSphere(org, dir, cen, rad)
         if(nFFr and nFBa) then -- Ray intersects with gravity well
-          local rFFr, rFBa = math.Round(nFFr, 2), math.Round(nFBa, 2)
+          local rFFr, rFBa = math.Round(nFFr, g_rnd), math.Round(nFBa, g_rnd)
           if(rFFr > 0 and rFBa > 0) then -- Ray will enter a gravity well
             -- The beam entry point is at `nFFr` fraction relative to the origin
             ngrv = (ngrv and math.min(ngrv, nFFr) or nFFr)
@@ -3962,7 +3965,6 @@ DATA.ACTORS = {
   end,
   ["gmod_laser_rdivider"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish() -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm = ent:GetHitNormal()
     local bdot = ent:GetHitPower(norm, beam, trace)
@@ -4178,17 +4180,14 @@ DATA.ACTORS = {
   end,
   ["gwater_blackhole"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish() -- Assume that beam stops traversing
     trace.NoEffect = true
   end,
   ["gwater2_blackhole"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish() -- Assume that beam stops traversing
     trace.NoEffect = true
   end,
   ["gmod_laser_sensor"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    beam:Finish() -- Assume that beam stops traversing
     local ent = trace.Entity
     if(not ent:GetPassBeamTrough()) then return end
     if(SERVER) then
@@ -4198,13 +4197,15 @@ DATA.ACTORS = {
         local idx, pdt = beam.BmIdenty, pss.Data
         local pky = DATA.FPSS:format(src:EntIndex(), idx)
         local dat = pdt[pky]; pss.Time = CurTime()
-        local tcb, num = pss.Copy.Bm, pss.Size
+        local tcb, num = pss.Copy, pss.Size
         if(dat) then -- Update beam entry
           dat.Src = src; dat.Tim = pss.Time
-          dat.Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn, nil, dat.Pbm)
+          dat.Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn, tcb.Cpn, dat.Pbm)
         else -- Entry is missing so create one
-          pdt[pky] = {Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn), Src = src, Tim = pss.Time}
-          dat = pdt[pky]; num = (num + 1)  -- Register beam entry
+          pdt[pky] = {}; dat = pdt[pky]
+          dat.Src = src; dat.Tim = pss.Time
+          dat.Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn, tcb.Cpn)
+          num = (num + 1)  -- Register beam entry
         end -- Modify array size whenever item is added or removed
         for key, set in pairs(pdt) do  -- Check all items
           if(LaserLib.IsTime(set.Tim)) then -- Time delta is passed
@@ -4220,6 +4221,7 @@ DATA.ACTORS = {
         end -- Order by the time the beam hits the sensor
       end -- Work only for valid entity sources
     end -- Continue to trace the beam
+    beam.VrOrigin:Set(trace.HitPos)
     beam:Finish(false) -- Still tracing
     beam:SetActor(ent) -- Makes beam pass the unit
   end
