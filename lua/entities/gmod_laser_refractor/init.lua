@@ -29,8 +29,9 @@ function ENT:Initialize()
   self:SetInRefractRatio(0)
 
   -- Default uses only one refractive surface
-  self:SetZeroIndexMode(true)
-  self:SetHitSurfaceMode(true)
+  self:SetZeroIndexMode(false)
+  self:SetZeroRatioMode(false)
+  self:SetHitSurfaceMode(false)
 
   -- Setup default configuration
   self:WireWrite("Entity", self)

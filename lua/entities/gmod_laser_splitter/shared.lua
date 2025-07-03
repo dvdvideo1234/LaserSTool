@@ -26,8 +26,8 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLeanZ"  , "Internals", -1, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
+  self:EditableSetBool ("BeamColorSplit", "Visuals")
   LaserLib.SetPrimary(self)
-  self:EditableSetBool("BeamColorSplit","Visuals")
   LaserLib.Configure(self)
 end
 
@@ -148,14 +148,6 @@ function ENT:GetBeamLeanZ()
   return self:GetInBeamLeanZ()
 end
 
-function ENT:BeamColorSplit(idx)
-  if(self:GetBeamColorSplit()) then
-    local r, g, b, a = self:GetBeamColorRGBA()
-    r, g, b = LaserLib.GetColorID(idx, r, g, b)
-    LaserLib.SetExColorRGBA(r, g, b, a)
-  end; return self
-end
-
 --[[
  * Safety. Makes the beam acts like in the
  * portal series towards all players
@@ -187,19 +179,20 @@ function ENT:DoBeam(org, dir, idx)
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
   local todiv  = (self:GetBeamReplicate() and 1 or count)
-  local force  = self:GetBeamForce() / todiv
-  local damage = self:GetBeamDamage() / todiv
-  local width  = LaserLib.GetWidth(self:GetBeamWidth() / todiv)
-  local beam, trace = LaserLib.DoBeam(self:BeamColorSplit(idx),
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
-  return beam, trace
+  local beam   = LaserLib.Beam(origin, direct, length)
+        beam:SetSource(self, self)
+        beam:SetWidth(LaserLib.GetWidth(self:GetBeamWidth() / todiv))
+        beam:SetDamage(self:GetBeamDamage() / todiv)
+        beam:SetForce(self:GetBeamForce() / todiv)
+        beam:SetFgDivert(usrfle, usrfre)
+        beam:SetFgTexture(noverm, false)
+        beam:SetBounces()
+  if(self:GetBeamColorSplit()) then
+    local r, g, b, a = self:GetBeamColorRGBA()
+          r, g, b = LaserLib.GetColorID(idx, r, g, b)
+    beam:SetColorRGBA(r, g, b, a)
+  end
+  if(not beam:IsValid() and SERVER) then
+    beam:Clear(); self:Remove(); return end
+  return beam:Run(idx)
 end

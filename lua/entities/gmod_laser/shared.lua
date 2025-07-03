@@ -33,14 +33,14 @@ function ENT:SetupDataTables()
   LaserLib.Configure(self)
 end
 
-function ENT:SetBeamTransform(tranData)
-  if(tranData[2] and tranData[3]) then
-    local orgn = (tranData[2] or gvVZERO)
-    local dirc = (tranData[3] or gvVDRUP):GetNormalized()
+function ENT:SetBeamTransform(trData)
+  if(trData[2] and trData[3]) then
+    local orgn = (trData[2] or gvVZERO)
+    local dirc = (trData[3] or gvVDRUP):GetNormalized()
     self:SetOriginLocal(orgn)
     self:SetDirectLocal(dirc)
   else
-    local val = (tonumber(tranData[1]) or 0)
+    local val = (tonumber(trData[1]) or 0)
     local ang = math.Clamp(val, gtAMAX[1], gtAMAX[2])
     local dir = LaserLib.GetBeamDirection(self, ang)
     local org = LaserLib.GetBeamOrigin(self, dir)
@@ -333,27 +333,23 @@ function ENT:GetNonOverMater()
 end
 
 function ENT:DoBeam(org, dir, idx)
-  local force  = self:GetBeamForce()
-  local width  = self:GetBeamWidth()
   local origin = self:GetBeamOrigin(org)
+  local direct = self:GetBeamDirection(dir)
   local length = self:GetBeamLength()
-  local damage = self:GetBeamDamage()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
-  local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
-  local beam, trace = LaserLib.DoBeam(self,
-                                      origin,
-                                      direct,
-                                      length,
-                                      width,
-                                      damage,
-                                      force,
-                                      usrfle,
-                                      usrfre,
-                                      noverm,
-                                      idx)
-  return beam, trace
+  local beam   = LaserLib.Beam(origin, direct, length)
+        beam:SetSource(self, self)
+        beam:SetWidth(self:GetBeamWidth())
+        beam:SetDamage(self:GetBeamDamage())
+        beam:SetForce(self:GetBeamForce())
+        beam:SetFgDivert(usrfle, usrfre)
+        beam:SetFgTexture(noverm, false)
+        beam:SetBounces()
+  if(not beam:IsValid() and SERVER) then
+    beam:Clear(); self:Remove(); return end
+  return beam:Run(idx)
 end
 
 function ENT:Setup(width      , length      , damage    , material   , dissolveType,

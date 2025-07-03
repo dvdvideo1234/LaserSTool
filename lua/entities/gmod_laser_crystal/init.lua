@@ -6,8 +6,8 @@ resource.AddFile("materials/vgui/entities/gmod_laser_crystal.vmt")
 
 local gnCLMX = LaserLib.GetData("CLMX")
 
-function ENT:UpdateInternals(init)
-  if(init) then
+function ENT:UpdateInternals(once)
+  if(once) then
     self.hitSize = 0
     self.crXlength, self.crBpower = nil, nil
     self.crXforce , self.crXwidth, self.crXdamage = nil, nil, nil
@@ -100,7 +100,7 @@ function ENT:SpawnFunction(ply, tr)
   local ent = ents.Create(cas)
   if(LaserLib.IsValid(ent)) then
     LaserLib.SnapNormal(ent, tr, 90)
-    ent:SetAngles(ang) -- Appy angle after spawn
+    ent:SetAngles(ang) -- Apply angle after spawn
     ent:SetCollisionGroup(COLLISION_GROUP_NONE)
     ent:SetSolid(SOLID_VPHYSICS)
     ent:SetMoveType(MOVETYPE_VPHYSICS)
@@ -119,18 +119,20 @@ function ENT:SpawnFunction(ply, tr)
   end
 end
 
-function ENT:EveryBeam(entity, index, beam, trace)
-  if(trace and trace.Hit and beam) then
+function ENT:EveryBeam(entity, index, beam)
+  if(not beam) then return end
+  local trace = beam:GetTarget()
+  if(trace and trace.Hit) then
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
     if(mrg) then self.crNcolor = beam:GetColorRGBA(true) end
     self.crNpower = LaserLib.GetPower(beam.NvWidth,
-                               beam.NvDamage)
+                                      beam.NvDamage)
     if(not self:IsInfinite(entity)) then
       self.crBpower = (self.crBpower or true)
       self.crForce = self.crForce + beam.NvForce
       self.crWidth = self.crWidth + beam.NvWidth
-      self.crLength = self.crLength + beam.NvLength
+      self.crLength = math.max(self.crLength, beam.NvLength)
       self.crDamage = self.crDamage + beam.NvDamage
       if(mrg) then
         self.crDomcor.r = self.crDomcor.r + self.crNcolor.r
@@ -233,7 +235,8 @@ function ENT:Think()
 
   if(self:GetOn()) then
     self:UpdateFlags()
-    local beam, trace = self:DoBeam()
+    local beam  = self:DoBeam()
+    local trace = beam:GetTarget()
 
     if(beam) then
       self:WireWrite("Range", beam.RaLength)
@@ -251,7 +254,7 @@ function ENT:Think()
       end
     end
 
-    self:DoDamage(beam, trace)
+    self:DoDamage(beam)
   else
     self:SetHitReportMax()
     self:WireWrite("Hit", 0)

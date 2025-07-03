@@ -23,6 +23,7 @@ include(LaserLib.GetTool().."/editable_wrapper.lua")
 
 function ENT:SetupDataTables()
   self:EditableSetBool ("ZeroIndexMode" , "General")
+  self:EditableSetBool ("ZeroRatioMode" , "General")
   self:EditableSetBool ("HitSurfaceMode", "General")
   self:EditableSetFloat("InRefractIndex", "General", -25, 25)
   self:EditableSetFloat("InRefractRatio", "General",   0,  1)
@@ -73,8 +74,11 @@ function ENT:GetRefractInfo(refract)
   local cpy = table.Copy(refract)
   local idx = self:GetRefractIndex()
   local rat = self:GetRefractRatio()
+  -- Pick refractive index. Make zero available
   if(self:GetZeroIndexMode()) then cpy[1] = idx
   else cpy[1] = ((idx ~= 0) and idx or refract[1]) end
-  cpy[2], cpy[3] = ((rat > 0) and rat or refract[2]), nil
+  -- Pick refractive ratio. Make zero available
+  if(self:GetZeroRatioMode()) then cpy[2] = rat
+  else cpy[2] = ((rat  > 0) and rat or refract[2]) end
   return cpy -- Return modified row copy
 end
