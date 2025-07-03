@@ -294,6 +294,14 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
+function ENT:ClearPassTrough()
+  local pss = self.pssSources
+  table.Empty(pss.Keys)
+  table.Empty(pss.Data)
+  pss.Time = 0
+  pss.Size = 0; return self
+end
+
 function ENT:Think()
   if(self:GetPassBeamTrough()) then
     local pss = self.pssSources
@@ -309,11 +317,10 @@ function ENT:Think()
       for idx = 1, pss.Size do
         local key = pss.Keys[idx]
         if(key) then local set = pss.Data[key]
-          if(set) then self:EveryBeam(set.Src, idx, set.Pbm) end
+          if(set) then self:EveryBeam(set.Src, idx, set.Pbm)
+          else self:ClearPassTrough(); break end
         else -- If something gets messy reset the frame
-          table.Empty(pss.Keys)
-          table.Empty(pss.Data)
-          pss.Size = 0; break
+          self:ClearPassTrough(); break
         end
       end
       self:UpdateDominant()
