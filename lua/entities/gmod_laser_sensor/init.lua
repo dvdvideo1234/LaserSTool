@@ -17,12 +17,15 @@ function ENT:ResetInternals()
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
   self.hitSize , self.crNormh , self.crDomsrc = 0, false, nil
+  self.crColor.r, self.crColor.g = 0, 0
+  self.crColor.b, self.crColor.a = 0, 0
   return self
 end
 
 function ENT:UpdateInternals()
   self.crOrigin = Vector()
   self.crDirect = Vector()
+  self.crColor  = Color()
   self:ResetInternals()
   return self
 end
@@ -159,12 +162,14 @@ function ENT:EveryBeam(entity, index, beam)
       self.crDamage = self.crDamage + beam.NvDamage
       self.crForce  = self.crForce  + beam.NvForce
       if(not self.crOpower or self.crNpower > self.crOpower) then
+        local crCo = self.crColor
         self.crNormh  = true
         self.crOpower = self.crNpower
         self.crDomsrc = beam:GetSource()
         self.crLength = beam.NvLength
         self.crOrigin:Set(beam.VrOrigin)
         self.crDirect:Set(beam.VrDirect)
+        crCo.r, crCo.g, crCo.b, crCo.a = beam:GetColorRGBA()
       end
     end
   end -- Sources are located in the table hash part
@@ -203,17 +208,27 @@ function ENT:UpdateDominant(dom)
     local mdirect = self:GetUnitDirection()
     local mlength = self:GetBeamLength()
     local mdamage = self:GetBeamDamage()
+    local mcomcor, mcoe = self:GetCheckBeamColor()
     local zorigin, como = morigin:IsZero(), false
     local zdirect, comd = mdirect:IsZero(), false
     if(not zorigin) then -- Check if origin is present
       como = (morigin:DistToSqr(self.crOrigin) >= mlength^2)
     end -- No need to calculate square root when zero
     if(not zdirect) then comd = self.crNormh end
+     -- Dominant beam color compare enabled
+    if(mcomcor) then
+      local crCo = self.crColor
+      local mr, mg, mb, ma = self:GetBeamColorRGBA()
+      local dr, dg, db, da = crCo.r, crCo.g, crCo.b, crCo.a
+      mcoe = ((math.abs(mr - dr) < gnCTOL) and (math.abs(mg - dg) < gnCTOL) and
+              (math.abs(mb - db) < gnCTOL) and (math.abs(ma - da) < gnCTOL))
+    end
     -- Trigger the wire inputs
     self:UpdateOutputs(domsrc)
     -- Check whenever sensor has to turn on
     if((zorigin or (not zorigin and como)) and
        (zdirect or (not zdirect and comd)) and
+       (not mcomcor or (mcomcor and mcoe)) and
        (mforce  == 0 or (mforce  > 0 and self.crForce  >= mforce)) and
        (mwidth  == 0 or (mwidth  > 0 and self.crWidth  >= mwidth)) and
        (mlength == 0 or (mlength > 0 and self.crLength >= mlength)) and
@@ -228,7 +243,6 @@ function ENT:UpdateDominant(dom)
         local mmatera = self:GetBeamMaterial()
         local mbmsafe = self:GetInBeamSafety()
         local movrmat = self:GetInNonOverMater()
-        local mcomcor, mcoe = self:GetCheckBeamColor()
         -- Dominant configurations ( booleans have true/false )
         local dfcentr = domsrc:GetForceCenter()  and 2 or 1
         local dreflec = domsrc:GetReflectRatio() and 2 or 1
@@ -238,14 +252,8 @@ function ENT:UpdateDominant(dom)
         local dmatera = domsrc:GetBeamMaterial()
         local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
         local dovrmat = domsrc:GetNonOverMater() and 2 or 1
-        if(mcomcor) then -- Dominant beam color compare enabled
-          local mv, ma = self:GetBeamColor(), self:GetBeamAlpha()
-          local dv, da = domsrc:GetBeamColor(), domsrc:GetBeamAlpha()
-          mcoe = (mv:IsEqualTol(dv, gnCTOL) and (math.abs(ma - da) < gnCTOL))
-        end
         -- Compare the internal configuration and trigger sensor
-        if((not mcomcor   or (mcomcor       and mcoe)) and
-           (mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
+        if((mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
            (mdistyp == "" or (mdistyp ~= "" and mdistyp == ddistyp)) and
            (mfcentr == 0  or (mfcentr ~= 0  and mfcentr == dfcentr)) and
            (mreflec == 0  or (mreflec ~= 0  and mreflec == dreflec)) and
