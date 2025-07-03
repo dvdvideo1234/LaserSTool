@@ -26,8 +26,8 @@ function ENT:SetupDataTables()
   self:EditableSetFloat ("InBeamLeanZ"  , "Internals", -1, 1)
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
+  self:EditableSetBool ("BeamColorSplit", "Visuals")
   LaserLib.SetPrimary(self)
-  self:EditableSetBool("BeamColorSplit","Visuals")
   LaserLib.Configure(self)
 end
 

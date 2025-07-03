@@ -4,7 +4,8 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_sensor.vmt")
 
-local gnCTOL = LaserLib.GetData("CTOL")
+local gnCTOL  = LaserLib.GetData("CTOL")
+local gcWHITE = LaserLib.GetColor("WHITE")
 
 function ENT:RegisterSource(ent)
   if(not self.hitSources) then return self end
@@ -25,7 +26,7 @@ end
 function ENT:UpdateInternals()
   self.crOrigin = Vector()
   self.crDirect = Vector()
-  self.crColor  = Color()
+  self.crColor  = Color(0,0,0,0)
   self:ResetInternals()
   return self
 end
@@ -44,6 +45,7 @@ function ENT:InitSources()
         ["NvDamage"] = true, -- Copy beam damage
         ["NvForce" ] = true, -- Copy beam force
         ["NvLength"] = true, -- Copy beam length
+        ["NvColor" ] = true, -- Copy beam color
         ["VrOrigin"] = true, -- Copy last trace origin
         ["VrDirect"] = true, -- Copy last trace direction
         ["BmTarget"] = true, -- Copy current trace data
@@ -55,7 +57,8 @@ function ENT:InitSources()
         ["BmSource"] = true  -- Copy current source as pointer
       }, -- Direct assignment of beam source entity
       Cpn = {
-        ["BmTarget"] = true -- Copy current trace data
+        ["NvColor"]  = true, -- Copy current color
+        ["BmTarget"] = true  -- Copy current trace data
       }
     } -- Configure how node data is being copied
   } -- Pass-trough internal configuration data
@@ -217,12 +220,11 @@ function ENT:UpdateDominant(dom)
     if(not zdirect) then comd = self.crNormh end
      -- Dominant beam color compare enabled
     if(mcomcor) then
-      local crCo = self.crColor
-      local mr, mg, mb, ma = self:GetBeamColorRGBA()
-      local dr, dg, db, da = crCo.r, crCo.g, crCo.b, crCo.a
-      mcoe = ((math.abs(mr - dr) < gnCTOL) and (math.abs(mg - dg) < gnCTOL) and
-              (math.abs(mb - db) < gnCTOL) and (math.abs(ma - da) < gnCTOL))
-    end
+      local m = self:GetBeamColorRGBA(true)
+      local d = self.crColor; self:SetColor(m)
+      mcoe = ((math.abs(m.r - d.r) < gnCTOL) and (math.abs(m.g - d.g) < gnCTOL) and
+              (math.abs(m.b - d.b) < gnCTOL) and (math.abs(m.a - d.a) < gnCTOL))
+    else self:SetColor(gcWHITE) end
     -- Trigger the wire inputs
     self:UpdateOutputs(domsrc)
     -- Check whenever sensor has to turn on

@@ -12,7 +12,7 @@ DATA.RNDB = 3                -- Decimals beam round for visibility check
 DATA.RNBH = 2                -- Dedicated rounding for black hole comparison
 DATA.KWID = 5                -- Width coefficient used to calculate power
 DATA.CLMX = 255              -- Maximum value for valid coloring
-DATA.CTOL = 5                -- Color vectors and alpha comparison tolerance
+DATA.CTOL = 20               -- Color vectors and alpha comparison tolerance
 DATA.NUGE = 2                -- Nudge amount for origin vectors back-tracing
 DATA.MINW = 0.05             -- Minimum width to be considered visible
 DATA.DOTM = 0.01             -- Collinearity and dot product margin check
@@ -130,18 +130,18 @@ DATA.UNITS = {
   -- [3] Contains the current model ( last path ) cashed being used for the given entity unit ID
   -- [4] Contains the current material ( texture ) cashed being used for the given entity unit ID
   -- [5] Whenever the unit is initialized successfully. Must contain nil, true or false
-  {"gmod_laser"          , nil        , nil                                      , nil                                        }, -- V Laser entity `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- V Laser crystal `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- V Laser reflectors `ACTOR`
-  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- V Laser splitter `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser divider `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "zup/ramps/ramp_metal"                     }, -- ? Laser sensor `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser dimmer `ACTOR`
-  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser splitterm `ENT:EveryBeam/ENT:DoBeam`
-  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- V Laser portal  `ACTOR`
-  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- V Laser parallel `ACTOR`
-  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- V Laser filter `ACTOR`
-  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- X Laser refractor `ACTOR`
+  {"gmod_laser"          , nil        , nil                                      , nil                                        }, -- Laser entity `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_crystal"  , "crystal"  , "models/props_c17/pottery02a.mdl"        , "models/dog/eyeglass"                      }, -- Laser crystal `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_reflector", "reflector", "models/madjawa/laser_reflector.mdl"     , "debug/env_cubemap_model"                  }, -- Laser reflectors `ACTOR`
+  {"gmod_laser_splitter" , "splitter" , "models/props_c17/pottery04a.mdl"        , "models/dog/eyeglass"                      }, -- Laser splitter `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_divider"  , "divider"  , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser divider `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_sensor"   , "sensor"   , "models/props_lab/jar01a.mdl"            , "phoenix_storms/concrete1"                 }, -- Laser sensor `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_dimmer"   , "dimmer"   , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser dimmer `ACTOR`
+  {"gmod_laser_splitterm", "splitterm", "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser splitterm `ENT:EveryBeam/ENT:DoBeam`
+  {"gmod_laser_portal"   , "portal"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/com_shield001a"      }, -- Laser portal  `ACTOR`
+  {"gmod_laser_parallel" , "parallel" , "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass"                      }, -- Laser parallel `ACTOR`
+  {"gmod_laser_filter"   , "filter"   , "models/props_c17/frame002a.mdl"         , "models/props_combine/citadel_cable"       }, -- Laser filter `ACTOR`
+  {"gmod_laser_refractor", "refractor", "models/madjawa/laser_reflector.mdl"     , "models/props_combine/health_charger_glass"}  -- Laser refractor `ACTOR`
 }; DATA.UNITS.Size = #DATA.UNITS
 
 DATA.COLOR = {
@@ -181,42 +181,51 @@ DATA.REFLECT = { -- Reflection descriptor
   -- [1] : Surface reflection index for the material specified
   -- [2] : Which index is the material found at when it is searched in array part
   -- [3] : Reverse integer index for search for medium contents sequential order
-  [""]                                   = false, -- Disable empty materials
-  ["**empty**"]                          = false, -- Disable empty world materials
-  ["**studio**"]                         = false, -- Disable empty prop materials
-  ["cubemap"]                            = {0.999}, -- Other cube map reflective stuff
-  ["reflect"]                            = {0.999}, -- It has reflect in the name
-  ["mirror"]                             = {0.999}, -- It has mirror in the name
-  ["chrome"]                             = {0.955}, -- Something chromed and reflective
-  ["shiny"]                              = {0.915}, -- Something generally shiny
-  ["white"]                              = {0.342}, -- Something white that reflects
-  ["metal"]                              = {0.045}, -- General metallic surface
+  [""]                                     = false, -- Disable empty materials
+  ["**empty**"]                            = false, -- Disable empty world materials
+  ["**studio**"]                           = false, -- Disable empty prop materials
+  ["cubemap"]                              = {0.999}, -- Other cube map reflective stuff
+  ["reflect"]                              = {0.999}, -- It has reflect in the name
+  ["mirror"]                               = {0.999}, -- It has mirror in the name
+  ["chrome"]                               = {0.955}, -- Something chromed and reflective
+  ["shiny"]                                = {0.915}, -- Something generally shiny
+  ["white"]                                = {0.342}, -- Something white that reflects
+  ["metal"]                                = {0.045}, -- General metallic surface
   -- Materials that are overridden and directly hash searched
-  ["models/shiny"]                       = {0.915}, -- Some generally shiny model
-  ["wtp/chrome_1"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/chrome_2"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/chrome_3"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/chrome_4"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/chrome_5"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/chrome_6"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/chrome_7"]                       = {0.955}, -- Chrome surface variation
-  ["wtp/paint_1"]                        = {0.115}, -- Various reflective paints
-  ["wtp/paint_2"]                        = {0.055}, -- Various reflective paints
-  ["wtp/paint_3"]                        = {0.684}, -- Various reflective paints
-  ["wtp/paint_4"]                        = {0.831}, -- Various reflective paints
-  ["wtp/paint_5"]                        = {0.107}, -- Various reflective paints
-  ["phoenix_storms/window"]              = {0.897}, -- PHX window
-  ["bobsters_trains/chrome"]             = {0.955}, -- Chrome from bobster trains
-  ["gm_construct/color_room"]            = {0.342}, -- White room in gm_construct
-  ["debug/env_cubemap_model"]            = {1.000}, -- There is no perfect mirror
-  ["models/materials/chchrome"]          = {0.864}, -- Chromed materials
-  ["phoenix_storms/grey_chrome"]         = {0.757}, -- Gray chrome
-  ["phoenix_storms/fender_white"]        = {0.625}, -- White reflective fender
-  ["sprops/textures/sprops_chrome"]      = {0.757}, -- Various PHX chrome materials
-  ["sprops/textures/sprops_chrome2"]     = {0.657}, -- Various PHX chrome materials
-  ["phoenix_storms/pack2/bluelight"]     = {0.734}, -- PHX blue light
-  ["sprops/trans/wheels/wheel_d_rim1"]   = {0.943}, -- Shiny wheel material
-  ["bobsters_trains/chrome_dirty_black"] = {0.537}
+  ["models/shiny"]                         = {0.915}, -- Some generally shiny model
+  ["wtp/chrome_1"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_2"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_3"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_4"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_5"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_6"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/chrome_7"]                         = {0.955}, -- Chrome surface variation
+  ["wtp/paint_1"]                          = {0.115}, -- Various reflective paints
+  ["wtp/paint_2"]                          = {0.055}, -- Various reflective paints
+  ["wtp/paint_3"]                          = {0.684}, -- Various reflective paints
+  ["wtp/paint_4"]                          = {0.831}, -- Various reflective paints
+  ["wtp/paint_5"]                          = {0.107}, -- Various reflective paints
+  ["models/player/shared/ice_player"]      = {0.830}, -- Various reflective paints
+  ["phoenix_storms/mat/mat_phx_metallic"]  = {0.317}, -- Various reflective paints
+  ["phoenix_storms/mat/mat_phx_metallic2"] = {0.317}, -- Various reflective paints
+  ["phoenix_storms/mat/mat_phx_plastic"]   = {0.547}, -- Various reflective paints
+  ["phoenix_storms/mat/mat_phx_plastic2"]  = {0.547}, -- Various reflective paints
+  ["models/materials/chpaint"]             = {0.576}, -- Various reflective paints
+  ["phoenix_storms/window"]                = {0.897}, -- PHX window
+  ["bobsters_trains/chrome"]               = {0.955}, -- Chrome from bobster trains
+  ["gm_construct/color_room"]              = {0.342}, -- White room in gm_construct
+  ["debug/env_cubemap_model"]              = {1.000}, -- There is no perfect mirror
+  ["models/materials/chchrome"]            = {0.864}, -- Chromed materials
+  ["phoenix_storms/grey_chrome"]           = {0.757}, -- Gray chrome
+  ["phoenix_storms/fender_white"]          = {0.625}, -- White reflective fender
+  ["sprops/textures/sprops_chrome"]        = {0.757}, -- Various PHX chrome materials
+  ["sprops/textures/sprops_chrome2"]       = {0.657}, -- Various PHX chrome materials
+  ["phoenix_storms/fender_chrome"]         = {0.694}, -- Various PHX chrome materials
+  ["phoenix_storms/pack2/bluelight"]       = {0.734}, -- PHX blue light
+  ["sprops/trans/wheels/wheel_d_rim1"]     = {0.943}, -- Shiny wheel material
+  ["bobsters_trains/base"]                 = {0.741}, -- Shiny wheel material
+  ["bobsters_trains/base2"]                = {0.741}, -- Shiny wheel material
+  ["bobsters_trains/chrome_dirty_black"]   = {0.537}
 }; DATA.REFLECT.Size = #DATA.REFLECT
 
 DATA.REFRACT = {
@@ -2721,7 +2730,7 @@ end
  * Reads draw color from the beam object when needed
 ]]
 function mtBeam:GetColorRGBA(bcol)
-  local c = self.BmColor -- Else source color
+  local c = self.NvColor -- Else source color
   if(not c) then local src = self:GetSource()
     c = (c or src:GetBeamColorRGBA(true))
   end -- No forced colors are present use source
@@ -2735,8 +2744,8 @@ end
 function mtBeam:SetColorRGBA(mr, mg, mb, ma)
   if(mr or mg or mb or ma) then
     local m, c = DATA.CLMX, nil -- Localize max
-    if(self.BmColor) then c = self.BmColor
-    else c = Color(0,0,0,0); self.BmColor = c end
+    if(self.NvColor) then c = self.NvColor
+    else c = Color(0,0,0,0); self.NvColor = c end
     c.r, c.g, c.b, c.a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
   end -- We do not have input parameter
 end
@@ -3793,7 +3802,7 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bmin, bmax) -- World space is faster
   -- Material must be cached and updated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local cup = (color or self.BmColor)
+  local cup = (color or self.NvColor)
   local spd = DATA.DRWBMSPD:GetFloat()
   -- Draw the beam sequentially being faster
   for idx = 2, szv do
