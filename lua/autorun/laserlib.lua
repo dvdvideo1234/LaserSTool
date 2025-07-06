@@ -26,9 +26,10 @@ DATA.FMVA = "%f,%f,%f"       -- Utilized to output formatted vectors in proper m
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.FPSS = "%09d#%09d"      -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
-DATA.WVIS = { 380, 750}      -- General wavelength limits for visible light
-DATA.WCOL = {  0 , 300}      -- Mapping for wavelength to color hue conversion
+DATA.WVIS = { 700, 380}      -- General wavelength limits for visible light
+DATA.WCOL = {  0 , 270}      -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {  20,   5}      -- Dispersion wavelength mapping for refractive index
+DATA.WACN = {  15, -15}      -- Conlfiguration for color to wavelength list step
 DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
 DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
@@ -2548,6 +2549,56 @@ function LaserLib.ColorToWave(mr, mg, mb, ma)
   local mh, ms, mv = ColorToHSV(wtcol)
   local rm = math.Remap(mh, 0, 360, wcol[1], wcol[2])
   return math.Remap(rm, wcol[1], wcol[2], wvis[1], wvis[2])
+end
+
+function LaserLib.GetWaveArray(cow)
+  local comx = DATA.CLMX
+  local conf = DATA.WACN
+  local wvis = DATA.WVIS
+  local weco = DATA.WTCOL
+  local wcol = DATA.WCOL
+  local coax = math.max(cow.r, cow.g, cow.b)
+  local coan = math.min(cow.r, cow.g, cow.b)
+  local tW = {PS = 0, Size = 0}
+  if(coan > 0) then
+    tW.PW = (coan / comx)
+    coax = coax - coan
+    tW.PC = (coax / comx)
+    weco.r = ((cow.r - coan) / coax) * comx
+    weco.g = ((cow.g - coan) / coax) * comx
+    weco.b = ((cow.b - coan) / coax) * comx
+  else
+    tW.PC = (coax / comx)
+    weco.r = (cow.r / coax) * comx
+    weco.g = (cow.g / coax) * comx
+    weco.b = (cow.b / coax) * comx
+  end
+  local step, marg = conf[1], conf[2]
+  local huS, huE = wcol[1], wcol[2]
+  for hue = huS, huE, step do
+    local bas = false
+    local r, g, b = HSVToColor(hue, 1, 1)
+    local mr, mg, mb = (weco.r - r), (weco.g - g),(weco.b - b)
+    if(mr >= marg and mg >= marg and mb >= marg) then
+      local co = {r = r, g = g, b = b}
+      local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
+      table.insert(tW, {C = co, P = tW.PC, W = wv})
+      tW.Size = tW.Size + 1; bas = true
+      tW.PS = tW.PS + tW.PC -- Dominating component
+    end
+    if(coan > 0) then -- Base component
+        tW.PS = tW.PS + tW.PW
+      if(bas) then -- Adjust the dominant component
+        local com = tW[tW.Size]
+        com.P = com.P + tW.PW
+      else -- Add gray component
+        local co = {r = r, g = g, b = b}
+        local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
+        table.insert(tW, {C = co, P = tW.PW, W = wv})
+        tW.Size = tW.Size + 1
+      end
+    end
+  end; return tW
 end
 
 --[[
