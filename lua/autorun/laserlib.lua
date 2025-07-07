@@ -26,8 +26,8 @@ DATA.FMVA = "%f,%f,%f"       -- Utilized to output formatted vectors in proper m
 DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
 DATA.FPSS = "%09d#%09d"      -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
-DATA.WVIS = { 700, 380}      -- General wavelength limits for visible light
-DATA.WCOL = {  0 , 270}      -- Mapping for wavelength to color hue conversion
+DATA.WVIS = { 700, 300}      -- General wavelength limits for visible light
+DATA.WCOL = {  0 , 300}      -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {  20,   5}      -- Dispersion wavelength mapping for refractive index
 DATA.WACN = {  15, -15}      -- Configuration for color to wavelength list step
 DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
@@ -2601,7 +2601,7 @@ function LaserLib.GetWaveArray(cow)
     weco.g = (cow.g / coax) * comx
     weco.b = (cow.b / coax) * comx
   end
-  local step, marg = conf[1], conf[2]
+  local step, marg = conf[1], -conf[2]
   local huS, huE = wcol[1], wcol[2]
   for hue = huS, huE, step do
     local bas = false
