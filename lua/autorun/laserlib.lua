@@ -29,7 +29,7 @@ DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 700, 380}      -- General wavelength limits for visible light
 DATA.WCOL = {  0 , 270}      -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {  20,   5}      -- Dispersion wavelength mapping for refractive index
-DATA.WACN = {  15, -15}      -- Conlfiguration for color to wavelength list step
+DATA.WACN = {  15, -15}      -- Configuration for color to wavelength list step
 DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
 DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
@@ -57,24 +57,25 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
 -- Library internal variables for limits and realtime tweaks ( server controlled )
-DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc" , 16   , DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
-DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt" , 30   , DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
-DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg" , 5000 , DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
-DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000, DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
-DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
-DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10   , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
-DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
-DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2    , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
-DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter X direction", -1, 1)
-DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0    , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
-DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter Z direction", -1, 1)
-DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
-DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
-DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
-DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
-DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
-DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0    , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
-DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
+DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc" , 16    , DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
+DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt" , 30    , DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
+DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg" , 5000  , DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
+DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000 , DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
+DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000 , DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
+DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10    , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000 , DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
+DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2     , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
+DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1     , DATA.FGSRVCN, "Controls the default splitter X direction", -1, 1)
+DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0     , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
+DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1     , DATA.FGSRVCN, "Controls the default splitter Z direction", -1, 1)
+DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1     , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
+DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1   , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
+DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150   , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000  , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
+DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2   , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
+DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0     , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
+DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5     , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
+DATA.DEBASCOM = CreateConVar(DATA.TOOL.."_debascom"  ,"15:15", DATA.FGSRVCN, "Hue step and compare margin when splitting a color")
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -363,6 +364,28 @@ else -- Server-side initialization. Put server related code here
   DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
   -- User notification configuration type. Used to format notifications via string.format
   DATA.NTIF = {"GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)", "surface.PlaySound(\"ambient/water/drip%d.wav\")"}
+end
+
+--[[
+ * Attaches callback changes to convar updating local data
+ * cv > Convar data hash pointing to a convar object
+ * dt > Data hash pointing to a list placeholder
+]]
+local function ConfigureVarChangeList(cv, dt)
+  local data = DATA[dtHash]
+  if(not data) then return end
+  local cvar = DATA[cvHash]
+  if(not cvar) then return end
+  local name = cvar:GetName()
+  local function exec(sV, vO, vN)
+    local set = DATA.LSEP:Explode(vN)
+    for i = 1, #set do
+      data[i] = tonumber(set[i]) or 0
+    end
+  end
+  exec(name, table.concat(data, ","), cvar:GetString())
+  cvars.RemoveChangeCallback(name, name.."_list")
+  cvars.AddChangeCallback(name, exec, name.."_list")
 end
 
 --[[
@@ -2580,21 +2603,20 @@ function LaserLib.GetWaveArray(cow)
     local r, g, b = HSVToColor(hue, 1, 1)
     local mr, mg, mb = (weco.r - r), (weco.g - g),(weco.b - b)
     if(mr >= marg and mg >= marg and mb >= marg) then
-      local co = {r = r, g = g, b = b}
+       -- Dominating component in the source color
+      local co = {r = r, g = g, b = b}; bas = true
       local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
-      table.insert(tW, {C = co, P = tW.PC, W = wv})
-      tW.Size = tW.Size + 1; bas = true
-      tW.PS = tW.PS + tW.PC -- Dominating component
+      table.insert(tW, {C = co, P = tW.PC, W = wv, B = bas})
+      tW.Size = tW.Size + 1; tW.PS = tW.PS + tW.PC
     end
-    if(coan > 0) then -- Base component
+    if(coan > 0) then -- Base white component
         tW.PS = tW.PS + tW.PW
       if(bas) then -- Adjust the dominant component
-        local com = tW[tW.Size]
-        com.P = com.P + tW.PW
-      else -- Add gray component
+        local com = tW[tW.Size]; com.P = com.P + tW.PW
+      else -- Insert a gray component in the list
         local co = {r = r, g = g, b = b}
         local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
-        table.insert(tW, {C = co, P = tW.PW, W = wv})
+        table.insert(tW, {C = co, P = tW.PW, W = wv, B = bas})
         tW.Size = tW.Size + 1
       end
     end
@@ -3367,7 +3389,7 @@ function mtBeam:IsMaterial(mat)
   local g_mtc = DATA.IMAT
   local ms, me = mat:sub(1,1), mat:sub(-1,-1)
   local su = (ms == g_mtc and me == g_mtc)
-  return (mat != "" and not su)
+  return (mat ~= "" and not su)
 end
 
 --[[
@@ -5143,4 +5165,4 @@ end
 CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
 ConfigureHookRegistry(DATA.BLHOLE, "blhole")
-
+ConfigureVarChangeList("DEBASCOM", "WACN")
