@@ -29,7 +29,7 @@ DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
 DATA.WVIS = { 700, 300}      -- General wavelength limits for visible light
 DATA.WCOL = {  0 , 300}      -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {  20,   5}      -- Dispersion wavelength mapping for refractive index
-DATA.WACN = {  15, -15}      -- Configuration for color to wavelength list step
+DATA.WACN = {  15,  15}      -- Configuration for color to wavelength list step
 DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
 DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
@@ -65,15 +65,18 @@ DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000    , DATA.FGSRVCN, 
 DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000    , DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
 DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10       , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000    , DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
+DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2        , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
+DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1        , DATA.FGSRVCN, "Controls the default splitter X direction", -1, 1)
+DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0        , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
+DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1        , DATA.FGSRVCN, "Controls the default splitter Z direction", -1, 1)
 DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1        , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1      , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150      , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000     , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2      , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
-DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0        , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5        , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
-DATA.DEBASCOM = CreateConVar(DATA.TOOL.."_debascom"  ,"15,15"   , DATA.FGSRVCN, "Hue step and compare margin when splitting color components")
-DATA.DSPLITER = CreateConVar(DATA.TOOL.."_dspliter"  ,"2,1,0,1" , DATA.FGSRVCN, "Controls the default splitter outputs count and direction")
+DATA.WDHUESTP = CreateConVar(DATA.TOOL.."_wdhuestp"  , 15       , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
+DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15       , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -366,23 +369,33 @@ end
 
 --[[
  * Attaches callback changes to convar updating local data
- * cvar > Convar data hash pointing to a convar object
  * key  > Data hash pointing to a list placeholder
+ * ...  > Vararg list of convars. Any getting chaged updates the list
 ]]
-local function ConfigureChangeList(cvar, key)
-  if(not cvar) then return end
+local function ConfigureChangeList(key, ...)
   local data = DATA[key]
   if(not data) then return end
-  local name = cvar:GetName()
-  local function exec(sV, vO, vN)
-    local set = DATA.LSEP:Explode(vN)
-    for i = 1, #set do
-      data[i] = tonumber(set[i]) or 0
-    end -- Transfer the convar to the data list
-  end -- Call the handler with old and new data
-  exec(name, table.concat(data, ","), cvar:GetString())
-  cvars.RemoveChangeCallback(name, name.."_list")
-  cvars.AddChangeCallback(name, exec, name.."_list")
+  local sors = {...}
+  for idx = 1, #sors, 2 do
+    local cvar = sors[idx]
+    local func = sors[idx + 1]
+    if(cvar and func) then
+      local name = cvar:GetName()
+      local exec = cvar[func]
+      if(exec) then
+        local function update(sV, vO, vN)
+          local suc, out = pcall(exec, cvar); if(not suc) then
+            error("Convar update ["..idx.."]"..tostring(func)..": "..out) end
+          data[idx] = out -- Call `GetFloat` for enample and write it in the list
+        end -- Call the handler with old and new data
+        local suc, out = pcall(exec, cvar); if(not suc) then
+          error("Convar update ["..idx.."]"..tostring(func)..": "..out) end
+        update(name, data[idx], out)
+        cvars.RemoveChangeCallback(name, name.."_list")
+        cvars.AddChangeCallback(name, update, name.."_list")
+      end
+    end
+  end
 end
 
 --[[
@@ -2580,11 +2593,12 @@ function LaserLib.ColorToWave(mr, mg, mb, ma)
 end
 
 function LaserLib.GetWaveArray(cow)
-  local comx = DATA.CLMX
   local conf = DATA.WACN
-  local wvis = DATA.WVIS
-  local weco = DATA.WTCOL
-  local wcol = DATA.WCOL
+  local step, marg = conf[1], -conf[2]
+  if(step <= 0) then return nil end
+  if(marg >  0) then return nil end
+  local comx, wvis = DATA.CLMX, DATA.WVIS
+  local weco, wcol = DATA.WTCOL, DATA.WCOL
   local coax = math.max(cow.r, cow.g, cow.b)
   local coan = math.min(cow.r, cow.g, cow.b)
   local tW = {PS = 0, Size = 0}
@@ -2601,7 +2615,6 @@ function LaserLib.GetWaveArray(cow)
     weco.g = (cow.g / coax) * comx
     weco.b = (cow.b / coax) * comx
   end
-  local step, marg = conf[1], -conf[2]
   local huS, huE = wcol[1], wcol[2]
   for hue = huS, huE, step do
     local bas = false
@@ -5169,6 +5182,13 @@ end
 
 CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
+
 ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
-ConfigureChangeList(DATA.DEBASCOM, "WACN")
-ConfigureChangeList(DATA.DSPLITER, "DFSPL")
+
+ConfigureChangeList("WACN", DATA.WDHUESTP, "GetFloat",
+                            DATA.WDRGBMAR, "GetFloat")
+
+ConfigureChangeList("DFSPL", DATA.NSPLITER, "GetInt",
+                             DATA.XSPLITER, "GetFloat",
+                             DATA.YSPLITER, "GetFloat",
+                             DATA.ZSPLITER, "GetFloat")

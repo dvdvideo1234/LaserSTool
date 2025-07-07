@@ -578,8 +578,11 @@ if(CLIENT) then
     LaserLib.NumSlider(cPanel, "nspliter"  )
     LaserLib.NumSlider(cPanel, "xspliter"  )
     LaserLib.NumSlider(cPanel, "yspliter"  )
+    LaserLib.NumSlider(cPanel, "zspliter"  )
     LaserLib.NumSlider(cPanel, "damagedt"  )
     LaserLib.NumSlider(cPanel, "vesfbeam"  )
+    LaserLib.NumSlider(cPanel, "wdhuestp"  )
+    LaserLib.NumSlider(cPanel, "wdrgbmar"  )
   end
 
   LaserLib.Controls("Utilities", "Admin", setupAdminSettings)
