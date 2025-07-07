@@ -366,21 +366,20 @@ end
 
 --[[
  * Attaches callback changes to convar updating local data
- * cv > Convar data hash pointing to a convar object
- * dt > Data hash pointing to a list placeholder
+ * cvar > Convar data hash pointing to a convar object
+ * key  > Data hash pointing to a list placeholder
 ]]
-local function ConfigureVarChangeList(cv, dt)
-  local data = DATA[dtHash]
-  if(not data) then return end
-  local cvar = DATA[cvHash]
+local function ConfigureChangeList(cvar, key)
   if(not cvar) then return end
+  local data = DATA[key]
+  if(not data) then return end
   local name = cvar:GetName()
   local function exec(sV, vO, vN)
     local set = DATA.LSEP:Explode(vN)
     for i = 1, #set do
       data[i] = tonumber(set[i]) or 0
-    end
-  end
+    end -- Transfer the convar to the data list
+  end -- Call the handler with old and new data
   exec(name, table.concat(data, ","), cvar:GetString())
   cvars.RemoveChangeCallback(name, name.."_list")
   cvars.AddChangeCallback(name, exec, name.."_list")
@@ -5171,5 +5170,5 @@ end
 CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
 ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
-ConfigureVarChangeList("DEBASCOM", "WACN")
-ConfigureVarChangeList("DSPLITER", "DFSPL")
+ConfigureChangeList(DATA.DEBASCOM, "WACN")
+ConfigureChangeList(DATA.DSPLITER, "DFSPL")
