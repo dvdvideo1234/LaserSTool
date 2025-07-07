@@ -38,6 +38,7 @@ DATA.IMAT  = "*"             -- First and last symbol to match studio displaceme
 DATA.LSEP  = ","             -- General list separator. Used for string splits and concatenation
 DATA.AZERO = Angle()         -- Zero angle used across all sources
 DATA.VZERO = Vector()        -- Zero vector used across all sources
+DATA.DFSPL = {2, 1, 0, 1}    -- Controls the default splitter outputs count and direction
 DATA.VDRFW = Vector(1, 0, 0) -- Global forward vector used across all sources
 DATA.VDRRG = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
@@ -57,25 +58,22 @@ DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_R
 DATA.FGINDCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
 
 -- Library internal variables for limits and realtime tweaks ( server controlled )
-DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc" , 16    , DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
-DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt" , 30    , DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
-DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg" , 5000  , DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
-DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000 , DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
-DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000 , DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
-DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10    , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
-DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000 , DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
-DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2     , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
-DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1     , DATA.FGSRVCN, "Controls the default splitter X direction", -1, 1)
-DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0     , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
-DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1     , DATA.FGSRVCN, "Controls the default splitter Z direction", -1, 1)
-DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1     , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
-DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1   , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
-DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150   , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
-DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000  , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
-DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2   , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
-DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0     , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
-DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5     , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
-DATA.DEBASCOM = CreateConVar(DATA.TOOL.."_debascom"  ,"15:15", DATA.FGSRVCN, "Hue step and compare margin when splitting a color")
+DATA.MXSPLTBC = CreateConVar(DATA.TOOL.."_maxspltbc" , 16       , DATA.FGSRVCN, "Maximum splitter output laser beams count", 0, 32)
+DATA.MXBMWIDT = CreateConVar(DATA.TOOL.."_maxbmwidt" , 30       , DATA.FGSRVCN, "Maximum beam width for all laser beams", 0, 100)
+DATA.MXBMDAMG = CreateConVar(DATA.TOOL.."_maxbmdamg" , 5000     , DATA.FGSRVCN, "Maximum beam damage for all laser beams", 0, 10000)
+DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000    , DATA.FGSRVCN, "Maximum beam force for all laser beams", 0, 50000)
+DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000    , DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
+DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10       , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
+DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000    , DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
+DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1        , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
+DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1      , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
+DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150      , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000     , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
+DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2      , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
+DATA.ENDISPER = CreateConVar(DATA.TOOL.."_endispers" , 0        , DATA.FGSRVCN, "Enable or disable dispersion of component laser beams", 0, 1)
+DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5        , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
+DATA.DEBASCOM = CreateConVar(DATA.TOOL.."_debascom"  ,"15,15"   , DATA.FGSRVCN, "Hue step and compare margin when splitting color components")
+DATA.DSPLITER = CreateConVar(DATA.TOOL.."_dspliter"  ,"2,1,0,1" , DATA.FGSRVCN, "Controls the default splitter outputs count and direction")
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -393,34 +391,42 @@ end
  * Configures the hook and user message for population special cases
 ]]
 local function ConfigureHookRegistry(set, name)
-  for cas, cnf in pairs(set) do
-    local sid = DATA.TOOL.."_"..name.."_"..cas
-    if(SERVER) then
-      util.AddNetworkString(sid.."_add")
-      util.AddNetworkString(sid.."_rem")
-      hook.Remove("PlayerSpawnedSENT", sid)
-      hook.Add("PlayerSpawnedSENT", sid,
-        function(ply, ent)
-          if(ent:GetClass() ~= cas) then return end
-          cnf.Registry[ent] = true
-          ent:CallOnRemove(sid, function()
-            cnf.Registry[ent] = nil
-            net.Start(sid.."_rem")
-              net.WriteEntity(ent)
-            net.Broadcast()
-          end)
-          net.Start(sid.."_add")
+  local suid = DATA.TOOL.."_"..name
+  if(SERVER) then
+    util.AddNetworkString(suid.."_add")
+    util.AddNetworkString(suid.."_rem")
+    hook.Remove("PlayerSpawnedSENT", suid)
+    hook.Add("PlayerSpawnedSENT", suid,
+      function(ply, ent)
+        local ukey = ent:GetClass()
+        local info = set[ukey]
+        if(not info) then return end
+        info.Registry[ent] = true
+        ent:CallOnRemove(suid, function()
+          info.Registry[ent] = nil
+          net.Start(suid.."_rem")
             net.WriteEntity(ent)
           net.Broadcast()
         end)
-    else
-      net.Receive(sid.."_add", function()
-        local ent = net.ReadEntity()
-        cnf.Registry[ent] = true end)
-      net.Receive(sid.."_rem", function()
-        local ent = net.ReadEntity()
-        cnf.Registry[ent] = nil end)
-    end
+        net.Start(suid.."_add")
+          net.WriteEntity(ent)
+        net.Broadcast()
+      end)
+  else
+    net.Receive(suid.."_add", function()
+      local ent = net.ReadEntity()
+      if(not IsValid(ent)) then return end
+      local ukey = ent:GetClass()
+      local info = set[ukey]
+      if(not info) then return end
+      info.Registry[ent] = true end)
+    net.Receive(suid.."_rem", function()
+      local ent = net.ReadEntity()
+      if(not IsValid(ent)) then return end
+      local ukey = ent:GetClass()
+      local info = set[ukey]
+      if(not info) then return end
+      info.Registry[ent] = nil end)
   end
 end
 
@@ -5164,5 +5170,6 @@ end
 
 CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
-ConfigureHookRegistry(DATA.BLHOLE, "blhole")
+ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
 ConfigureVarChangeList("DEBASCOM", "WACN")
+ConfigureVarChangeList("DSPLITER", "DFSPL")
