@@ -581,6 +581,8 @@ if(CLIENT) then
     LaserLib.NumSlider(cPanel, "zspliter"  )
     LaserLib.NumSlider(cPanel, "damagedt"  )
     LaserLib.NumSlider(cPanel, "vesfbeam"  )
+    LaserLib.NumSlider(cPanel, "timeasync" )
+    LaserLib.NumSlider(cPanel, "blholesg"  )
     LaserLib.NumSlider(cPanel, "wdhuestp"  )
     LaserLib.NumSlider(cPanel, "wdrgbmar"  )
   end

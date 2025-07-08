@@ -4,7 +4,7 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_splitterm.vmt")
 
-local gtDFSPL = LaserLib.GetData("DFSPL")
+local gtDFSPL = LaserLib.GetData("HADFSPL")
 
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)

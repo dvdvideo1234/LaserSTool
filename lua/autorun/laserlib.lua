@@ -2,47 +2,45 @@ LaserLib = LaserLib or {} -- Initialize the global variable of the library
 
 local DATA = {}
 
-DATA.GRAT = 1.61803398875    -- Golden ratio used for panels
-DATA.TOOL = "laseremitter"   -- Tool name for internal use
-DATA.ICON = "icon16/%s.png"  -- Format to convert icons
-DATA.NOAV = "N/A"            -- Not available as string
-DATA.CATG = "Laser"          -- Category name in the entities tab
-DATA.TOLD = SysTime()        -- Reduce debug function calls
-DATA.RNDB = 3                -- Decimals beam round for visibility check
-DATA.RNBH = 2                -- Dedicated rounding for black hole comparison
-DATA.KWID = 5                -- Width coefficient used to calculate power
-DATA.CLMX = 255              -- Maximum value for valid coloring
-DATA.CTOL = 20               -- Color vectors and alpha comparison tolerance
-DATA.NUGE = 2                -- Nudge amount for origin vectors back-tracing
-DATA.MINW = 0.05             -- Minimum width to be considered visible
-DATA.DOTM = 0.01             -- Collinearity and dot product margin check
-DATA.POWL = 0.001            -- Lowest bounds of laser power
-DATA.BRAD = 2.5              -- How much the bounding radius is scaled for back-trace
-DATA.ERAD = 1.5              -- Entity refract coefficient for back trace origins
-DATA.TRWD = 0.27             -- Beam back trace width when refracting
-DATA.WLMR = 10000            -- World vectors to be correctly converted to local
-DATA.TRWU = 50000            -- The distance to trace for finding water surface
-DATA.FMVA = "%f,%f,%f"       -- Utilized to output formatted vectors in proper manner
-DATA.FNUH = "%.2f"           -- Formats number to be printed on a HUD
-DATA.FPSS = "%09d#%09d"      -- Formats pass-trough sensor keys
-DATA.AMAX = {-360, 360}      -- General angular limits for having min/max
-DATA.WVIS = { 700, 300}      -- General wavelength limits for visible light
-DATA.WCOL = {  0 , 300}      -- Mapping for wavelength to color hue conversion
-DATA.WMAP = {  20,   5}      -- Dispersion wavelength mapping for refractive index
-DATA.WACN = {  15,  15}      -- Configuration for color to wavelength list step
-DATA.SODD = 589.29           -- General wavelength for sodium line used for dispersion
-DATA.KEYD  = "#"             -- The default key in a collection point to take when not found
-DATA.KEYA  = "*"             -- The all key in a collection point to return the all in set
-DATA.KEYX  = "~"             -- The first symbol used to disable given things
-DATA.IMAT  = "*"             -- First and last symbol to match studio displacement empty mats
-DATA.LSEP  = ","             -- General list separator. Used for string splits and concatenation
-DATA.AZERO = Angle()         -- Zero angle used across all sources
-DATA.VZERO = Vector()        -- Zero vector used across all sources
-DATA.DFSPL = {2, 1, 0, 1}    -- Controls the default splitter outputs count and direction
-DATA.VDRFW = Vector(1, 0, 0) -- Global forward vector used across all sources
-DATA.VDRRG = Vector(0,-1, 0) -- Global right vector used across all sources. Positive is at the left
-DATA.VDRUP = Vector(0, 0, 1) -- Global up vector used across all sources
-DATA.WTCOL = Color(0, 0, 0)  -- For wavelength to color conversions. It is expensive to create color
+DATA.GRAT = 1.61803398875      -- Golden ratio used for panels
+DATA.TOOL = "laseremitter"     -- Tool name for internal use
+DATA.ICON = "icon16/%s.png"    -- Format to convert icons
+DATA.NOAV = "N/A"              -- Not available as string
+DATA.CATG = "Laser"            -- Category name in the entities tab
+DATA.TOLD = SysTime()          -- Reduce debug function calls
+DATA.RNDB = 3                  -- Decimals beam round for visibility check
+DATA.RNBH = 2                  -- Dedicated rounding for black hole comparison
+DATA.KWID = 5                  -- Width coefficient used to calculate power
+DATA.CLMX = 255                -- Maximum value for valid coloring
+DATA.CTOL = 20                 -- Color vectors and alpha comparison tolerance
+DATA.NUGE = 2                  -- Nudge amount for origin vectors back-tracing
+DATA.MINW = 0.05               -- Minimum width to be considered visible
+DATA.DOTM = 0.01               -- Collinearity and dot product margin check
+DATA.POWL = 0.001              -- Lowest bounds of laser power
+DATA.BRAD = 2.5                -- How much the bounding radius is scaled for back-trace
+DATA.ERAD = 1.5                -- Entity refract coefficient for back trace origins
+DATA.TRWD = 0.27               -- Beam back trace width when refracting
+DATA.WLMR = 10000              -- World vectors to be correctly converted to local
+DATA.TRWU = 50000              -- The distance to trace for finding water surface
+DATA.FMVA = "%f,%f,%f"         -- Utilized to output formatted vectors in proper manner
+DATA.FNUH = "%.2f"             -- Formats number to be printed on a HUD
+DATA.FPSS = "%09d#%09d"        -- Formats pass-trough sensor keys
+DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
+DATA.WVIS = { 700, 300}        -- General wavelength limits for visible light
+DATA.WCOL = {  0 , 300}        -- Mapping for wavelength to color hue conversion
+DATA.WMAP = {  20,   5}        -- Dispersion wavelength mapping for refractive index
+DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
+DATA.KEYD  = "#"               -- The default key in a collection point to take when not found
+DATA.KEYA  = "*"               -- The all key in a collection point to return the all in set
+DATA.KEYX  = "~"               -- The first symbol used to disable given things
+DATA.IMAT  = "*"               -- First and last symbol to match studio displacement empty mats
+DATA.LSEP  = ","               -- General list separator. Used for string splits and concatenation
+DATA.AZERO = Angle()           -- Zero angle used across all sources
+DATA.VZERO = Vector()          -- Zero vector used across all sources
+DATA.VDRFW = Vector(1, 0, 0)   -- Global forward vector used across all sources
+DATA.VDRRG = Vector(0,-1, 0)   -- Global right vector used across all sources. Positive is at the left
+DATA.VDRUP = Vector(0, 0, 1)   -- Global up vector used across all sources
+DATA.WTCOL = Color(0, 0, 0)    -- For wavelength to color conversions. It is expensive to create color
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
 DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
@@ -51,6 +49,10 @@ DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
+DATA.HARUNTM = {10, 150, 5}     -- Hash storage for beam runtime. Bounces, safety velocity, black hole segment
+DATA.HADFSPL = {2, 1, 0, 1}     -- Hash storage for controls the default splitter outputs count and direction
+DATA.HADELTA = {0.1, 0.15, 0.2} -- Hash storage for general time deltas. Damage, effects, asynchronous
+DATA.HAWASTP = {  15,  15}      -- Hash storage for color configuration to wavelength list step
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
@@ -974,8 +976,8 @@ end
  * cur > External current time
 ]]
 function LaserLib.IsTime(tim, cur)
+  local cmp = DATA.HADELTA[3]
   local cur = (cur or CurTime())
-  local cmp = DATA.TIMEASYN:GetFloat()
   return ((cur - tim) > cmp) -- Time has passed
 end
 
@@ -1381,7 +1383,9 @@ function LaserLib.Configure(unit)
       killicon.AddAlias(uas, cas)
     end
   end
+
   ------ GENERAL FRAME MANAGER ------
+
   if(SERVER) then
     if(LaserLib.IsSource(unit)) then
       --[[
@@ -1434,26 +1438,27 @@ function LaserLib.Configure(unit)
       self:SetRenderBoundsWS(vmin, vmax)
     end
   end
+
   --[[
    * Effects draw handling decides whenever
    * the current tick has to draw the effects
    * Flag is automatically reset in every call
    * then becomes true when it meets requirements
   ]]
-  function unit:UpdateFlags() local time = CurTime()
-    self.isEffect = false -- Reset the frame effects
-    if(not self.nxEffect or time > self.nxEffect) then
-      local dt = DATA.EFFECTDT:GetFloat() -- Read configuration
-      self.isEffect, self.nxEffect = true, time + dt
-    end
+  function unit:UpdateFlags()
+    local time, delt = CurTime(), DATA.HADELTA
     if(SERVER) then -- Damage exists only on the server
       self.isDamage = false -- Reset the frame damage
       if(not self.nxDamage or time > self.nxDamage) then
-        local dt = DATA.DAMAGEDT:GetFloat() -- Read configuration
-        self.isDamage, self.nxDamage = true, time + dt
+        self.isDamage, self.nxDamage = true, time + delt[1]
       end
     end
+    self.isEffect = false -- Reset the frame effects
+    if(not self.nxEffect or time > self.nxEffect) then
+      self.isEffect, self.nxEffect = true, time + delt[2]
+    end
   end
+
   --[[
    * Checks for infinite loops when the source `ent`
    * is powered by other generators powered by `self`
@@ -1477,7 +1482,9 @@ function LaserLib.Configure(unit)
       else return false end
     else return false end
   end
+
   ------ HIT REPORTS MANAGER ------
+
   --[[
    * Returns hit report stack size
   ]]
@@ -1632,7 +1639,9 @@ function LaserLib.Configure(unit)
       else self.hitSources[ent] = nil end -- Delete the entity when force skipped
     end; return true -- There are hit reports and all are processed correctly
   end
+
   ------ INTERNAL ARRAY MANGER ------
+
   --[[
    * Initializes array definitions and creates a list
    * that is derived from the string arguments.
@@ -1648,6 +1657,7 @@ function LaserLib.Configure(unit)
       self.hitSetup[idx] = {Name = nam, Data = {}}
     end; return self
   end
+
   --[[
    * Clears the output arrays according to the hit size
    * Removes the residual elements from wire outputs
@@ -1662,6 +1672,7 @@ function LaserLib.Configure(unit)
     end; set.Save = nil -- Clear the last top entity
     return self -- Use coding effective API
   end
+
   --[[
    * Registers the argument values in the setup arrays
    * The argument order must be the same as initialization
@@ -1680,6 +1691,7 @@ function LaserLib.Configure(unit)
     end; self.hitSize = idx
     return self
   end
+
   --[[
    * Triggers all the dedicated arrays in one call
   ]]
@@ -2160,19 +2172,19 @@ function LaserLib.Weld(laser, trace, weld, noco, flim)
   local trva = (LaserLib.IsValid(tren) and not tren:IsWorld())
   local anch, encw, encn = (trva and tren or game.GetWorld())
   if(weld) then
-    local lmax = DATA.MFORCELM:GetFloat()
-    local flim = math.Clamp(tonumber(flim) or 0, 0, lmax)
+    local fmax = DATA.MFORCELM:GetFloat()
+    local flim = math.Clamp(tonumber(flim) or 0, 0, fmax)
     encw = constraint.Weld(laser, anch, 0, bone, flim)
-    if(LaserLib.IsValid(encw)) then
+    if(encw and encw:IsValid()) then
       laser:DeleteOnRemove(encw) -- Remove the weld with the laser
       if(trva) then anch:DeleteOnRemove(encw) end
     end
   end
   if(noco and trva) then -- Otherwise falls through the ground
     encn = constraint.NoCollide(laser, anch, 0, bone)
-    if(LaserLib.IsValid(encn)) then
+    if(encn and encn:IsValid()) then
       laser:DeleteOnRemove(encn) -- Remove the NC with the laser
-      anch:DeleteOnRemove(encn)
+      anch:DeleteOnRemove(encn)  -- Remove the NC with the anchor
     end -- Skip no-collide when world is anchor
   end; return encw, encn -- Do not call this for the world
 end
@@ -2593,7 +2605,7 @@ function LaserLib.ColorToWave(mr, mg, mb, ma)
 end
 
 function LaserLib.GetWaveArray(cow)
-  local conf = DATA.WACN
+  local conf = DATA.HAWASTP
   local step, marg = conf[1], -conf[2]
   if(step <= 0) then return nil end
   if(marg >  0) then return nil end
@@ -2670,7 +2682,7 @@ function LaserLib.Beam(origin, direct, length)
   --   [4] > Node beam current force automatic (number)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
-  self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
+  self.BmHoleLn = DATA.HARUNTM[3] -- Black hole curve interpolation
   self.IsHoleGv = false -- Is is currently affected by gravity wells
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
@@ -2811,7 +2823,7 @@ function mtBeam:SetBounces(iBns)
   if(iBns) then -- These is forced bounce count
     self.MxBounce = math.max(tonumber(iBns) or 0, 0)
   else -- Use the global convar value
-    self.MxBounce = DATA.MBOUNCES:GetInt()
+    self.MxBounce = DATA.HARUNTM[1]
   end -- Amount of bounces to control the loop
   self.NvBounce = self.MxBounce
   return self
@@ -4509,7 +4521,7 @@ if(SERVER) then
     if(not LaserLib.IsValid(target)) then return end
     local direct, safety = param.direct, param.safety
     if(not safety) then return end -- Beam safety skipped
-    local smu = DATA.VESFBEAM:GetFloat()
+    local smu = DATA.HARUNTM[2] -- Safety velocity
     if(smu <= 0) then return end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
     local obb = target:LocalToWorld(target:OBBCenter())
@@ -5185,10 +5197,18 @@ CheckMaterials(DATA.REFRACT, 6)
 
 ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
 
-ConfigureChangeList("WACN", DATA.WDHUESTP, "GetFloat",
-                            DATA.WDRGBMAR, "GetFloat")
+ConfigureChangeList("HAWASTP", DATA.WDHUESTP, "GetFloat",
+                               DATA.WDRGBMAR, "GetFloat")
 
-ConfigureChangeList("DFSPL", DATA.NSPLITER, "GetInt",
-                             DATA.XSPLITER, "GetFloat",
-                             DATA.YSPLITER, "GetFloat",
-                             DATA.ZSPLITER, "GetFloat")
+ConfigureChangeList("HADFSPL", DATA.NSPLITER, "GetInt",
+                               DATA.XSPLITER, "GetFloat",
+                               DATA.YSPLITER, "GetFloat",
+                               DATA.ZSPLITER, "GetFloat")
+
+ConfigureChangeList("HADELTA", DATA.DAMAGEDT, "GetFloat",
+                               DATA.EFFECTDT, "GetFloat",
+                               DATA.TIMEASYN, "GetFloat")
+
+ConfigureChangeList("HARUNTM", DATA.MBOUNCES, "GetInt",
+                               DATA.VESFBEAM, "GetFloat",
+                               DATA.BLHOLESG, "GetFloat")

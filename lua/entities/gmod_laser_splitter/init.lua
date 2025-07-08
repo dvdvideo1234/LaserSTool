@@ -5,7 +5,7 @@ include("shared.lua")
 resource.AddFile("materials/vgui/entities/gmod_laser_splitter.vmt")
 
 local gtAMAX  = LaserLib.GetData("AMAX")
-local gtDFSPL = LaserLib.GetData("DFSPL")
+local gtDFSPL = LaserLib.GetData("HADFSPL")
 
 function ENT:UpdateInternals()
   self.crOpower = nil
