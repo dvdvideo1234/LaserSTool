@@ -385,20 +385,22 @@ local function ConfigureChangeList(key, ...)
       local name = cvar:GetName()
       local exec = cvar[func]
       if(exec) then
+        local idat = math.floor(idx/2) + 1
         local function update(sV, vO, vN)
           local suc, out = pcall(exec, cvar); if(not suc) then
             error("Convar update ["..idx.."]"..tostring(func)..": "..out) end
-          data[idx] = out -- Call `GetFloat` for enample and write it in the list
+          data[idat] = out -- Call `GetFloat` for example and write it in the list
         end -- Call the handler with old and new data
         local suc, out = pcall(exec, cvar); if(not suc) then
           error("Convar update ["..idx.."]"..tostring(func)..": "..out) end
-        update(name, data[idx], out)
+        update(name, data[idat], out)
         cvars.RemoveChangeCallback(name, name.."_list")
         cvars.AddChangeCallback(name, update, name.."_list")
       end
     end
   end
 end
+
 
 --[[
  * Registers a hook and client/server even fill for special cases
