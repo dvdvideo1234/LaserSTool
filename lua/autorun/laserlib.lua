@@ -381,26 +381,31 @@ local function ConfigureChangeList(key, ...)
   for idx = 1, #sors, 2 do
     local cvar = sors[idx]
     local func = sors[idx + 1]
+    local idat = math.floor(idx/2) + 1
     if(cvar and func) then
       local name = cvar:GetName()
       local exec = cvar[func]
       if(exec) then
-        local idat = math.floor(idx/2) + 1
         local function update(sV, vO, vN)
-          local suc, out = pcall(exec, cvar); if(not suc) then
-            error("Convar update ["..idx.."]"..tostring(func)..": "..out) end
-          data[idat] = out -- Call `GetFloat` for example and write it in the list
+          if(func == "GetString") then
+            data[idat] = tostring(vN or "")
+          elseif(func == "GetInt") then
+            data[idat] = math.floor(tonumber(vN) or 0)
+          elseif(func == "GetFloat") then
+            data[idat] = (tonumber(vN) or 0)
+          elseif(func == "GetBool") then
+            data[idat] = tobool(vN)
+          else error("List ["..key.."] trig ["..idat.."] "..name..":"..func) end
         end -- Call the handler with old and new data
         local suc, out = pcall(exec, cvar); if(not suc) then
-          error("Convar update ["..idx.."]"..tostring(func)..": "..out) end
+          error("List ["..key.."] load ["..idat.."] "..name..":"..func) end
         update(name, data[idat], out)
         cvars.RemoveChangeCallback(name, name.."_list")
         cvars.AddChangeCallback(name, update, name.."_list")
-      end
-    end
+      else error("List ["..key.."] exec ["..idat.."] "..name..":"..func) end
+    else error("List ["..key.."] parm ["..idat.."] "..name..":"..func) end
   end
 end
-
 
 --[[
  * Registers a hook and client/server even fill for special cases
