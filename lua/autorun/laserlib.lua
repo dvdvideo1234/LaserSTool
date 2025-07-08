@@ -2629,7 +2629,7 @@ function LaserLib.GetWaveArray(cow)
     weco.g = ((cow.g - coan) / coax) * comx
     weco.b = ((cow.b - coan) / coax) * comx
   else
-    tW.PC = (coax / comx)
+    tW.PC, tW.PW = (coax / comx), 0
     weco.r = (cow.r / coax) * comx
     weco.g = (cow.g / coax) * comx
     weco.b = (cow.b / coax) * comx
