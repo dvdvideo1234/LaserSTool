@@ -2611,50 +2611,89 @@ function LaserLib.ColorToWave(mr, mg, mb, ma)
   return math.Remap(rm, wcol[1], wcol[2], wvis[1], wvis[2])
 end
 
-function LaserLib.GetWaveArray(cow)
+function LaserLib.SetWaveArray()
   local conf = DATA.HAWASTP
   local step, marg = conf[1], -conf[2]
-  if(step <= 0) then return nil end
-  if(marg >  0) then return nil end
+  local wave = conf.Wave
+  if(step <= 0) then
+    if(wave) then
+      table.Empty(wave)
+      conf.Wave = nil
+    end; return nil
+  end
+  if(marg > 0) then
+    if(wave) then
+      table.Empty(wave)
+      conf.Wave = nil
+    end; return nil
+  end
+  if(not wave) then
+    conf.Wave = {Data = {}}
+    wave = conf.Wave
+  end
+  local tW = wave.Data
+  if(step == (tonumber(tW.Step) or 0)) then return tW end
+  tW.Size = 0    -- Amount of entries the decomposition has
+  tW.Step = step -- Hue adjustment step when defining components
+  tW.Marg = marg -- Color compare margin for component check
+  tW.PM = 0      -- Power multiplier converted scaled for comparison
+  tW.PX = 0      -- Individual component power for non-white light part
+  tW.PN = 0      -- Individual component power for white light part
+  tW.IS = 0      -- Index start for the component extraction
+  tW.IE = 0      -- Index end for the component extraction
+  local wvis, wcol = DATA.WVIS, DATA.WCOL
+  local huS, huE = wcol[1], wcol[2]
+  for hue = huS, huE, step do
+    local r, g, b = HSVToColor(hue, 1, 1)
+    local co = {r = r, g = g, b = b}
+    local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
+    table.insert(tW, {C = co, P = 0, W = wv, B = false})
+    tW.Size = tW.Size + 1
+  end; return tW
+end
+
+function LaserLib.GetWaveArray(cow)
+  local tW = LaserLib.SetWaveArray()
+  if(not tW) then return nil end
   local comx, wvis = DATA.CLMX, DATA.WVIS
   local weco, wcol = DATA.WTCOL, DATA.WCOL
   local coax = math.max(cow.r, cow.g, cow.b)
   local coan = math.min(cow.r, cow.g, cow.b)
-  local tW = {PS = 0, Size = 0}
+  local marg = tW.Marg
   if(coan > 0) then
-    tW.PW = (coan / comx)
-    coax = coax - coan
-    tW.PC = (coax / comx)
-    weco.r = ((cow.r - coan) / coax) * comx
-    weco.g = ((cow.g - coan) / coax) * comx
-    weco.b = ((cow.b - coan) / coax) * comx
+    tW.PN = (coan / comx)
+    coax  = (coax - coan)
+    tW.PX = (coax / comx)
+    tW.PM = (comx / coax)
+    weco.r = tW.PM * (cow.r - coan)
+    weco.g = tW.PM * (cow.g - coan)
+    weco.b = tW.PM * (cow.b - coan)
+    tW.IS, tW.IE = 1, tW.Size
   else
-    tW.PC, tW.PW = (coax / comx), 0
-    weco.r = (cow.r / coax) * comx
-    weco.g = (cow.g / coax) * comx
-    weco.b = (cow.b / coax) * comx
+    tW.PM = (comx / coax)
+    tW.PX, tW.PN = (coax / comx), 0
+    weco.r = (tW.PM * cow.r)
+    weco.g = (tW.PM * cow.g)
+    weco.b = (tW.PM * cow.b)
   end
-  local huS, huE = wcol[1], wcol[2]
-  for hue = huS, huE, step do
-    local bas = false
-    local r, g, b = HSVToColor(hue, 1, 1)
-    local mr, mg, mb = (weco.r - r), (weco.g - g),(weco.b - b)
+  for iH = 1, tW.Size do
+    local wav = tW[iH]
+    local mr = (weco.r - wav.C.r)
+    local mg = (weco.g - wav.C.g)
+    local mb = (weco.b - wav.C.b)
+    wav.P, wav.B = 0, false
     if(mr >= marg and mg >= marg and mb >= marg) then
-       -- Dominating component in the source color
-      local co = {r = r, g = g, b = b}; bas = true
-      local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
-      table.insert(tW, {C = co, P = tW.PC, W = wv, B = bas})
-      tW.Size = tW.Size + 1; tW.PS = tW.PS + tW.PC
+      -- Dominating component in the source color
+      if(coan <= 0) then tW.IE = iH
+        if(tW.IS == 0) then tW.IS = iH end
+      end -- Calculate the start-end indices
+      wav.P = tW.PX; wav.B = true
     end
     if(coan > 0) then -- Base white component
-        tW.PS = tW.PS + tW.PW
-      if(bas) then -- Adjust the dominant component
-        local com = tW[tW.Size]; com.P = com.P + tW.PW
+      if(wav.B) then -- Adjust the dominant component
+        wav.P = wav.P + tW.PN
       else -- Insert a gray component in the list
-        local co = {r = r, g = g, b = b}
-        local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
-        table.insert(tW, {C = co, P = tW.PW, W = wv, B = bas})
-        tW.Size = tW.Size + 1
+        wav.P = tW.PN
       end
     end
   end; return tW
@@ -2694,6 +2733,7 @@ function LaserLib.Beam(origin, direct, length)
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
+  self.BmWaveLn = 0  -- General beam wavelength. Enabled when greater than zero
   self.BmBranch = nil -- In case this beam is branched stores the branch objects
   self.NvDamage = 0 -- Initial current beam damage
   self.NvWidth  = 0 -- Initial current beam width
@@ -2744,6 +2784,23 @@ function mtBeam:GetTarget(nT)
   pT = pT[nT]; if(not pT) then return nil end
   return pT.BmTarget
 end
+
+
+--[[
+ * Returns the current beam wavelength
+]]
+function mtBeam:GetWavelength()
+  return self.BmWaveLn
+end
+
+--[[
+ * Updates the current beam wavelength
+]]
+function mtBeam:SetWavelength(nWav)
+  self.BmWaveLn = math.max(0, (tonumber(nWav) or 0))
+  return self
+end
+
 
 --[[
  * Returns the current beam flags
@@ -2922,7 +2979,7 @@ end
  * They represent dedicated beam copy at a time
  * tSkp > Keys that are not processed or skipped
  * tOny > Keys that are copied nothing else
- * tAsn > Keys beig copied via direct assigment
+ * tAsn > Keys being copied via direct assignment
  * tCpn > Keys that are copied via table.copy
  * tDst > Store the beam copy in this table
 ]]
@@ -4616,6 +4673,27 @@ if(SERVER) then
 end
 
 --[[
+ * Created a new branched beam and takes source as configuration
+ * vOrg > Branch beam start origin. Otherwise the last origin
+ * vDir > Branch beam start direction. Otherwise the last direction
+]]
+function mtBeam:GetBranch(vOrg, vDir)
+  local origin = vOrg or self.VrOrigin
+  local direct = vDir or self.VrDirect
+  local beam = LaserLib.Beam(vOrg, vDir, self.NvLength)
+        beam:SetSource(self.BmSource, self.BoSource)
+        beam:SetWidth(self:GetWidth())
+        beam:SetDamage(self:GetDamage())
+        beam:SetForce(self:GetForce())
+        beam:SetFgDivert(self:GetFgDivert())
+        beam:SetFgTexture(self.BmNoover, false)
+        beam:SetBounces(self.NvBounce)
+        beam:SetFgTexture(self.BmNoover, false)
+        beam:SetWavelength(0)
+  return beam
+end
+
+--[[
  * Traces a laser beam from the entity provided
  * iIdx > Provide beam start for splitter source entities
  * iStg > Recursion stage used to identify recursion depth
@@ -4737,17 +4815,33 @@ function mtBeam:Run(iIdx, iStg)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
-                  -- Calculated refraction ray. Reflect when not possible
-                  local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
-                  -- Check refraction medium boundary and perform according actions
-                  if(bnex or bsam) then -- We have to change mediums
-                    self:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
-                  else -- Divert the beam with the reflected ray
-                    self:Divert(trace.HitPos, vdir)
+                  -- Check whenever dispersion is enabled and try to decompose
+                  local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
+                  if(tW and self.BmDisper and self.BmWaveLn == 0) then
+                    self:Finish(); self.BmBranch = {Size = 0}
+                    local org, brn = self.BmTarget.HitPos, self.BmBranch
+                    for iW = tW.IS, tW.IE do
+                      local beam = self:GetBranch(org)
+                      if(not beam:IsValid() and SERVER) then
+                        beam:Clear(); self.BmSource:Remove(); return end
+                      beam:SetWavelength(tW[iW].W)
+                      beam:SetFgTexture(self.BmNoover, false)
+                      brn.Size = brn.Size + 1
+                      table.insert(brn, beam:Run(brn.Size))
+                    end
+                  else -- The beam is monochromatic and should not be branched
+                    -- Calculated refraction ray. Reflect when not possible
+                    local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
+                    -- Check refraction medium boundary and perform according actions
+                    if(bnex or bsam) then -- We have to change mediums
+                      self:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
+                    else -- Divert the beam with the reflected ray
+                      self:Divert(trace.HitPos, vdir)
+                    end
+                    -- Apply power ratio when requested
+                    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
+                    -- We cannot be able to refract as the requested beam is missing
                   end
-                  -- Apply power ratio when requested
-                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
-                  -- We cannot be able to refract as the requested beam is missing
                 else self:Finish() end
                 -- We are neither reflecting nor refracting and have hit a wall
               else self:Finish() end -- All triggers are processed
@@ -4811,22 +4905,38 @@ function mtBeam:Run(iIdx, iStg)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
-                  -- Define water surface as of air-water beam interaction
-                  self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
-                  -- Calculated refraction ray. Reflect when not possible
-                  if(self.StRfract) then -- Laser is within the map water submerged
-                    self.StRfract = false -- Lower the flag so no performance hit is present
-                    self:Divert(trace.HitPos) -- Keep the same direction and initial origin
-                  else -- Beam comes from the air and hits the water. Store water surface and refract
-                    -- Get the trace ready to check the other side and point and register the location
-                    local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
-                                         trace.HitNormal, merum.S[1][1], refract[1])
-                    self:Divert(trace.HitPos, vdir)
+                  -- Check whenever dispersion is enabled and try to decompose
+                  local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
+                  if(tW and self.BmDisper and self.BmWaveLn == 0) then
+                    self:Finish(); self.BmBranch = {Size = 0}
+                    local org, brn = self.BmTarget.HitPos, self.BmBranch
+                    for iW = tW.IS, tW.IE do
+                      local beam = self:GetBranch(org)
+                      if(not beam:IsValid() and SERVER) then
+                        beam:Clear(); self.BmSource:Remove(); return end
+                      beam:SetWavelength(tW[iW].W)
+                      beam:SetFgTexture(self.BmNoover, false)
+                      brn.Size = brn.Size + 1
+                      table.insert(brn, beam:Run(brn.Size))
+                    end
+                  else -- The beam is monochromatic and should not be branched
+                    -- Define water surface as of air-water beam interaction
+                    self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
+                    -- Calculated refraction ray. Reflect when not possible
+                    if(self.StRfract) then -- Laser is within the map water submerged
+                      self.StRfract = false -- Lower the flag so no performance hit is present
+                      self:Divert(trace.HitPos) -- Keep the same direction and initial origin
+                    else -- Beam comes from the air and hits the water. Store water surface and refract
+                      -- Get the trace ready to check the other side and point and register the location
+                      local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
+                                           trace.HitNormal, merum.S[1][1], refract[1])
+                      self:Divert(trace.HitPos, vdir)
+                    end
+                    -- Need to make the traversed destination the new source
+                    self:SetRefractWorld(trace, refract, key)
+                    -- Apply power ratio when requested
+                    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   end
-                  -- Need to make the traversed destination the new source
-                  self:SetRefractWorld(trace, refract, key)
-                  -- Apply power ratio when requested
-                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- We cannot be able to refract as the requested entry is missing
                 else self:Finish() end
                 -- All triggers when reflecting and refracting are processed
