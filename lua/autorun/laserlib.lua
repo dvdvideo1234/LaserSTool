@@ -2914,7 +2914,7 @@ function mtBeam:SetColorRGBA(mr, mg, mb, ma)
     if(self.NvColor) then c = self.NvColor
     else c = Color(0,0,0,0); self.NvColor = c end
     c.r, c.g, c.b, c.a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
-  end -- We do not have input parameter
+  end; return self -- We do not have input parameter
 end
 
 --[[
@@ -4678,8 +4678,8 @@ end
  * vDir > Branch beam start direction. Otherwise the last direction
 ]]
 function mtBeam:GetBranch(vOrg, vDir)
-  local origin = vOrg or self.VrOrigin
-  local direct = vDir or self.VrDirect
+  local origin = (vOrg or self.VrOrigin)
+  local direct = (vDir or self.VrDirect)
   local beam = LaserLib.Beam(vOrg, vDir, self.NvLength)
         beam:SetSource(self.BmSource, self.BoSource)
         beam:SetWidth(self:GetWidth())
@@ -4691,6 +4691,40 @@ function mtBeam:GetBranch(vOrg, vDir)
         beam:SetFgTexture(self.BmNoover, false)
         beam:SetWavelength(0)
   return beam
+end
+
+--[[
+ * Can this beam be dispersed into components
+ * vOrg > Provide beam start for splitter source entities
+]]
+function mtBeam:IsDisperse(vOrg)
+  if(not self.BmDisper) then return false end
+  if(self.BmWaveLn > 0) then return false end
+  local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
+  if(tW) then return false end
+  local brn = self.BmBranch
+  if(not brn) then
+    self.BmBranch = {Size = 0}
+    brn = self.BmBranch
+  else return false end
+  if(brn.Size and brn.Size > 0) then return false end
+  self:Finish()
+  local src, ovr = self.BmSource, self.BmNoover
+  local org = (vOrg or self.BmTarget.HitPos)
+  for iW = tW.IS, tW.IE do
+    local recw = tW[iW]
+    local beam = self:GetBranch(org)
+    if(not beam:IsValid() and SERVER) then
+      beam:Clear(); src:Remove(); return end
+    local r = (recw.C.r * recw.P)
+    local g = (recw.C.g * recw.P)
+    local b = (recw.C.b * recw.P)
+    beam:SetColorRGBA(r, g, b, 255)
+    beam:SetWavelength(recw.W)
+    beam:SetFgTexture(ovr, false)
+    brn.Size = brn.Size + 1
+    table.insert(brn, beam:Run(brn.Size))
+  end
 end
 
 --[[
@@ -4816,20 +4850,8 @@ function mtBeam:Run(iIdx, iStg)
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Check whenever dispersion is enabled and try to decompose
-                  local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
-                  if(tW and self.BmDisper and self.BmWaveLn == 0) then
-                    self:Finish(); self.BmBranch = {Size = 0}
-                    local org, brn = self.BmTarget.HitPos, self.BmBranch
-                    for iW = tW.IS, tW.IE do
-                      local beam = self:GetBranch(org)
-                      if(not beam:IsValid() and SERVER) then
-                        beam:Clear(); self.BmSource:Remove(); return end
-                      beam:SetWavelength(tW[iW].W)
-                      beam:SetFgTexture(self.BmNoover, false)
-                      brn.Size = brn.Size + 1
-                      table.insert(brn, beam:Run(brn.Size))
-                    end
-                  else -- The beam is monochromatic and should not be branched
+                  if(not self:IsDisperse()) then
+                    -- The beam is monochromatic and should not be branched
                     -- Calculated refraction ray. Reflect when not possible
                     local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
                     -- Check refraction medium boundary and perform according actions
@@ -4906,20 +4928,8 @@ function mtBeam:Run(iIdx, iStg)
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Check whenever dispersion is enabled and try to decompose
-                  local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
-                  if(tW and self.BmDisper and self.BmWaveLn == 0) then
-                    self:Finish(); self.BmBranch = {Size = 0}
-                    local org, brn = self.BmTarget.HitPos, self.BmBranch
-                    for iW = tW.IS, tW.IE do
-                      local beam = self:GetBranch(org)
-                      if(not beam:IsValid() and SERVER) then
-                        beam:Clear(); self.BmSource:Remove(); return end
-                      beam:SetWavelength(tW[iW].W)
-                      beam:SetFgTexture(self.BmNoover, false)
-                      brn.Size = brn.Size + 1
-                      table.insert(brn, beam:Run(brn.Size))
-                    end
-                  else -- The beam is monochromatic and should not be branched
+                  if(not self:IsDisperse()) then
+                    -- The beam is monochromatic and should not be branched
                     -- Define water surface as of air-water beam interaction
                     self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
                     -- Calculated refraction ray. Reflect when not possible
