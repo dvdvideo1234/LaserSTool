@@ -2572,7 +2572,7 @@ end
  * Returns the dynamic refraction index based on wavelength
  * This is mainly used for calculating component light dispersion
  * wave > Wavelength of the input beam traversing the medium
- * nidx > Wavelength for the sodium line according to the material
+ * nidx > Refractive index for the sodium line according to the material
  * https://en.wikipedia.org/wiki/List_of_refractive_indices
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
@@ -2580,7 +2580,7 @@ function LaserLib.WaveToIndex(wave, nidx)
   local wr, mr, ms = DATA.WVIS, DATA.WMAP, DATA.SOMR
   local s = math.Remap(DATA.SODD, wr[1], wr[2], mr[1], mr[2])
   local x = math.Remap(wave, wr[1], wr[2], mr[1], mr[2])
-  local h = -math.log(s) / ms -- Index `nidx` for sodium line
+  local h = -math.log(s) / ms -- Sodium line index
   return (-math.log(x) / ms - h) + nidx
 end
 
@@ -3114,58 +3114,6 @@ function mtBeam:GetWaterOrigin(pos)
 end
 
 --[[
- * Inserts next stage segment to the current beam
- * beam  > Beam object to apply as branch
- * index > Beam object ID to insert
- * reov  > Enable to direct write down
-]]
-function mtBeam:SetBranch(beam, trace, index, reov)
-  local ran = self.TrBranch -- Branches local reference
-  if(not ran) then ran = {Size = 0}; self.TrBranch = ran end
-  InsertData(ran, {["BM"] = beam, ["TR"] = trace}, index, reov)
-  return self -- Coding effective API
-end
-
---[[
- * Selects next stage segment to the current beam
- * index > Beam object ID to select
- * reov > Enable to direct read out
-]]
-function mtBeam:GetBranch(index, reov)
-  if(not index) then return end
-  local ran = self.TrBranch -- Branches local reference
-  if(not ran) then return nil end -- No branches
-  ran = SelectData(ran, index, reov)
-  if(not ran) then return nil end
-  return ran["BM"], ran["TR"]
-end
-
---[[
- * Clears all beam branches
-]]
-function mtBeam:ClearBranch()
-  local ran = self.TrBranch
-  if(not ran) then return end -- No branches
-  for idx = 1, ran.Size do
-    local row = ran[idx]
-    local bm = row["BM"]
-    local tr = row["TR"]
-    if(bm) then -- Branch
-      bm:ClearBranch()
-      table.Empty(bm)
-      row["BM"] = nil
-    end -- Delete beams
-    if(tr) then -- Trace
-      table.Empty(tr)
-      row["TR"] = nil
-    end -- Clear traces
-    ran[idx] = nil
-  end -- All cleared
-  ran.Size = 0
-  return self
-end
-
---[[
  * Runs a ray trace to find the water surface
  * origin > Trace ray origin position
  * direct > Trace ray origin direction
@@ -3230,7 +3178,7 @@ end
 --[[
  * Issues a finish command to the traced laser beam
  * arg > Empty default to false ( stop trace )
- *       Oterwise passes inverted argument
+ *       Otherwise passes inverted argument
 ]]
 function mtBeam:Finish(arg)
   self.IsTrace = ((arg ~= nil) and (not tobool(arg)) or false)
@@ -3709,7 +3657,7 @@ function mtBeam:RefractWaterAir()
   local mewat, meair, vtm = mtBeam.__mewat, mtBeam.__meair, self.__vtorg
   -- Registering the node cannot be done with direct subtraction
   self:RegisterNode(vwa, true); vtm:Set(wat.N); vtm:Negate()
-  local vdir, bnex = LaserLib.GetRefracted(dir, vtm, mewat[1][1], meair[1][1])
+  local vdir, bnex = self:Refract(dir, vtm, mewat[1][1], meair[1][1])
   if(bnex) then
     self.NvMask = MASK_ALL -- We change the medium to air
     self:ClearWater() -- Set water normal flag to zero
@@ -3799,7 +3747,7 @@ function mtBeam:IsTraverse(origin, direct, normal, target)
   local refract = self:GetSolidMedium(org, dir, target)
   if(not refract) then return false end
   -- Refract the hell out of this requested beam with entity destination
-  local vdir, bnex, bsam = LaserLib.GetRefracted(dir,
+  local vdir, bnex, bsam = self:Refract(dir,
                  normal, self.TrMedium.D[1][1], refract[1])
   if(bnex) then
     self.IsRfract, self.StRfract = false, true -- Force start-refract
@@ -3873,7 +3821,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
     else -- When two props are stuck save the middle boundary and traverse
       -- When the traverse mediums is different and node is not inside a laser
       if(self:IsMemory(index)) then
-        vdir, bnex, bsam = LaserLib.GetRefracted(dir, merum.M[3], merum.M[1][1], index)
+        vdir, bnex, bsam = self:Refract(dir, merum.M[3], merum.M[1][1], index)
         -- Do not waste game ticks to refract the same refraction ratio
       else -- When there is no medium refractive index traverse change
         vdir, bsam = Vector(dir), true -- Keep the last beam direction
@@ -3881,7 +3829,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
     end -- Marking the fraction being zero and refracting from the last entity
     self.StRfract = false -- Make sure to disable the flag again
   else -- Otherwise do a normal water-entity-air refraction
-    vdir, bnex, bsam = LaserLib.GetRefracted(dir, trace.HitNormal, merum.S[1][1], index)
+    vdir, bnex, bsam = self:Refract(dir, trace.HitNormal, merum.S[1][1], index)
   end
   return bnex, bsam, vdir
 end
@@ -4673,6 +4621,22 @@ if(SERVER) then
 end
 
 --[[
+ * Dedicated beam refract method
+ * LaserLib.GetRefracted(direct, normal, source, destin)
+ * Returns [vdir, bnex, bsam] according to wavelength
+]]
+function mtBeam:Refract(vDir, vNor, nSrc, nDst)
+  local vDir = (vDir or self:VrDirect)
+  local vNor = (vOrg or self.BmTarget.HitNormal)
+  local nSrc, nDst = tonumber(nSrc), tonumber(nDst)
+  local wave, sodd = self.BmWaveLn, DATA.SODD
+  if(wave > 0 and wave ~= sodd) then
+    nSrc = LaserLib.WaveToIndex(wave, nSrc)
+    nDst = LaserLib.WaveToIndex(wave, nDst)
+  end; return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
+end
+
+--[[
  * Created a new branched beam and takes source as configuration
  * vOrg > Branch beam start origin. Otherwise the last origin
  * vDir > Branch beam start direction. Otherwise the last direction
@@ -4696,35 +4660,38 @@ end
 --[[
  * Can this beam be dispersed into components
  * vOrg > Provide beam start for splitter source entities
+ * tRef > Refraction sodium line configuration
 ]]
-function mtBeam:IsDisperse(vOrg)
+function mtBeam:IsDisperse(vOrg, tRef)
   if(not self.BmDisper) then return false end
   if(self.BmWaveLn > 0) then return false end
   local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
   if(tW) then return false end
-  local brn = self.BmBranch
-  if(not brn) then
+  local brn = self.BmBranch -- Index branch table
+  if(not brn) then -- When missing create one
     self.BmBranch = {Size = 0}
     brn = self.BmBranch
-  else return false end
+  else return false end -- Already branched
   if(brn.Size and brn.Size > 0) then return false end
-  self:Finish()
+  local cnt = (tW.IE - tW.IS + 1); self:Finish()
   local src, ovr = self.BmSource, self.BmNoover
   local org = (vOrg or self.BmTarget.HitPos)
+  local sr, sg, sb, sa = self:GetColorRGBA()
   for iW = tW.IS, tW.IE do
-    local recw = tW[iW]
+    local recw = tW[iW] -- Current component
     local beam = self:GetBranch(org)
     if(not beam:IsValid() and SERVER) then
-      beam:Clear(); src:Remove(); return end
+      beam:Clear(); src:Remove(); return false end
     local r = (recw.C.r * recw.P)
     local g = (recw.C.g * recw.P)
     local b = (recw.C.b * recw.P)
-    beam:SetColorRGBA(r, g, b, 255)
+    beam:SetColorRGBA(r, g, b, sa)
     beam:SetWavelength(recw.W)
+    local vdir, bnex, bsam = self:Refract(nil, nil, 1, tRef[1])
     beam:SetFgTexture(ovr, false)
     brn.Size = brn.Size + 1
     table.insert(brn, beam:Run(brn.Size))
-  end
+  end; return true
 end
 
 --[[
@@ -4819,7 +4786,7 @@ function mtBeam:Run(iIdx, iStg)
           if(self.NvLength > 0) then
             if(not self:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
               -- Refract the hell out of this requested beam with entity destination
-              local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
+              local vdir, bnex = self:Refract(self.VrDirect,
                              trace.HitNormal, merum.D[1][1], merum.S[1][1])
               if(bnex) then -- When the beam gets out of the medium
                 self:Divert(trace.HitPos, vdir, true)
@@ -4850,7 +4817,7 @@ function mtBeam:Run(iIdx, iStg)
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Check whenever dispersion is enabled and try to decompose
-                  if(not self:IsDisperse()) then
+                  if(not self:IsDisperse(nil, refract)) then
                     -- The beam is monochromatic and should not be branched
                     -- Calculated refraction ray. Reflect when not possible
                     local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
@@ -4892,7 +4859,7 @@ function mtBeam:Run(iIdx, iStg)
             -- Do the refraction according to medium boundary
             if(self.NvLength > 0) then
               if(not self:IsTraverse(org, nil, nrm, target)) then
-                local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
+                local vdir, bnex = self:Refract(self.VrDirect,
                                      nrm, merum.D[1][1], meair[1][1])
                 if(bnex) then -- When the beam gets out of the medium
                   self:Divert(org, vdir, true)
@@ -4928,7 +4895,7 @@ function mtBeam:Run(iIdx, iStg)
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Check whenever dispersion is enabled and try to decompose
-                  if(not self:IsDisperse()) then
+                  if(not self:IsDisperse(nil, refract)) then
                     -- The beam is monochromatic and should not be branched
                     -- Define water surface as of air-water beam interaction
                     self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
@@ -4938,7 +4905,7 @@ function mtBeam:Run(iIdx, iStg)
                       self:Divert(trace.HitPos) -- Keep the same direction and initial origin
                     else -- Beam comes from the air and hits the water. Store water surface and refract
                       -- Get the trace ready to check the other side and point and register the location
-                      local vdir, bnex = LaserLib.GetRefracted(self.VrDirect,
+                      local vdir, bnex = self:Refract(self.VrDirect,
                                            trace.HitNormal, merum.S[1][1], refract[1])
                       self:Divert(trace.HitPos, vdir)
                     end
