@@ -419,35 +419,33 @@ local function ConfigureHookRegistry(set, name)
     hook.Remove("PlayerSpawnedSENT", suid)
     hook.Add("PlayerSpawnedSENT", suid,
       function(ply, ent)
+        if(not LaserLib.IsValid(ent)) then return end
         local ukey = ent:GetClass()
         local info = set[ukey]
         if(not info) then return end
         info.Registry[ent] = true
-        ent:CallOnRemove(suid, function()
-          info.Registry[ent] = nil
-          net.Start(suid.."_rem")
-            net.WriteEntity(ent)
-          net.Broadcast()
-        end)
         net.Start(suid.."_add")
           net.WriteEntity(ent)
         net.Broadcast()
+        ent:CallOnRemove(suid, function(erm)
+          if(not LaserLib.IsValid(erm)) then return end
+          info.Registry[erm] = nil
+          net.Start(suid.."_rem")
+            net.WriteEntity(erm)
+          net.Broadcast()
+        end)
       end)
   else
-    net.Receive(suid.."_add", function()
+    function upEntity(sv)
       local ent = net.ReadEntity()
-      if(not IsValid(ent)) then return end
+      if(not LaserLib.IsValid(ent)) then return end
       local ukey = ent:GetClass()
       local info = set[ukey]
       if(not info) then return end
-      info.Registry[ent] = true end)
-    net.Receive(suid.."_rem", function()
-      local ent = net.ReadEntity()
-      if(not IsValid(ent)) then return end
-      local ukey = ent:GetClass()
-      local info = set[ukey]
-      if(not info) then return end
-      info.Registry[ent] = nil end)
+      info.Registry[ent] = sv
+    end
+    net.Receive(suid.."_add", function() upEntity(true) end)
+    net.Receive(suid.."_rem", function() upEntity( nil) end)
   end
 end
 
