@@ -45,6 +45,7 @@ DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with e
 DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
+DATA.BVKEY = DATA.TOOL.."_hoangvel"  -- Key used to register black hole ang velocity
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
@@ -292,30 +293,34 @@ DATA.REFRACT = {
 
 -- Black hole interfaces
 DATA.BLHOLE = {
-  ["gwater_blackhole"] = { -- Mee's Gwater 1
-    GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
-    GetRadius = function(ent) return ent:GetRadius() end,
-    GetAffect = function(ent, hit, stp)
-      local cen = ent:LocalToWorld(ent:OBBCenter())
-      local grv = Vector(cen); grv:Sub(hit)
-      local rav = grv:LengthSqr(); grv:Normalize()
-            grv:Mul(stp * (ent:GetStrength() / rav))
-      return grv
-    end,
-    Registry = {}
-  },
   ["gwater2_blackhole"] = { -- Mee's Gwater 2
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
-    GetAffect = function(ent, hit, stp)
+    GetAffect = function(ent, pos, stp)
+      local kve, wve = DATA.BVKEY, nil
       local cen = ent:LocalToWorld(ent:OBBCenter())
-      local grv = Vector(cen); grv:Sub(hit)
-      local rav = grv:LengthSqr(); grv:Normalize()
-            grv:Mul(stp * (ent:GetStrength() / rav))
-      return grv
+      local rav = Vector(pos); rav:Sub(cen)
+      local grv, drg, req = Vector(rav), Vector(), rav:LengthSqr()
+      grv:Normalize(); grv:Mul(-stp * (ent:GetStrength() / (req)))
+      if(SERVER) then -- There is physics only on the server
+        wve = ent:GetPhysicsObject():GetAngleVelocity()
+        wve:Set(ent:LocalToWorld(wve)); wve:Sub(cen)
+        ent:SetNWVector(kve, wve)
+      else wve = ent:GetNWVector(kve, drg) end
+      if(not wve:IsZero()) then -- D = aGM / r^3
+        drg:Set(wve:Cross(rav))
+        drg:Div(4 * stp * req ^ 1.5); grv:Add(drg)
+      end; return grv
     end,
     Registry = {}
   }
+}
+
+DATA.BLHOLE["gwater_blackhole"] = { -- Mee's Gwater 1
+  GetCenter = DATA.BLHOLE["gwater2_blackhole"].GetCenter,
+  GetRadius = DATA.BLHOLE["gwater2_blackhole"].GetRadius,
+  GetAffect = DATA.BLHOLE["gwater2_blackhole"].GetAffect,
+  Registry = {}
 }
 
 --[[
@@ -4624,7 +4629,7 @@ end
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
 function mtBeam:Refract(vDir, vNor, nSrc, nDst)
-  local vDir = (vDir or self:VrDirect)
+  local vDir = (vDir or self.VrDirect)
   local vNor = (vOrg or self.BmTarget.HitNormal)
   local nSrc, nDst = tonumber(nSrc), tonumber(nDst)
   local wave, sodd = self.BmWaveLn, DATA.SODD
@@ -4650,7 +4655,6 @@ function mtBeam:GetBranch(vOrg, vDir)
         beam:SetFgDivert(self:GetFgDivert())
         beam:SetFgTexture(self.BmNoover, false)
         beam:SetBounces(self.NvBounce)
-        beam:SetFgTexture(self.BmNoover, false)
         beam:SetWavelength(0)
   return beam
 end
