@@ -301,7 +301,7 @@ DATA.BLHOLE = {
       local cen = ent:LocalToWorld(ent:OBBCenter())
       local rav = Vector(pos); rav:Sub(cen)
       local grv, drg, req = Vector(rav), Vector(), rav:LengthSqr()
-      grv:Normalize(); grv:Mul(-stp * (ent:GetStrength() / (req)))
+      grv:Normalize(); grv:Mul(-stp * (ent:GetStrength() / req))
       if(SERVER) then -- There is physics only on the server
         wve = ent:GetPhysicsObject():GetAngleVelocity()
         wve:Set(ent:LocalToWorld(wve)); wve:Sub(cen)
@@ -309,7 +309,7 @@ DATA.BLHOLE = {
       else wve = ent:GetNWVector(kve, drg) end
       if(not wve:IsZero()) then -- D = aGM / r^3
         drg:Set(wve:Cross(rav))
-        drg:Div(4 * stp * req ^ 1.5); grv:Add(drg)
+        drg:Mul(stp / req ^ 1.5); grv:Add(drg)
       end; return grv
     end,
     Registry = {}
