@@ -2737,7 +2737,7 @@ function LaserLib.Beam(origin, direct, length)
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
   self.BmWaveLn = 0  -- General beam wavelength. Enabled when greater than zero
-  self.BmBranch = nil -- In case this beam is branched stores the branch objects
+  self.BmBranch = {Size = 0} -- In case this beam is branched stores the branch objects
   self.NvDamage = 0 -- Initial current beam damage
   self.NvWidth  = 0 -- Initial current beam width
   self.NvForce  = 0 -- Initial current beam force
@@ -2779,15 +2779,17 @@ end
 
 --[[
  * Returns the beam target
+ * nT > Target index for the specific branch
+        Otherwise gets the current beam branching
 ]]
 function mtBeam:GetTarget(nT)
   local nT, pT = tonumber(nT), nil
   if(not nT) then return self.BmTarget end
   pT = self.BmBranch; if(not pT) then return nil end
+  if(pT.Size <= 0) then return nil end
   pT = pT[nT]; if(not pT) then return nil end
   return pT.BmTarget
 end
-
 
 --[[
  * Returns the current beam wavelength
@@ -3938,10 +3940,9 @@ function mtBeam:Draw(sours, imatr, color)
     end -- Draw the actual beam texture
   end -- Adjust the render bounds with world-space coordinates
   sours:SetRenderBoundsWS(bmin, bmax)
-  if(tbran and tbran.Size and tbran.Size > 0) then
+  if(tbran.Size > 0) then
     for idx = 1, tbran.Size do
-      tbran[idx]:Draw(sours, imatr, color)
-    end
+      tbran[idx]:Draw(sours, imatr, color) end
   end; return self
 end
 
@@ -4624,18 +4625,19 @@ if(SERVER) then
 end
 
 --[[
- * Dedicated beam refract method
+ * Dedicated beam refract method for specific wavelengths
  * LaserLib.GetRefracted(direct, normal, source, destin)
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
 function mtBeam:Refract(vDir, vNor, nSrc, nDst)
+  local nWav, nSo = self.BmWaveLn, DATA.SODD
+  local tTrg, vUp = self.BmTarget, DATA.VDRUP
   local vDir = (vDir or self.VrDirect)
-  local vNor = (vOrg or self.BmTarget.HitNormal)
+  local vNor = (vNor or (tTrg and tTrg.HitNormal) or vUp)
   local nSrc, nDst = tonumber(nSrc), tonumber(nDst)
-  local wave, sodd = self.BmWaveLn, DATA.SODD
-  if(wave > 0 and wave ~= sodd) then
-    nSrc = LaserLib.WaveToIndex(wave, nSrc)
-    nDst = LaserLib.WaveToIndex(wave, nDst)
+  if(nWav > 0 and nWav ~= nSo) then
+    nSrc = LaserLib.WaveToIndex(nWav, nSrc)
+    nDst = LaserLib.WaveToIndex(nWav, nDst)
   end; return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
 end
 
@@ -4648,14 +4650,7 @@ function mtBeam:GetBranch(vOrg, vDir)
   local origin = (vOrg or self.VrOrigin)
   local direct = (vDir or self.VrDirect)
   local beam = LaserLib.Beam(vOrg, vDir, self.NvLength)
-        beam:SetSource(self.BmSource, self.BoSource)
-        beam:SetWidth(self:GetWidth())
-        beam:SetDamage(self:GetDamage())
-        beam:SetForce(self:GetForce())
-        beam:SetFgDivert(self:GetFgDivert())
-        beam:SetFgTexture(self.BmNoover, false)
-        beam:SetBounces(self.NvBounce)
-        beam:SetWavelength(0)
+
   return beam
 end
 
@@ -4670,26 +4665,31 @@ function mtBeam:IsDisperse(vOrg, tRef)
   local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
   if(tW) then return false end
   local brn = self.BmBranch -- Index branch table
-  if(not brn) then -- When missing create one
-    self.BmBranch = {Size = 0}
-    brn = self.BmBranch
-  else return false end -- Already branched
-  if(brn.Size and brn.Size > 0) then return false end
+  -- This beam is already branched. Skip branching
+  if(brn.Size > 0) then return false end
   local cnt = (tW.IE - tW.IS + 1); self:Finish()
   local src, ovr = self.BmSource, self.BmNoover
   local org = (vOrg or self.BmTarget.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
-    local beam = self:GetBranch(org)
-    if(not beam:IsValid() and SERVER) then
-      beam:Clear(); src:Remove(); return false end
+    local marg = (recw.P / cnt) -- Power margin
+    local beam = LaserLib.Beam(org, self.VrDirect)
     local r = (recw.C.r * recw.P)
     local g = (recw.C.g * recw.P)
     local b = (recw.C.b * recw.P)
-    beam:SetColorRGBA(r, g, b, sa)
-    beam:SetWavelength(recw.W)
     local vdir, bnex, bsam = self:Refract(nil, nil, 1, tRef[1])
+    if(not beam:IsValid() and SERVER) then
+      beam:Clear(); src:Remove(); return false end
+    beam:SetSource(self.BmSource, self.BoSource)
+    beam:SetWidth(self:GetWidth() * marg)
+    beam:SetDamage(self:GetDamage() * marg)
+    beam:SetForce(self:GetForce() * marg)
+    beam:SetFgDivert(self:GetFgDivert())
+    beam:SetFgTexture(self.BmNoover, false)
+    beam:SetBounces(self.NvBounce)
+    beam:SetWavelength(recw.W)
+    beam:SetColorRGBA(r, g, b, sa)
     beam:SetFgTexture(ovr, false)
     brn.Size = brn.Size + 1
     table.insert(brn, beam:Run(brn.Size))
