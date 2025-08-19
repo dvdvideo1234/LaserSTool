@@ -54,6 +54,7 @@ DATA.HARUNTM = {10, 150, 5}     -- Hash storage for beam runtime. Bounces, safet
 DATA.HADFSPL = {2, 1, 0, 1}     -- Hash storage for controls the default splitter outputs count and direction
 DATA.HADELTA = {0.1, 0.15, 0.2} -- Hash storage for general time deltas. Damage, effects, asynchronous
 DATA.HAWASTP = {  15,  15}      -- Hash storage for color configuration to wavelength list step
+DATA.DMPARAM = {}               -- Table to store the damage parameter specific values
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
@@ -377,7 +378,7 @@ end
 --[[
  * Attaches callback changes to convar updating local data
  * key  > Data hash pointing to a list placeholder
- * ...  > Vararg list of convars. Any getting chaged updates the list
+ * ...  > Vararg list of convars. Any getting changed updates the list
 ]]
 local function ConfigureChangeList(key, ...)
   local data = DATA[key]
@@ -3770,7 +3771,7 @@ end
  * Preforms some logic to calculate the filter
  * entity > Entity we intend the start the beam from
 ]]
-function mtBeam:SourceFilter(entity)
+function mtBeam:SourceFilter(entity, ...)
   if(not LaserLib.IsValid(entity)) then return self end
   -- Populated custom depending on the API
   if(entity.RecuseBeamID and self.BmRecstg == 1) then -- Recursive
@@ -3778,11 +3779,11 @@ function mtBeam:SourceFilter(entity)
   end -- We need to reset the top index hit reports count
   -- Make sure the initial laser source is skipped
   if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
-    if(LaserLib.IsUnit(eGun)) then self.BmSource, self.TeFilter = eGun, {entity, eGun} end
+    if(LaserLib.IsUnit(eGun)) then self.BmSource, self.TeFilter = eGun, {entity, eGun, ...} end
   elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
-    if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly} end
+    if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly, ...} end
   else -- Switch the filter according to the weapon the player is holding
-    self.BmSource, self.TeFilter = entity, entity
+    self.BmSource, self.TeFilter = entity, {entity, ...}
   end; return self
 end
 
@@ -4550,26 +4551,26 @@ if(SERVER) then
   function mtBeam:DoDamage(laser)
     local trace = self:GetTarget()
     if(not (trace and trace.Hit)) then return end
-    local target = trace.Entity
+    local target, param = trace.Entity, DATA.DMPARAM
     if(not LaserLib.IsValid(target)) then return end
     if(LaserLib.IsUnit(target)) then return end
     local sours = self:GetSource()
     if(not LaserLib.IsValid(sours)) then return end
-    local param = {
-      target   = target,
-      laser    = laser,
-      attacker = (self.ply or self.player) or sours:GetCreator(),
-      origin   = trace.HitPos,
-      normal   = trace.HitNormal,
-      direct   = self.VrDirect,
-      damage   = self.NvDamage,
-      dmtype   = DMG_ENERGYBEAM,
-      force    = self.NvForce,
-      dissolve = LaserLib.GetDissolveID(sours:GetDissolveType()),
-      noise    = sours:GetKillSound(),
-      fcenter  = sours:GetForceCenter(),
-      safety   = sours:GetBeamSafety()
-    } -- Localize the calculated parameters
+    -- Localize the calculated parameters
+    param.target   = target
+    param.laser    = laser
+    param.attacker = (self.ply or self.player) or sours:GetCreator()
+    param.origin   = trace.HitPos
+    param.normal   = trace.HitNormal
+    param.direct   = self.VrDirect
+    param.damage   = self.NvDamage
+    param.dmtype   = DMG_ENERGYBEAM
+    param.force    = self.NvForce
+    param.dissolve = LaserLib.GetDissolveID(sours:GetDissolveType())
+    param.noise    = sours:GetKillSound()
+    param.fcenter  = sours:GetForceCenter()
+    param.safety   = sours:GetBeamSafety()
+    -- Create a reference to what is used locally
     local direct, damage = param.direct, param.damage
     local force , origin = param.force , param.origin
     -- Read damage configuration and physics
@@ -4639,19 +4640,6 @@ function mtBeam:Refract(vDir, vNor, nSrc, nDst)
     nSrc = LaserLib.WaveToIndex(nWav, nSrc)
     nDst = LaserLib.WaveToIndex(nWav, nDst)
   end; return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
-end
-
---[[
- * Created a new branched beam and takes source as configuration
- * vOrg > Branch beam start origin. Otherwise the last origin
- * vDir > Branch beam start direction. Otherwise the last direction
-]]
-function mtBeam:GetBranch(vOrg, vDir)
-  local origin = (vOrg or self.VrOrigin)
-  local direct = (vDir or self.VrDirect)
-  local beam = LaserLib.Beam(vOrg, vDir, self.NvLength)
-
-  return beam
 end
 
 --[[
