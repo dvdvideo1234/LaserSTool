@@ -310,7 +310,7 @@ DATA.BLHOLE = {
       else wve = ent:GetNWVector(kve, drg) end
       if(not wve:IsZero()) then -- D = aGM / r^3
         drg:Set(wve:Cross(rav))
-        drg:Mul(stp / req ^ 1.5); grv:Add(drg)
+        drg:Mul(stp / (10 * req ^ 1.5)); grv:Add(drg)
       end; return grv
     end,
     Registry = {}
