@@ -50,6 +50,7 @@ DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
+DATA.HXCOLOR = {FM = "%02s", DT = {}} -- Stores temporary setting for hex to color conversion
 DATA.HARUNTM = {10, 150, 5}     -- Hash storage for beam runtime. Bounces, safety velocity, black hole segment
 DATA.HADFSPL = {2, 1, 0, 1}     -- Hash storage for controls the default splitter outputs count and direction
 DATA.HADELTA = {0.1, 0.15, 0.2} -- Hash storage for general time deltas. Damage, effects, asynchronous
@@ -1168,6 +1169,26 @@ function LaserLib.ToString(tav)
   local b = tonumber(tav[2] or tav.y or tav.y) or 0
   local c = tonumber(tav[3] or tav.z or tav.r) or 0
   return DATA.FMVA:format(a, b, c)
+end
+
+function ToColor(sH)
+  if(sH == "") then return nil end
+  local iL, iE = sH:len(), 0
+  local sH = sH:sub(1, 8)
+  local tS = DATA.HXCOLOR
+  local tO, sF = tS.DT, tS.FM
+  tO[1], tO[2] = nil, nil
+  tO[3], tO[4] = nil, nil
+  for iD = -1, -sH:len(), -2 do
+    local sS = sH:sub(iD - 1, iD); iE = iE + 1
+    local sO = sF:format(sS):upper()
+    tO[iE] = tonumber(sO, 16)
+  end
+  local iD = 1
+  while(iD < iE) do
+    tO[iD], tO[iE] = tO[iE], tO[iD]
+    iD, iE = (iD + 1), (iE - 1)
+  end; return tO[1], tO[2], tO[3], tO[4]
 end
 
 function LaserLib.ByString(str)
