@@ -3470,7 +3470,7 @@ end
 
 --[[
  * Defines how the default material is filled when one is missing
- * Overrides material when `GetSurfaceData` fails to provide a values
+ * Overrides material when `GetSurfaceData` fails to provide values
  * https://wiki.facepunch.com/gmod/Enums/SURF
  * https://wiki.facepunch.com/gmod/Structures/TraceResult
 ]]
@@ -3478,10 +3478,12 @@ function mtBeam:GetMaterialMiss(mat, trace)
   local mat, g_srf = (mat or trace.HitTexture), DATA.MATSRF
   if(not self:IsMaterial(mat)) then -- String is not material
     mat = g_mat[tostring(trace.MatType)] -- Material lookup
-    if(not self:IsMaterial(mat)) then -- No material
-      for idx = 1, #g_srf do local v = g_srf[idx]
-        local fg = LaserLib.InBinary(trace.SurfaceFlags, v.Sur)
-        mat = (fg and v.Nam or "") -- Use surface assignment
+    if(not self:IsMaterial(mat)) then -- No valid material
+      local sur = trace.SurfaceFlags -- Read surface flags
+      for idx = 1, #g_srf do local v = g_srf[idx] -- Index
+        -- Use surface assignment. Check surface binary
+        mat = (LaserLib.InBinary(sur, v.Sur) and v.Nam or nil)
+        -- Lowest indices are taken with priority
         if(self:IsMaterial(mat)) then return mat end
       end -- Check surface. when found exit
     end -- Material has not been fount via lookup
@@ -3501,7 +3503,7 @@ function mtBeam:GetMaterialAuto(trace)
     if(sur) then mat = (sur.name or g_mat[tostring(sur.material)])
       -- In case the surface data exists and returns invalid mat
       if(not self:IsMaterial(mat)) then -- String is not material
-        mat = self:GetMaterialMiss(mat, trace) end
+        mat = self:GetMaterialMiss(mat, trace) end -- Trigger miss
     else mat = self:GetMaterialMiss(mat, trace) end -- Material lookup
   end; return mat -- Return the override material
 end
@@ -3520,7 +3522,7 @@ function mtBeam:GetMaterialID(trace)
   if(not trace.Hit) then return nil end
   if(trace.HitWorld) then -- Use trace material type
     -- Trace material type is unavailable. Use the surface
-    return (self:GetMaterialAuto(trace) or "")
+    return self:GetMaterialAuto(trace) -- Use auto fill
   else -- The trace is hitting a prop. Read the material
     local ent = trace.Entity -- Trace entity object
     if(not LaserLib.IsValid(ent)) then return nil end
@@ -3530,7 +3532,7 @@ function mtBeam:GetMaterialID(trace)
       else -- No override is enabled return original surface
         mat = self:GetMaterialAuto(trace) -- Use surface type
       end -- Physics object has a single surface type related to model
-    end; return (mat or "")
+    end; return mat
   end
 end
 
