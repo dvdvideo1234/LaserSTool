@@ -333,6 +333,7 @@ DATA.BLHOLE["gwater_blackhole"] = { -- Mee's Gwater 1
 ]]
 DATA.MATYPE = {
   [tostring(MAT_SNOW      )] = "white",
+  [tostring(MAT_SLOSH     )] = "water",
   [tostring(MAT_GRATE     )] = "metal",
   [tostring(MAT_CLIP      )] = "metal",
   [tostring(MAT_METAL     )] = "metal",
