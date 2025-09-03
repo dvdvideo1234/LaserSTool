@@ -342,6 +342,11 @@ DATA.MATYPE = {
   [tostring(MAT_WARPSHIELD)] = "glass"
 }
 
+DATA.MATSRF = {
+  {Sur = SURF_WARP , Nam = "water"},
+  {Sur = SURF_TRANS, Nam = "translucent"}
+}; DATA.MATSRF.Size = #DATA.MATSRF
+
 DATA.TRACE = {
   filter         = nil,
   output         = nil,
@@ -586,11 +591,11 @@ end
  * Checks if the content is present in binary
  * Complementary content exists in base content
  * Returns true when content persists in trace
- * cont > Base content including all properties
+ * base > Base content including all properties
  * comp > Complementary property being checked
 ]]
-function LaserLib.InContent(cont, comp)
-  return (bit.band(cont, comp) == comp)
+function LaserLib.InBinary(base, comp)
+  return (bit.band(base, comp) == comp)
 end
 
 --[[
@@ -600,7 +605,7 @@ end
  * comp > Complementary property being checked
 ]]
 function LaserLib.IsContent(cpos, comp)
-  return LaserLib.InContent(util.PointContents(cpos), comp)
+  return LaserLib.InBinary(util.PointContents(cpos), comp)
 end
 
 --[[
@@ -617,7 +622,7 @@ function LaserLib.GetContentsID(cont)
     if(row) then local conr = row.Con -- Read row contents
       if(conr ~= nil) then -- Row contents exists check it
         if(conr ~= 0) then -- Row contents is non-zero
-          if(LaserLib.InContent(cont, conr)) then return idx end
+          if(LaserLib.InBinary(cont, conr)) then return idx end
         else -- Compare directly when zero to avoid mismatch
           if(cont == conr) then return idx end -- Air contents
         end -- Contents are compared and index is extracted
@@ -3164,7 +3169,7 @@ end
  * vncon > Content enumerator value for current medium definition
 ]]
 function mtBeam:UpdateWaterSurface(vncon)
-  if(LaserLib.InContent(vncon, CONTENTS_WATER)) then -- Point in the water
+  if(LaserLib.InBinary(vncon, CONTENTS_WATER)) then -- Point in the water
     if(self:IsAir()) then -- No water surface defined. Traverse to water
       self:SetWaterSurface()
       self.NvMask = MASK_SOLID -- Start traversing below the water
@@ -3456,10 +3461,31 @@ end
  * Includes empty strings as well
 ]]
 function mtBeam:IsMaterial(mat)
+  if(not mat) then return false end
+  if(mat == "") then return false end
   local g_mtc = DATA.IMAT
   local ms, me = mat:sub(1,1), mat:sub(-1,-1)
-  local su = (ms == g_mtc and me == g_mtc)
-  return (mat ~= "" and not su)
+  return (ms ~= g_mtc and me ~= g_mtc)
+end
+
+--[[
+ * Defines how the default material is filled when one is missing
+ * Overrides material when `GetSurfaceData` fails to provide a values
+ * https://wiki.facepunch.com/gmod/Enums/SURF
+ * https://wiki.facepunch.com/gmod/Structures/TraceResult
+]]
+function mtBeam:GetMaterialMiss(mat, trace)
+  local mat, g_srf = (mat or trace.HitTexture), DATA.MATSRF
+  if(not self:IsMaterial(mat)) then -- String is not material
+    mat = g_mat[tostring(trace.MatType)] -- Material lookup
+    if(not self:IsMaterial(mat)) then -- No material
+      for idx = 1, #g_srf do local v = g_srf[idx]
+        local fg = LaserLib.InBinary(trace.SurfaceFlags, v.Sur)
+        mat = (fg and v.Nam or "") -- Use surface assignment
+        if(self:IsMaterial(mat)) then return mat end
+      end -- Check surface. when found exit
+    end -- Material has not been fount via lookup
+  end; return mat -- Material lookup
 end
 
 --[[
@@ -3475,8 +3501,8 @@ function mtBeam:GetMaterialAuto(trace)
     if(sur) then mat = (sur.name or g_mat[tostring(sur.material)])
       -- In case the surface data exists and returns invalid mat
       if(not self:IsMaterial(mat)) then -- String is not material
-        mat = g_mat[tostring(trace.MatType)] end -- Material lookup
-    else mat = g_mat[tostring(trace.MatType)] end -- Material lookup
+        mat = self:GetMaterialMiss(mat, trace) end
+    else mat = self:GetMaterialMiss(mat, trace) end -- Material lookup
   end; return mat -- Return the override material
 end
 
@@ -3499,7 +3525,7 @@ function mtBeam:GetMaterialID(trace)
     local ent = trace.Entity -- Trace entity object
     if(not LaserLib.IsValid(ent)) then return nil end
     local mat = ent:GetMaterial() -- Entity may not have override
-    if(mat == "") then -- Empty then use the original material
+    if(not self:IsMaterial(mat)) then -- Empty then use the original material
       if(self.BmNoover) then mat = ent:GetMaterials()[1]
       else -- No override is enabled return original surface
         mat = self:GetMaterialAuto(trace) -- Use surface type
@@ -3708,7 +3734,7 @@ end
 ]]
 function mtBeam:SetSurfaceWorld(mekey, mecon, trace)
   local wat, mewat = self:GetWater(), mtBeam.__mewat
-  local vae, air = LaserLib.InContent(mecon, CONTENTS_WATER), self:IsAir()
+  local vae, air = LaserLib.InBinary(mecon, CONTENTS_WATER), self:IsAir()
   if(not vae and mekey) then vae = mekey:find(mewat[2], 1, true) end
   if(self.StRfract) then
     if(vae and air) then -- Water is not yet registered for transition
