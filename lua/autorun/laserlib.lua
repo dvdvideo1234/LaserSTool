@@ -3477,7 +3477,7 @@ function mtBeam:GetMaterialMiss(mat, trace)
     mat = g_mat[tostring(trace.MatType)] -- Material lookup
     if(not self:IsMaterial(mat)) then -- No valid material
       local sur = trace.SurfaceFlags -- Read surface flags
-      for idx = 1, #g_srf do local v = g_srf[idx] -- Index
+      for idx = 1, g_srf.Size do local v = g_srf[idx] -- Index
         -- Use surface assignment. Check surface binary
         mat = (LaserLib.InBinary(sur, v.Sur) and v.Nam or nil)
         -- Lowest indices are taken with priority
