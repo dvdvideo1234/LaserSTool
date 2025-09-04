@@ -622,7 +622,11 @@ function LaserLib.GetContentsID(cont)
     local row = g_refract[key] -- Index entry row
     if(row) then local conr = row.Con -- Read row contents
       if(conr ~= nil) then -- Row contents exists check it
-        if(LaserLib.InBinary(cont, conr)) then return idx end
+        if(conr ~= 0) then -- Row contents is non-zero
+          if(LaserLib.InBinary(cont, conr)) then return idx end
+        else -- Compare directly when zero to avoid mismatch
+          if(cont == conr) then return idx end -- Air contents
+        end -- Contents are compared and index is extracted
       end -- Contents have been specified successfully
     end -- Check if we have the corresponding bit or be equal
   end; return nil -- The contents did not get matched to entry
