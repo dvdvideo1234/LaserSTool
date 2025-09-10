@@ -503,11 +503,18 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   LaserLib.NumSlider(cPanel, "damage"   , 0, cvMXBMDAMG:GetFloat(), gtConvarList[gsTOOL.."_damage"])
   LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
 
-  local tMat = table.MemberValuesFromKey(list.GetForEdit("LaserEmitterMaterials"), "name")
-  pItem = cPanel:MatSelect(gsTOOL.."_material", tMat, true, 0.15, 0.24)
+  local tMat = list.GetForEdit("LaserEmitterMaterials")
+  pItem = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
   pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
-
+  for key, val in pairs(tMat) do
+    local trn = language.GetPhrase(key)
+    local mat = pItem:AddMaterial(trn, val.name); mat.Key = key
+  end
+  function pItem:OnSelect(mat, pan)
+    local cnf = tMat[pan.Key]
+    print("MAT:OnSelect > ["..tostring(mat).."]{"..tostring(pan.Key).."|"..tostring(cnf.name).."}")
+  end
   pItem = vgui.Create("DColorMixer", cPanel)
   pItem:Dock(TOP); pItem:SetTall(250)
   pItem:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
