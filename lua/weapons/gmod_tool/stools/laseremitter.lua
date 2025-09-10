@@ -508,8 +508,7 @@ function TOOL.BuildCPanel(cPanel)
   pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pMat:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
   for key, val in pairs(tMat) do
-    local trn = language.GetPhrase(key)
-    local mat = pMat:AddMaterial(trn, val.name); mat.Key = key
+    local mat = pMat:AddMaterial(key, val.name); mat.Key = key
   end
   pMix = vgui.Create("DColorMixer", cPanel)
   pMix:Dock(TOP); pMix:SetTall(250)
