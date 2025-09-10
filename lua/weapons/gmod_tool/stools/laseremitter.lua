@@ -479,24 +479,24 @@ function TOOL:Think()
 end
 
 local gtConvarList = TOOL:BuildConVarList()
-
+`
 -- Enter `spawnmenu_reload` in the console to reload the panel
-function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
+function TOOL.BuildCPanel(cPanel)
   cPanel:ClearControls(); cPanel:DockPadding(5, 0, 5, 10)
   cPanel:SetName(language.GetPhrase("tool."..gsTOOL..".name"))
   cPanel:Help   (language.GetPhrase("tool."..gsTOOL..".desc"))
 
-  pItem = vgui.Create("ControlPresets", cPanel)
-  pItem:SetPreset(gsTOOL)
-  pItem:AddOption("Default", gtConvarList)
-  for key, val in pairs(table.GetKeys(gtConvarList)) do pItem:AddConVar(val) end
-  cPanel:AddItem(pItem)
+  pCon = vgui.Create("ControlPresets", cPanel)
+  pCon:SetPreset(gsTOOL)
+  pCon:AddOption("Default", gtConvarList)
+  for key, val in pairs(table.GetKeys(gtConvarList)) do pCon:AddConVar(val) end
+  cPanel:AddItem(pCon)
 
-  pItem = vgui.Create("CtrlNumPad", cPanel)
-  pItem:SetConVar1(gsTOOL.."_key")
-  pItem:SetLabel1(language.GetPhrase("tool."..gsTOOL..".key_con"))
-  pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTOOL..".key"))
-  cPanel:AddPanel(pItem)
+  pNum = vgui.Create("CtrlNumPad", cPanel)
+  pNum:SetConVar1(gsTOOL.."_key")
+  pNum:SetLabel1(language.GetPhrase("tool."..gsTOOL..".key_con"))
+  pNum.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTOOL..".key"))
+  cPanel:AddPanel(pNum)
 
   LaserLib.NumSlider(cPanel, "width"    , 0, cvMXBMWIDT:GetFloat(), gtConvarList[gsTOOL.."_width"])
   LaserLib.NumSlider(cPanel, "length"   , 0, cvMXBMLENG:GetFloat(), gtConvarList[gsTOOL.."_length"])
@@ -504,35 +504,34 @@ function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
   LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
 
   local tMat = list.GetForEdit("LaserEmitterMaterials")
-  pItem = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
-  pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
+  pMat = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
+  pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
+  pMat:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
   for key, val in pairs(tMat) do
     local trn = language.GetPhrase(key)
-    local mat = pItem:AddMaterial(trn, val.name); mat.Key = key
+    local mat = pMat:AddMaterial(trn, val.name); mat.Key = key
   end
-  function pItem:OnSelect(mat, pan)
+  pMix = vgui.Create("DColorMixer", cPanel)
+  pMix:Dock(TOP); pMix:SetTall(250)
+  pMix:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
+  pMix:SetTooltip(language.GetPhrase("tool."..gsTOOL..".color"))
+  pMix:SetConVarR(gsTOOL.."_colorr")
+  pMix:SetConVarG(gsTOOL.."_colorg")
+  pMix:SetConVarB(gsTOOL.."_colorb")
+  pMix:SetConVarA(gsTOOL.."_colora")
+  cPanel:AddItem(pMix)
+  function pMat:OnSelect(mat, pan)
     local cnf = tMat[pan.Key]
     print("MAT:OnSelect > ["..tostring(mat).."]{"..tostring(pan.Key).."|"..tostring(cnf.name).."}")
   end
-  pItem = vgui.Create("DColorMixer", cPanel)
-  pItem:Dock(TOP); pItem:SetTall(250)
-  pItem:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".color"))
-  pItem:SetConVarR(gsTOOL.."_colorr")
-  pItem:SetConVarG(gsTOOL.."_colorg")
-  pItem:SetConVarB(gsTOOL.."_colorb")
-  pItem:SetConVarA(gsTOOL.."_colora")
-  cPanel:AddItem(pItem)
-
-  pItem = vgui.Create("PropSelect", cPanel)
-  pItem:Dock(TOP); pItem:SetTall(150)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
-  pItem:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
+  pProp = vgui.Create("PropSelect", cPanel)
+  pProp:Dock(TOP); pProp:SetTall(150)
+  pProp:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
+  pProp:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
     convar = gsTOOL.."_model", -- Pass model convar
     models = list.GetForEdit("LaserEmitterModels"),
     label  = language.GetPhrase("tool."..gsTOOL..".model_con")
-  }); cPanel:AddItem(pItem)
+  }); cPanel:AddItem(pProp)
 
   LaserLib.ComboBoxString(cPanel, "dissolvetype", "LaserDissolveTypes")
   LaserLib.ComboBoxString(cPanel, "startsound"  , "LaserStartSounds"  )
