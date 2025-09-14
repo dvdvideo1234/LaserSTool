@@ -479,7 +479,7 @@ function TOOL:Think()
 end
 
 local gtConvarList = TOOL:BuildConVarList()
-`
+
 -- Enter `spawnmenu_reload` in the console to reload the panel
 function TOOL.BuildCPanel(cPanel)
   cPanel:ClearControls(); cPanel:DockPadding(5, 0, 5, 10)
@@ -504,10 +504,13 @@ function TOOL.BuildCPanel(cPanel)
   LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
 
   local tMat = list.GetForEdit("LaserEmitterMaterials")
+  local tKey = table.GetKeys(tMat); table.sort(tKey)
   pMat = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
   pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pMat:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
-  for key, val in pairs(tMat) do
+  for iK = 1, #tKey do
+    local key = tKey[iK]
+    local val = tMat[key]
     local mat = pMat:AddMaterial(key, val.name); mat.Key = key
   end
   pMix = vgui.Create("DColorMixer", cPanel)
@@ -521,6 +524,14 @@ function TOOL.BuildCPanel(cPanel)
   cPanel:AddItem(pMix)
   function pMat:OnSelect(mat, pan)
     local cnf = tMat[pan.Key]
+    local rco = cnf.cors
+    if(rco) then
+      local r, g, b = unpack(rco)
+      local cco = pMix:GetColor()
+      cco.r = r; cco.g = g
+      cco.b = b; cco.a = (cco.a or 255)
+      pMix:SetColor(cco)
+    end
     print("MAT:OnSelect > ["..tostring(mat).."]{"..tostring(pan.Key).."|"..tostring(cnf.name).."}")
   end
   pProp = vgui.Create("PropSelect", cPanel)
