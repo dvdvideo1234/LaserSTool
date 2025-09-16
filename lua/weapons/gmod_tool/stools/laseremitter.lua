@@ -504,7 +504,8 @@ function TOOL.BuildCPanel(cPanel)
   LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
 
   local tMat = list.GetForEdit("LaserEmitterMaterials")
-  local tKey = table.GetKeys(tMat); table.sort(tKey)
+  local tKey = table.GetKeys(tMat) -- Sort the keys table on material
+  table.sort(tKey, function(u, v) return u.name < v.name end)
   pMat = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
   pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pMat:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
@@ -512,7 +513,20 @@ function TOOL.BuildCPanel(cPanel)
     local key = tKey[iK]
     local val = tMat[key]
     local mat = pMat:AddMaterial(key, val.name); mat.Key = key
+    function mat:OnRightClick()
+      local pnMenu = DermaMenu(false, self)
+      if(not IsValid(pnMenu)) then return end
+      local pCopy, pOpts = pnMenu:AddSubMenu(language.GetPhrase("spawnmenu.menu.copy"))
+      if(not IsValid(pSort)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon(LaserLib.GetIcon("page_copy")))
+      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_cnam"),
+        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("page_copy"))
+      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_cnam"),
+        function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("page_copy"))
+    end
   end
+
   pMix = vgui.Create("DColorMixer", cPanel)
   pMix:Dock(TOP); pMix:SetTall(250)
   pMix:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
@@ -522,18 +536,7 @@ function TOOL.BuildCPanel(cPanel)
   pMix:SetConVarB(gsTOOL.."_colorb")
   pMix:SetConVarA(gsTOOL.."_colora")
   cPanel:AddItem(pMix)
-  function pMat:OnSelect(mat, pan)
-    local cnf = tMat[pan.Key]
-    local rco = cnf.cors
-    if(rco) then
-      local r, g, b = unpack(rco)
-      local cco = pMix:GetColor()
-      cco.r = r; cco.g = g
-      cco.b = b; cco.a = (cco.a or 255)
-      pMix:SetColor(cco)
-    end
-    print("MAT:OnSelect > ["..tostring(mat).."]{"..tostring(pan.Key).."|"..tostring(cnf.name).."}")
-  end
+
   pProp = vgui.Create("PropSelect", cPanel)
   pProp:Dock(TOP); pProp:SetTall(150)
   pProp:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
