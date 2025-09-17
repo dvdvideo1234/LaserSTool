@@ -2025,9 +2025,9 @@ end
 --[[
  * Stores the sidebar value so it can be later utilized
  * pnMat > Reference to side materials frame list
- * sort  > Structure to update bar position
+ * tSort > Structure to update bar position
 ]]
-function LaserLib.UpdateVBar(pnMat, sort)
+function LaserLib.UpdateVBar(pnMat, tSort)
   if(SERVER) then return end
   local pnBar = pnMat.List.VBar
   if(not IsValid(pnBar)) then return end
@@ -2035,8 +2035,8 @@ function LaserLib.UpdateVBar(pnMat, sort)
   pnBar.DraggingCanvas = nil
   pnBar:MouseCapture(false)
   pnBar.btnGrip.Depressed = false
-  sort.Mpos = pnBar:GetScroll()
-  return sort.Mpos
+  tSort.Mpos = pnBar:GetScroll()
+  return tSort.Mpos
 end
 
 --[[
@@ -2044,16 +2044,16 @@ end
  * scroll bar and reads it on the next panel open
  * Animates the slider to the last remembered position
  * pnMat > Reference to side materials frame list
- * sort  > Structure to update bar position
+ * tSort  > Structure to update bar position
 ]]
-function LaserLib.SetMaterialScroll(pnMat, sort)
+function LaserLib.SetMaterialScroll(pnMat, tSort)
   if(SERVER) then return end
   local pnBar = pnMat.List.VBar
   if(not IsValid(pnBar)) then return end
   function pnBar:OnMouseReleased()
-    LaserLib.UpdateVBar(pnMat, sort)
+    LaserLib.UpdateVBar(pnMat, tSort)
   end -- Release mouse on the mar to accept
-  pnBar:AnimateTo(sort.Mpos, 0.05)
+  pnBar:AnimateTo(tSort.Mpos, 0.05)
 end
 
 --[[
@@ -2061,90 +2061,95 @@ end
  * Clears the content and remembers the last panel view state
  * Called recursively when sorting or filtering is requested
 ]]
-function LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
   if(SERVER) then return end
   -- Update material selection content
   LaserLib.ClearMaterials(pnMat)
   -- Read the controls table and create index
   local tCont, iC, sTool = pnMat.Controls, 0, DATA.TOOL
   -- Update material panel with ordered values
-  for iD = 1, sort.Size do
-    local tRow, pnImg = sort[iD]
+  for iD = 1, tSort.Size do
+    local tRow, pnImg = tSort[iD]
     if(tRow.Draw) then -- Drawing is enabled
-      local sCon = LaserLib.GetSequenceInfo(tRow, sort.Info)
+      local sCon = LaserLib.GetSequenceInfo(tRow, tSort.Info)
       local sInf, sKey = sCon.." "..tRow.Key, tRow.Key
       pnMat:AddMaterial(sInf, sKey); iC = iC + 1; pnImg = tCont[iC]
       function pnImg:DoClick()
-        LaserLib.UpdateVBar(pnMat, sort)
+        LaserLib.UpdateVBar(pnMat, tSort)
         LaserLib.SetMaterialPaintOver(pnMat, self)
-        LaserLib.ConCommand(nil, sort.Sors, sKey)
-        pnFrame:SetTitle(sort.Name.." > "..sInf)
+        LaserLib.ConCommand(nil, tSort.Sors, sKey)
+        pnFrame:SetTitle(tSort.Name.." > "..sInf)
       end
       function pnImg:DoRightClick()
-        LaserLib.UpdateVBar(pnMat, sort)
-        local pnMenu = DermaMenu(false, pnFrame)
+        LaserLib.UpdateVBar(pnMat, tSort)
+        local pnMenu, pMenu, pOpts = DermaMenu(false, pnFrame)
         if(not IsValid(pnMenu)) then return end
-        pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cmat"),
-          function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("page_copy"))
-        pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_cset"),
-          function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("page_copy"))
-        pnMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_call"),
-          function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("page_copy"))
-        -- Attach sub-menu to the menu items
-        local pSort, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_sort"))
-        if(not IsValid(pSort)) then return end
+        -- Attach sub-menu to the menu items ( copy )
+        pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_copy"))
+        if(not IsValid(pMenu)) then return end
+        if(not IsValid(pOpts)) then return end
+        pOpts:SetImage(LaserLib.GetIcon("page_copy"))
+        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copym"),
+          function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("lightning"))
+        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copys"),
+          function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("note"))
+        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copya"),
+          function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("package"))
+        -- Attach sub-menu to the menu items ( sort )
+        pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_sort"))
+        if(not IsValid(pMenu)) then return end
         if(not IsValid(pOpts)) then return end
         pOpts:SetImage(LaserLib.GetIcon("table_sort"))
         -- Sort the data by the entry key
         if(tRow.Key) then
-          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find1").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findm").." (<)",
             function()
-              table.SortByMember(sort, "Key", true)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+              table.SortByMember(tSort, "Key", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("arrow_down"))
-          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find1").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findm").." (>)",
             function()
-              table.SortByMember(sort, "Key", false)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+              table.SortByMember(tSort, "Key", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("arrow_up"))
         end
         -- Sort the data by the absorption rate
         if(tRow.Rate) then
-          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find2").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findp").." (<)",
             function()
-              table.SortByMember(sort, "Rate", true)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+              table.SortByMember(tSort, "Rate", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("basket_remove"))
-          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find2").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findp").." (>)",
             function()
-              table.SortByMember(sort, "Rate", false)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+              table.SortByMember(tSort, "Rate", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("basket_put"))
         end
         -- Sorted members by the medium refraction index
         if(tRow.Ridx) then
-          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find3").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findi").." (<)",
             function()
-              table.SortByMember(sort, "Ridx", true)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+              table.SortByMember(tSort, "Ridx", true)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("ruby_get"))
-          pSort:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_find3").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findi").." (>)",
             function()
-              table.SortByMember(sort, "Ridx", false)
-              LaserLib.UpdateMaterials(pnFrame, pnMat, sort)
+              table.SortByMember(tSort, "Ridx", false)
+              LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("ruby_put"))
         end
         pnMenu:Open()
       end
       -- When the variable value is the same as the key
-      if(sKey == sort.Conv:GetString()) then
-        pnFrame:SetTitle(sort.Name.." > "..sInf)
+      if(sKey == tSort.Conv:GetString()) then
+        pnFrame:SetTitle(tSort.Name.." > "..sInf)
         LaserLib.SetMaterialPaintOver(pnMat, pnImg)
       end
     end
   end
   -- Update material panel scroll bar
-  LaserLib.SetMaterialScroll(pnMat, sort)
+  LaserLib.SetMaterialScroll(pnMat, tSort)
 end
 
 --[[

@@ -88,10 +88,10 @@ if(CLIENT) then
             pnCombo:SetPos(iPa, 24 + iPa)
             pnCombo:SetSize(pnFrame:GetWide() - (gnGRAT - 1) * pnFrame:GetWide(), 25)
             pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmaterial_find"))
-            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmaterial_find0"))
-            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
-            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
-            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmaterial_findv"))
+            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_findm"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_findp"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_findi"), "Ridx", false, LaserLib.GetIcon("transmit")) end
       local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
             pnText:SetParent(pnFrame)
             pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
@@ -516,14 +516,14 @@ function TOOL.BuildCPanel(cPanel)
     function mat:OnRightClick()
       local pnMenu = DermaMenu(false, self)
       if(not IsValid(pnMenu)) then return end
-      local pCopy, pOpts = pnMenu:AddSubMenu(language.GetPhrase("spawnmenu.menu.copy"))
+      local pCopy, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_copy"))
       if(not IsValid(pSort)) then return end
       if(not IsValid(pOpts)) then return end
       pOpts:SetImage(LaserLib.GetIcon(LaserLib.GetIcon("page_copy")))
-      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_cnam"),
-        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("page_copy"))
-      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_cnam"),
-        function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("page_copy"))
+      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copyn"),
+        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("textfield_rename"))
+      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copym"),
+        function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("lightning"))
     end
   end
 
