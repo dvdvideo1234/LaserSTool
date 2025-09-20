@@ -293,9 +293,44 @@ DATA.REFRACT = {
   ["models/props_combine/stasisshield_sheet"]   = {1.511, 0.427}  -- Blue temper glass
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
+DATA.DISPERSE = {
+  ["cable/cable"                        ] = {Base = false},
+  ["cable/cable2"                       ] = {Base = Color( 25,  25,  25)},
+  ["models/effects/splodearc_sheet"     ] = {Base = false},
+  ["models/props_lab/warp_sheet"        ] = {Base = false},
+  ["cable/crystal_beam1"                ] = {Base = Color(140, 110,  55)},
+  ["cable/redlaser"                     ] = {Base = Color(140, 110,  55)},
+  ["cable/blue_elec"                    ] = {Base = false},
+  ["models/alyx/emptool_glow"           ] = {Base = false},
+  ["effects/redlaser1"                  ] = {Base = false},
+  ["effects/bluelaser1"                 ] = {Base = false},
+  ["models/shadertest/shader4"          ] = {Base = false},
+  ["models/shadertest/shader3"          ] = {Base = false},
+  ["models/props_combine/com_shield001a"] = {Base = false},
+  ["models/wireframe"                   ] = {Base = false},
+  ["models/shadertest/predator"         ] = {Base = false},
+  ["cable/xbeam"                        ] = {Base = false},
+  ["cable/physbeam"                     ] = {Base = false},
+  ["cable/hydra"                        ] = {Base = false},
+  ["trails/plasma"                      ] = {Base = Color(225, 225, 225)},
+  ["trails/electric"                    ] = {Base = Color( 30,  50, 225)},
+  ["trails/smoke"                       ] = {Base = Color(100, 100, 100)},
+  ["trails/laser"                       ] = {Base = Color(225, 225, 225)},
+  ["trails/love"                        ] = {Base = Color(130,  40, 100)},
+  ["trails/lol"                         ] = {Base = Color(225, 225, 225)},
+  ["effects/beam_generic01"             ] = {Base = Color(225, 225, 225)},
+  ["effects/beam001_blu"                ] = {Base = Color( 10,  10,  50)},
+  ["effects/beam001_red"                ] = {Base = Color( 50,  10,  10)},
+  ["effects/beam001_white"              ] = {Base = Color(225, 225, 225)},
+  ["effects/repair_claw_trail_blue"     ] = {Base = Color( 50,  50, 190)},
+  ["effects/repair_claw_trail_red"      ] = {Base = Color(210, 130,  50)},
+  ["effects/australiumtrail_red"        ] = {Base = Color(255,  33,   0)}
+}
+
+
 -- Black hole interfaces
 DATA.BLHOLE = {
-  ["gwater2_blackhole"] = { -- Mee's Gwater 2
+  ["gwater_blackhole"] = { -- Mee's Gwater 1
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
     GetAffect = function(ent, pos, stp)
@@ -318,10 +353,10 @@ DATA.BLHOLE = {
   }
 }
 
-DATA.BLHOLE["gwater_blackhole"] = { -- Mee's Gwater 1
-  GetCenter = DATA.BLHOLE["gwater2_blackhole"].GetCenter,
-  GetRadius = DATA.BLHOLE["gwater2_blackhole"].GetRadius,
-  GetAffect = DATA.BLHOLE["gwater2_blackhole"].GetAffect,
+DATA.BLHOLE["gwater2_blackhole"] = { -- Mee's Gwater 2
+  GetCenter = DATA.BLHOLE["gwater_blackhole"].GetCenter,
+  GetRadius = DATA.BLHOLE["gwater_blackhole"].GetRadius,
+  GetAffect = DATA.BLHOLE["gwater_blackhole"].GetAffect,
   Registry = {}
 }
 
@@ -2094,7 +2129,7 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copys"),
           function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("note"))
         pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copya"),
-          function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("package"))
+          function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("asterisk_yellow"))
         -- Attach sub-menu to the menu items ( sort )
         pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_sort"))
         if(not IsValid(pMenu)) then return end
@@ -5056,37 +5091,37 @@ function LaserLib.SetupMaterials()
   language.Add("laser.effects.predator"      , "Predator"          )
 
   table.Empty(list.GetForEdit("LaserEmitterMaterials"))
-  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , {name = "cable/cable"                        , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , {name = "cable/cable2"                       , icon = "palette", cors = {25, 25, 25}})
-  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , {name = "models/effects/splodearc_sheet"     , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , {name = "models/props_lab/warp_sheet"        , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , {name = "cable/crystal_beam1"                , icon = "palette", cors = {140, 110, 55}})
-  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , {name = "cable/redlaser"                     , icon = "palette", cors = {140, 110, 55}})
-  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", {name = "cable/blue_elec"                    , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , {name = "models/alyx/emptool_glow"           , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , {name = "effects/redlaser1"                  , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.bluelaser1"    , {name = "effects/bluelaser1"                 , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.redshader"     , {name = "models/shadertest/shader4"          , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.whiteshader"   , {name = "models/shadertest/shader3"          , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.shield"        , {name = "models/props_combine/com_shield001a", icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.wframe"        , {name = "models/wireframe"                   , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#laser.effects.predator"      , {name = "models/shadertest/predator"         , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , {name = "cable/xbeam"                        , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam"       , {name = "cable/physbeam"                     , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"          , {name = "cable/hydra"                        , icon = "palette", cors = false})
-  list.Set("LaserEmitterMaterials", "#trail.plasma"                , {name = "trails/plasma"                      , icon = "palette", cors = {225, 225, 225}})
-  list.Set("LaserEmitterMaterials", "#trail.electric"              , {name = "trails/electric"                    , icon = "palette", cors = {30, 50, 225}})
-  list.Set("LaserEmitterMaterials", "#trail.smoke"                 , {name = "trails/smoke"                       , icon = "palette", cors = {100, 100, 100}})
-  list.Set("LaserEmitterMaterials", "#trail.laser"                 , {name = "trails/laser"                       , icon = "palette", cors = {225, 225, 225}})
-  list.Set("LaserEmitterMaterials", "#trail.love"                  , {name = "trails/love"                        , icon = "palette", cors = {130, 40, 100}})
-  list.Set("LaserEmitterMaterials", "#trail.lol"                   , {name = "trails/lol"                         , icon = "palette", cors = {225, 225, 225}})
-  list.Set("LaserEmitterMaterials", "#trail.beam_generic01"        , {name = "effects/beam_generic01"             , icon = "palette", cors = {225, 225, 225}})
-  list.Set("LaserEmitterMaterials", "#trail.beam001_blu"           , {name = "effects/beam001_blu"                , icon = "palette", cors = {10, 10, 50}})
-  list.Set("LaserEmitterMaterials", "#trail.beam001_red"           , {name = "effects/beam001_red"                , icon = "palette", cors = {50, 10, 10}})
-  list.Set("LaserEmitterMaterials", "#trail.beam001_white"         , {name = "effects/beam001_white"              , icon = "palette", cors = {225, 225, 225}})
-  list.Set("LaserEmitterMaterials", "#trail.repair_claw_trail_blue", {name = "effects/repair_claw_trail_blue"     , icon = "palette", cors = {50, 50, 190}})
-  list.Set("LaserEmitterMaterials", "#trail.repair_claw_trail_red" , {name = "effects/repair_claw_trail_red"      , icon = "palette", cors = {210, 130, 50}})
-  list.Set("LaserEmitterMaterials", "#trail.australiumtrail_red"   , {name = "effects/australiumtrail_red"        , icon = "palette", cors = {255, 33, 0}})
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable1"          , {name = "cable/cable"                        , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.cable.cable2"          , {name = "cable/cable2"                       , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.splodearc.sheet"       , {name = "models/effects/splodearc_sheet"     , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.warp.sheet"            , {name = "models/props_lab/warp_sheet"        , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.cable.crystal_beam1"   , {name = "cable/crystal_beam1"                , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.redlaser" , {name = "cable/redlaser"                     , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.ropematerial.blue_elec", {name = "cable/blue_elec"                    , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.emptool"       , {name = "models/alyx/emptool_glow"           , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.redlaser1"     , {name = "effects/redlaser1"                  , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.bluelaser1"    , {name = "effects/bluelaser1"                 , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.redshader"     , {name = "models/shadertest/shader4"          , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.whiteshader"   , {name = "models/shadertest/shader3"          , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.shield"        , {name = "models/props_combine/com_shield001a", icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.wframe"        , {name = "models/wireframe"                   , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#laser.effects.predator"      , {name = "models/shadertest/predator"         , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#ropematerial.xbeam"          , {name = "cable/xbeam"                        , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#ropematerial.physbeam"       , {name = "cable/physbeam"                     , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#ropematerial.hydra"          , {name = "cable/hydra"                        , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.plasma"                , {name = "trails/plasma"                      , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.electric"              , {name = "trails/electric"                    , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.smoke"                 , {name = "trails/smoke"                       , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.laser"                 , {name = "trails/laser"                       , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.love"                  , {name = "trails/love"                        , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.lol"                   , {name = "trails/lol"                         , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.beam_generic01"        , {name = "effects/beam_generic01"             , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.beam001_blu"           , {name = "effects/beam001_blu"                , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.beam001_red"           , {name = "effects/beam001_red"                , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.beam001_white"         , {name = "effects/beam001_white"              , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.repair_claw_trail_blue", {name = "effects/repair_claw_trail_blue"     , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.repair_claw_trail_red" , {name = "effects/repair_claw_trail_red"      , icon = "palette"})
+  list.Set("LaserEmitterMaterials", "#trail.australiumtrail_red"   , {name = "effects/australiumtrail_red"        , icon = "palette"})
 end
 
 function LaserLib.SetupModels()
@@ -5207,7 +5242,7 @@ function LaserLib.SetupModels()
   end
 end
 
--- http://www.famfamfam.com/lab/icons/silk/preview.php
+-- https://heyter.github.io/js-famfamfam-search/
 function LaserLib.SetupDissolveTypes()
   if(SERVER) then return end
 

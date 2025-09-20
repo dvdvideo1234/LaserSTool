@@ -505,25 +505,32 @@ function TOOL.BuildCPanel(cPanel)
 
   local tMat = list.GetForEdit("LaserEmitterMaterials")
   local tKey = table.GetKeys(tMat) -- Sort the keys table on material
-  table.sort(tKey, function(u, v) return u.name < v.name end)
+  table.sort(tKey, function(u, v) return tMat[u].name < tMat[v].name end)
   pMat = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
   pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
   pMat:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
   for iK = 1, #tKey do
     local key = tKey[iK]
-    local val = tMat[key]
-    local mat = pMat:AddMaterial(key, val.name); mat.Key = key
-    function mat:OnRightClick()
+    local val, nam = tMat[key], nil
+    local mat = pMat:AddMaterial(key, val.name)
+    key = ((key:sub(1,1) == "#") and key:sub(2,-1) or key)
+    nam = language.GetPhrase(key); mat:SetTooltip(nam)
+    function mat:DoRightClick()
       local pnMenu = DermaMenu(false, self)
       if(not IsValid(pnMenu)) then return end
-      local pCopy, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_copy"))
-      if(not IsValid(pSort)) then return end
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_copy"))
+      if(not IsValid(pMenu)) then return end
       if(not IsValid(pOpts)) then return end
-      pOpts:SetImage(LaserLib.GetIcon(LaserLib.GetIcon("page_copy")))
-      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copyn"),
-        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("textfield_rename"))
-      pCopy:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copym"),
+      pOpts:SetImage(LaserLib.GetIcon("page_copy"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copyn"),
+        function() SetClipboardText(nam) end):SetIcon(LaserLib.GetIcon("textfield_rename"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copyi"),
+        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("key"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copym"),
         function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("lightning"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copya"),
+        function() SetClipboardText(nam..":"..key..">"..val.name) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
+      pnMenu:Open()
     end
   end
 
