@@ -41,6 +41,7 @@ DATA.VDRFW = Vector(1, 0, 0)   -- Global forward vector used across all sources
 DATA.VDRRG = Vector(0,-1, 0)   -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1)   -- Global up vector used across all sources
 DATA.WTCOL = Color(0, 0, 0)    -- For wavelength to color conversions. It is expensive to create color
+DATA.DSCOL = Color(0, 0, 0)    -- For dispersion to color conversions. It is expensive to create color
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
 DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
@@ -294,39 +295,38 @@ DATA.REFRACT = {
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
 DATA.DISPERSE = {
-  ["cable/cable"                        ] = {Base = false},
-  ["cable/cable2"                       ] = {Base = Color( 25,  25,  25)},
-  ["models/effects/splodearc_sheet"     ] = {Base = false},
-  ["models/props_lab/warp_sheet"        ] = {Base = false},
-  ["cable/crystal_beam1"                ] = {Base = Color(140, 110,  55)},
-  ["cable/redlaser"                     ] = {Base = Color(140, 110,  55)},
-  ["cable/blue_elec"                    ] = {Base = false},
-  ["models/alyx/emptool_glow"           ] = {Base = false},
-  ["effects/redlaser1"                  ] = {Base = false},
-  ["effects/bluelaser1"                 ] = {Base = false},
-  ["models/shadertest/shader4"          ] = {Base = false},
-  ["models/shadertest/shader3"          ] = {Base = false},
-  ["models/props_combine/com_shield001a"] = {Base = false},
-  ["models/wireframe"                   ] = {Base = false},
-  ["models/shadertest/predator"         ] = {Base = false},
-  ["cable/xbeam"                        ] = {Base = false},
-  ["cable/physbeam"                     ] = {Base = false},
-  ["cable/hydra"                        ] = {Base = false},
-  ["trails/plasma"                      ] = {Base = Color(225, 225, 225)},
-  ["trails/electric"                    ] = {Base = Color( 30,  50, 225)},
-  ["trails/smoke"                       ] = {Base = Color(100, 100, 100)},
-  ["trails/laser"                       ] = {Base = Color(225, 225, 225)},
-  ["trails/love"                        ] = {Base = Color(130,  40, 100)},
-  ["trails/lol"                         ] = {Base = Color(225, 225, 225)},
-  ["effects/beam_generic01"             ] = {Base = Color(225, 225, 225)},
-  ["effects/beam001_blu"                ] = {Base = Color( 10,  10,  50)},
-  ["effects/beam001_red"                ] = {Base = Color( 50,  10,  10)},
-  ["effects/beam001_white"              ] = {Base = Color(225, 225, 225)},
-  ["effects/repair_claw_trail_blue"     ] = {Base = Color( 50,  50, 190)},
-  ["effects/repair_claw_trail_red"      ] = {Base = Color(210, 130,  50)},
-  ["effects/australiumtrail_red"        ] = {Base = Color(255,  33,   0)}
+  ["cable/cable"                        ] = {Bas = false},
+  ["cable/cable2"                       ] = {Bas = { 25,  25,  25}},
+  ["models/effects/splodearc_sheet"     ] = {Bas = false},
+  ["models/props_lab/warp_sheet"        ] = {Bas = false},
+  ["cable/crystal_beam1"                ] = {Bas = {140, 110,  55}},
+  ["cable/redlaser"                     ] = {Bas = {140, 110,  55}},
+  ["cable/blue_elec"                    ] = {Bas = false},
+  ["models/alyx/emptool_glow"           ] = {Bas = false},
+  ["effects/redlaser1"                  ] = {Bas = false},
+  ["effects/bluelaser1"                 ] = {Bas = false},
+  ["models/shadertest/shader4"          ] = {Bas = false},
+  ["models/shadertest/shader3"          ] = {Bas = false},
+  ["models/props_combine/com_shield001a"] = {Bas = false},
+  ["models/wireframe"                   ] = {Bas = false},
+  ["models/shadertest/predator"         ] = {Bas = false},
+  ["cable/xbeam"                        ] = {Bas = false},
+  ["cable/physbeam"                     ] = {Bas = false},
+  ["cable/hydra"                        ] = {Bas = false},
+  ["trails/plasma"                      ] = {Bas = {225, 225, 225}},
+  ["trails/electric"                    ] = {Bas = { 30,  50, 225}},
+  ["trails/smoke"                       ] = {Bas = {100, 100, 100}},
+  ["trails/laser"                       ] = {Bas = {225, 225, 225}},
+  ["trails/love"                        ] = {Bas = {130,  40, 100}},
+  ["trails/lol"                         ] = {Bas = {225, 225, 225}},
+  ["effects/beam_generic01"             ] = {Bas = {225, 225, 225}},
+  ["effects/beam001_blu"                ] = {Bas = { 10,  10,  50}},
+  ["effects/beam001_red"                ] = {Bas = { 50,  10,  10}},
+  ["effects/beam001_white"              ] = {Bas = {225, 225, 225}},
+  ["effects/repair_claw_trail_blue"     ] = {Bas = { 50,  50, 190}},
+  ["effects/repair_claw_trail_red"      ] = {Bas = {210, 130,  50}},
+  ["effects/australiumtrail_red"        ] = {Bas = {255,  33,   0}}
 }
-
 
 -- Black hole interfaces
 DATA.BLHOLE = {
@@ -2953,7 +2953,8 @@ end
 function mtBeam:GetColorRGBA(bcol)
   local c = self.NvColor -- Else source color
   if(not c) then local src = self:GetSource()
-    c = (c or src:GetBeamColorRGBA(true))
+    c = src:GetBeamColorRGBA(true) -- Get the color
+    self.NvColor = c -- Ignore retrieving the color
   end -- No forced colors are present use source
   if(bcol) then return c end -- Return object
   return c.r, c.g, c.b, c.a -- Numbers
@@ -2969,6 +2970,29 @@ function mtBeam:SetColorRGBA(mr, mg, mb, ma)
     else c = Color(0,0,0,0); self.NvColor = c end
     c.r, c.g, c.b, c.a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
   end; return self -- We do not have input parameter
+end
+
+--[[
+ * Returns the beam disperse decomposition color
+ * The base color according to material selected
+ * mco > Forced color value being used
+]]
+function mtBeam:GetColorBase(mco)
+  local g_disperse = DATA.DISPERSE
+  local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
+  local src, cor = self.BoSource, (mco or self.NvColor)
+  if(not LaserLib.IsValid(src)) then return nil end
+  local set = g_disperse[src:GetInBeamMaterial()]
+  if(not set) then return nil end; set = set.Bas
+  if(not set) then return nil end
+  local r = ((set[1] or 255) / g_clmx) * cor.r
+  local g = ((set[2] or 255) / g_clmx) * cor.g
+  local b = ((set[3] or 255) / g_clmx) * cor.b
+  local a = ((set[4] or 255) / g_clmx) * cor.a
+  r, g, b, a = LaserLib.GetColorRGBA(r, g, b, a)
+  g_dscol.r, g_dscol.g = r, g
+  g_dscol.b, g_dscol.b = a, a
+  return g_dscol
 end
 
 --[[
@@ -4721,8 +4745,10 @@ end
 function mtBeam:IsDisperse(vOrg, tRef)
   if(not self.BmDisper) then return false end
   if(self.BmWaveLn > 0) then return false end
-  local tW = LaserLib.GetWaveArray(self:GetColorRGBA(true))
-  if(tW) then return false end
+  local cB = self:GetColorBase()
+  if(not cB) then return false end
+  local tW = LaserLib.GetWaveArray(cB)
+  if(not tW) then return false end
   local brn = self.BmBranch -- Index branch table
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
@@ -5276,32 +5302,34 @@ function LaserLib.SetupSoundEffects()
   language.Add("sound.disintegrate4"     , "Disintegrate 4")
   language.Add("sound.zapper"            , "Zapper")
 
-  table.Empty(list.GetForEdit("LaserSounds"))
-  list.Set("LaserSounds", "#sound.none"              , "")
-  list.Set("LaserSounds", "#sound.alyxemp"           , "AlyxEMP.Charge")
-  list.Set("LaserSounds", "#sound.weld1"             , "ambient/energy/weld1.wav")
-  list.Set("LaserSounds", "#sound.weld2"             , "ambient/energy/weld2.wav")
-  list.Set("LaserSounds", "#sound.electricexplosion1", "ambient/levels/labs/electric_explosion1.wav")
-  list.Set("LaserSounds", "#sound.electricexplosion2", "ambient/levels/labs/electric_explosion2.wav")
-  list.Set("LaserSounds", "#sound.electricexplosion3", "ambient/levels/labs/electric_explosion3.wav")
-  list.Set("LaserSounds", "#sound.electricexplosion4", "ambient/levels/labs/electric_explosion4.wav")
-  list.Set("LaserSounds", "#sound.electricexplosion5", "ambient/levels/labs/electric_explosion5.wav")
-  list.Set("LaserSounds", "#sound.disintegrate1"     , "ambient/levels/citadel/weapon_disintegrate1.wav")
-  list.Set("LaserSounds", "#sound.disintegrate2"     , "ambient/levels/citadel/weapon_disintegrate2.wav")
-  list.Set("LaserSounds", "#sound.disintegrate3"     , "ambient/levels/citadel/weapon_disintegrate3.wav")
-  list.Set("LaserSounds", "#sound.disintegrate4"     , "ambient/levels/citadel/weapon_disintegrate4.wav")
-  list.Set("LaserSounds", "#sound.zapper"            , "ambient/levels/citadel/zapper_warmup1.wav")
+  local moar = {
+    {"#sound.none"              , ""},
+    {"#sound.alyxemp"           , "AlyxEMP.Charge"},
+    {"#sound.weld1"             , "ambient/energy/weld1.wav"},
+    {"#sound.weld2"             , "ambient/energy/weld2.wav"},
+    {"#sound.electricexplosion1", "ambient/levels/labs/electric_explosion1.wav"},
+    {"#sound.electricexplosion2", "ambient/levels/labs/electric_explosion2.wav"},
+    {"#sound.electricexplosion3", "ambient/levels/labs/electric_explosion3.wav"},
+    {"#sound.electricexplosion4", "ambient/levels/labs/electric_explosion4.wav"},
+    {"#sound.electricexplosion5", "ambient/levels/labs/electric_explosion5.wav"},
+    {"#sound.disintegrate1"     , "ambient/levels/citadel/weapon_disintegrate1.wav"},
+    {"#sound.disintegrate2"     , "ambient/levels/citadel/weapon_disintegrate2.wav"},
+    {"#sound.disintegrate3"     , "ambient/levels/citadel/weapon_disintegrate3.wav"},
+    {"#sound.disintegrate4"     , "ambient/levels/citadel/weapon_disintegrate4.wav"},
+    {"#sound.zapper"            , "ambient/levels/citadel/zapper_warmup1.wav"}
+  }
 
   table.Empty(list.GetForEdit("LaserStartSounds"))
   table.Empty(list.GetForEdit("LaserStopSounds"))
   table.Empty(list.GetForEdit("LaserKillSounds"))
-  for key, val in pairs(list.Get("LaserSounds")) do
-    list.Set("LaserStartSounds", key, {name = val, icon = "sound_add"   })
-    list.Set("LaserStopSounds" , key, {name = val, icon = "sound_delete"})
-    list.Set("LaserKillSounds" , key, {name = val, icon = "sound_mute"  })
+  for idx = 1, #moar do
+    local rec = moar[idx]
+    local nam = tostring(rec[1] or "")
+    local esn = tostring(rec[2] or "")
+    list.Set("LaserStartSounds", nam, {name = esn, icon = "sound_add"   })
+    list.Set("LaserStopSounds" , nam, {name = esn, icon = "sound_delete"})
+    list.Set("LaserKillSounds" , nam, {name = esn, icon = "sound_mute"  })
   end
-
-  table.Empty(list.GetForEdit("LaserSounds"))
 end
 
 --[[
