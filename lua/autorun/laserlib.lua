@@ -5273,14 +5273,14 @@ function LaserLib.SetupDissolveTypes()
   if(SERVER) then return end
 
   language.Add("dissolvetype.energy"       , "AR2 style")
-  language.Add("dissolvetype.heavyelectric", "Heavy electrical")
-  language.Add("dissolvetype.lightelectric", "Light electrical")
+  language.Add("dissolvetype.heavyelectric", "Heavy electric")
+  language.Add("dissolvetype.lightelectric", "Light electric")
   language.Add("dissolvetype.core"         , "Core Effect")
 
   table.Empty(list.GetForEdit("LaserDissolveTypes"))
-  list.Set("LaserDissolveTypes", "#dissolvetype.energy"       , {name = "energy"   , icon = "lightning"})
-  list.Set("LaserDissolveTypes", "#dissolvetype.heavyElectric", {name = "heavyelec", icon = "joystick" })
-  list.Set("LaserDissolveTypes", "#dissolvetype.lightElectric", {name = "lightelec", icon = "package"  })
+  list.Set("LaserDissolveTypes", "#dissolvetype.energy"       , {name = "energy"   , icon = "transmit" })
+  list.Set("LaserDissolveTypes", "#dissolvetype.heavyElectric", {name = "heavyelec", icon = "lightning"})
+  list.Set("LaserDissolveTypes", "#dissolvetype.lightElectric", {name = "lightelec", icon = "lightbulb"})
   list.Set("LaserDissolveTypes", "#dissolvetype.core"         , {name = "core"     , icon = "ruby"     })
 end
 
