@@ -602,7 +602,7 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
     g_trace.mask = MASK_SOLID
   end
   if(iworld) then
-    g_trace.ignoreworld = iworld
+    g_trace.ignoreworld = true
   else -- Default world ignore
     g_trace.ignoreworld = false
   end
