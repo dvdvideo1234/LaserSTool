@@ -28,8 +28,9 @@ DATA.FPSS = "%09d#%09d"        -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
 DATA.WVIS = { 700, 300}        -- General wavelength limits for visible light
 DATA.WCOL = {  0 , 300}        -- Mapping for wavelength to color hue conversion
-DATA.WMAP = {  20,   5}        -- Dispersion wavelength mapping for refractive index
+DATA.WMAP = {   5,  20}        -- Dispersion wavelength mapping for refractive index
 DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
+DATA.SOMR = 10                 -- General coefficient for wave to refractive index converion
 DATA.KEYD  = "#"               -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"               -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"               -- The first symbol used to disable given things
@@ -2696,8 +2697,7 @@ function LaserLib.SetWaveArray()
   local wvis, wcol = DATA.WVIS, DATA.WCOL
   local huS, huE = wcol[1], wcol[2]
   for hue = huS, huE, step do
-    local r, g, b = HSVToColor(hue, 1, 1)
-    local co = {r = r, g = g, b = b}
+    local co = HSVToColor(hue, 1, 1)
     local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
     table.insert(tW, {C = co, P = 0, W = wv, B = false})
     tW.Size = tW.Size + 1
@@ -2813,7 +2813,8 @@ function mtBeam:IsValid()
   if(not self.VrOrigin) then return false end
   if(not self.VrDirect) then return false end
   if(self.VrDirect:LengthSqr() == 0) then return false end
-  if(not (self.BmLength and self.BmLength > 0)) then return false end
+  if(not self.BmLength) then return false end
+  if(self.BmLength <= 0) then return false end
   if(self.BrReflec == nil) then return false end
   if(self.BrRefrac == nil) then return false end
   if(self.BmNoover == nil) then return false end
@@ -2980,7 +2981,7 @@ end
 function mtBeam:GetColorBase(mco)
   local g_disperse = DATA.DISPERSE
   local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
-  local src, cor = self.BoSource, (mco or self.NvColor)
+  local src, cor = self.BoSource, (mco or self:GetColorRGBA(true))
   if(not LaserLib.IsValid(src)) then return nil end
   local set = g_disperse[src:GetInBeamMaterial()]
   if(not set) then return nil end; set = set.Bas
@@ -4038,7 +4039,7 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bmin, bmax)
   if(tbran.Size > 0) then
     for idx = 1, tbran.Size do
-      tbran[idx]:Draw(sours, imatr, color) end
+      tbran[idx]:Draw(sours, imatr) end
   end; return self
 end
 
@@ -4752,32 +4753,44 @@ function mtBeam:IsDisperse(vOrg, tRef)
   local brn = self.BmBranch -- Index branch table
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
-  local cnt = (tW.IE - tW.IS + 1); self:Finish()
-  local src, ovr = self.BmSource, self.BmNoover
+  local cnt = (tW.IE - tW.IS + 1)
+  local tar = self:GetTarget()
+  local len, nor = 500 or self.NvLength, tar.HitNormal
+  local src, sro = self.BmSource, tar.Entity
+  local rle, rfr = self:GetFgDivert()
+  local wih = (self:GetWidth()  / cnt)
+  local dmg = (self:GetDamage() / cnt)
+  local frc = (self:GetForce()  / cnt)
   local org = (vOrg or self.BmTarget.HitPos)
+  local dir, ovr = self.VrDirect, self.BmNoover
   local sr, sg, sb, sa = self:GetColorRGBA()
+  self:Finish(); tar.NoEffect = true
+  local ang = dir:Angle()
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
-    local marg = (recw.P / cnt) -- Power margin
-    local beam = LaserLib.Beam(org, self.VrDirect)
+    local beam = LaserLib.Beam(org, dir, len)
     local r = (recw.C.r * recw.P)
     local g = (recw.C.g * recw.P)
     local b = (recw.C.b * recw.P)
-    local vdir, bnex, bsam = self:Refract(nil, nil, 1, tRef[1])
-    if(not beam:IsValid() and SERVER) then
-      beam:Clear(); src:Remove(); return false end
-    beam:SetSource(self.BmSource, self.BoSource)
-    beam:SetWidth(self:GetWidth() * marg)
-    beam:SetDamage(self:GetDamage() * marg)
-    beam:SetForce(self:GetForce() * marg)
-    beam:SetFgDivert(self:GetFgDivert())
-    beam:SetFgTexture(self.BmNoover, false)
-    beam:SetBounces(self.NvBounce)
+    beam:SetSource(src, src)
+    beam:SetWidth(wih * recw.P)
+    beam:SetDamage(dmg * recw.P)
+    beam:SetForce(frc * recw.P)
+    beam:SetFgDivert(rle, rfr)
+    beam:SetFgTexture(ovr, false)
+    beam:SetBounces(bnc)
     beam:SetWavelength(recw.W)
     beam:SetColorRGBA(r, g, b, sa)
-    beam:SetFgTexture(ovr, false)
+    local vdir, bnex, bsam = beam:Refract(dir, nor, 1, tRef[1])
+    beam.VrDirect = vdir
+    ang:RotateAroundAxis(ang:Right(), 5)
+    --LaserLib.DrawVector(beam.VrOrigin, beam.VrDirect, 5)
+
+    if(not beam:IsValid() and SERVER) then
+      beam:Clear(); src:Remove(); return false end
     brn.Size = brn.Size + 1
-    table.insert(brn, beam:Run(brn.Size))
+    beam:Run(brn.Size)
+    table.insert(brn, beam)
   end; return true
 end
 
