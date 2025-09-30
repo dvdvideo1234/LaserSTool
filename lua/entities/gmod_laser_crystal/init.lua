@@ -57,6 +57,7 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
     {"Safety"  , "NORMAL", "Concentrator beam safety"    },
+    {"Disperse", "NORMAL", "Concentrator beam disperse"  },
     {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },
@@ -82,6 +83,7 @@ function ENT:Initialize()
   self:SetDissolveType("")
   self:SetBeamSafety(false)
   self:SetForceCenter(false)
+  self:SetBeamDisperse(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)
   self:SetRefractRatio(false)

@@ -163,6 +163,23 @@ function ENT:GetBeamSafety()
   return self:GetInBeamSafety()
 end
 
+--[[
+ * Safety. Makes the beam acts like in the
+ * portal series towards all players
+]]
+function ENT:GetBeamDisperse()
+  return self:GetInBeamDisperse()
+end
+
+function ENT:SetBeamDisperse(bool)
+  local disp = tobool(bool)
+  self:SetInBeamDisperse(disp)
+  self:WireWrite("Disperse", (disp and 1 or 0))
+  return self
+end
+
+
+
 function ENT:GetLeanAngle(forwd, upwrd)
   return LaserLib.GetLeanAngle(forwd, upwrd,
                                self:GetBeamLeanX(),

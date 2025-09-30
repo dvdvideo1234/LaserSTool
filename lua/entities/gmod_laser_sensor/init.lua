@@ -244,6 +244,7 @@ function ENT:UpdateDominant(dom)
         local mendeff = self:GetEndingEffect()
         local mmatera = self:GetBeamMaterial()
         local mbmsafe = self:GetInBeamSafety()
+        local mbmdisp = self:GetInBeamDisperse()
         local movrmat = self:GetInNonOverMater()
         -- Dominant configurations ( booleans have true/false )
         local dfcentr = domsrc:GetForceCenter()  and 2 or 1
@@ -253,6 +254,7 @@ function ENT:UpdateDominant(dom)
         local dendeff = domsrc:GetEndingEffect() and 2 or 1
         local dmatera = domsrc:GetBeamMaterial()
         local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
+        local dbmdisp = domsrc:GetBeamDisperse() and 2 or 1
         local dovrmat = domsrc:GetNonOverMater() and 2 or 1
         -- Compare the internal configuration and trigger sensor
         if((mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
@@ -262,6 +264,7 @@ function ENT:UpdateDominant(dom)
            (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
            (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
            (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
+           (mbmdisp == 0  or (mbmdisp ~= 0  and mbmdisp == dbmdisp)) and
            (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
         ) then -- Dominant beam is like sensor beam
           self:SetOn(true)

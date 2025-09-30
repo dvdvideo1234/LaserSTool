@@ -52,12 +52,31 @@ DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
-DATA.HXCOLOR = {FM = "%02s", DT = {}} -- Stores temporary setting for hex to color conversion
-DATA.HARUNTM = {10, 150, 5}     -- Hash storage for beam runtime. Bounces, safety velocity, black hole segment
-DATA.HADFSPL = {2, 1, 0, 1}     -- Hash storage for controls the default splitter outputs count and direction
-DATA.HADELTA = {0.1, 0.15, 0.2} -- Hash storage for general time deltas. Damage, effects, asynchronous
-DATA.HAWASTP = {  15,  15}      -- Hash storage for color configuration to wavelength list step
-DATA.DMPARAM = {}               -- Table to store the damage parameter specific values
+DATA.DMPARAM = {}                     -- Table to store the damage parameter specific values
+-- Hashed variable sets. Updated on convar change and used for real-time
+-- Makes server variables access faster for real-time needed events
+--[[ Hash storage for beam runtime values.
+  [1] : MBOUNCES > Default max bounces used for beam setup
+  [2] : VESFBEAM > Beam control for safety velocity
+  [3] : BLHOLESG > Black hole curving segment
+  [4] : ENDISPGN > Whenever the dispersion is generically enabled
+  [5] : ENSOUNDS > Enable or disable redirection sounds
+]] DATA.HARUNTM = {10, 150, 5, false, true}
+--[[ Hash storage for controls
+  [1] : NSPLITER > Default splitter outputs count
+  [2] : XSPLITER > Default splitter output direction X
+  [3] : YSPLITER > Default splitter output direction Y
+  [4] : ZSPLITER > Default splitter output direction Z
+]] DATA.HADFSPL = {2, 1, 0, 1}
+--[[ Hash storage for asynchronous time deltas
+  [1] : DAMAGEDT > Damage time delta
+  [2] : EFFECTDT > Effect time delta
+  [3] : TIMEASYN > Asynchronous delta
+]] DATA.HADELTA = {0.1, 0.15, 0.2}
+--[[ Hash storage for color configuration to wavelength list step
+  [1] : WDHUESTP > Hue step when using dispersion and splitting
+  [1] : WDRGBMAR > Hue margin when using dispersion and splitting
+]] DATA.HAWASTP = {  15,  15}
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
@@ -84,6 +103,7 @@ DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Con
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
 DATA.WDHUESTP = CreateConVar(DATA.TOOL.."_wdhuestp"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
+DATA.ENDISPGN = CreateConVar(DATA.TOOL.."_endispgn"  , 1    , DATA.FGSRVCN, "The server controls whenever the dispersion is generically enabled", 0, 1)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -1337,10 +1357,12 @@ function LaserLib.SetPrimary(ent, nov)
   if(nov) then
     ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("InBeamDisperse", "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool, "name", "icon")
   else
     ent:EditableSetBool("InNonOverMater", "Internals")
     ent:EditableSetBool("InBeamSafety"  , "Internals")
+    ent:EditableSetBool("InBeamDisperse", "Internals")
     ent:EditableSetBool("EndingEffect"  , "Visuals")
   end
   ent:EditableSetVectorColor("BeamColor", "Visuals")
@@ -1459,6 +1481,7 @@ function LaserLib.Configure(unit)
         self:SetStartSound(src:GetStartSound())
         self:SetBeamSafety(src:GetBeamSafety())
         self:SetForceCenter(src:GetForceCenter())
+        self:SetBeamDisperse(src:GetBeamDisperse())
         self:SetBeamMaterial(src:GetBeamMaterial())
         self:SetDissolveType(src:GetDissolveType())
         self:SetEndingEffect(src:GetEndingEffect())
@@ -5407,4 +5430,6 @@ ConfigureChangeList("HADELTA", DATA.DAMAGEDT, "GetFloat",
 
 ConfigureChangeList("HARUNTM", DATA.MBOUNCES, "GetInt",
                                DATA.VESFBEAM, "GetFloat",
-                               DATA.BLHOLESG, "GetFloat")
+                               DATA.BLHOLESG, "GetFloat",
+                               DATA.ENDISPGN, "GetBool",
+                               DATA.ENSOUNDS, "GetBool")

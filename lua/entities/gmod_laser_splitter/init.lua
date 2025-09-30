@@ -30,14 +30,15 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateOutputs(
-    {"On"      , "NORMAL", "Splitter working state"  },
-    {"Width"   , "NORMAL", "Splitter beam width"     },
-    {"Length"  , "NORMAL", "Splitter length width"   },
-    {"Damage"  , "NORMAL", "Splitter damage width"   },
-    {"Force"   , "NORMAL", "Splitter force amount"   },
-    {"Safety"  , "NORMAL", "Splitter beam safety"    },
-    {"Entity"  , "ENTITY", "Splitter entity itself"  },
-    {"Dominant", "ENTITY", "Splitter dominant entity"}
+    {"On"        , "NORMAL", "Splitter working state"  },
+    {"Width"     , "NORMAL", "Splitter beam width"     },
+    {"Length"    , "NORMAL", "Splitter length width"   },
+    {"Damage"    , "NORMAL", "Splitter damage width"   },
+    {"Force"     , "NORMAL", "Splitter force amount"   },
+    {"Safety"    , "NORMAL", "Splitter beam safety"    },
+    {"Disperse"  , "NORMAL", "Splitter beam disperse"  },
+    {"Entity"    , "ENTITY", "Splitter entity itself"  },
+    {"Dominant"  , "ENTITY", "Splitter dominant entity"}
   )
 
   local phys = self:GetPhysicsObject()
@@ -62,6 +63,7 @@ function ENT:Initialize()
   self:SetDissolveType("")
   self:SetBeamSafety(false)
   self:SetForceCenter(false)
+  self:SetBeamDisperse(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)
   self:SetRefractRatio(false)

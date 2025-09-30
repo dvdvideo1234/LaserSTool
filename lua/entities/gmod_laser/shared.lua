@@ -24,9 +24,7 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gvVDRUP    = LaserLib.GetData("VDRUP")
 local gvVZERO    = LaserLib.GetData("VZERO")
-local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
-local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
-local cvENSOUNDS = LaserLib.GetData("ENSOUNDS")
+local vsHARUNTM  = LaserLib.GetData("HARUNTM")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
@@ -166,6 +164,30 @@ function ENT:GetBeamSafety()
 end
 
 --[[
+ * Disperse. Makes the beam vomit unicorn puke
+ * Magenta is refracted the most, red the least
+]]
+function ENT:SetBeamDisperse(bool)
+  local disp = tobool(bool)
+  self:SetInBeamDisperse(disp)
+  return self
+end
+
+function ENT:GetBeamDisperse()
+  if(SERVER) then
+    local disp = self:WireRead("Disperse", true)
+    if(disp ~= nil) then disp = tobool(disp)
+    else disp = self:GetInBeamDisperse() end
+    self:SetNWBool("GetInBeamDisperse", disp)
+    self:WireWrite("Disperse", (disp and 1 or 0))
+    return disp
+  else
+    local disp = self:GetInBeamDisperse()
+    return self:GetNWBool("GetInBeamDisperse", disp)
+  end
+end
+
+--[[
  * Material. The actual material used drawing the beam
  * When `true` is passed will return a material object
 ]]
@@ -241,7 +263,7 @@ function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
     local pos, cls = self:GetPos(), self:GetClass()
-    if(cls == LaserLib.GetClass(1) or cvENSOUNDS:GetBool()) then
+    if(cls == LaserLib.GetClass(1) or vsHARUNTM[5]) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())
       else -- User shuts the entity off
@@ -339,13 +361,14 @@ function ENT:DoBeam(org, dir, idx)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
+  local endisp = (self:GetBeamDisperse() and vsHARUNTM[4])
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
         beam:SetWidth(self:GetBeamWidth())
         beam:SetDamage(self:GetBeamDamage())
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, true)
+        beam:SetFgTexture(noverm, true) -- For test
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
