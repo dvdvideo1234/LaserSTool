@@ -42,8 +42,6 @@ local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
 local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
 local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
-local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
-local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 if(SERVER) then
   resource.AddFile("materials/vgui/entities/gmod_laser_rifle.vmt")
