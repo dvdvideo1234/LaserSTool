@@ -526,10 +526,14 @@ function TOOL.BuildCPanel(cPanel)
   for iK = 1, #tKey do
     local key = tKey[iK]
     local val, nam = tMat[key], nil
-    local mat = pMat:AddMaterial(key, val.name)
+    local pImg = pMat:AddMaterial(key, val.name)
     key = ((key:sub(1,1) == "#") and key:sub(2,-1) or key)
-    nam = language.GetPhrase(key); mat:SetTooltip(nam)
-    function mat:DoRightClick()
+    nam = language.GetPhrase(key); pImg:SetTooltip(nam)
+    function pnImg:DoClick()
+      LaserLib.SetPaintOver(pnMat, self)
+      LaserLib.ConCommand(nil, gsTOOL.."_material", self.Value)
+    end
+    function pImg:DoRightClick()
       local pnMenu = DermaMenu(false, self)
       if(not IsValid(pnMenu)) then return end
       local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_copy"))
