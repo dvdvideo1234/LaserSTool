@@ -2902,8 +2902,11 @@ end
 ]]
 function mtBeam:GetColorRGBA(bcol)
   local c = self.NvColor -- Else source color
-  if(not c) then local src = self:GetSource()
-    c = src:GetBeamColorRGBA(true) -- Get the color
+  if(not c) then
+    local src = self:GetSource()
+    if(LaserLib.IsValid(src)) then
+      c = src:GetBeamColorRGBA(true) -- Get the color
+    else c = Color(255, 255, 255, 255) end -- White
     self.NvColor = c -- Ignore retrieving the color
   end -- No forced colors are present use source
   if(bcol) then return c end -- Return object
@@ -2928,12 +2931,12 @@ end
  * mco > Forced color value being used
 ]]
 function mtBeam:GetColorBase(mco)
-  local g_disperse = DATA.DISPERSE
-  local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
-  local src, cor = self.BoSource, (mco or self:GetColorRGBA(true))
+  local cor = (mco or self:GetColorRGBA(true))
+  local src, g_disperse = self.BoSource, DATA.DISPERSE
   if(not LaserLib.IsValid(src)) then return nil end
   local cov = g_disperse[src:GetInBeamMaterial()]
   if(not cov) then return nil end
+  local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
   local r = ((cov[1] or 255) / g_clmx) * cor.r
   local g = ((cov[2] or 255) / g_clmx) * cor.g
   local b = ((cov[3] or 255) / g_clmx) * cor.b
