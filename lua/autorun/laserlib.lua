@@ -292,37 +292,37 @@ DATA.REFRACT = {
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
 DATA.DISPERSE = {
-  ["cable/cable"                        ] = {Bas = false},
-  ["cable/cable2"                       ] = {Bas = { 25,  25,  25}},
-  ["models/effects/splodearc_sheet"     ] = {Bas = false},
-  ["models/props_lab/warp_sheet"        ] = {Bas = false},
-  ["cable/crystal_beam1"                ] = {Bas = {140, 110,  55}},
-  ["cable/redlaser"                     ] = {Bas = {140, 110,  55}},
-  ["cable/blue_elec"                    ] = {Bas = false},
-  ["models/alyx/emptool_glow"           ] = {Bas = false},
-  ["effects/redlaser1"                  ] = {Bas = false},
-  ["effects/bluelaser1"                 ] = {Bas = false},
-  ["models/shadertest/shader4"          ] = {Bas = false},
-  ["models/shadertest/shader3"          ] = {Bas = false},
-  ["models/props_combine/com_shield001a"] = {Bas = false},
-  ["models/wireframe"                   ] = {Bas = false},
-  ["models/shadertest/predator"         ] = {Bas = false},
-  ["cable/xbeam"                        ] = {Bas = false},
-  ["cable/physbeam"                     ] = {Bas = false},
-  ["cable/hydra"                        ] = {Bas = false},
-  ["trails/plasma"                      ] = {Bas = {225, 225, 225}},
-  ["trails/electric"                    ] = {Bas = { 30,  50, 225}},
-  ["trails/smoke"                       ] = {Bas = {100, 100, 100}},
-  ["trails/laser"                       ] = {Bas = {225, 225, 225}},
-  ["trails/love"                        ] = {Bas = {130,  40, 100}},
-  ["trails/lol"                         ] = {Bas = {225, 225, 225}},
-  ["effects/beam_generic01"             ] = {Bas = {225, 225, 225}},
-  ["effects/beam001_blu"                ] = {Bas = { 10,  10,  50}},
-  ["effects/beam001_red"                ] = {Bas = { 50,  10,  10}},
-  ["effects/beam001_white"              ] = {Bas = {225, 225, 225}},
-  ["effects/repair_claw_trail_blue"     ] = {Bas = { 50,  50, 190}},
-  ["effects/repair_claw_trail_red"      ] = {Bas = {210, 130,  50}},
-  ["effects/australiumtrail_red"        ] = {Bas = {255,  33,   0}}
+  ["cable/cable"                        ] = false,
+  ["models/effects/splodearc_sheet"     ] = false,
+  ["models/props_lab/warp_sheet"        ] = false,
+  ["cable/blue_elec"                    ] = false,
+  ["models/alyx/emptool_glow"           ] = false,
+  ["effects/redlaser1"                  ] = false,
+  ["effects/bluelaser1"                 ] = false,
+  ["models/shadertest/shader4"          ] = false,
+  ["models/shadertest/shader3"          ] = false,
+  ["models/props_combine/com_shield001a"] = false,
+  ["models/wireframe"                   ] = false,
+  ["models/shadertest/predator"         ] = false,
+  ["cable/xbeam"                        ] = false,
+  ["cable/physbeam"                     ] = false,
+  ["cable/hydra"                        ] = false,
+  ["cable/cable2"                       ] = { 25,  25,  25},
+  ["cable/crystal_beam1"                ] = {140, 110,  55},
+  ["cable/redlaser"                     ] = {140, 110,  55},
+  ["trails/plasma"                      ] = {225, 225, 225},
+  ["trails/electric"                    ] = { 30,  50, 225},
+  ["trails/smoke"                       ] = {100, 100, 100},
+  ["trails/laser"                       ] = {225, 225, 225},
+  ["trails/love"                        ] = {130,  40, 100},
+  ["trails/lol"                         ] = {225, 225, 225},
+  ["effects/beam_generic01"             ] = {225, 225, 225},
+  ["effects/beam001_blu"                ] = { 10,  10,  50},
+  ["effects/beam001_red"                ] = { 50,  10,  10},
+  ["effects/beam001_white"              ] = {225, 225, 225},
+  ["effects/repair_claw_trail_blue"     ] = { 50,  50, 190},
+  ["effects/repair_claw_trail_red"      ] = {210, 130,  50},
+  ["effects/australiumtrail_red"        ] = {255,  33,   0}
 }
 
 -- Black hole interfaces
@@ -2932,13 +2932,12 @@ function mtBeam:GetColorBase(mco)
   local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
   local src, cor = self.BoSource, (mco or self:GetColorRGBA(true))
   if(not LaserLib.IsValid(src)) then return nil end
-  local set = g_disperse[src:GetInBeamMaterial()]
-  if(not set) then return nil end; set = set.Bas
-  if(not set) then return nil end
-  local r = ((set[1] or 255) / g_clmx) * cor.r
-  local g = ((set[2] or 255) / g_clmx) * cor.g
-  local b = ((set[3] or 255) / g_clmx) * cor.b
-  local a = ((set[4] or 255) / g_clmx) * cor.a
+  local cov = g_disperse[src:GetInBeamMaterial()]
+  if(not cov) then return nil end
+  local r = ((cov[1] or 255) / g_clmx) * cor.r
+  local g = ((cov[2] or 255) / g_clmx) * cor.g
+  local b = ((cov[3] or 255) / g_clmx) * cor.b
+  local a = ((cov[4] or 255) / g_clmx) * cor.a
   r, g, b, a = LaserLib.GetColorRGBA(r, g, b, a)
   g_dscol.r, g_dscol.g = r, g
   g_dscol.b, g_dscol.b = a, a
