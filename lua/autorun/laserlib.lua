@@ -30,7 +30,7 @@ DATA.WVIS = { 700, 300}        -- General wavelength limits for visible light
 DATA.WCOL = {  0 , 300}        -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {   5,  20}        -- Dispersion wavelength mapping for refractive index
 DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
-DATA.SOMR = 10                 -- General coefficient for wave to refractive index converion
+DATA.SOMR = 10                 -- General coefficient for wave to refractive index conversion
 DATA.KEYD  = "#"               -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"               -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"               -- The first symbol used to disable given things
@@ -47,36 +47,13 @@ DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with e
 DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
-DATA.BVKEY = DATA.TOOL.."_hoangvel"  -- Key used to register black hole ang velocity
+DATA.BVKEY = DATA.TOOL.."_hoangvel"  -- Key used to register black hole and velocity
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
 DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
-DATA.DMPARAM = {}                     -- Table to store the damage parameter specific values
--- Hashed variable sets. Updated on convar change and used for real-time
--- Makes server variables access faster for real-time needed events
---[[ Hash storage for beam runtime values.
-  [1] : MBOUNCES > Default max bounces used for beam setup
-  [2] : VESFBEAM > Beam control for safety velocity
-  [3] : BLHOLESG > Black hole curving segment
-  [4] : ENDISPGN > Whenever the dispersion is generically enabled
-  [5] : ENSOUNDS > Enable or disable redirection sounds
-]] DATA.HARUNTM = {10, 150, 5, false, true}
---[[ Hash storage for controls
-  [1] : NSPLITER > Default splitter outputs count
-  [2] : XSPLITER > Default splitter output direction X
-  [3] : YSPLITER > Default splitter output direction Y
-  [4] : ZSPLITER > Default splitter output direction Z
-]] DATA.HADFSPL = {2, 1, 0, 1}
---[[ Hash storage for asynchronous time deltas
-  [1] : DAMAGEDT > Damage time delta
-  [2] : EFFECTDT > Effect time delta
-  [3] : TIMEASYN > Asynchronous delta
-]] DATA.HADELTA = {0.1, 0.15, 0.2}
---[[ Hash storage for color configuration to wavelength list step
-  [1] : WDHUESTP > Hue step when using dispersion and splitting
-  [1] : WDRGBMAR > Hue margin when using dispersion and splitting
-]] DATA.HAWASTP = {  15,  15}
+DATA.DMPAR = {}                      -- Table to store the damage parameter specific values
+DATA.WDDAT = {}                      -- Stores the wavelength steps and configuration data
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
@@ -103,7 +80,6 @@ DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Con
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
 DATA.WDHUESTP = CreateConVar(DATA.TOOL.."_wdhuestp"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
-DATA.ENDISPGN = CreateConVar(DATA.TOOL.."_endispgn"  , 1    , DATA.FGSRVCN, "The server controls whenever the dispersion is generically enabled", 0, 1)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -436,44 +412,6 @@ else -- Server-side initialization. Put server related code here
   DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
   -- User notification configuration type. Used to format notifications via string.format
   DATA.NTIF = {"GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)", "surface.PlaySound(\"ambient/water/drip%d.wav\")"}
-end
-
---[[
- * Attaches callback changes to convar updating local data
- * key  > Data hash pointing to a list placeholder
- * ...  > Vararg list of convars. Any getting changed updates the list
-]]
-local function ConfigureChangeList(key, ...)
-  local data = DATA[key]
-  if(not data) then return end
-  local sors = {...}
-  for idx = 1, #sors, 2 do
-    local cvar = sors[idx]
-    local func = sors[idx + 1]
-    local idat = math.floor(idx/2) + 1
-    if(cvar and func) then
-      local name = cvar:GetName()
-      local exec = cvar[func]
-      if(exec) then
-        local function update(sV, vO, vN)
-          if(func == "GetString") then
-            data[idat] = tostring(vN or "")
-          elseif(func == "GetInt") then
-            data[idat] = math.floor(tonumber(vN) or 0)
-          elseif(func == "GetFloat") then
-            data[idat] = (tonumber(vN) or 0)
-          elseif(func == "GetBool") then
-            data[idat] = tobool(vN)
-          else error("List ["..key.."] trig ["..idat.."] "..name..":"..func) end
-        end -- Call the handler with old and new data
-        local suc, out = pcall(exec, cvar); if(not suc) then
-          error("List ["..key.."] load ["..idat.."] "..name..":"..func) end
-        update(name, data[idat], out)
-        cvars.RemoveChangeCallback(name, name.."_list")
-        cvars.AddChangeCallback(name, update, name.."_list")
-      else error("List ["..key.."] exec ["..idat.."] "..name..":"..func) end
-    else error("List ["..key.."] parm ["..idat.."] "..name..":"..func) end
-  end
 end
 
 --[[
@@ -1051,7 +989,7 @@ end
  * cur > External current time
 ]]
 function LaserLib.IsTime(tim, cur)
-  local cmp = DATA.HADELTA[3]
+  local cmp = DATA.TIMEASYN:GetFloat()
   local cur = (cur or CurTime())
   return ((cur - tim) > cmp) -- Time has passed
 end
@@ -1524,16 +1462,18 @@ function LaserLib.Configure(unit)
    * then becomes true when it meets requirements
   ]]
   function unit:UpdateFlags()
-    local time, delt = CurTime(), DATA.HADELTA
+    local time = CurTime()
     if(SERVER) then -- Damage exists only on the server
       self.isDamage = false -- Reset the frame damage
       if(not self.nxDamage or time > self.nxDamage) then
-        self.isDamage, self.nxDamage = true, time + delt[1]
+        self.isDamage = true -- Time to deal damage now
+        self.nxDamage = time + DATA.DAMAGEDT:GetFloat()
       end
     end
     self.isEffect = false -- Reset the frame effects
     if(not self.nxEffect or time > self.nxEffect) then
-      self.isEffect, self.nxEffect = true, time + delt[2]
+      self.isEffect = true -- Time to draw effect now
+      self.nxEffect = time + DATA.EFFECTDT:GetFloat()
     end
   end
 
@@ -2688,35 +2628,21 @@ function LaserLib.ColorToWave(mr, mg, mb, ma)
 end
 
 function LaserLib.SetWaveArray()
-  local conf = DATA.HAWASTP
-  local step, marg = conf[1], -conf[2]
-  local wave = conf.Wave
-  if(step <= 0) then
-    if(wave) then
-      table.Empty(wave)
-      conf.Wave = nil
-    end; return nil
-  end
-  if(marg > 0) then
-    if(wave) then
-      table.Empty(wave)
-      conf.Wave = nil
-    end; return nil
-  end
-  if(not wave) then
-    conf.Wave = {Data = {}}
-    wave = conf.Wave
-  end
-  local tW = wave.Data
+  local tW   = DATA.WDDAT
+  local step = DATA.WDHUESTP:GetFloat()
+  local marg = DATA.WDRGBMAR:GetFloat()
+  if(step <= 0) then return nil end
+  if(marg <  0) then return nil end
   if(step == (tonumber(tW.Step) or 0)) then return tW end
-  tW.Size = 0    -- Amount of entries the decomposition has
-  tW.Step = step -- Hue adjustment step when defining components
-  tW.Marg = marg -- Color compare margin for component check
-  tW.PM = 0      -- Power multiplier converted scaled for comparison
-  tW.PX = 0      -- Individual component power for non-white light part
-  tW.PN = 0      -- Individual component power for white light part
-  tW.IS = 0      -- Index start for the component extraction
-  tW.IE = 0      -- Index end for the component extraction
+  table.Empty(tW) -- Clears the data and prepare for the change
+  tW.Size = 0     -- Amount of entries the decomposition has
+  tW.Step = step  -- Hue adjustment step when defining components
+  tW.Marg = marg  -- Color compare margin for component check
+  tW.PM = 0       -- Power multiplier converted scaled for comparison
+  tW.PX = 0       -- Individual component power for non-white light part
+  tW.PN = 0       -- Individual component power for white light part
+  tW.IS = 0       -- Index start for the component extraction
+  tW.IE = 0       -- Index end for the component extraction
   local wvis, wcol = DATA.WVIS, DATA.WCOL
   local huS, huE = wcol[1], wcol[2]
   for hue = huS, huE, step do
@@ -2734,7 +2660,7 @@ function LaserLib.GetWaveArray(cow)
   local weco, wcol = DATA.WTCOL, DATA.WCOL
   local coax = math.max(cow.r, cow.g, cow.b)
   local coan = math.min(cow.r, cow.g, cow.b)
-  local marg = tW.Marg
+  local marg = -tW.Marg
   if(coan > 0) then
     tW.PN = (coan / comx)
     coax  = (coax - coan)
@@ -2803,7 +2729,7 @@ function LaserLib.Beam(origin, direct, length)
   --   [4] > Node beam current force automatic (number)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
-  self.BmHoleLn = DATA.HARUNTM[3] -- Black hole curve interpolation
+  self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
   self.IsHoleGv = false -- Is is currently affected by gravity wells
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
@@ -2965,7 +2891,7 @@ function mtBeam:SetBounces(iBns)
   if(iBns) then -- These is forced bounce count
     self.MxBounce = math.max(tonumber(iBns) or 0, 0)
   else -- Use the global convar value
-    self.MxBounce = DATA.HARUNTM[1]
+    self.MxBounce = DATA.MBOUNCES:GetInt()
   end -- Amount of bounces to control the loop
   self.NvBounce = self.MxBounce
   return self
@@ -4657,7 +4583,7 @@ if(SERVER) then
     if(not LaserLib.IsValid(target)) then return end
     local direct, safety = param.direct, param.safety
     if(not safety) then return end -- Beam safety skipped
-    local smu = DATA.HARUNTM[2] -- Safety velocity
+    local smu = DATA.VESFBEAM:GetFloat() -- Safety velocity
     if(smu <= 0) then return end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
     local obb = target:LocalToWorld(target:OBBCenter())
@@ -4670,7 +4596,7 @@ if(SERVER) then
   function mtBeam:DoDamage(laser)
     local trace = self:GetTarget()
     if(not (trace and trace.Hit)) then return end
-    local target, param = trace.Entity, DATA.DMPARAM
+    local target, param = trace.Entity, DATA.DMPAR
     if(not LaserLib.IsValid(target)) then return end
     if(LaserLib.IsUnit(target)) then return end
     local sours = self:GetSource()
@@ -5415,21 +5341,3 @@ CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
 
 ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
-
-ConfigureChangeList("HAWASTP", DATA.WDHUESTP, "GetFloat",
-                               DATA.WDRGBMAR, "GetFloat")
-
-ConfigureChangeList("HADFSPL", DATA.NSPLITER, "GetInt",
-                               DATA.XSPLITER, "GetFloat",
-                               DATA.YSPLITER, "GetFloat",
-                               DATA.ZSPLITER, "GetFloat")
-
-ConfigureChangeList("HADELTA", DATA.DAMAGEDT, "GetFloat",
-                               DATA.EFFECTDT, "GetFloat",
-                               DATA.TIMEASYN, "GetFloat")
-
-ConfigureChangeList("HARUNTM", DATA.MBOUNCES, "GetInt",
-                               DATA.VESFBEAM, "GetFloat",
-                               DATA.BLHOLESG, "GetFloat",
-                               DATA.ENDISPGN, "GetBool",
-                               DATA.ENSOUNDS, "GetBool")

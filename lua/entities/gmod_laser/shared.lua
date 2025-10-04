@@ -24,7 +24,8 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gvVDRUP    = LaserLib.GetData("VDRUP")
 local gvVZERO    = LaserLib.GetData("VZERO")
-local vsHARUNTM  = LaserLib.GetData("HARUNTM")
+local cvENSOUNDS = LaserLib.GerData("ENSOUNDS")
+local cvWDHUESTP = LaserLib.GetData("WDHUESTP")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
@@ -263,7 +264,7 @@ function ENT:DoSound(state)
   if(self.onState ~= state) then
     self.onState = state -- Write the state
     local pos, cls = self:GetPos(), self:GetClass()
-    if(cls == LaserLib.GetClass(1) or vsHARUNTM[5]) then
+    if(cls == LaserLib.GetClass(1) or cvENSOUNDS:GetBool()) then
       if(state) then -- Activating laser for given position
         self:EmitSound(self:GetStartSound())
       else -- User shuts the entity off
@@ -361,7 +362,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
-  local endisp = (self:GetBeamDisperse() and vsHARUNTM[4])
+  local endisp = (self:GetBeamDisperse() and cvWDHUESTP:GetFloat() > 0)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
         beam:SetWidth(self:GetBeamWidth())

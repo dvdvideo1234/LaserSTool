@@ -4,8 +4,11 @@ include("shared.lua")
 
 resource.AddFile("materials/vgui/entities/gmod_laser_splitter.vmt")
 
-local gtAMAX  = LaserLib.GetData("AMAX")
-local gtDFSPL = LaserLib.GetData("HADFSPL")
+local gtAMAX     = LaserLib.GetData("AMAX")
+local cvNSPLITER = LaserLib.GetData("NSPLITER")
+local cvXSPLITER = LaserLib.GetData("XSPLITER")
+local cvYSPLITER = LaserLib.GetData("YSPLITER")
+local cvZSPLITER = LaserLib.GetData("ZSPLITER")
 
 function ENT:UpdateInternals()
   self.crOpower = nil
@@ -96,10 +99,10 @@ function ENT:SpawnFunction(ply, tr)
     LaserLib.SetProperties(ent, "metal")
     LaserLib.SetPlayer(ent, ply)
     ent:SetBeamTransform()
-    ent:SetBeamCount(gtDFSPL[1])
-    ent:SetBeamLeanX(gtDFSPL[2])
-    ent:SetBeamLeanY(gtDFSPL[3])
-    ent:SetBeamLeanZ(gtDFSPL[4])
+    ent:SetBeamCount(cvNSPLITER:GetInt())
+    ent:SetBeamLeanX(cvXSPLITER:GetFloat())
+    ent:SetBeamLeanY(cvYSPLITER:GetFloat())
+    ent:SetBeamLeanZ(cvZSPLITER:GetFloat())
     ply:AddCount(gen.."s", ent)
     ply:AddCleanup(gen.."s", ent)
     return ent
