@@ -6,6 +6,7 @@ local gnGRAT     = LaserLib.GetData("GRAT")
 local gnWLMR     = LaserLib.GetData("WLMR")
 local gsFNUH     = LaserLib.GetData("FNUH")
 local gsLSEP     = LaserLib.GetData("LSEP")
+local gtDISPERSE = LaserLib.GetData("DISPERSE")
 local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
 local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
@@ -89,9 +90,9 @@ if(CLIENT) then
             pnCombo:SetSize(pnFrame:GetWide() - (gnGRAT - 1) * pnFrame:GetWide(), 25)
             pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmaterial_find"))
             pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmaterial_findv"))
-            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_findm"), "Key", false, LaserLib.GetIcon("key_go")) end
-            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_findp"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
-            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_findi"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepmn"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_meppr"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepri"), "Ridx", false, LaserLib.GetIcon("transmit")) end
       local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
             pnText:SetParent(pnFrame)
             pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
@@ -530,6 +531,54 @@ function TOOL.BuildCPanel(cPanel)
         function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("lightning"))
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copya"),
         function() SetClipboardText(nam..":"..key..">"..val.name) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_sort"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbn").." (<)",
+        function()
+          table.sort(pMat.List.Items,
+            function(u, v)
+              return u.Value < v.Value
+            end)
+        end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbn").." (>)",
+        function()
+          table.sort(pMat.List.Items,
+            function(u, v)
+              return u.Value > v.Value end)
+            end):SetImage(LaserLib.GetIcon("arrow_up"))
+      pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbc").." (<)",
+        function()
+          table.sort(pMat.List.Items, function(u, v)
+            local mu, mv = u.Value, v.Value
+            local cu = gtDISPERSE[mu]
+            local cv = gtDISPERSE[mv]
+            if(cu or cv) then
+              if(not cu) then return false end
+              if(not cv) then return true end
+              local su = cu.r + cu.g + cu.b
+              local sv = cv.r + cv.g + cv.b
+              if(su == sv) then return mu < mv end
+              return su < sv
+            else return mu < mv end
+          end)
+        end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbc").." (>)",
+        function()
+          table.sort(pMat.List.Items, function(u, v)
+            local mu, mv = u.Value, v.Value
+            local cu = gtDISPERSE[mu]
+            local cv = gtDISPERSE[mv]
+            if(cu or cv) then
+              if(not cu) then return true end
+              if(not cv) then return false end
+              local su = cu.r + cu.g + cu.b
+              local sv = cv.r + cv.g + cv.b
+              if(su == sv) then return mu > mv end
+              return su > sv
+            else return mu > mv end
+          end)
+        end):SetImage(LaserLib.GetIcon("arrow_up"))
       pnMenu:Open()
     end
   end
@@ -542,6 +591,9 @@ function TOOL.BuildCPanel(cPanel)
   pMix:SetConVarG(gsTOOL.."_colorg")
   pMix:SetConVarB(gsTOOL.."_colorb")
   pMix:SetConVarA(gsTOOL.."_colora")
+  pMix:SetWangs(true)
+  pMix:SetPalette(true)
+  pMix:SetAlphaBar(true)
   cPanel:AddItem(pMix)
 
   pProp = vgui.Create("PropSelect", cPanel)

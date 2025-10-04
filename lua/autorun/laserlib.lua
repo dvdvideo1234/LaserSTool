@@ -2009,7 +2009,7 @@ end
  * Changes the selected material paint over function
  * When other one is clicked reverts the last change
 ]]
-function LaserLib.SetMaterialPaintOver(pnMat, pnImg)
+function LaserLib.SetPaintOver(pnMat, pnImg)
   if(SERVER) then return end
   -- Remove the current overlay
   if(pnMat.SelectedMaterial) then
@@ -2075,7 +2075,7 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
       pnMat:AddMaterial(sInf, sKey); iC = iC + 1; pnImg = tCont[iC]
       function pnImg:DoClick()
         LaserLib.UpdateVBar(pnMat, tSort)
-        LaserLib.SetMaterialPaintOver(pnMat, self)
+        LaserLib.SetPaintOver(pnMat, self)
         LaserLib.ConCommand(nil, tSort.Sors, sKey)
         pnFrame:SetTitle(tSort.Name.." > "..sInf)
       end
@@ -2101,12 +2101,12 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         pOpts:SetImage(LaserLib.GetIcon("table_sort"))
         -- Sort the data by the entry key
         if(tRow.Key) then
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findm").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepmn").." (<)",
             function()
               table.SortByMember(tSort, "Key", true)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("arrow_down"))
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findm").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepmn").." (>)",
             function()
               table.SortByMember(tSort, "Key", false)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
@@ -2114,12 +2114,12 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         end
         -- Sort the data by the absorption rate
         if(tRow.Rate) then
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findp").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_meppr").." (<)",
             function()
               table.SortByMember(tSort, "Rate", true)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("basket_remove"))
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findp").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_meppr").." (>)",
             function()
               table.SortByMember(tSort, "Rate", false)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
@@ -2127,12 +2127,12 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         end
         -- Sorted members by the medium refraction index
         if(tRow.Ridx) then
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findi").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepri").." (<)",
             function()
               table.SortByMember(tSort, "Ridx", true)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("ruby_get"))
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_findi").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepri").." (>)",
             function()
               table.SortByMember(tSort, "Ridx", false)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
@@ -2143,7 +2143,7 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
       -- When the variable value is the same as the key
       if(sKey == tSort.Conv:GetString()) then
         pnFrame:SetTitle(tSort.Name.." > "..sInf)
-        LaserLib.SetMaterialPaintOver(pnMat, pnImg)
+        LaserLib.SetPaintOver(pnMat, pnImg)
       end
     end
   end
