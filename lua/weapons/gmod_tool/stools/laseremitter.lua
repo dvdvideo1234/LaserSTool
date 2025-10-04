@@ -506,6 +506,19 @@ function TOOL.BuildCPanel(cPanel)
 
   local tMat = list.GetForEdit("LaserEmitterMaterials")
   local tKey = table.GetKeys(tMat) -- Sort the keys table on material
+  local function matSort(u, v)
+    local mu, mv = u.Value, v.Value
+    local cu = gtDISPERSE[mu]
+    local cv = gtDISPERSE[mv]
+    if(cu or cv) then
+      if(not cu) then return false end
+      if(not cv) then return true end
+      local su = cu.r + cu.g + cu.b
+      local sv = cv.r + cv.g + cv.b
+      if(su == sv) then return mu < mv end
+      return su < sv
+    else return mu < mv end
+  end
   table.sort(tKey, function(u, v) return tMat[u].name < tMat[v].name end)
   pMat = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
   pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
@@ -537,47 +550,26 @@ function TOOL.BuildCPanel(cPanel)
       pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbn").." (<)",
         function()
           table.sort(pMat.List.Items,
-            function(u, v)
-              return u.Value < v.Value
-            end)
+            function(u, v) return u.Value < v.Value end)
+          pMat.List:PerformLayout()
         end):SetImage(LaserLib.GetIcon("arrow_down"))
       pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbn").." (>)",
         function()
           table.sort(pMat.List.Items,
-            function(u, v)
-              return u.Value > v.Value end)
-            end):SetImage(LaserLib.GetIcon("arrow_up"))
+            function(u, v) return u.Value > v.Value end)
+          pMat.List:PerformLayout()
+        end):SetImage(LaserLib.GetIcon("arrow_up"))
       pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbc").." (<)",
         function()
-          table.sort(pMat.List.Items, function(u, v)
-            local mu, mv = u.Value, v.Value
-            local cu = gtDISPERSE[mu]
-            local cv = gtDISPERSE[mv]
-            if(cu or cv) then
-              if(not cu) then return false end
-              if(not cv) then return true end
-              local su = cu.r + cu.g + cu.b
-              local sv = cv.r + cv.g + cv.b
-              if(su == sv) then return mu < mv end
-              return su < sv
-            else return mu < mv end
-          end)
+          table.sort(pMat.List.Items,
+            function(u, v) return matSort(u, v) end)
+          pMat.List:PerformLayout()
         end):SetImage(LaserLib.GetIcon("arrow_down"))
       pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepbc").." (>)",
         function()
-          table.sort(pMat.List.Items, function(u, v)
-            local mu, mv = u.Value, v.Value
-            local cu = gtDISPERSE[mu]
-            local cv = gtDISPERSE[mv]
-            if(cu or cv) then
-              if(not cu) then return true end
-              if(not cv) then return false end
-              local su = cu.r + cu.g + cu.b
-              local sv = cv.r + cv.g + cv.b
-              if(su == sv) then return mu > mv end
-              return su > sv
-            else return mu > mv end
-          end)
+          table.sort(pMat.List.Items,
+            function(u, v) return (not matSort(u, v)) end)
+          pMat.List:PerformLayout()
         end):SetImage(LaserLib.GetIcon("arrow_up"))
       pnMenu:Open()
     end
