@@ -24,7 +24,7 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gvVDRUP    = LaserLib.GetData("VDRUP")
 local gvVZERO    = LaserLib.GetData("VZERO")
-local cvENSOUNDS = LaserLib.GerData("ENSOUNDS")
+local cvENSOUNDS = LaserLib.GetData("ENSOUNDS")
 local cvWDHUESTP = LaserLib.GetData("WDHUESTP")
 
 function ENT:SetupDataTables()

@@ -2631,8 +2631,8 @@ function LaserLib.SetWaveArray()
   local tW   = DATA.WDDAT
   local step = DATA.WDHUESTP:GetFloat()
   local marg = DATA.WDRGBMAR:GetFloat()
-  if(step <= 0) then return nil end
-  if(marg <  0) then return nil end
+  if(step <= 0 or marg <  0) then
+    if(tW.Size) then table.Empty(tW) end; return nil end
   if(step == (tonumber(tW.Step) or 0)) then return tW end
   table.Empty(tW) -- Clears the data and prepare for the change
   tW.Size = 0     -- Amount of entries the decomposition has
@@ -4003,8 +4003,13 @@ end
 ]]
 function mtBeam:DrawEffect(sours, endrw)
   if(SERVER) then return self end
-  local sours = (sours or self:GetSource())
+  local tbran = self.BmBranch
   local trace = self:GetTarget()
+  local sours = (sours or self:GetSource())
+  if(tbran.Size > 0) then
+    for idx = 1, tbran.Size do
+      tbran[idx]:DrawEffect(sours, endrw) end
+  end
   if(trace and not trace.HitSky and
      endrw and sours.isEffect)
   then -- Drawing effects is enabled
@@ -4596,6 +4601,11 @@ if(SERVER) then
   end
 
   function mtBeam:DoDamage(laser)
+    local tbran = self.BmBranch
+    if(tbran.Size > 0) then
+      for idx = 1, tbran.Size do
+        tbran[idx]:DoDamage(laser) end
+    end
     local trace = self:GetTarget()
     if(not (trace and trace.Hit)) then return end
     local target, param = trace.Entity, DATA.DMPAR
@@ -4732,11 +4742,7 @@ function mtBeam:IsDisperse(vOrg, tRef)
     beam:SetBounces(bnc)
     beam:SetWavelength(recw.W)
     beam:SetColorRGBA(r, g, b, sa)
-    local vdir, bnex, bsam = beam:Refract(dir, nor, 1, tRef[1])
-    beam.VrDirect = vdir
     ang:RotateAroundAxis(ang:Right(), 5)
-    --LaserLib.DrawVector(beam.VrOrigin, beam.VrDirect, 5)
-
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
     brn.Size = brn.Size + 1
