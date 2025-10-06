@@ -1975,6 +1975,32 @@ function LaserLib.GetSequenceInfo(row, info)
 end
 
 --[[
+ * Handles disperse color sorting
+]]
+function LaserLib.SortDisperse(pnMat, fCoa, bRev)
+  local g_disperse = DATA.DISPERSE
+  local function matSort(u, v)
+    local mu, mv = u.Value, v.Value
+    local cu = g_disperse[mu]
+    local cv = g_disperse[mv]
+    if((cu or cv) and fCoa) then
+      if(not cu) then return true end
+      if(not cv) then return false end
+      local su = fCoa(cu[1], cu[2], cu[3])
+      local sv = fCoa(cv[1], cv[2], cv[3])
+      if(su == sv) then return mu < mv end
+      return su < sv
+    else return mu < mv end
+  end
+  if(bRev) then
+    table.sort(pnMat.List.Items, function(u, v) return (not matSort(u, v)) end)
+  else
+    table.sort(pnMat.List.Items, function(u, v) return matSort(u, v) end)
+  end
+  pnMat.List:PerformLayout()
+end
+
+--[[
  * Automatically adjusts the material size
  * Materials button will always be square
 ]]
@@ -2159,9 +2185,9 @@ function LaserLib.Call(time, func, ...)
   local tnew = SysTime()
   if((tnew - DATA.TOLD) > time) then
     DATA.TOLD = tnew -- Update time
-    local suc, err = pcall(func, ...)
-    if(not suc) then error(err) end
-  end
+    local suc, out = pcall(func, ...)
+    if(not suc) then error(out) end
+  end; return out
 end
 
 function LaserLib.PrintOn()
@@ -2170,6 +2196,10 @@ end
 
 function LaserLib.PrintOff()
   DATA.PRDY = false
+end
+
+function LaserLib.PrintEn(en)
+  DATA.PRDY = tobool(en)
 end
 
 function LaserLib.Print(...)
@@ -4746,7 +4776,7 @@ function mtBeam:IsDisperse(vOrg, tRef)
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
     brn.Size = brn.Size + 1
-    beam:Run(brn.Size)
+    beam:Run(brn.Size, self.BmRecstg)
     table.insert(brn, beam)
   end; return true
 end
