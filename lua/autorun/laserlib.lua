@@ -1502,11 +1502,11 @@ function LaserLib.Configure(unit)
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam)
-    local ros, idx = self.hitReports, beam.BmIdenty -- Read hit reports
+    local ros, idx = self.hitReports, beam.BmIdenty -- Store a hit report
     if(not ros) then ros = {Size = 0}; self.hitReports = ros end
-    if(ros[idx]) then ros[idx] = beam else
-      ros.Size = ros.Size + 1
-      table.insert(ros, beam)
+    if(ros[idx]) then ros[idx] = beam else -- Replace
+      ros.Size = ros.Size + 1 -- Otherwise add and increment
+      table.insert(ros, beam) -- Insert in the report table
     end; return self -- Coding effective API
   end
 
@@ -1518,8 +1518,8 @@ function LaserLib.Configure(unit)
     if(not idx) then return end
     local ros = self.hitReports
     if(not ros) then return nil end
-    if(ros[idx]) then
-      ros.Size = ros.Size - 1
+    if(ros[idx]) then -- Nothing or extract
+      ros.Size = ros.Size - 1 -- Decrement
       return table.remove(ros, idx)
     end; return nil
   end
@@ -1534,7 +1534,6 @@ function LaserLib.Configure(unit)
    * proc > Scope function per-beam handler. Arguments:
    *      > entity > Hit report active source
    *      > index  > Hit report active index
-   *      > trace  > Hit report active trace
    *      > beam   > Hit report active beam
    * each > Scope function per-source handler. Arguments:
    *      > entity > Hit report active source
@@ -3787,6 +3786,7 @@ end
  * entity > Entity we intend the start the beam from
 ]]
 function mtBeam:SourceFilter(entity, ...)
+  local entity = (entity or self.BmSource)
   if(not LaserLib.IsValid(entity)) then return self end
   -- Populated custom depending on the API
   if(entity.RecuseBeamID and self.BmRecstg == 1) then -- Recursive
@@ -3799,7 +3799,12 @@ function mtBeam:SourceFilter(entity, ...)
     if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly, ...} end
   else -- Switch the filter according to the weapon the player is holding
     self.BmSource, self.TeFilter = entity, {entity, ...}
-  end; return self
+  end;
+  local index = self.BmSource.ReportID
+        index = math.max(tonumber(index) or 0, 0) + 1
+  self.BmIdenty = index-- Beam hit report index. Defaults to one if not provided
+  self.BmSource.ReportID = index -- Current source hit report ID
+  return self
 end
 
 --[[
@@ -4732,12 +4737,11 @@ function mtBeam:Run(iIdx, iStg)
   -- Store general definition of air and water mediums for fast usage and indexing
   local mewat, meair, merum = mtBeam.__mewat, mtBeam.__meair, self.TrMedium -- Local reference
   -- Reports dedicated values that are being used by other entities and processes
-  self.BmIdenty = math.max(tonumber(iIdx) or 1, 1) -- Beam hit report index. Defaults to one if not provided
   self.BmRecstg = (math.max(tonumber(iStg) or 0, 0) + 1) -- Beam recursion depth for units that use it
   -- Allocate source, destination and memory mediums
   self:SetMedium("S"); self:SetMedium("D"); self:SetMedium("M")
   -- Ignore the tracing entity and register first node
-  self:SourceFilter(self.BmSource); self:RegisterNode(self.VrOrigin)
+  self:SourceFilter(); self:RegisterNode(self.VrOrigin)
   -- Calculate the output location
   self:SetTraceExit()
   -- Start tracing the beam

@@ -373,6 +373,7 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
+  self.ReportID = 0 -- Mark hit report start
   return beam:Run(idx)
 end
 
