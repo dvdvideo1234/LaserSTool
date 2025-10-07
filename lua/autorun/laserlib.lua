@@ -785,77 +785,6 @@ function LaserLib.GetMarginPortal(entity, origin, direct, normal)
 end
 
 --[[
- * Inserts consistent data in array notation {1,2,Size=2}
- * tArr > Array to modify
- * aVia > Data to be inserted
- * iID  > Location to insert data in
- * bOvr > Force replace the array slot
-]]
-local function InsertData(tArr, aVia, iID, bOvr)
-  if(not tArr.Size) then tArr.Size = #tArr end
-  local idx = (tonumber(iID) or 0)
-  local vdt, siz = (aVia or DATA.KEYX), tArr.Size
-  if(idx < 1 or idx > siz) then
-    table.insert(tArr, vdt)
-    tArr.Size = (siz + 1)
-  else
-    if(bOvr) then tArr[idx] = aVia else
-      table.insert(tArr, idx, vdt)
-      tArr.Size = (siz + 1)
-    end
-  end; return tArr
-end
-
---[[
- * Selects consistent data in array notation {1,2,Size=2}
- * tArr > Array to modify
- * iID  > Location to insert data in
- * bOvr > Read only without pop data out
-]]
-local function SelectData(tArr, iID, bOvr)
-  if(not tArr.Size) then tArr.Size = #tArr end
-  local siz = tArr.Size
-  local idx = (tonumber(iID) or 0)
-  if(idx < 1 or idx > siz) then
-    if(bOvr) then return tArr[siz] else
-      tArr.Size = (siz - 1)
-      return table.remove(tArr)
-    end
-  else
-    if(bOvr) then return tArr[idx] else
-      tArr.Size = (siz - 1)
-      return table.remove(tArr, idx)
-    end
-  end; return tArr
-end
-
---[[
- * Cleans data so it becomes consistent in array notation {1,2,Size=2}
- * It loops trough the array and removes the empty values
- * tArr > Array to modify. For in-place modification
-]]
-local function CleanData(tArr)
-  local mxn = table.maxn(tArr)
-  if(not tArr.Size) then tArr.Size = mxn end
-  local cui, cuv = nil, nil
-  for idx = 1, mxn do
-    cuv = tArr[idx]
-    if(cuv) then
-      if(cui) then
-        tArr[cui] = cuv
-        tArr[idx] = nil
-        cui = cui + 1
-      end
-    else
-      if(not cui) then
-        cui = idx
-      end
-    end
-  end; tArr.Size = (cui - 1)
-  return tArr
-end
-
---[[
  * Copies data contents from a table
  * tSrc > Array to copy from
  * tSkp > Skipped fields list
@@ -1516,19 +1445,23 @@ function LaserLib.Configure(unit)
    * Removes hit reports from the list according to new size
    * rovr > When remove overhead is provided deletes
             all entries with larger index
+   * wipe > Forced wiping control on size change def. true
    * Data is stored in notation: self.hitReports[ID]
   ]]
-  function unit:SetHitReportMax(rovr)
+  function unit:SetHitReportMax(rovr, wipe)
     if(self.hitReports) then
       local ros, idx = self.hitReports
+      local wipe = (wipe or wipe == nil)
       if(rovr) then -- Overhead mode
         local rovr = tonumber(rovr) or 0
         idx, ros.Size = (rovr + 1), rovr
       else idx, ros.Size = 1, 0 end
       -- Wipe selected items
-      while(ros[idx]) do
-        ros[idx] = nil
-        idx = idx + 1
+      if(wipe) then
+        while(ros[idx]) do
+          ros[idx] = nil
+          idx = idx + 1
+        end
       end
     end; return self
   end
@@ -1565,25 +1498,30 @@ function LaserLib.Configure(unit)
    * This is done only for units that have beam output
    * Make sure to provide unique beam identification ID
    * This is called only for units that run `DoBeam`
-   * Unit: My `[idx]`-th beam passed trough there and hit that
+   * Unit: My [idx]-th beam passed trough there and hit that
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam)
     local ros, idx = self.hitReports, beam.BmIdenty -- Read hit reports
     if(not ros) then ros = {Size = 0}; self.hitReports = ros end
-    InsertData(ros, beam, idx, true)
-    return self -- Coding effective API
+    if(ros[idx]) then ros[idx] = beam else
+      ros.Size = ros.Size + 1
+      table.insert(ros, beam)
+    end; return self -- Coding effective API
   end
 
   --[[
    * Retrieves hit report trace and beam for specified index
-   * index > Hit report index to read ( defaults to 1 )
+   * idx > Hit report index to read ( defaults to 1 )
   ]]
-  function unit:GetHitReport(index)
-    if(not index) then return end
+  function unit:GetHitReport(idx)
+    if(not idx) then return end
     local ros = self.hitReports
     if(not ros) then return nil end
-    return SelectData(ros, index, true)
+    if(ros[idx]) then
+      ros.Size = ros.Size - 1
+      return table.remove(ros, idx)
+    end; return nil
   end
 
   --[[
