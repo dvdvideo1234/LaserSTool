@@ -238,7 +238,7 @@ function SWEP:DoBeam(origin, direct)
 end
 
 function SWEP:ServerBeam()
-  self:UpdateFlags()
+  self:UpdateInit()
 
   if(self:GetOn()) then
     local vorg = self:GetBeamOrigin()
@@ -269,7 +269,7 @@ if(SERVER) then
 else
 
   function SWEP:DrawBeam(origin, direct)
-    self:UpdateFlags()
+    self:UpdateInit()
 
     local beam = self:DoBeam(origin, direct)
     if(not beam) then return end

@@ -114,7 +114,7 @@ end
 
 function ENT:Think()
   if(self:GetOn()) then
-    self:UpdateFlags()
+    self:UpdateInit()
     local beam  = self:DoBeam()
     local trace = beam:GetTarget()
 

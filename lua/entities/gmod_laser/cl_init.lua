@@ -47,7 +47,7 @@ function ENT:Draw()
           width = LaserLib.GetWidth(width)
     local length = self:GetBeamLength()
     if(width > 0 and length > 0) then
-      self:UpdateFlags()
+      self:UpdateInit()
       self:DrawBeam()
     end
   else

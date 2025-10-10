@@ -61,7 +61,7 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:Think()
-  self:UpdateFlags()
+  self:UpdateInit()
   self:UpdateSources()
 
   if(self.hitSize > 0) then

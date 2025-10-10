@@ -77,7 +77,7 @@ end
 
 function ENT:Think()
   self:UpdateVectors()
-  self:UpdateFlags()
+  self:UpdateInit()
   self:UpdateSources()
 
   if(self.hitSize > 0) then

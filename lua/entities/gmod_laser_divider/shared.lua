@@ -19,8 +19,8 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/do
 local gnDOTM = LaserLib.GetData("DOTM")
 
 function ENT:UpdateInternals()
-  self.hitSize = 0 -- Add sources in array
-  self.crHdx = 0 -- Current bean index
+  self.crSizeID = 0 -- Add sources in array
+  self.crBeamID = 0 -- Current bean index
   return self
 end
 
@@ -109,7 +109,7 @@ end
 function ENT:UpdateSources()
   self:UpdateInternals() -- Add sources in array
   self:ProcessSources()
-  self:SetHitReportMax(self.crHdx)
+  self:SetHitReportMax(self.crBeamID)
 
   return self:UpdateArrays()
 end
@@ -122,7 +122,7 @@ end
  * bmex > Source trace beam class
 ]]
 function ENT:DoBeam(ent, org, dir, bmex)
-  self.crHdx = self.crHdx + 1
+  self.crBeamID = self.crBeamID + 1
   local todiv = (self:GetBeamReplicate() and 1 or 2)
   local beam = LaserLib.Beam(org, dir, bmex.NvLength)
         beam:SetLength(bmex.NvLength)
@@ -135,5 +135,5 @@ function ENT:DoBeam(ent, org, dir, bmex)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.crHdx)
+  return beam:Run(self.crBeamID)
 end

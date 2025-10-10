@@ -167,7 +167,7 @@ function ENT:Think()
     local forwd = self:GetDirectLocal()
     local upwrd = self:GetUpwardLocal()
     local angle = self:GetLeanAngle(forwd, upwrd)
-    self:UpdateFlags()
+    self:UpdateInit()
     for idx = 1, mcount do
       self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
       if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end

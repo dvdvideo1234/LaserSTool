@@ -13,7 +13,7 @@ function ENT:Draw()
   self:DrawShadow(false)
   self:InitSources()
   if(self:GetOn()) then
-    self:UpdateFlags()
+    self:UpdateInit()
     self:UpdateSources()
   end
 end

@@ -1390,8 +1390,8 @@ function LaserLib.Configure(unit)
    * Flag is automatically reset in every call
    * then becomes true when it meets requirements
   ]]
-  function unit:UpdateFlags()
-    local time = CurTime()
+  function unit:UpdateInit()
+    local time = CurTime(); self.crBeamID = 0
     if(SERVER) then -- Damage exists only on the server
       self.isDamage = false -- Reset the frame damage
       if(not self.nxDamage or time > self.nxDamage) then

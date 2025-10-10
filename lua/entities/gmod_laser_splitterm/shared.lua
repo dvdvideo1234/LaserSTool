@@ -21,8 +21,8 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:UpdateInternals()
-  self.hitSize = 0 -- Add sources in array
-  self.crHdx = 0 -- Current bean index
+  self.crSizeID = 0 -- Add sources in array
+  self.crBeamID = 0 -- Current bean index
   self.crCount = self:GetBeamCount()
   return self
 end
@@ -189,7 +189,7 @@ function ENT:UpdateSources()
     self:ProcessSources()
   end
 
-  self:SetHitReportMax(self.crHdx)
+  self:SetHitReportMax(self.crBeamID)
 
   return self:UpdateArrays()
 end
@@ -203,7 +203,7 @@ end
  * vdot > Dot product with surface normal
 ]]
 function ENT:DoBeam(ent, org, dir, bmex, vdot)
-  self.crHdx = self.crHdx + 1
+  self.crBeamID = self.crBeamID + 1
   local todiv = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
   local beam = LaserLib.Beam(org, dir, bmex.NvLength)
         beam:SetSource(self, ent, bmex:GetSource())
@@ -214,12 +214,12 @@ function ENT:DoBeam(ent, org, dir, bmex, vdot)
         beam:SetFgTexture(bmex.BmNoover, false)
         beam:SetBounces()
   if(self:GetBeamColorSplit()) then
-    local cnt = (self.crHdx % self.crCount + 1)
+    local cnt = (self.crBeamID % self.crCount + 1)
     local r, g, b, a = bmex:GetColorRGBA()
           r, g, b = LaserLib.GetColorID(cnt, r, g, b)
     beam:SetColorRGBA(r, g, b, a)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.crHdx)
+  return beam:Run(self.crBeamID)
 end
