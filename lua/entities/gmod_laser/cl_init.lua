@@ -1,6 +1,7 @@
 include("shared.lua")
 
 local cvLNDIRACT = LaserLib.GetData("LNDIRACT")
+local gcLINDCOLR = LaserLib.GetColor("YELLOW")
 
 --[[
  * This is actually faster than stuffing all the beams
@@ -53,11 +54,10 @@ function ENT:Draw()
   else
     local lndir = cvLNDIRACT:GetFloat()
     if(lndir > 0) then
-      local color = LaserLib.GetColor("YELLOW")
       local origin = self:GetBeamOrigin()
       local direct = self:GetBeamDirection()
             direct:Mul(lndir); direct:Add(origin)
-      render.DrawLine(origin, direct, color)
+      render.DrawLine(origin, direct, gcLINDCOLR)
     end
   end
 end

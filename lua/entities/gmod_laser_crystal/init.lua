@@ -8,7 +8,7 @@ local gnCLMX = LaserLib.GetData("CLMX")
 
 function ENT:UpdateInternals(once)
   if(once) then
-    self.hitSize = 0
+    self.crWireID = 0
     self.crXlength, self.crBpower = nil, nil
     self.crXforce , self.crXwidth, self.crXdamage = nil, nil, nil
     self.crOpower , self.crNpower, self.crForce   = nil, nil, nil
@@ -17,7 +17,7 @@ function ENT:UpdateInternals(once)
     self.crDomcor = Color(0,0,0,0)
     self.crXomcor = Color(0,0,0,0)
   else
-    self.hitSize = 0 -- Add sources in array
+    self.crWireID = 0 -- Add sources in array
     self.crXlength, self.crBpower = 0, false
     self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
     self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
@@ -192,7 +192,9 @@ function ENT:UpdateSources()
   self:UpdateInternals()
   self:ProcessSources()
 
-  if(self.hitSize > 0) then
+  print("asdasdasd", self.crWireID)
+
+  if(self.crWireID > 0) then
     if(self:GetBeamColorMerge()) then
       if(self.crBpower) then -- No infinite
         self:DominantColor(self.crDobeam, self.crDomcor)
@@ -229,7 +231,7 @@ function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetBeamDamage()
 
-  if(self.hitSize > 0 and LaserLib.IsPower(mwidth, mdamage)) then
+  if(self.crWireID > 0 and LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)

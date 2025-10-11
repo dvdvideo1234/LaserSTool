@@ -21,7 +21,7 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:UpdateInternals()
-  self.crSizeID = 0 -- Add sources in array
+  self.crWireID = 0 -- Add sources in array
   self.crBeamID = 0 -- Current bean index
   self.crCount = self:GetBeamCount()
   return self

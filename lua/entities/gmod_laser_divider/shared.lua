@@ -19,7 +19,7 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/do
 local gnDOTM = LaserLib.GetData("DOTM")
 
 function ENT:UpdateInternals()
-  self.crSizeID = 0 -- Add sources in array
+  self.crWireID = 0 -- Add sources in array
   self.crBeamID = 0 -- Current bean index
   return self
 end

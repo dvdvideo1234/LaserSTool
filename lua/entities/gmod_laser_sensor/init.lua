@@ -17,7 +17,7 @@ function ENT:ResetInternals()
   self.crDirect:SetUnpacked(0,0,0)
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
-  self.hitSize , self.crNormh , self.crDomsrc = 0, false, nil
+  self.crWireID , self.crNormh , self.crDomsrc = 0, false, nil
   self.crColor.r, self.crColor.g = 0, 0
   self.crColor.b, self.crColor.a = 0, 0
   return self
@@ -298,7 +298,7 @@ function ENT:UpdateSources()
   self:ResetInternals()
   self:ProcessSources()
 
-  if(self.hitSize > 0) then
+  if(self.crWireID > 0) then
     self:UpdateDominant()
   else
     self:UpdateOutputs()

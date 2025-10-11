@@ -64,7 +64,7 @@ function ENT:Think()
   self:UpdateInit()
   self:UpdateSources()
 
-  if(self.hitSize > 0) then
+  if(self.crWireID > 0) then
     self:SetOn(true)
   else
     self:SetOn(false)
