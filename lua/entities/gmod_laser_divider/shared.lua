@@ -19,7 +19,7 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/do
 local gnDOTM = LaserLib.GetData("DOTM")
 
 function ENT:UpdateInternals()
-  self.crWireID = 0 -- Add sources in array
+  self.crSorsID = 0 -- Add sources in array
   self.crBeamID = 0 -- Current bean index
   return self
 end
@@ -32,8 +32,8 @@ function ENT:SetupDataTables()
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 -- Override the beam transformation
@@ -45,11 +45,11 @@ end
 
 function ENT:InitSources()
   if(SERVER) then
-    self.hitSources = {} -- Sources in notation `[ent] = true`
+    self.meSources = {} -- Sources in notation `[ent] = true`
     self:InitArrays("Array")
   else
-    if(not self.hitSources) then
-      self.hitSources = {} -- Sources in notation `[ent] = true`
+    if(not self.meSources) then
+      self.meSources = {} -- Sources in notation `[ent] = true`
       self:InitArrays("Array")
     end
   end

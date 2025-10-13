@@ -8,8 +8,8 @@ local gnCTOL  = LaserLib.GetData("CTOL")
 local gcWHITE = LaserLib.GetColor("WHITE")
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:ResetInternals()
@@ -17,7 +17,7 @@ function ENT:ResetInternals()
   self.crDirect:SetUnpacked(0,0,0)
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
-  self.crWireID , self.crNormh , self.crDomsrc = 0, false, nil
+  self.crSorsID , self.crNormh , self.crDomsrc = 0, false, nil
   self.crColor.r, self.crColor.g = 0, 0
   self.crColor.b, self.crColor.a = 0, 0
   return self
@@ -33,7 +33,7 @@ end
 
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
-  self.hitSources = {} -- Entity sources in notation `[ent] = true`
+  self.meSources = {} -- Entity sources in notation `[ent] = true`
   self.pssSources = {
     Size = 0,  -- Contains the loop upper limit
     Time = 0,  -- Contains the current time for pass-trough
@@ -298,7 +298,7 @@ function ENT:UpdateSources()
   self:ResetInternals()
   self:ProcessSources()
 
-  if(self.crWireID > 0) then
+  if(self.crSorsID > 0) then
     self:UpdateDominant()
   else
     self:UpdateOutputs()

@@ -27,16 +27,16 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   LaserLib.Configure(self)
-  self.hitSources = {}
+  self.meSources = {}
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:GetOn()
-  local src = self.hitSources
+  local src = self.meSources
   if(not src) then return false end
   LaserLib.Print("ON:", table.IsEmpty(src))
   return (not table.IsEmpty(src))

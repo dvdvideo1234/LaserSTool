@@ -8,7 +8,7 @@ local gnCLMX = LaserLib.GetData("CLMX")
 
 function ENT:UpdateInternals(once)
   if(once) then
-    self.crWireID = 0
+    self.crSorsID = 0
     self.crXlength, self.crBpower = nil, nil
     self.crXforce , self.crXwidth, self.crXdamage = nil, nil, nil
     self.crOpower , self.crNpower, self.crForce   = nil, nil, nil
@@ -17,7 +17,7 @@ function ENT:UpdateInternals(once)
     self.crDomcor = Color(0,0,0,0)
     self.crXomcor = Color(0,0,0,0)
   else
-    self.crWireID = 0 -- Add sources in array
+    self.crSorsID = 0 -- Add sources in array
     self.crXlength, self.crBpower = 0, false
     self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
     self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
@@ -32,13 +32,13 @@ function ENT:UpdateInternals(once)
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:InitSources()
   self:UpdateInternals(true) -- Amount of sources to have
-  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self.meSources = {} -- Sources in notation `[ent] = true`
   self:InitArrays("Array")
   return self
 end
@@ -192,9 +192,9 @@ function ENT:UpdateSources()
   self:UpdateInternals()
   self:ProcessSources()
 
-  print("asdasdasd", self.crWireID)
+  print("asdasdasd", self.crSorsID)
 
-  if(self.crWireID > 0) then
+  if(self.crSorsID > 0) then
     if(self:GetBeamColorMerge()) then
       if(self.crBpower) then -- No infinite
         self:DominantColor(self.crDobeam, self.crDomcor)
@@ -231,7 +231,7 @@ function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetBeamDamage()
 
-  if(self.crWireID > 0 and LaserLib.IsPower(mwidth, mdamage)) then
+  if(self.crSorsID > 0 and LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)

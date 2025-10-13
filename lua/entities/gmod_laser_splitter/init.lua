@@ -18,12 +18,12 @@ function ENT:UpdateInternals()
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:InitSources()
-  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self.meSources = {} -- Sources in notation `[ent] = true`
   return self
 end
 

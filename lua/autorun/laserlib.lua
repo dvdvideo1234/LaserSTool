@@ -995,7 +995,7 @@ function LaserLib.Clear(arr, idx)
   if(not arr) then return end
   local idx = math.floor(tonumber(idx) or 1)
   if(idx <= 0) then return end
-  while(arr[idx]) do idx, arr[idx] = (idx + 1) end
+  while(arr[idx]) do idx, arr[idx] = (idx + 1), nil end
 end
 
 --[[
@@ -1396,7 +1396,7 @@ function LaserLib.Configure(unit)
   ]]
   function unit:UpdateInit()
     local time = CurTime()
-    self.crBeamID, self.crWireID = 0, 0
+    self.crBeamID, self.crSorsID = 0, 0
     if(SERVER) then -- Damage exists only on the server
       self.isDamage = false -- Reset the frame damage
       if(not self.nxDamage or time > self.nxDamage) then
@@ -1423,11 +1423,11 @@ function LaserLib.Configure(unit)
     if(LaserLib.IsValid(ent)) then -- Invalid entities cannot do infinite loops
       if(set[ent]) then return false end -- This has already been checked for infinite
       if(ent == self) then return true else set[ent] = true end -- Check and register
-      if(LaserLib.IsBeam(ent) and ent.hitSources) then -- Can output names and has sources
-        for src, stat in pairs(ent.hitSources) do -- Other hits and we are in its sources
+      if(LaserLib.IsBeam(ent) and ent.meSources) then -- Can output names and has sources
+        for src, stat in pairs(ent.meSources) do -- Other hits and we are in its sources
           if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
             if(src == self) then return true end -- Performance optimization
-            if(LaserLib.IsBeam(src) and src.hitSources) then -- Class propagates the tree
+            if(LaserLib.IsBeam(src) and src.meSources) then -- Class propagates the tree
               if(self:IsInfinite(src, set)) then return true end end
           end -- Cascades propagate trough the crystal sources from `self`
         end; return false -- The entity does not persists in itself
@@ -1441,33 +1441,35 @@ function LaserLib.Configure(unit)
    * Returns hit report stack size
   ]]
   function unit:GetHitReportMax()
-    local ros = self.hitReports
+    local ros = self.mrReports
     if(not ros) then return 0 end
     return ros.Size or 0
   end
 
   --[[
    * Removes hit reports from the list according to new size
-   * rovr > When remove overhead is provided deletes
-            all entries with larger index
+   * rovr > When remove overhead is provided
+       [number]    > Trims the array to the input size
+       [true]      > Trims the array to report size
+       [false/nil] > clears the array and removes all
    * wipe > Forced wiping control on size change def. true
-   * Data is stored in notation: self.hitReports[ID]
+   * Data is stored in notation: self.mrReports[ID]
   ]]
   function unit:SetHitReportMax(rovr, wipe)
-    if(self.hitReports) then
-      local ros, idx = self.hitReports
+    if(self.mrReports) then
+      local ros, idx = self.mrReports
       local wipe = (wipe or wipe == nil)
       if(rovr) then -- Overhead mode
-        local rovr = (tonumber(rovr) or 0)
-        idx, ros.Size = (rovr + 1), rovr
+        local rovr = tonumber(rovr)
+        if(rovr) then -- A number as size
+          rovr = math.max(rovr, 0)
+          rovr = math.floor(rovr)
+          idx, ros.Size = (rovr + 1), rovr
+        else idx = (ros.Size + 1) end
       else idx, ros.Size = 1, 0 end
-      -- Wipe selected items
-      if(wipe) then
-        while(ros[idx]) do
-          ros[idx] = nil
-          idx = idx + 1
-        end
-      end
+      if(wipe) then -- Wipe selected items
+        LaserLib.Clear(dat, idx)
+      end -- Array has been refreshed
     end; return self
   end
 
@@ -1477,17 +1479,17 @@ function LaserLib.Configure(unit)
    * ent  > Reporter entity to be checked
    * idx  > Forced index to check for hit report. Not mandatory
    * bri  > Search from `idx` as start hit report index. Not mandatory
-   * Data is stored in notation: self.hitReports[ID]
+   * Data is stored in notation: self.mrReports[ID]
   ]]
   function unit:GetHitSourceID(ent, idx, bri)
-    LaserLib.Print("  GetHitSourceID-1", tostring(self)..":"..tostring(ent), self.crWireID)
+    LaserLib.Print("  GetHitSourceID-1", tostring(self)..":"..tostring(ent), self.crSorsID)
     if(not LaserLib.IsUnit(ent)) then return nil end -- Invalid
     if(ent == self) then return nil end -- Cannot be source to itself
-    if(not self.hitSources[ent]) then return nil end -- Not source
+    if(not self.meSources[ent]) then return nil end -- Not source
     if(not ent:GetOn()) then return nil end -- Unit is not powered on
-    local ros = ent.hitReports -- Retrieve and localize hit reports
+    local ros = ent.mrReports -- Retrieve and localize hit reports
     if(not ros) then return nil end -- No hit reports. Exit at once
-    LaserLib.Print("  GetHitSourceID-2", self.crWireID)
+    LaserLib.Print("  GetHitSourceID-2", self.crSorsID)
     if(idx and not bri) then -- Retrieve the report requested by ID
       local beam = ent:GetHitReport(idx) -- Retrieve beam report
       LaserLib.Print("  GetHitSourceID-3", tostring(beam))
@@ -1514,7 +1516,7 @@ function LaserLib.Configure(unit)
   ]]
   function unit:GetHitReport(idx)
     if(not idx) then return end
-    local ros = self.hitReports
+    local ros = self.mrReports
     if(not ros) then return nil end
     return ros[idx]
   end
@@ -1528,9 +1530,8 @@ function LaserLib.Configure(unit)
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam)
-    local ros = self.hitReports
+    local ros = self.mrReports
     local idx = (ros.Size + 1)
-    local vos = self:GetHitReport(idx)
     LaserLib.Print("  SetHitReport["..idx.."]["..ros.Size.."]["..beam.BmRecsHD.."]["..beam.BmIdenty.."]", tostring(self), tostring(beam))
     ros[idx] = beam; ros.Size = idx; return self -- Coding effective API
   end
@@ -1562,7 +1563,7 @@ function LaserLib.Configure(unit)
     end -- When the have dedicated method to apply on each source
     local idx = self:GetHitSourceID(ent)
     LaserLib.Print("ProcessReports-1", idx)
-    if(idx) then local siz = ent.hitReports.Size
+    if(idx) then local siz = ent.mrReports.Size
       LaserLib.Print("ProcessReports-2", siz)
       if(each) then local suc, err = pcall(each, self, ent, idx)
         if(not suc) then self:Remove(); error(err); return false end
@@ -1600,16 +1601,16 @@ function LaserLib.Configure(unit)
     local proc, each = (proc or self.EveryBeam ), (each or self.EverySource)
     local apre, post = (apre or self.PreProcess), (post or self.PostProcess)
     LaserLib.Print("ProcessSources-1")
-    if(not self.hitSources) then return false end
+    if(not self.meSources) then return false end
     LaserLib.Print("ProcessSources-2")
-    for ent, hit in pairs(self.hitSources) do -- For all registered source entities
+    for ent, hit in pairs(self.meSources) do -- For all registered source entities
       LaserLib.Print("ProcessSources-3", tostring(ent))
       if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
         LaserLib.Print("ProcessSources-4", tostring(ent))
         if(not self:ProcessReports(ent, proc, each, apre, post)) then -- Proceed sources
-          self.hitSources[ent] = nil -- Remove the entity from the list
+          self.meSources[ent] = nil -- Remove the entity from the list
         end -- Check when there is any hit report that is processed correctly
-      else self.hitSources[ent] = nil end -- Delete the entity when force skipped
+      else self.meSources[ent] = nil end -- Delete the entity when force skipped
     end; return true -- There are hit reports and all are processed correctly
   end
 
@@ -1618,16 +1619,15 @@ function LaserLib.Configure(unit)
   --[[
    * Initializes array definitions and creates a list
    * that is derived from the string arguments.
-   * This will create arrays in notation `self.hit%NAME`
    * Pass `false` as name to skip the wire output
   ]]
   function unit:InitArrays(...)
     local arg = {...}
     local num = #arg
     if(num <= 0) then return self end
-    self.hitSetup = {Size = num}
+    self.maSetup = {Size = num}
     for idx = 1, num do local nam = arg[idx]
-      self.hitSetup[idx] = {Name = nam, Data = {}}
+      self.maSetup[idx] = {Name = nam, Data = {}}
     end; return self
   end
 
@@ -1637,9 +1637,9 @@ function LaserLib.Configure(unit)
    * Designed to be called at the end of sources process
   ]]
   function unit:UpdateArrays()
-    local set = self.hitSetup
+    local set = self.maSetup
     if(not set) then return self end
-    local idx = (tonumber(self.crWireID) or 0)
+    local idx = (tonumber(self.crSorsID) or 0)
     for cnt = 1, set.Size do local wsr = set[cnt]
       if(wsr and wsr.Data) then LaserLib.Clear(wsr.Data, idx + 1) end
     end; set.Save = nil -- Clear the last top entity
@@ -1652,17 +1652,17 @@ function LaserLib.Configure(unit)
    * The first array must always hold valid source entities
   ]]
   function unit:SetArrays(...)
-    LaserLib.Print("SetArrays", self.crWireID)
-    local set = self.hitSetup
+    LaserLib.Print("SetArrays", self.crSorsID)
+    local set = self.maSetup
     if(not set) then return self end
-    local arg, idx = {...}, self.crWireID
+    local arg, idx = {...}, self.crSorsID
     if(set.Save == arg[1]) then return self end
     if(not set.Save) then set.Save = arg[1] end
     idx = (tonumber(idx) or 0) + 1
     for cnt = 1, set.Size do
       local wsr = set[cnt]
       wsr.Data[idx] = arg[cnt]
-    end; self.crWireID = idx
+    end; self.crSorsID = idx
     return self
   end
 
@@ -1671,9 +1671,9 @@ function LaserLib.Configure(unit)
   ]]
   function unit:WireArrays()
     if(CLIENT) then return self end
-    local set = self.hitSetup
+    local set = self.maSetup
     if(not set) then return self end
-    local idx = (tonumber(self.crWireID) or 0)
+    local idx = (tonumber(self.crSorsID) or 0)
     self:WireWrite("Count", idx)
     for cnt = 1, set.Size do -- Copy values to arrays
       local wsr = set[cnt]
@@ -1764,7 +1764,7 @@ end
 function LaserLib.DrawAssistReports(vbb, erp, nar, rev)
   if(SERVER) then return end -- Server can go out now
   if(not LaserLib.IsValid(erp)) then return end
-  for idx = 1, erp.hitReports.Size do
+  for idx = 1, erp.mrReports.Size do
     local beam = erp:GetHitReport(idx)
     if(beam) then local tvp = beam.TvPoints
       for idp = 2, tvp.Size do
@@ -1791,7 +1791,7 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
       LaserLib.IsUnit(ent) and tre ~= ent)
     then -- Move targets to the trace entity beam
       local vbb = ent:LocalToWorld(ent:OBBCenter())
-      local ros = (tre and tre.hitReports or nil)
+      local ros = (tre and tre.mrReports or nil)
       if(ros and ros.Size and ros.Size > 0) then
         LaserLib.DrawAssistReports(vbb, tre, ncst)
       else
@@ -1809,7 +1809,7 @@ function LaserLib.DrawAssist(org, dir, ray, tre, ply)
       if(tre ~= ent and not ecs ~= cas and
          LaserLib.IsValid(ent) and ecs:find(cas, 1, true))
       then -- Move trace entity to the targets beam
-        local ros = (ent and ent.hitReports or nil)
+        local ros = (ent and ent.mrReports or nil)
         if(ros and ros.Size and ros.Size > 0) then
           LaserLib.DrawAssistReports(vbb, ent, ncst, true)
         else
@@ -3815,14 +3815,14 @@ function mtBeam:SourceFilter(entity, ...)
   else -- Switch the filter according to the weapon the player is holding
     self.BmSource, self.TeFilter = entity, {entity, ...}
   end;
-  local repor = self.BmSource.hitReports
+  local repor = self.BmSource.mrReports
   local index = self.BmSource.crBeamID
         index = math.max(tonumber(index) or 0, 0) + 1
   self.BmIdenty = index-- Beam hit report index. Defaults to one if not provided
   self.BmSource.crBeamID = index -- Current source hit report ID
   if(not repor) then
-    self.BmSource.hitReports = {Size = 0}
-    repor = self.BmSource.hitReports
+    self.BmSource.mrReports = {Size = 0}
+    repor = self.BmSource.mrReports
   end
 
 
@@ -3852,8 +3852,8 @@ function mtBeam:UpdateSource(trace)
   if(self.BmRecsHD == 0) then -- Recursive
     local index = self.BmSource.crBeamID
     LaserLib.Print("UpdateSource", self.BmRecsHD, index)
-    for i = 1, sorce.hitReports.Size do
-      local v = sorce.hitReports[i]
+    for i = 1, sorce.mrReports.Size do
+      local v = sorce.mrReports[i]
       if(v) then
         LaserLib.Print("  UpdateSource-1", i, tostring(v))
         local t = v:GetTarget()

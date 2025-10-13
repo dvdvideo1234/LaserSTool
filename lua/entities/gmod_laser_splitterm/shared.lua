@@ -21,7 +21,7 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:UpdateInternals()
-  self.crWireID = 0 -- Add sources in array
+  self.crSorsID = 0 -- Add sources in array
   self.crBeamID = 0 -- Current bean index
   self.crCount = self:GetBeamCount()
   return self
@@ -42,8 +42,8 @@ function ENT:SetupDataTables()
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 -- Override the beam transformation
@@ -106,11 +106,11 @@ end
 
 function ENT:InitSources()
   if(SERVER) then
-    self.hitSources = {} -- Sources in notation `[ent] = true`
+    self.meSources = {} -- Sources in notation `[ent] = true`
     self:InitArrays("Array")
   else
-    if(not self.hitSources) then
-      self.hitSources = {} -- Sources in notation `[ent] = true`
+    if(not self.meSources) then
+      self.meSources = {} -- Sources in notation `[ent] = true`
       self:InitArrays("Array")
     end
   end; return self

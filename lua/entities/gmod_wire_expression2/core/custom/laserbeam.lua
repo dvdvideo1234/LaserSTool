@@ -41,7 +41,7 @@ end
 ]]
 local function getReport(ent, idx, typ)
   if(not LaserLib.IsUnit(ent)) then return nil end
-  local rep = ent.hitReports; if(not rep) then return nil end
+  local rep = ent.mrReports; if(not rep) then return nil end
   local siz = rep.Size; if(not siz) then return nil end
   if(idx <= 0 or idx > siz) then return nil end
   rep = rep[idx]; if(not rep) then return nil end
