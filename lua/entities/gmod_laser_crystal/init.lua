@@ -192,8 +192,6 @@ function ENT:UpdateSources()
   self:UpdateInternals()
   self:ProcessSources()
 
-  print("asdasdasd", self.crSorsID)
-
   if(self.crSorsID > 0) then
     if(self:GetBeamColorMerge()) then
       if(self.crBpower) then -- No infinite
@@ -260,11 +258,11 @@ function ENT:Think()
 
     self:DoDamage(beam)
   else
-    self:SetHitReportMax()
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)
     self:WireWrite("Target")
     self:WireWrite("Dominant")
+    self:SetHitReportMax()
   end
 
   self:WireArrays()

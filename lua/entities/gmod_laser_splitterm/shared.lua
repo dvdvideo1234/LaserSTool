@@ -199,23 +199,23 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * bmex > Source trace beam class
+ * bmsr > Source trace beam class
  * vdot > Dot product with surface normal
 ]]
-function ENT:DoBeam(ent, org, dir, bmex, vdot)
+function ENT:DoBeam(ent, org, dir, bmsr, vdot)
   self.crBeamID = self.crBeamID + 1
   local todiv = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
-  local beam = LaserLib.Beam(org, dir, bmex.NvLength)
-        beam:SetSource(self, ent, bmex:GetSource())
-        beam:SetWidth(LaserLib.GetWidth(bmex.NvWidth / todiv))
-        beam:SetDamage(bmex.NvDamage / todiv)
-        beam:SetForce(bmex.NvForce  / todiv)
-        beam:SetFgDivert(bmex.BrReflec, bmex.BrRefrac)
-        beam:SetFgTexture(bmex.BmNoover, false)
+  local beam = LaserLib.Beam(org, dir, bmsr.NvLength)
+        beam:SetSource(self, ent, bmsr:GetSource())
+        beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
+        beam:SetDamage(bmsr.NvDamage / todiv)
+        beam:SetForce(bmsr.NvForce  / todiv)
+        beam:SetFgDivert(bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, false)
         beam:SetBounces()
   if(self:GetBeamColorSplit()) then
     local cnt = (self.crBeamID % self.crCount + 1)
-    local r, g, b, a = bmex:GetColorRGBA()
+    local r, g, b, a = bmsr:GetColorRGBA()
           r, g, b = LaserLib.GetColorID(cnt, r, g, b)
     beam:SetColorRGBA(r, g, b, a)
   end

@@ -158,7 +158,7 @@ function ENT:EveryBeam(entity, index, beam)
   if(trace and trace.Hit) then
     local norm = self:GetUnitDirection()
     local bdot, mdot = self:GetHitPower(norm, beam, trace)
-    self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
+    self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
       self.crNpower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
       self.crWidth  = self.crWidth  + beam.NvWidth

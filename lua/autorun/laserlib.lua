@@ -17,6 +17,7 @@ DATA.NUGE = 2                  -- Nudge amount for origin vectors back-tracing
 DATA.MINW = 0.05               -- Minimum width to be considered visible
 DATA.DOTM = 0.01               -- Collinearity and dot product margin check
 DATA.POWL = 0.001              -- Lowest bounds of laser power
+DATA.ZEPS = 1e-10              -- General use epsilon nera zero value
 DATA.BRAD = 2.5                -- How much the bounding radius is scaled for back-trace
 DATA.ERAD = 1.5                -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.27               -- Beam back trace width when refracting
@@ -1450,8 +1451,10 @@ function LaserLib.Configure(unit)
    * Removes hit reports from the list according to new size
    * rovr > When remove overhead is provided
        [number]    > Trims the array to the input size
-       [true]      > Trims the array to report size
-       [false/nil] > clears the array and removes all
+       [true]      > Trims the array to report ID
+       [false]     > Trims the array to report size
+       [nil]       > Clears the array and removes all
+
    * wipe > Forced wiping control on size change def. true
    * Data is stored in notation: self.mrReports[ID]
   ]]
@@ -1459,13 +1462,17 @@ function LaserLib.Configure(unit)
     if(self.mrReports) then
       local ros, idx = self.mrReports
       local wipe = (wipe or wipe == nil)
-      if(rovr) then -- Overhead mode
-        local rovr = tonumber(rovr)
-        if(rovr) then -- A number as size
-          rovr = math.max(rovr, 0)
-          rovr = math.floor(rovr)
-          idx, ros.Size = (rovr + 1), rovr
-        else idx = (ros.Size + 1) end
+      if(rovr != nil) then -- Overhead mode
+        local conv = tonumber(rovr)
+        if(conv) then -- A number as size
+          conv = math.max(conv, 0)
+          conv = math.floor(conv)
+          idx, ros.Size = (conv + 1), conv
+        else -- Trat as boolean
+          if(rovr) then
+            ros.Size = self.crBeamID
+          end; idx = (ros.Size + 1)
+        end
       else idx, ros.Size = 1, 0 end
       if(wipe) then -- Wipe selected items
         LaserLib.Clear(dat, idx)
@@ -1482,29 +1489,19 @@ function LaserLib.Configure(unit)
    * Data is stored in notation: self.mrReports[ID]
   ]]
   function unit:GetHitSourceID(ent, idx, bri)
-    LaserLib.Print("  GetHitSourceID-1", tostring(self)..":"..tostring(ent), self.crSorsID)
     if(not LaserLib.IsUnit(ent)) then return nil end -- Invalid
     if(ent == self) then return nil end -- Cannot be source to itself
     if(not self.meSources[ent]) then return nil end -- Not source
     if(not ent:GetOn()) then return nil end -- Unit is not powered on
     local ros = ent.mrReports -- Retrieve and localize hit reports
     if(not ros) then return nil end -- No hit reports. Exit at once
-    LaserLib.Print("  GetHitSourceID-2", self.crSorsID)
     if(idx and not bri) then -- Retrieve the report requested by ID
       local beam = ent:GetHitReport(idx) -- Retrieve beam report
-      LaserLib.Print("  GetHitSourceID-3", tostring(beam))
       if(beam) then local trace = beam:GetTarget()
-        if(trace) then
-          LaserLib.Print("  GetHitSourceID-4", trace.Hit, tostring(self), tostring(trace.Entity))
-        end
         if(trace and trace.Hit and self == trace.Entity) then return idx end end
     else local anc = (bri and idx or 1) -- Check all the entity reports for possible hits
       for cnt = anc, ros.Size do local beam = ent:GetHitReport(cnt)
-        LaserLib.Print("  GetHitSourceID-5["..cnt.."]", tostring(beam))
         if(beam) then local trace = beam:GetTarget()
-          if(trace) then
-            LaserLib.Print("  GetHitSourceID-6["..cnt.."]", trace.Hit, tostring(self), tostring(trace.Entity))
-          end
           if(trace and trace.Hit and self == trace.Entity) then return cnt end end
       end -- The hit report list is scanned and no reports are found hitting us `self`
     end; return nil -- Tell requestor we did not find anything that hits us `self`
@@ -1530,10 +1527,9 @@ function LaserLib.Configure(unit)
    * beam  > Beam structure to register
   ]]
   function unit:SetHitReport(beam)
-    local ros = self.mrReports
-    local idx = (ros.Size + 1)
-    LaserLib.Print("  SetHitReport["..idx.."]["..ros.Size.."]["..beam.BmRecsHD.."]["..beam.BmIdenty.."]", tostring(self), tostring(beam))
-    ros[idx] = beam; ros.Size = idx; return self -- Coding effective API
+    local ros, idx = self.mrReports, (self.crBeamID + 1)
+    if(not ros) then self.mrReports = {Size = 0}; ros = self.mrReports end
+    ros[idx] = beam; ros.Size, self.crBeamID = idx, idx; return self -- Coding effective API
   end
 
   --[[
@@ -1562,16 +1558,13 @@ function LaserLib.Configure(unit)
       if(not suc) then self:Remove(); error(err); return false end
     end -- When the have dedicated method to apply on each source
     local idx = self:GetHitSourceID(ent)
-    LaserLib.Print("ProcessReports-1", idx)
     if(idx) then local siz = ent.mrReports.Size
-      LaserLib.Print("ProcessReports-2", siz)
       if(each) then local suc, err = pcall(each, self, ent, idx)
         if(not suc) then self:Remove(); error(err); return false end
       end -- When the have dedicated method to apply on each source
       if(proc) then -- Trigger the beam processing routine
         while(idx and idx <= siz) do -- First index always hits when present
           local beam = ent:GetHitReport(idx) -- When the report hits us
-          LaserLib.Print("ProcessReports-3", idx, tostring(ent), tostring(beam))
           local suc, err = pcall(proc, self, ent, idx, beam) -- Call process
           if(not suc) then self:Remove(); error(err); return false end
           idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
@@ -1600,13 +1593,9 @@ function LaserLib.Configure(unit)
   function unit:ProcessSources(proc, each, apre, post)
     local proc, each = (proc or self.EveryBeam ), (each or self.EverySource)
     local apre, post = (apre or self.PreProcess), (post or self.PostProcess)
-    LaserLib.Print("ProcessSources-1")
     if(not self.meSources) then return false end
-    LaserLib.Print("ProcessSources-2")
     for ent, hit in pairs(self.meSources) do -- For all registered source entities
-      LaserLib.Print("ProcessSources-3", tostring(ent))
       if(hit and LaserLib.IsValid(ent)) then -- Process only valid hits from the list
-        LaserLib.Print("ProcessSources-4", tostring(ent))
         if(not self:ProcessReports(ent, proc, each, apre, post)) then -- Proceed sources
           self.meSources[ent] = nil -- Remove the entity from the list
         end -- Check when there is any hit report that is processed correctly
@@ -1652,7 +1641,6 @@ function LaserLib.Configure(unit)
    * The first array must always hold valid source entities
   ]]
   function unit:SetArrays(...)
-    LaserLib.Print("SetArrays", self.crSorsID)
     local set = self.maSetup
     if(not set) then return self end
     local arg, idx = {...}, self.crSorsID
@@ -1764,13 +1752,19 @@ end
 function LaserLib.DrawAssistReports(vbb, erp, nar, rev)
   if(SERVER) then return end -- Server can go out now
   if(not LaserLib.IsValid(erp)) then return end
+  local wave = true
   for idx = 1, erp.mrReports.Size do
     local beam = erp:GetHitReport(idx)
-    if(beam) then local tvp = beam.TvPoints
-      for idp = 2, tvp.Size do
-        local org, nxt = tvp[idp - 1], tvp[idp - 0]
-        local dir = (nxt[1] - org[1]); dir:Normalize()
-        LaserLib.DrawAssistOBB(vbb, org[1], dir, nar, rev)
+    if(beam) then
+      local wln = beam.BmWaveLn
+      local tvp = beam.TvPoints
+      if(wln == 0 or (wln > 0 and wave)) then
+        wave = false
+        for idp = 2, tvp.Size do
+          local org, nxt = tvp[idp - 1], tvp[idp - 0]
+          local dir = (nxt[1] - org[1]); dir:Normalize()
+          LaserLib.DrawAssistOBB(vbb, org[1], dir, nar, rev)
+        end
       end
     end
   end
@@ -3207,9 +3201,10 @@ end
  * Returns the adjusted temporary
  * margn > Margin to adjust the temporary with
 ]]
-function mtBeam:GetNudge(margn)
+function mtBeam:GetNudge(mar)
   local vtm = self.__vtorg
-  vtm:Set(self.VrDirect); vtm:Mul(margn)
+  local mar = (tonumber(mar) or DATA.NUGE)
+  vtm:Set(self.VrDirect); vtm:Mul(mar)
   vtm:Add(self.VrOrigin); return vtm
 end
 
@@ -3814,23 +3809,7 @@ function mtBeam:SourceFilter(entity, ...)
     if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly, ...} end
   else -- Switch the filter according to the weapon the player is holding
     self.BmSource, self.TeFilter = entity, {entity, ...}
-  end;
-  local repor = self.BmSource.mrReports
-  local index = self.BmSource.crBeamID
-        index = math.max(tonumber(index) or 0, 0) + 1
-  self.BmIdenty = index-- Beam hit report index. Defaults to one if not provided
-  self.BmSource.crBeamID = index -- Current source hit report ID
-  if(not repor) then
-    self.BmSource.mrReports = {Size = 0}
-    repor = self.BmSource.mrReports
-  end
-
-
-  if(self.BmRecsHD == 0) then
-    LaserLib.Print("SourceFilter", self.BmIdenty)
-  end
-
-  return self
+  end; return self
 end
 
 --[[
@@ -3849,22 +3828,13 @@ function mtBeam:UpdateSource(trace)
     -- Update the current beam source hit report
     sorce:SetHitReport(self) -- What we just hit
   end -- Register us to the target sources table
-  if(self.BmRecsHD == 0) then -- Recursive
-    local index = self.BmSource.crBeamID
-    LaserLib.Print("UpdateSource", self.BmRecsHD, index)
-    for i = 1, sorce.mrReports.Size do
-      local v = sorce.mrReports[i]
-      if(v) then
-        LaserLib.Print("  UpdateSource-1", i, tostring(v))
-        local t = v:GetTarget()
-        if(t) then
-          LaserLib.Print("  UpdateSource-2",  tostring(t.Entity))
-        end
-      end
+  if(self.BmRecuLS == 0) then -- Recurse stage surface
+    -- In case hit eports trim is sefuned. Trim array
+    if(sorce.SetHitReportMax) then
+      -- Every surface recursive level will trim entries
+      sorce:SetHitReportMax(true) -- Use enity trim
     end
-    sorce:SetHitReportMax(index) -- Update reports
   end -- We need to apply the top index hit reports count
-  LaserLib.Print("  UpdateSource-3 ["..self.BmIdenty.."]",  tostring(target), tostring(sorce))
   if(LaserLib.IsValid(target) and target.RegisterSource) then
     -- Register the beam initial entity to target sources
     target:RegisterSource(sorce) -- Register target in sources
@@ -4410,7 +4380,7 @@ DATA.ACTORS = {
       local pss = ent.pssSources
       local src = beam:GetSource()
       if(LaserLib.IsValid(src)) then
-        local idx, pdt = beam.BmIdenty, pss.Data
+        local idx, pdt = src.crBeamID, pss.Data
         local pky = DATA.FPSS:format(src:EntIndex(), idx)
         local dat = pdt[pky]; pss.Time = CurTime()
         local tcb, bcn = pss.Copy, false
@@ -4716,7 +4686,7 @@ end
  * vOrg > Provide beam start for splitter source entities
  * tRef > Refraction sodium line configuration
 ]]
-function mtBeam:IsDisperse(vOrg, tRef)
+function mtBeam:IsDisperse(vOrg, vDir, tRef)
   if(not self.BmDisper) then return false end
   if(self.BmWaveLn > 0) then return false end
   local cB = self:GetColorBase()
@@ -4726,26 +4696,30 @@ function mtBeam:IsDisperse(vOrg, tRef)
   local brn = self.BmBranch -- Index branch table
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
-  local cnt = (tW.IE - tW.IS + 1)
-  local tar = self:GetTarget()
-  local len, nor = self.NvLength, tar.HitNormal
+  local cnt, mar = (tW.IE - tW.IS + 1), 0.1
+  local tar, ovr = self:GetTarget(), self.BmNoover
+  local len, nor = (self.NvLength + mar), tar.HitNormal
   local src, sro = self.BmSource, tar.Entity
   local rle, rfr = self:GetFgDivert()
-  local wih = (self:GetWidth()  / cnt)
+  local wih = (self:GetWidth() / cnt)
+        wih = LaserLib.GetWidth(wih)
   local dmg = (self:GetDamage() / cnt)
   local frc = (self:GetForce()  / cnt)
-  local org = (vOrg or self.BmTarget.HitPos)
-  local dir, ovr = self.VrDirect, self.BmNoover
+  local org = Vector(vOrg or self.BmTarget.HitPos)
+  local dir = Vector(vDir or self.VrDirect)
   local sr, sg, sb, sa = self:GetColorRGBA()
   self:Finish(); tar.NoEffect = true
+  LaserLib.Print("BASE", "---------", self:GetWidth())
+  LaserLib.PrintTable(self)
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
     local beam = LaserLib.Beam(org, dir, len)
+    beam.VrOrigin:Set(beam:GetNudge(-mar))
     local r = (recw.C.r * recw.P)
     local g = (recw.C.g * recw.P)
     local b = (recw.C.b * recw.P)
     beam:SetSource(src, src)
-    beam:SetWidth(wih)
+    beam:SetWidth(wih * recw.P)
     beam:SetDamage(dmg * recw.P)
     beam:SetForce(frc * recw.P)
     beam:SetFgDivert(rle, rfr)
@@ -4755,9 +4729,8 @@ function mtBeam:IsDisperse(vOrg, tRef)
     beam:SetColorRGBA(r, g, b, sa)
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
-    brn.Size = brn.Size + 1
-    beam:Run(self.BmRecsHD + 1)
-    table.insert(brn, beam)
+    beam:Run(self.BmRecuLS + 1, "DSP"..iW)
+    brn.Size = table.insert(brn, beam)
   end; return true
 end
 
@@ -4767,7 +4740,7 @@ LaserLib.PrintEn(SERVER)
  * Traces a laser beam from the entity provided
  * iStg > Recursion stage used to identify recursion depth
 ]]
-function mtBeam:Run(iStg)
+function mtBeam:Run(iStg, sID)
   -- References to reflect and refract definitions
   local g_reflect, g_refract = DATA.REFLECT, DATA.REFRACT
   -- Temporary values that are considered local and do not need to be accessed by hit reports
@@ -4775,9 +4748,9 @@ function mtBeam:Run(iStg)
   -- Store general definition of air and water mediums for fast usage and indexing
   local mewat, meair, merum = mtBeam.__mewat, mtBeam.__meair, self.TrMedium -- Local reference
   -- Reports dedicated values that are being used by other entities and processes
-  self.BmRecsHD = math.max(tonumber(iStg) or 0, 0) -- Beam recursion depth for units that use it
-  if(self.BmRecsHD == 0) then
-    LaserLib.Print("Run", tostring(self.BmSource), self.BmRecsHD, SysTime())
+  self.BmRecuLS = math.max(tonumber(iStg) or 0, 0) -- Beam recursion depth for units that use it
+  if(self.BmRecuLS == 0) then
+    LaserLib.Print("Run", tostring(self.BmSource), self.BmRecuLS, SysTime())
   end
 
   -- Allocate source, destination and memory mediums
@@ -4787,10 +4760,21 @@ function mtBeam:Run(iStg)
   -- Calculate the output location
   self:SetTraceExit()
   -- Start tracing the beam
+
+  if(sID == "DSP1") then
+    LaserLib.Print(sID, "-------------")
+    self.BmPrintID = sID
+  end
+
   repeat
     self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
+    if(self.BmPrintID == "DSP1" and self:IsFirst()) then
+      LaserLib.Print(self.BmPrintID, self.NvBounce)
+      LaserLib.PrintTable(self)
+    end
+
     -- Check medium contents to know what to do when beam starts inside map solid
     if(self:IsFirst()) then -- Initial start so the beam separates from the laser
       self.TeFilter = nil -- The trace starts inside solid, switch content medium
@@ -4888,7 +4872,7 @@ function mtBeam:Run(iStg)
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Check whenever dispersion is enabled and try to decompose
-                  if(not self:IsDisperse(nil, refract)) then
+                  if(not self:IsDisperse(nil, nil, refract)) then
                     -- The beam is monochromatic and should not be branched
                     -- Calculated refraction ray. Reflect when not possible
                     local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
@@ -4966,7 +4950,7 @@ function mtBeam:Run(iStg)
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
                   -- Check whenever dispersion is enabled and try to decompose
-                  if(not self:IsDisperse(nil, refract)) then
+                  if(not self:IsDisperse(nil, nil, refract)) then
                     -- The beam is monochromatic and should not be branched
                     -- Define water surface as of air-water beam interaction
                     self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)
@@ -5007,7 +4991,15 @@ function mtBeam:Run(iStg)
   -- Clear the water trigger refraction flag
   self:ClearWater()
 
-  LaserLib.Print("  Run["..self.BmRecsHD.."]["..self.BmIdenty.."]", tostring(self.BmTarget.Entity))
+  LaserLib.Print("  Run["..self.BmRecuLS.."]", tostring(self.BmTarget.Entity))
+
+  if(self.BmRecuLS == 1 and self.BmSource.crBeamID == 1) then
+    if(SERVER) then
+      self.BmSource:SetNWVector("tes_hits", self.BmTarget.HitPos)
+    end
+  end
+
+  LaserLib.DrawPoint(self.BmSource:GetNWVector("tes_hits"), "RED")
 
   -- The beam ends inside transparent entity
   if(not self:IsNode()) then self.BmTarget = nil; return self end

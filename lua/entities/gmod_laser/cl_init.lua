@@ -50,6 +50,8 @@ function ENT:Draw()
     if(width > 0 and length > 0) then
       self:UpdateInit()
       self:DrawBeam()
+    else
+      self:SetHitReportMax()
     end
   else
     local lndir = cvLNDIRACT:GetFloat()
@@ -58,7 +60,7 @@ function ENT:Draw()
       local direct = self:GetBeamDirection()
             direct:Mul(lndir); direct:Add(origin)
       render.DrawLine(origin, direct, gcLINDCOLR)
-    end
+    end; self:SetHitReportMax()
   end
 end
 

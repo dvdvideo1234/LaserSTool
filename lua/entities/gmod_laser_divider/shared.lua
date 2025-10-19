@@ -109,7 +109,7 @@ end
 function ENT:UpdateSources()
   self:UpdateInternals() -- Add sources in array
   self:ProcessSources()
-  self:SetHitReportMax(self.crBeamID)
+  self:SetHitReportMax(true)
 
   return self:UpdateArrays()
 end
@@ -119,21 +119,21 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * bmex > Source trace beam class
+ * bmsr > Source trace beam class
 ]]
-function ENT:DoBeam(ent, org, dir, bmex)
-  self.crBeamID = self.crBeamID + 1
+function ENT:DoBeam(ent, org, dir, bmsr)
   local todiv = (self:GetBeamReplicate() and 1 or 2)
-  local beam = LaserLib.Beam(org, dir, bmex.NvLength)
-        beam:SetLength(bmex.NvLength)
-        beam:SetSource(self, ent, bmex:GetSource())
-        beam:SetWidth(LaserLib.GetWidth(bmex.NvWidth / todiv))
-        beam:SetDamage(bmex.NvDamage / todiv)
-        beam:SetForce(bmex.NvForce  / todiv)
-        beam:SetFgDivert( bmex.BrReflec, bmex.BrRefrac)
-        beam:SetFgTexture(bmex.BmNoover, false)
+  local beam = LaserLib.Beam(org, dir, bmsr.NvLength)
+        beam:SetLength(bmsr.NvLength)
+        beam:SetSource(self, ent, bmsr:GetSource())
+        beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
+        beam:SetDamage(bmsr.NvDamage / todiv)
+        beam:SetForce(bmsr.NvForce  / todiv)
+        beam:SetFgDivert( bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, false)
+        beam:SetColorRGBA(bmsr:GetColorRGBA(true))
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.crBeamID)
+  return beam:Run()
 end

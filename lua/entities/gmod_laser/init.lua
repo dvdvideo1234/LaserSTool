@@ -139,6 +139,7 @@ function ENT:Think()
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)
     self:WireWrite("Target")
+    self:SetHitReportMax()
   end
 
   self:NextThink(CurTime())

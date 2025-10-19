@@ -71,25 +71,25 @@ function ENT:GetHitPower(normal, beam, trace)
   return (dott > (1 - gnDOTM))
 end
 
-function ENT:DoBeam(org, dir, bmex)
+function ENT:DoBeam(org, dir, bmsr)
   if(self.RecuseBeamID > 10) then
     self.RecuseBeamID = 0
     self:SetHitReportMax()
     LaserLib.Print("Limit reached")
   end
   self.RecuseBeamID = self.RecuseBeamID + 1
-  LaserLib.Print("Beam", self.RecuseBeamID, bmex.BmRecstg, bmex.TeFilter)
+  LaserLib.Print("Beam", self.RecuseBeamID, bmsr.BmRecstg, bmsr.TeFilter)
   local todiv  = (self:GetBeamReplicate() and 1 or 2)
-  local beam   = LaserLib.Beam(org, dir, bmex.NvLength)
-        beam:SetSource(self, bmex:GetSource())
-        beam:SetWidth(LaserLib.GetWidth(bmex.NvWidth / todiv))
-        beam:SetDamage(bmex.NvDamage / todiv)
-        beam:SetForce(bmex.NvForce  / todiv)
-        beam:SetFgDivert(bmex.BrReflec, bmex.BrRefrac)
-        beam:SetFgTexture(bmex.BmNoover, false)
+  local beam   = LaserLib.Beam(org, dir, bmsr.NvLength)
+        beam:SetSource(self, bmsr:GetSource())
+        beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
+        beam:SetDamage(bmsr.NvDamage / todiv)
+        beam:SetForce(bmsr.NvForce  / todiv)
+        beam:SetFgDivert(bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, false)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.RecuseBeamID, bmex.BmRecstg)
+  return beam:Run(self.RecuseBeamID, bmsr.BmRecstg)
 end
 
