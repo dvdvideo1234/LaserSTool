@@ -211,5 +211,5 @@ function ENT:DoBeam(org, dir, idx)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(idx)
+  return beam:Run()
 end

@@ -189,7 +189,7 @@ function ENT:UpdateSources()
     self:ProcessSources()
   end
 
-  self:SetHitReportMax(self.crBeamID)
+  self:SetHitReportMax(true)
 
   return self:UpdateArrays()
 end
@@ -203,7 +203,6 @@ end
  * vdot > Dot product with surface normal
 ]]
 function ENT:DoBeam(ent, org, dir, bmsr, vdot)
-  self.crBeamID = self.crBeamID + 1
   local todiv = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
   local beam = LaserLib.Beam(org, dir, bmsr.NvLength)
         beam:SetSource(self, ent, bmsr:GetSource())
@@ -221,5 +220,5 @@ function ENT:DoBeam(ent, org, dir, bmsr, vdot)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.crBeamID)
+  return beam:Run()
 end

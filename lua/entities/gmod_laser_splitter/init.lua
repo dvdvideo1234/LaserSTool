@@ -172,14 +172,14 @@ function ENT:Think()
       self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
       if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
     end
-    self:SetHitReportMax(mcount)
+    self:SetHitReportMax(true)
   else
-    self:SetHitReportMax()
     self:WireWrite("Width" , 0)
     self:WireWrite("Length", 0)
     self:WireWrite("Damage", 0)
     self:WireWrite("Force" , 0)
     self:WireWrite("Dominant")
+    self:SetHitReportMax()
   end
 
   self:NextThink(CurTime())
