@@ -4701,8 +4701,7 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local len, nor = (self.NvLength + mar), tar.HitNormal
   local src, sro = self.BmSource, tar.Entity
   local rle, rfr = self:GetFgDivert()
-  local wih = (self:GetWidth() / cnt)
-        wih = LaserLib.GetWidth(wih)
+  local wih = LaserLib.GetWidth(self:GetWidth())
   local dmg = (self:GetDamage() / cnt)
   local frc = (self:GetForce()  / cnt)
   local org = Vector(vOrg or self.BmTarget.HitPos)
@@ -4871,6 +4870,8 @@ function mtBeam:Run(iStg, sID)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
+                  -- Apply power ratio when requested
+                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- Check whenever dispersion is enabled and try to decompose
                   if(not self:IsDisperse(nil, nil, refract)) then
                     -- The beam is monochromatic and should not be branched
@@ -4881,10 +4882,7 @@ function mtBeam:Run(iStg, sID)
                       self:SetRefractEntity(trace.HitPos, vdir, target, refract, key)
                     else -- Divert the beam with the reflected ray
                       self:Divert(trace.HitPos, vdir)
-                    end
-                    -- Apply power ratio when requested
-                    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
-                    -- We cannot be able to refract as the requested beam is missing
+                    end -- We cannot be able to refract as the requested beam is missing
                   end
                 else self:Finish() end
                 -- We are neither reflecting nor refracting and have hit a wall
@@ -4949,6 +4947,8 @@ function mtBeam:Run(iStg, sID)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
+                  -- Apply power ratio when requested
+                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- Check whenever dispersion is enabled and try to decompose
                   if(not self:IsDisperse(nil, nil, refract)) then
                     -- The beam is monochromatic and should not be branched
@@ -4963,11 +4963,8 @@ function mtBeam:Run(iStg, sID)
                       local vdir, bnex = self:Refract(self.VrDirect,
                                            trace.HitNormal, merum.S[1][1], refract[1])
                       self:Divert(trace.HitPos, vdir)
-                    end
-                    -- Need to make the traversed destination the new source
+                    end -- Need to make the traversed destination the new source
                     self:SetRefractWorld(trace, refract, key)
-                    -- Apply power ratio when requested
-                    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   end
                   -- We cannot be able to refract as the requested entry is missing
                 else self:Finish() end
