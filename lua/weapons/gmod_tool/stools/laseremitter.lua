@@ -517,7 +517,7 @@ function TOOL.BuildCPanel(cPanel)
     key = ((key:sub(1,1) == "#") and key:sub(2,-1) or key)
     nam = language.GetPhrase(key); pImg:SetTooltip(nam)
     function pImg:DoClick()
-      LaserLib.SetPaintOver(pnMat, self)
+      LaserLib.SetPaintOver(pMat, self)
       LaserLib.ConCommand(nil, gsTOOL.."_material", self.Value)
     end
     function pImg:DoRightClick()

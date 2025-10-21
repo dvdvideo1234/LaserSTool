@@ -2989,11 +2989,7 @@ end
 ]]
 function mtBeam:GetPoints()
   local tvp = self.TvPoints
-  if(not tvp) then return nil end
-  if(not tvp[1]) then return nil end
-  local szv = tvp.Size -- Vertex size
-  if(not szv) then return nil end
-  if(szv <= 0) then return nil end
+  local szv = tvp.Size
   return tvp, szv
 end
 
@@ -3912,7 +3908,7 @@ end
 function mtBeam:Draw(sours, imatr, color)
   if(SERVER) then return self end
   local tvpnt, szv = self:GetPoints()
-  if(not tvpnt) then return self end
+  if(szv <= 0) then return self end
   -- Update rendering boundaries
   local tbran = self.BmBranch
   local sours = (sours or self.BmSource)
@@ -4686,8 +4682,7 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local src, sro = self.BmSource, tar.Entity
   local rle, rfr = self:GetFgDivert()
   local wih = LaserLib.GetWidth(self:GetWidth())
-  local dmg = (self:GetDamage() / cnt)
-  local frc = (self:GetForce()  / cnt)
+  local dmg, frc = self:GetDamage(), self:GetForce()
   local dir = Vector(vDir or self.VrDirect)
   local org = Vector(dir); org:Mul(-mar)
         org:Add(vOrg or tar.HitPos)
@@ -4718,9 +4713,8 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
     brn.Size = table.insert(brn, beam)
     -- Adjust point not to be drawn
     local tvp, siz = beam:GetPoints()
-    if(siz and siz >= 2) then
+    if(siz > 0) then
       beam:GetNode(1)[5] = false
-      beam:GetNode(2)[5] = false
     end
   end; return true
 end
