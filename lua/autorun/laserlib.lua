@@ -3334,7 +3334,6 @@ end
  * length > Actual iteration beam length
 ]]
 function mtBeam:SetTraceWidth(trace, length)
-  local trace = (trace and trace or self.BmTarget)
   if(trace and  -- Check if the trace is available
      trace.Hit and -- Trace must hit something
      self.IsRfract and -- Library must be refracting
@@ -3436,7 +3435,6 @@ end
  * https://wiki.facepunch.com/gmod/Structures/TraceResult
 ]]
 function mtBeam:GetMaterialMiss(mat, trace)
-  local trace = (trace and trace or self.BmTarget)
   local mat, g_srf = (mat or trace.HitTexture), DATA.MATSRF
   if(not self:IsMaterial(mat)) then -- String is not material
     mat = g_mat[tostring(trace.MatType)] -- Material lookup
@@ -3459,7 +3457,6 @@ end
  * https://wiki.facepunch.com/gmod/Structures/TraceResult
 ]]
 function mtBeam:GetMaterialAuto(trace)
-  local trace = (trace and trace or self.BmTarget)
   local mat, g_mat = trace.HitTexture, DATA.MATYPE
   if(not self:IsMaterial(mat)) then -- String is not material
     local sur = util.GetSurfaceData(trace.SurfaceProps)
@@ -3481,7 +3478,7 @@ end
  * Returns: Material extracted from the entity on server and client
 ]]
 function mtBeam:GetMaterialID(trace)
-  local trace = (trace and trace or self.BmTarget)
+  if(not trace) then return nil end
   if(not trace.Hit) then return nil end
   if(trace.HitWorld) then -- Use trace material type
     -- Trace material type is unavailable. Use the surface
@@ -3727,8 +3724,7 @@ end
 --[[
  * Setups the class for world and water refraction
 ]]
-function mtBeam:SetRefractWorld(trace, refract, key)
-  local trace = (trace and trace or self.BmTarget)
+function mtBeam:SetRefractWorld(refract, key)
   -- Register destination medium and raise calculate refraction flag
   if(refract) then self:SetMediumDestn(refract, key) end -- Change medium
   -- Subtract traced length from total length because we have hit something
@@ -3816,10 +3812,10 @@ function mtBeam:UpdateSource(trace)
     sorce:SetHitReport(self) -- What we just hit
   end -- Register us to the target sources table
   if(self.BmRecuLS == 0) then -- Recurse stage surface
-    -- In case hit eports trim is sefuned. Trim array
+    -- In case hit reports trim is enabled. Trim array
     if(sorce.SetHitReportMax) then
       -- Every surface recursive level will trim entries
-      sorce:SetHitReportMax(true) -- Use enity trim
+      sorce:SetHitReportMax(true) -- Use entity trim
     end
   end -- We need to apply the top index hit reports count
   if(LaserLib.IsValid(target) and target.RegisterSource) then
@@ -4960,7 +4956,7 @@ function mtBeam:Run(iStg, sID)
                                            trace.HitNormal, merum.S[1][1], refract[1])
                       self:Divert(trace.HitPos, vdir)
                     end -- Need to make the traversed destination the new source
-                    self:SetRefractWorld(trace, refract, key)
+                    self:SetRefractWorld(refract, key)
                   end
                   -- We cannot be able to refract as the requested entry is missing
                 else self:Finish() end
