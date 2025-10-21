@@ -1752,15 +1752,14 @@ end
 function LaserLib.DrawAssistReports(vbb, erp, nar, rev)
   if(SERVER) then return end -- Server can go out now
   if(not LaserLib.IsValid(erp)) then return end
-  local wave = true
+  local wave = true -- Draw only the first assist for wave
   for idx = 1, erp.mrReports.Size do
     local beam = erp:GetHitReport(idx)
-    if(beam) then
+    if(beam) then -- Beam object is present
       local wln = beam.BmWaveLn
-      local tvp = beam.TvPoints
       if(wln == 0 or (wln > 0 and wave)) then
-        wave = false
-        for idp = 2, tvp.Size do
+        local tvp, siz = beam:GetPoints(); wave = false
+        for idp = 2, siz do -- Assist with unit placement
           local org, nxt = tvp[idp - 1], tvp[idp - 0]
           local dir = (nxt[1] - org[1]); dir:Normalize()
           LaserLib.DrawAssistOBB(vbb, org[1], dir, nar, rev)
@@ -2911,19 +2910,19 @@ end
  * mco > Forced color value being used
 ]]
 function mtBeam:GetColorBase(mco)
-  local cor = (mco or self:GetColorRGBA(true))
   local src, g_disperse = self.BoSource, DATA.DISPERSE
   if(not LaserLib.IsValid(src)) then return nil end
   local cov = g_disperse[src:GetInBeamMaterial()]
   if(not cov) then return nil end
   local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
+  local cor = (mco or self:GetColorRGBA(true))
   local r = ((cov[1] or 255) / g_clmx) * cor.r
   local g = ((cov[2] or 255) / g_clmx) * cor.g
   local b = ((cov[3] or 255) / g_clmx) * cor.b
   local a = ((cov[4] or 255) / g_clmx) * cor.a
   r, g, b, a = LaserLib.GetColorRGBA(r, g, b, a)
   g_dscol.r, g_dscol.g = r, g
-  g_dscol.b, g_dscol.b = a, a
+  g_dscol.b, g_dscol.a = b, a
   return g_dscol
 end
 
@@ -3039,15 +3038,11 @@ end
 
 --[[
  * Returns the desired node information
- * index > Node index to be used. Defaults to node size
+ * idx > Node index to be used. Defaults to node size
 ]]
-function mtBeam:GetNode(index)
-  local tvp = self.TvPoints
-  if(index) then
-    return tvp[index]
-  else
-    return tvp[tvp.Size]
-  end
+function mtBeam:GetNode(idx)
+  local tvp, siz = self:GetPoints()
+  return idx and tvp[idx] or tvp[siz]
 end
 
 --[[
@@ -3367,29 +3362,30 @@ end
  * Registers a node when beam traverses from medium [1] to medium [2]
  * origin > The node position to be registered
  * nbulen > Update the length according to the new node
- *          Positive number when provided else internal length
- *          Pass true boolean to update the node with distance
+ *   [number] > It is directly used for length
+ *   [true]   > Update the node with distance
+ *   [false]  > Completely ignore length updates
  * bedraw > Enable draw beam node on the CLIENT
  *          Use this for portals when skip gap is needed
 ]]
 function mtBeam:RegisterNode(origin, nbulen, bedraw)
-  local info = self.TvPoints -- Local reference to stack
+  local info, size = self:GetPoints() -- Reference to stack
   local node, width = Vector(origin), self.NvWidth
   local damage, force = self.NvDamage , self.NvForce
   local bedraw = (bedraw or bedraw == nil) and true or false
   local cnlen = math.max((tonumber(nbulen) or 0), 0)
   if(cnlen > 0) then -- Subtract the path trough the medium
     self:Pass(nil, cnlen) -- Direct length
-  else local size = info.Size -- Read the node stack size
+  else -- Read node stack size and use distance for travel
     if(size > 0 and nbulen) then -- Length is not provided
       local prev, vtmp = info[size][1], self.__vtorg
       vtmp:Set(node); vtmp:Sub(prev) -- Relative to previous
-      self:Pass(nil, vtmp:Length())
+      self:Pass(nil, vtmp:Length()) -- Slower but correct
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
-  if(self.NxRgnode) then
-    table.insert(info, {node, width, damage, force, bedraw})
-    info.Size = info.Size + 1 -- Register the node in stack
+  if(self.NxRgnode) then -- Register the node in stack
+    local row = {node, width, damage, force, bedraw}
+    info.Size = table.insert(info, row)
   else -- Skip registering this node and write the next one
     self.NxRgnode = true -- Mark the next node for insertion
   end; return self -- Coding effective API
@@ -3403,8 +3399,7 @@ end
  * rate   > The ratio to apply on the last node
 ]]
 function mtBeam:SetPowerRatio(rate)
-  local info = self.TvPoints -- Localize stack
-  local size = info.Size     -- Read stack size
+  local info, size = self:GetPoints() -- Localize stack
   local node = info[size]    -- Index top element
   if(rate and size > 0) then -- There is sanity with adjusting
     self.NvDamage = rate * self.NvDamage
@@ -3426,8 +3421,7 @@ end
 ]]
 function mtBeam:IsNode()
   if(self.NvLength >= 0) then return true end
-  local set = self.TvPoints -- Set of nodes
-  local siz = set.Size -- Read stack size
+  local set, siz = self:GetPoints() -- Set of nodes
   local nxt, dir = set[siz][1], self.__vtdir
   dir:Set(self.VrDirect) dir:Mul(self.NvLength)
   nxt:Add(dir); self.NvLength = 0; return false
@@ -4696,7 +4690,7 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local brn = self.BmBranch -- Index branch table
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
-  local cnt, mar = (tW.IE - tW.IS + 1), 0.1
+  local cnt, mar = (tW.IE - tW.IS + 1), (DATA.NUGE / 10)
   local tar, ovr = self:GetTarget(), self.BmNoover
   local len, nor = (self.NvLength + mar), tar.HitNormal
   local src, sro = self.BmSource, tar.Entity
@@ -4704,8 +4698,9 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local wih = LaserLib.GetWidth(self:GetWidth())
   local dmg = (self:GetDamage() / cnt)
   local frc = (self:GetForce()  / cnt)
-  local org = Vector(vOrg or self.BmTarget.HitPos)
   local dir = Vector(vDir or self.VrDirect)
+  local org = Vector(dir); org:Mul(-mar)
+        org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   self:Finish(); tar.NoEffect = true
   LaserLib.Print("BASE", "---------", self:GetWidth())
@@ -4713,10 +4708,10 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
     local beam = LaserLib.Beam(org, dir, len)
-    beam.VrOrigin:Set(beam:GetNudge(-mar))
     local r = (recw.C.r * recw.P)
     local g = (recw.C.g * recw.P)
     local b = (recw.C.b * recw.P)
+    -- Setup child beam
     beam:SetSource(src, src)
     beam:SetWidth(wih * recw.P)
     beam:SetDamage(dmg * recw.P)
@@ -4726,10 +4721,17 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
     beam:SetBounces(bnc)
     beam:SetWavelength(recw.W)
     beam:SetColorRGBA(r, g, b, sa)
+    -- Validate and propagate it
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
     beam:Run(self.BmRecuLS + 1, "DSP"..iW)
     brn.Size = table.insert(brn, beam)
+    -- Adjust point not to be drawn
+    local tvp, siz = beam:GetPoints()
+    if(siz and siz >= 2) then
+      beam:GetNode(1)[5] = false
+      beam:GetNode(2)[5] = false
+    end
   end; return true
 end
 
