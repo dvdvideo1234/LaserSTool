@@ -293,21 +293,6 @@ DATA.REFRACT = {
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
 DATA.DISPERSE = {
-  ["cable/cable"                        ] = false,
-  ["models/effects/splodearc_sheet"     ] = false,
-  ["models/props_lab/warp_sheet"        ] = false,
-  ["cable/blue_elec"                    ] = false,
-  ["models/alyx/emptool_glow"           ] = false,
-  ["effects/redlaser1"                  ] = false,
-  ["effects/bluelaser1"                 ] = false,
-  ["models/shadertest/shader4"          ] = false,
-  ["models/shadertest/shader3"          ] = false,
-  ["models/props_combine/com_shield001a"] = false,
-  ["models/wireframe"                   ] = false,
-  ["models/shadertest/predator"         ] = false,
-  ["cable/xbeam"                        ] = false,
-  ["cable/physbeam"                     ] = false,
-  ["cable/hydra"                        ] = false,
   ["cable/cable2"                       ] = { 25,  25,  25},
   ["cable/crystal_beam1"                ] = {140, 110,  55},
   ["cable/redlaser"                     ] = {140, 110,  55},
@@ -3400,7 +3385,7 @@ end
 ]]
 function mtBeam:SetPowerRatio(rate)
   local info, size = self:GetPoints() -- Localize stack
-  local node = info[size]    -- Index top element
+  local node = self:GetNode(size)     -- Index top element
   if(rate and size > 0) then -- There is sanity with adjusting
     self.NvDamage = rate * self.NvDamage
     self.NvForce  = rate * self.NvForce
@@ -3555,8 +3540,9 @@ end
  * trace > The current trace result
 ]]
 function mtBeam:Reflect(trace, ratio)
-  self.VrDirect:Set(LaserLib.GetReflected(self.VrDirect, trace.HitNormal))
-  self.VrOrigin:Set(trace.HitPos)
+  local trs = (trace or self:GetTarget())
+  local ref = LaserLib.GetReflected(self.VrDirect, trs.HitNormal)
+  self.VrDirect:Set(ref); self.VrOrigin:Set(trs.HitPos)
   if(self.BrReflec) then self:SetPowerRatio(ratio) end
   return self -- Coding effective API
 end
