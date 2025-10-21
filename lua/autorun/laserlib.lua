@@ -17,7 +17,7 @@ DATA.NUGE = 2                  -- Nudge amount for origin vectors back-tracing
 DATA.MINW = 0.05               -- Minimum width to be considered visible
 DATA.DOTM = 0.01               -- Collinearity and dot product margin check
 DATA.POWL = 0.001              -- Lowest bounds of laser power
-DATA.ZEPS = 1e-10              -- General use epsilon nera zero value
+DATA.ZEPS = 1e-10              -- General use epsilon near zero value
 DATA.BRAD = 2.5                -- How much the bounding radius is scaled for back-trace
 DATA.ERAD = 1.5                -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.27               -- Beam back trace width when refracting
@@ -3033,11 +3033,12 @@ end
 --[[
  * Passes some of the dedicated distance
 ]]
-function mtBeam:Pass(trace, extern)
+function mtBeam:Pass(extern, trace)
+  local trace = (trace and trace or self.BmTarget)
   -- By default we are hitting something with fraction
-  local decrem = extern and extern or trace.LengthFR
+  local decrm = (extern and extern or trace.LengthFR)
   -- We have to register that the beam has passed trough a medium
-  self.NvLength = self.NvLength - decrem
+  self.NvLength = (self.NvLength - decrm)
   return self -- Coding effective API
 end
 
@@ -3295,11 +3296,13 @@ end
  * Initial trace requested length for the current iteration
 ]]
 function mtBeam:SetTraceLength(trace, length)
+  local trace = (trace and trace or self.BmTarget)
   -- In this case the value of node register length is calculated
   trace.LengthBS = length -- Actual trace beam user requested length
   trace.LengthFR = length * trace.Fraction -- Length fraction in units
   trace.LengthLS = length * trace.FractionLeftSolid -- Length fraction LS
-  trace.LengthNR = self.IsRfract and (self.DmRfract - trace.LengthFR) or trace.LengthFR
+  trace.LengthDM = (self.DmRfract - trace.LengthFR) -- Refractive length
+  trace.LengthNR = self.IsRfract and trace.LengthDM or trace.LengthFR
   return self -- Coding effective API
 end
 
@@ -3331,6 +3334,7 @@ end
  * length > Actual iteration beam length
 ]]
 function mtBeam:SetTraceWidth(trace, length)
+  local trace = (trace and trace or self.BmTarget)
   if(trace and  -- Check if the trace is available
      trace.Hit and -- Trace must hit something
      self.IsRfract and -- Library must be refracting
@@ -3360,12 +3364,12 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
   local bedraw = (bedraw or bedraw == nil) and true or false
   local cnlen = math.max((tonumber(nbulen) or 0), 0)
   if(cnlen > 0) then -- Subtract the path trough the medium
-    self:Pass(nil, cnlen) -- Direct length
+    self:Pass(cnlen) -- Direct length
   else -- Read node stack size and use distance for travel
     if(size > 0 and nbulen) then -- Length is not provided
       local prev, vtmp = info[size][1], self.__vtorg
       vtmp:Set(node); vtmp:Sub(prev) -- Relative to previous
-      self:Pass(nil, vtmp:Length()) -- Slower but correct
+      self:Pass(vtmp:Length()) -- Slower but correct
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
   if(self.NxRgnode) then -- Register the node in stack
@@ -3432,6 +3436,7 @@ end
  * https://wiki.facepunch.com/gmod/Structures/TraceResult
 ]]
 function mtBeam:GetMaterialMiss(mat, trace)
+  local trace = (trace and trace or self.BmTarget)
   local mat, g_srf = (mat or trace.HitTexture), DATA.MATSRF
   if(not self:IsMaterial(mat)) then -- String is not material
     mat = g_mat[tostring(trace.MatType)] -- Material lookup
@@ -3454,6 +3459,7 @@ end
  * https://wiki.facepunch.com/gmod/Structures/TraceResult
 ]]
 function mtBeam:GetMaterialAuto(trace)
+  local trace = (trace and trace or self.BmTarget)
   local mat, g_mat = trace.HitTexture, DATA.MATYPE
   if(not self:IsMaterial(mat)) then -- String is not material
     local sur = util.GetSurfaceData(trace.SurfaceProps)
@@ -3475,7 +3481,7 @@ end
  * Returns: Material extracted from the entity on server and client
 ]]
 function mtBeam:GetMaterialID(trace)
-  if(not trace) then return nil end
+  local trace = (trace and trace or self.BmTarget)
   if(not trace.Hit) then return nil end
   if(trace.HitWorld) then -- Use trace material type
     -- Trace material type is unavailable. Use the surface
@@ -3540,9 +3546,9 @@ end
  * trace > The current trace result
 ]]
 function mtBeam:Reflect(trace, ratio)
-  local trs = (trace or self:GetTarget())
-  local ref = LaserLib.GetReflected(self.VrDirect, trs.HitNormal)
-  self.VrDirect:Set(ref); self.VrOrigin:Set(trs.HitPos)
+  local trace = (trace and trace or self.BmTarget)
+  local redir = LaserLib.GetReflected(self.VrDirect, trace.HitNormal)
+  self.VrDirect:Set(redir); self.VrOrigin:Set(trace.HitPos)
   if(self.BrReflec) then self:SetPowerRatio(ratio) end
   return self -- Coding effective API
 end
@@ -3722,6 +3728,7 @@ end
  * Setups the class for world and water refraction
 ]]
 function mtBeam:SetRefractWorld(trace, refract, key)
+  local trace = (trace and trace or self.BmTarget)
   -- Register destination medium and raise calculate refraction flag
   if(refract) then self:SetMediumDestn(refract, key) end -- Change medium
   -- Subtract traced length from total length because we have hit something
@@ -3798,7 +3805,7 @@ end
  * trace > Trace result after the last iteration
 ]]
 function mtBeam:UpdateSource(trace)
-  local trace = (trace or self.BmTarget)
+  local trace = (trace and trace or self.BmTarget)
   local sorce, target = self.BmSource, trace.Entity
   -- Calculates the range as beam distance traveled
   if(trace.Hit and self.RaLength > self.NvLength) then
@@ -3828,6 +3835,7 @@ end
 ]]
 function mtBeam:GetBoundaryEntity(index, trace)
   local bnex, bsam, vdir -- Refraction entity direction and reflection
+  local trace = (trace and trace or self.BmTarget) -- Trace reference
   local dir, merum = self.VrDirect, self.TrMedium -- Localize medium
   -- Call refraction cases and prepare to trace-back
   if(self.StRfract) then -- Bounces were decremented so move it up
@@ -4655,7 +4663,7 @@ function mtBeam:Refract(vDir, vNor, nSrc, nDst)
   local vDir = (vDir or self.VrDirect)
   local vNor = (vNor or (tTrg and tTrg.HitNormal) or vUp)
   local nSrc, nDst = tonumber(nSrc), tonumber(nDst)
-  if(nWav > 0 and nWav ~= nSo) then
+  if(nWav > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nWav, nSrc)
     nDst = LaserLib.WaveToIndex(nWav, nDst)
   end; return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
