@@ -1445,22 +1445,22 @@ function LaserLib.Configure(unit)
   ]]
   function unit:SetHitReportMax(rovr, wipe)
     if(self.mrReports) then
-      local ros, idx = self.mrReports
+      local ros = self.mrReports
       local wipe = (wipe or wipe == nil)
-      if(rovr != nil) then -- Overhead mode
+      if(rovr ~= nil) then -- Overhead mode
         local conv = tonumber(rovr)
         if(conv) then -- A number as size
           conv = math.max(conv, 0)
           conv = math.floor(conv)
-          idx, ros.Size = (conv + 1), conv
-        else -- Trat as boolean
-          if(rovr) then
+          ros.Size = conv
+        else -- Treat as boolean
+          if(rovr) then -- Trim to report ID
             ros.Size = self.crBeamID
-          end; idx = (ros.Size + 1)
-        end
-      else idx, ros.Size = 1, 0 end
+          end -- Trim to report size
+        end -- Clears all from array
+      else ros.Size = 0 end
       if(wipe) then -- Wipe selected items
-        LaserLib.Clear(dat, idx)
+        LaserLib.Clear(ros, ros.Size + 1)
       end -- Array has been refreshed
     end; return self
   end
@@ -1497,7 +1497,7 @@ function LaserLib.Configure(unit)
    * idx > Hit report index to read ( defaults to 1 )
   ]]
   function unit:GetHitReport(idx)
-    if(not idx) then return end
+    if(not idx) then return nil end
     local ros = self.mrReports
     if(not ros) then return nil end
     return ros[idx]
@@ -4676,13 +4676,14 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local brn = self.BmBranch -- Index branch table
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
-  local cnt, mar = (tW.IE - tW.IS + 1), (DATA.NUGE / 10)
+  local siz, mar = tW.Size, (DATA.NUGE / 10)
   local tar, ovr = self:GetTarget(), self.BmNoover
-  local len, nor = (self.NvLength + mar), tar.HitNormal
+  local len = (self.NvLength + mar)
   local src, sro = self.BmSource, tar.Entity
   local rle, rfr = self:GetFgDivert()
-  local wih = LaserLib.GetWidth(self:GetWidth())
-  local dmg, frc = self:GetDamage(), self:GetForce()
+  local wih = LaserLib.GetWidth(self:GetWidth() / siz)
+  local dmg = (self:GetDamage() / siz)
+  local frc = (self:GetForce() / siz)
   local dir = Vector(vDir or self.VrDirect)
   local org = Vector(dir); org:Mul(-mar)
         org:Add(vOrg or tar.HitPos)
@@ -4698,9 +4699,9 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
     local b = (recw.C.b * recw.P)
     -- Setup child beam
     beam:SetSource(src, src)
-    beam:SetWidth(wih * recw.P)
-    beam:SetDamage(dmg * recw.P)
-    beam:SetForce(frc * recw.P)
+    beam:SetWidth(wih)
+    beam:SetDamage(dmg)
+    beam:SetForce(frc)
     beam:SetFgDivert(rle, rfr)
     beam:SetFgTexture(ovr, false)
     beam:SetBounces(bnc)
