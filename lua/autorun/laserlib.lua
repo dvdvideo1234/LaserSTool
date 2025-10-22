@@ -2602,6 +2602,7 @@ function LaserLib.SetWaveArray()
   tW.Size = 0     -- Amount of entries the decomposition has
   tW.Step = step  -- Hue adjustment step when defining components
   tW.Marg = marg  -- Color compare margin for component check
+  tW.PT = 0       -- Total power sum of every color component
   tW.PM = 0       -- Power multiplier converted scaled for comparison
   tW.PX = 0       -- Individual component power for non-white light part
   tW.PN = 0       -- Individual component power for white light part
@@ -2656,11 +2657,12 @@ function LaserLib.GetWaveArray(cow)
     end
     if(coan > 0) then -- Base white component
       if(wav.B) then -- Adjust the dominant component
-        wav.P = wav.P + tW.PN
+        wav.P = wav.P + tW.PN -- Non white
       else -- Insert a gray component in the list
-        wav.P = tW.PN
-      end
-    end
+        wav.P = tW.PN -- White only power
+      end -- Apply individual color power
+    end -- Total power of all components
+    tW.PT = tW.PT + wav.P -- Includes zeros
   end; return tW
 end
 
@@ -4653,8 +4655,7 @@ function mtBeam:Refract(vDir, vNor, nSrc, nDst)
   local nWav, nSo = self.BmWaveLn, DATA.SODD
   local tTrg, vUp = self.BmTarget, DATA.VDRUP
   local vDir = (vDir or self.VrDirect)
-  local vNor = (vNor or (tTrg and tTrg.HitNormal) or vUp)
-  local nSrc, nDst = tonumber(nSrc), tonumber(nDst)
+  local vNor = (vNor or tTrg.HitNormal or vUp)
   if(nWav > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nWav, nSrc)
     nDst = LaserLib.WaveToIndex(nWav, nDst)
@@ -4676,41 +4677,38 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local brn = self.BmBranch -- Index branch table
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
-  local siz, mar = tW.Size, (DATA.NUGE / 10)
+  local pmr, mar = tW.PT, (DATA.NUGE / 10)
   local tar, ovr = self:GetTarget(), self.BmNoover
   local len = (self.NvLength + mar)
   local src, sro = self.BmSource, tar.Entity
   local rle, rfr = self:GetFgDivert()
-  local wih = LaserLib.GetWidth(self:GetWidth() / siz)
-  local dmg = (self:GetDamage() / siz)
-  local frc = (self:GetForce() / siz)
+  local wih = LaserLib.GetWidth(self:GetWidth())
+  local dmg, frc = self:GetDamage(), self:GetForce()
   local dir = Vector(vDir or self.VrDirect)
   local org = Vector(dir); org:Mul(-mar)
         org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   self:Finish(); tar.NoEffect = true
   LaserLib.Print("BASE", "---------", self:GetWidth())
-  LaserLib.PrintTable(self)
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
+    local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
+    sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
     local beam = LaserLib.Beam(org, dir, len)
-    local r = (recw.C.r * recw.P)
-    local g = (recw.C.g * recw.P)
-    local b = (recw.C.b * recw.P)
     -- Setup child beam
     beam:SetSource(src, src)
-    beam:SetWidth(wih)
-    beam:SetDamage(dmg)
-    beam:SetForce(frc)
+    beam:SetWidth(rEn * wih)
+    beam:SetDamage(rEn * dmg)
+    beam:SetForce(rEn * frc)
     beam:SetFgDivert(rle, rfr)
     beam:SetFgTexture(ovr, false)
     beam:SetBounces(bnc)
     beam:SetWavelength(recw.W)
-    beam:SetColorRGBA(r, g, b, sa)
+    beam:SetColorRGBA(sr, sg, sb, sa)
     -- Validate and propagate it
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
-    beam:Run(self.BmRecuLS + 1, "DSP"..iW)
+    beam:Run(self.BmRecuLS + 1)
     table.insert(brn, beam); brn.Size = (brn.Size + 1)
     -- Adjust point not to be drawn
     local tvp, siz = beam:GetPoints()
@@ -4726,7 +4724,7 @@ LaserLib.PrintEn(SERVER)
  * Traces a laser beam from the entity provided
  * iStg > Recursion stage used to identify recursion depth
 ]]
-function mtBeam:Run(iStg, sID)
+function mtBeam:Run(iStg)
   -- References to reflect and refract definitions
   local g_reflect, g_refract = DATA.REFLECT, DATA.REFRACT
   -- Temporary values that are considered local and do not need to be accessed by hit reports
@@ -4735,10 +4733,6 @@ function mtBeam:Run(iStg, sID)
   local mewat, meair, merum = mtBeam.__mewat, mtBeam.__meair, self.TrMedium -- Local reference
   -- Reports dedicated values that are being used by other entities and processes
   self.BmRecuLS = math.max(tonumber(iStg) or 0, 0) -- Beam recursion depth for units that use it
-  if(self.BmRecuLS == 0) then
-    LaserLib.Print("Run", tostring(self.BmSource), self.BmRecuLS, SysTime())
-  end
-
   -- Allocate source, destination and memory mediums
   self:SetMedium("S"); self:SetMedium("D"); self:SetMedium("M")
   -- Ignore the tracing entity and register first node
@@ -4746,21 +4740,10 @@ function mtBeam:Run(iStg, sID)
   -- Calculate the output location
   self:SetTraceExit()
   -- Start tracing the beam
-
-  if(sID == "DSP1") then
-    LaserLib.Print(sID, "-------------")
-    self.BmPrintID = sID
-  end
-
   repeat
     self:ApplyGravity() -- When there are black holes apply gravity on the beam
     -- Run the trace using the defined conditional parameters
     trace, target = self:Trace() -- Sample one trace and read contents
-    if(self.BmPrintID == "DSP1" and self:IsFirst()) then
-      LaserLib.Print(self.BmPrintID, self.NvBounce)
-      LaserLib.PrintTable(self)
-    end
-
     -- Check medium contents to know what to do when beam starts inside map solid
     if(self:IsFirst()) then -- Initial start so the beam separates from the laser
       self.TeFilter = nil -- The trace starts inside solid, switch content medium
