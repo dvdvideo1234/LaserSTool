@@ -3369,7 +3369,7 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
   end -- Register the new node to the stack
   if(self.NxRgnode) then -- Register the node in stack
     local row = {node, width, damage, force, bedraw}
-    info.Size = table.insert(info, row)
+    table.insert(info, row); info.Size = (info.Size + 1)
   else -- Skip registering this node and write the next one
     self.NxRgnode = true -- Mark the next node for insertion
   end; return self -- Coding effective API
@@ -4711,7 +4711,7 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
     beam:Run(self.BmRecuLS + 1, "DSP"..iW)
-    brn.Size = table.insert(brn, beam)
+    table.insert(brn, beam); brn.Size = (brn.Size + 1)
     -- Adjust point not to be drawn
     local tvp, siz = beam:GetPoints()
     if(siz > 0) then
