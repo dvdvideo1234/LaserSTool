@@ -4667,7 +4667,7 @@ end
  * vOrg > Provide beam start for splitter source entities
  * tRef > Refraction sodium line configuration
 ]]
-function mtBeam:IsDisperse(vOrg, vDir, tRef)
+function mtBeam:IsDisperse(tRef, vOrg, vDir)
   if(not self.BmDisper) then return false end
   if(self.BmWaveLn > 0) then return false end
   local cB = self:GetColorBase()
@@ -4686,10 +4686,10 @@ function mtBeam:IsDisperse(vOrg, vDir, tRef)
   local dmg, frc = self:GetDamage(), self:GetForce()
   local dir = Vector(vDir or self.VrDirect)
   local org = Vector(dir); org:Mul(-mar)
-        org:Add(vOrg or tar.HitPos)
+  local bnc = self.NvBounce; org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   self:Finish(); tar.NoEffect = true
-  LaserLib.Print("BASE", "---------", self:GetWidth())
+  LaserLib.Print("BASE", "---------", wih, len)
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
@@ -4843,7 +4843,7 @@ function mtBeam:Run(iStg)
                   -- Apply power ratio when requested
                   if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- Check whenever dispersion is enabled and try to decompose
-                  if(not self:IsDisperse(nil, nil, refract)) then
+                  if(not self:IsDisperse(refract)) then
                     -- The beam is monochromatic and should not be branched
                     -- Calculated refraction ray. Reflect when not possible
                     local bnex, bsam, vdir = self:GetBoundaryEntity(refract[1], trace)
@@ -4920,7 +4920,7 @@ function mtBeam:Run(iStg)
                   -- Apply power ratio when requested
                   if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- Check whenever dispersion is enabled and try to decompose
-                  if(not self:IsDisperse(nil, nil, refract)) then
+                  if(not self:IsDisperse(refract)) then
                     -- The beam is monochromatic and should not be branched
                     -- Define water surface as of air-water beam interaction
                     self:SetSurfaceWorld(refract.Key or key, trace.Contents, trace)

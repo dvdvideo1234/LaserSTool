@@ -539,9 +539,9 @@ function TOOL.BuildCPanel(cPanel)
       if(not IsValid(pMenu)) then return end
       if(not IsValid(pOpts)) then return end
       pOpts:SetImage(LaserLib.GetIcon("table_sort"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepbn").." (<)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepmn").." (<)", function()
         LaserLib.SortDisperse(pMat, nil, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepbn").." (>)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepmn").." (>)", function()
         LaserLib.SortDisperse(pMat, nil, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepci").." (<)", function()
         LaserLib.SortDisperse(pMat, function(r,g,b) return r+g+b end, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
