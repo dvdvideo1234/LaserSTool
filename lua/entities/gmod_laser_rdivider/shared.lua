@@ -38,7 +38,6 @@ end
 function ENT:GetOn()
   local src = self.meSources
   if(not src) then return false end
-  LaserLib.Print("ON:", table.IsEmpty(src))
   return (not table.IsEmpty(src))
 end
 
@@ -75,18 +74,16 @@ function ENT:DoBeam(org, dir, bmsr)
   if(self.RecuseBeamID > 10) then
     self.RecuseBeamID = 0
     self:SetHitReportMax()
-    LaserLib.Print("Limit reached")
   end
   self.RecuseBeamID = self.RecuseBeamID + 1
-  LaserLib.Print("Beam", self.RecuseBeamID, bmsr.BmRecstg, bmsr.TeFilter)
   local todiv  = (self:GetBeamReplicate() and 1 or 2)
   local beam   = LaserLib.Beam(org, dir, bmsr.NvLength)
         beam:SetSource(self, bmsr:GetSource())
         beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
         beam:SetDamage(bmsr.NvDamage / todiv)
         beam:SetForce(bmsr.NvForce  / todiv)
-        beam:SetFgDivert(bmsr.BrReflec, bmsr.BrRefrac)
-        beam:SetFgTexture(bmsr.BmNoover, false)
+        beam:SetFgDivert (bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

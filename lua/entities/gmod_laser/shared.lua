@@ -362,14 +362,14 @@ function ENT:DoBeam(org, dir, idx)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
-  local endisp = (self:GetBeamDisperse() and cvWDHUESTP:GetFloat() > 0)
+  local disper = (self:GetBeamDisperse() and cvWDHUESTP:GetFloat() > 0)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
         beam:SetWidth(self:GetBeamWidth())
         beam:SetDamage(self:GetBeamDamage())
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, true) -- For test
+        beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

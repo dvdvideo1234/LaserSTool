@@ -128,4 +128,3 @@ function ENT:SetBeamDisperse(bool)
   self:WireWrite("Disperse", (disp and 1 or 0))
   return self
 end
-

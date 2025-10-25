@@ -16,6 +16,7 @@ ENT.UnitID         = 8
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/dog/eyeglass")
 
+local gtWVIS     = LaserLib.GetData("WVIS")
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gnDOTM     = LaserLib.GetData("DOTM")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
@@ -163,20 +164,28 @@ function ENT:EveryBeam(entity, index, beam)
   if(trace and trace.Hit and self:IsHitNormal(trace)) then
     local count = self.crCount; self:SetArrays(entity)
     if(count > 0) then
-      local mnang = gtAMAX[2] / count
+      local mnang = (gtAMAX[2] / count)
       local bsdir = Vector(trace.HitNormal)
       local bmorg = trace.HitPos; bsdir:Negate()
       local mdotm = math.abs(beam.VrDirect:Dot(bsdir))
       local mdotv = (self:GetBeamDimmer() and mdotm or 1)
       local upwrd = self:GetUpwardLocal(); upwrd:Rotate(self:GetAngles())
       local angle = self:GetLeanAngle(bsdir, upwrd)
-      for idx = 1, count do
-        if(CLIENT) then
-          self:DrawBeam(entity, bmorg, angle:Forward(), beam, mdotv)
-        else
-          self:DoDamage(self:DoBeam(entity, bmorg, angle:Forward(), beam, mdotv))
+      if(count > 1) then
+        for idx = 1, count do
+          if(CLIENT) then
+            self:DrawBeam(entity, bmorg, angle:Forward(), beam, mdotv, idx)
+          else
+            self:DoDamage(self:DoBeam(entity, bmorg, angle:Forward(), beam, mdotv, idx))
+          end
+          if(count > 1) then angle:RotateAroundAxis(bsdir, mnang) end
         end
-        if(count > 1) then angle:RotateAroundAxis(bsdir, mnang) end
+      else
+        if(CLIENT) then
+          self:DrawBeam(entity, bmorg, bsdir, beam, mdotv)
+        else
+          self:DoDamage(self:DoBeam(entity, bmorg, bsdir, beam, mdotv))
+        end
       end
     end
   end -- Sources are located in the table hash part
@@ -202,21 +211,25 @@ end
  * bmsr > Source trace beam class
  * vdot > Dot product with surface normal
 ]]
-function ENT:DoBeam(ent, org, dir, bmsr, vdot)
+function ENT:DoBeam(ent, org, dir, bmsr, vdot, indx)
   local todiv = (self:GetBeamReplicate() and 1 or (self.crCount / vdot))
   local beam = LaserLib.Beam(org, dir, bmsr.NvLength)
         beam:SetSource(self, ent, bmsr:GetSource())
         beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
         beam:SetDamage(bmsr.NvDamage / todiv)
         beam:SetForce(bmsr.NvForce  / todiv)
-        beam:SetFgDivert(bmsr.BrReflec, bmsr.BrRefrac)
-        beam:SetFgTexture(bmsr.BmNoover, false)
-        beam:SetBounces()
-  if(self:GetBeamColorSplit()) then
-    local cnt = (self.crBeamID % self.crCount + 1)
-    local r, g, b, a = bmsr:GetColorRGBA()
-          r, g, b = LaserLib.GetColorID(cnt, r, g, b)
+        beam:SetFgDivert (bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
+        beam:SetBounces(bmsr:GetBounces())
+  if(self:GetBeamColorSplit() and self.crCount > 1 and indx) then
+    local dw = math.abs(gtWVIS[1] - gtWVIS[2]) / (self.crCount - 1)
+    local ww = gtWVIS[1] - (indx - 1) * dw
+    local r, g, b, a = LaserLib.WaveToColor(ww)
     beam:SetColorRGBA(r, g, b, a)
+    beam:SetWavelength(ww)
+  else
+    beam:SetColorRGBA(bmsr:GetColorRGBA(true))
+    beam:SetWavelength(bmsr:GetWavelength())
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

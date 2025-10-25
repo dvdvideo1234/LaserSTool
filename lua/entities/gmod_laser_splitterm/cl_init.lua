@@ -1,7 +1,7 @@
 include("shared.lua")
 
-function ENT:DrawBeam(src, org, dir, bmsr, vdot)
-  local beam = self:DoBeam(src, org, dir, bmsr, vdot)
+function ENT:DrawBeam(src, org, dir, bmsr, vdot, indx)
+  local beam = self:DoBeam(src, org, dir, bmsr, vdot, indx)
   if(not beam) then return end
   local sors = bmsr:GetSource()
   self:DrawTrace(beam, sors, beam.NvColor)

@@ -737,13 +737,13 @@ function LaserLib.GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
   pos:Set(base:WorldToLocal(pos)); dir:Mul(wmr)
   if(forigin) then local suc, err = pcall(forigin, pos)
-    if(not suc) then error("Origin: "..err) end
+    if(not suc) then ErrorNoHaltWithStack("Origin: "..err) end
   else pos.x, pos.y = -pos.x, -pos.y end
   pos:Set(exit:LocalToWorld(pos))
   dir:Add(base:GetPos())
   dir:Set(base:WorldToLocal(dir))
   if(fdirect) then local suc, err = pcall(fdirect, dir)
-    if(not suc) then error("Direct: "..err) end
+    if(not suc) then ErrorNoHaltWithStack("Direct: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
   dir:Rotate(exit:GetAngles()); dir:Div(wmr)
   return pos, dir
@@ -795,7 +795,7 @@ local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
         elseif(tCpn and tCpn[nam]) then
           tCpy[nam] = table.Copy(vsm) -- General copy table
         else -- Unhanded field. Report error to the user
-          error("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
+          ErrorNoHaltWithStack("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
         end -- Assign a copy table
       end -- The snapshot is completed
   end; end; return tCpy
@@ -1233,23 +1233,23 @@ end
 function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   -- Is index is provided populate model and create convars
   local index = (tonumber(uent.UnitID) or 0); if(index <= 1) then
-    error("Index invalid: "..tostring(iunit)) end
+    ErrorNoHaltWithStack("Index invalid: "..tostring(iunit)) end
   local usrc = tostring(uent.Folder or ""); if(usrc == "") then
-    error("Name invalid: "..tostring(cunit)) end
+    ErrorNoHaltWithStack("Name invalid: "..tostring(cunit)) end
   local ocas = LaserLib.GetClass(1); if(ocas == "") then
-    error("Base empty: "..tostring(ocas)) end
+    ErrorNoHaltWithStack("Base empty: "..tostring(ocas)) end
   local ucas = usrc:match(ocas..".+$", 1); if(ucas == "") then
-    error("Class invalid: "..tostring(usrc)) end
+    ErrorNoHaltWithStack("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
-    error("Suffix empty: "..tostring(usrc)) end
+    ErrorNoHaltWithStack("Suffix empty: "..tostring(usrc)) end
   --[[
   local vset = (DATA.UNITS[index] or {}); if(vset and vset[5]) then
-    error("Unit present ["..index.."]["..vset[1].."]: "..ucas) end
+    ErrorNoHaltWithStack("Unit present ["..index.."]["..vset[1].."]: "..ucas) end
   ]] local vset = (DATA.UNITS[index] or {})
 
 
   local uset = vset[1]; if(uset and uset ~= ucas) then
-    error("Unit mismatch ["..index.."]["..vset[1].."]: "..ucas) end
+    ErrorNoHaltWithStack("Unit mismatch ["..index.."]["..vset[1].."]: "..ucas) end
   -- Allocate class configuration. Make it accessible to the library
   local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
   vset[1], vset[2], vset[3], vset[4], vset[5] = ucas, vidx, mdef, vdef, true
@@ -1291,7 +1291,7 @@ end
 function LaserLib.Configure(unit)
   if(not LaserLib.IsValid(unit)) then return end
   local uas, cas = unit:GetClass(), LaserLib.GetClass(1)
-  if(not uas:find(cas)) then error("Invalid unit: "..uas) end
+  if(not uas:find(cas)) then ErrorNoHaltWithStack("Invalid unit: "..uas) end
   -- Delete temporary order info and register unit
   unit.meOrderInfo = nil; DATA.UNITS[uas] = true
   -- Instance specific configuration
@@ -1540,23 +1540,23 @@ function LaserLib.Configure(unit)
   function unit:ProcessReports(ent, proc, each, apre, post)
     if(not LaserLib.IsValid(ent)) then return false end
     if(apre) then local suc, err = pcall(apre, self, ent)
-      if(not suc) then self:Remove(); error(err); return false end
+      if(not suc) then self:Remove(); ErrorNoHaltWithStack(err); return false end
     end -- When the have dedicated method to apply on each source
     local idx = self:GetHitSourceID(ent)
     if(idx) then local siz = ent.mrReports.Size
       if(each) then local suc, err = pcall(each, self, ent, idx)
-        if(not suc) then self:Remove(); error(err); return false end
+        if(not suc) then self:Remove(); ErrorNoHaltWithStack(err); return false end
       end -- When the have dedicated method to apply on each source
       if(proc) then -- Trigger the beam processing routine
         while(idx and idx <= siz) do -- First index always hits when present
           local beam = ent:GetHitReport(idx) -- When the report hits us
           local suc, err = pcall(proc, self, ent, idx, beam) -- Call process
-          if(not suc) then self:Remove(); error(err); return false end
+          if(not suc) then self:Remove(); ErrorNoHaltWithStack(err); return false end
           idx = self:GetHitSourceID(ent, idx + 1, true) -- Prepare for the next report
         end -- When the have dedicated method to apply on each source
       end -- Trigger the post-processing routine
       if(post) then local suc, err = pcall(post, self, ent)
-        if(not suc) then self:Remove(); error(err); return false end
+        if(not suc) then self:Remove(); ErrorNoHaltWithStack(err); return false end
       end; return true -- At least one report is processed for the current entity
     end; return false -- The entity hit reports do not hit us `self`
   end
@@ -2120,7 +2120,7 @@ function LaserLib.Call(time, func, ...)
   if((tnew - DATA.TOLD) > time) then
     DATA.TOLD = tnew -- Update time
     local suc, out = pcall(func, ...)
-    if(not suc) then error(out) end
+    if(not suc) then ErrorNoHaltWithStack(out) end
   end; return out
 end
 
@@ -2255,11 +2255,11 @@ end
 ]]
 function LaserLib.UpdateBounds(vcbase, action, bounds)
   local sx, ox = pcall(action, vcbase.x, bounds.x)
-  if(not sx) then error("Bounds error X: "..ox) end
+  if(not sx) then ErrorNoHaltWithStack("Bounds error X: "..ox) end
   local sy, oy = pcall(action, vcbase.y, bounds.y)
-  if(not sy) then error("Bounds error Y: "..oy) end
+  if(not sy) then ErrorNoHaltWithStack("Bounds error Y: "..oy) end
   local sz, oz = pcall(action, vcbase.z, bounds.z)
-  if(not sz) then error("Bounds error Z: "..oz) end
+  if(not sz) then ErrorNoHaltWithStack("Bounds error Z: "..oz) end
   vcbase.x, vcbase.y, vcbase.z = ox, oy, oz
 end
 
@@ -2335,31 +2335,6 @@ function LaserLib.GetBeamOrigin(base, direct)
   local kmulv = math.abs(obdir:Dot(vbeam))
         vbeam:Mul(kmulv / 2); obcen:Add(vbeam)
   return obcen, kmulv
-end
-
---[[
- * Translates indices to color keys for RGB
- * Generally used to split colors into separate beams
- * idx > Index of the beam being split to components
- * mr  > Red component of the picked color channel
-         Can also be a color object then `mb` is missed
- * mg  > Green component of the picked color channel
-         Can also be a flag for new color if `mr` is object
- * mb  > Blue component of the picked color channel
-]]
-function LaserLib.GetColorID(idx, mr, mg, mb)
-  if(not (idx and idx > 0)) then return end
-  local idc = ((idx - 1) % 3) + 1 -- Index component
-  local key = DATA.COLID[idc] -- Key color component
-  if(istable(mr)) then local cov = mr[key]
-    if(mg) then local c = Color(0,0,0,mr.a); c[key] = cov; return c
-    else mr.r, mr.g, mr.b = 0, 0, 0; mr[key] = cov; return mr end
-  else
-    local r = ((key == "r") and mr or 0) -- Split red   [1]
-    local g = ((key == "g") and mg or 0) -- Split green [2]
-    local b = ((key == "b") and mb or 0) -- Split blue  [3]
-    return r, g, b -- Return the picked component
-  end
 end
 
 --[[
@@ -2625,7 +2600,7 @@ function LaserLib.GetWaveArray(cow)
   local weco, wcol = DATA.WTCOL, DATA.WCOL
   local coax = math.max(cow.r, cow.g, cow.b)
   local coan = math.min(cow.r, cow.g, cow.b)
-  local marg = -tW.Marg
+  local marg = -tW.Marg; tW.PT = 0
   if(coan > 0) then
     tW.PN = (coan / comx)
     coax  = (coax - coan)
@@ -2725,20 +2700,32 @@ end
  * Validates the beam object
 ]]
 function mtBeam:IsValid()
-  if(not self.VrOrigin) then return false end
-  if(not self.VrDirect) then return false end
-  if(self.VrDirect:LengthSqr() == 0) then return false end
-  if(not self.BmLength) then return false end
-  if(self.BmLength <= 0) then return false end
-  if(self.BrReflec == nil) then return false end
-  if(self.BrRefrac == nil) then return false end
-  if(self.BmNoover == nil) then return false end
-  if(self.BmDisper == nil) then return false end
-  if(self.NvLength == nil) then return false end
-  if(self.NvBounce == nil) then return false end
-  if(self.MxBounce == nil) then return false end
-  if(not LaserLib.IsValid(self.BmSource)) then return false end
-  if(not LaserLib.IsValid(self.BoSource)) then return false end
+  if(not self.VrOrigin) then
+    ErrorNoHaltWithStack("Beam origin missing!"); return false end
+  if(not self.VrDirect) then
+    ErrorNoHaltWithStack("Beam direct missing!");  return false end
+  if(self.VrDirect:LengthSqr() == 0) then
+    ErrorNoHaltWithStack("Beam direct is zero!"); return false end
+  if(not self.BmLength) then
+    ErrorNoHaltWithStack("Beam length missing!"); return false end
+  if(self.BmLength <= 0) then
+    ErrorNoHaltWithStack("Beam length invalid!");  return false end
+  if(self.BrReflec == nil) then
+    ErrorNoHaltWithStack("Beam reflect missing!");  return false end
+  if(self.BrRefrac == nil) then
+    ErrorNoHaltWithStack("Beam refract missing!");  return false end
+  if(self.BmNoover == nil) then
+    ErrorNoHaltWithStack("Beam no-ovrm missing!");  return false end
+  if(self.BmDisper == nil) then
+    ErrorNoHaltWithStack("Beam dispers missing!");  return false end
+  if(self.NvBounce == nil) then
+    ErrorNoHaltWithStack("Beam bounce missing!"); return false end
+  if(self.MxBounce == nil) then
+    ErrorNoHaltWithStack("Beam mx-bounce missing!"); return false end
+  if(not LaserLib.IsValid(self.BmSource)) then
+    ErrorNoHaltWithStack("Beam source missing!"); return false end
+  if(not LaserLib.IsValid(self.BoSource)) then
+    ErrorNoHaltWithStack("Beam primary missing!"); return false end
   return true
 end
 
@@ -2853,6 +2840,14 @@ end
  * Forces max bounces count
  * iBns > Maximum bounces used during run
 ]]
+function mtBeam:GetBounces()
+  return (self.NvBounce or self.MxBounce)
+end
+
+--[[
+ * Forces max bounces count
+ * iBns > Maximum bounces used during run
+]]
 function mtBeam:SetBounces(iBns)
   if(iBns) then -- These is forced bounce count
     self.MxBounce = math.max(tonumber(iBns) or 0, 0)
@@ -2931,8 +2926,8 @@ function mtBeam:SetSource(base, ...)
   for idx, ent in pairs({...}) do
     if(LaserLib.IsPrimary(ent)) then
       self.BoSource = ent; break
-    end -- Source is found
-  end -- No source is found
+    end -- Source is found. Store it
+  end; return self -- No source is found
 end
 
 
@@ -3358,7 +3353,6 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
   local info, size = self:GetPoints() -- Reference to stack
   local node, width = Vector(origin), self.NvWidth
   local damage, force = self.NvDamage , self.NvForce
-  local bedraw = (bedraw or bedraw == nil) and true or false
   local cnlen = math.max((tonumber(nbulen) or 0), 0)
   if(cnlen > 0) then -- Subtract the path trough the medium
     self:Pass(cnlen) -- Direct length
@@ -3370,8 +3364,16 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
   if(self.NxRgnode) then -- Register the node in stack
-    local row = {node, width, damage, force, bedraw}
+    local row = {node, width, damage, force}
     table.insert(info, row); info.Size = (info.Size + 1)
+    if(CLIENT) then
+      row[5] = (bedraw or bedraw == nil) and true or false
+      if(not row[6]) then row[6] = Color(0,0,0,0)
+        local rc = self:GetColorRGBA(true)
+        row[6].r, row[6].g = rc.r, rc.g
+        row[6].b, row[6].a = rc.b, rc.a
+      end
+    end
   else -- Skip registering this node and write the next one
     self.NxRgnode = true -- Mark the next node for insertion
   end; return self -- Coding effective API
@@ -3934,7 +3936,7 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bmin, bmax) -- World space is faster
   -- Material must be cached and updated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local cup = (color or self.NvColor)
+  local csr = (color or self.NvColor)
   local spd = DATA.DRWBMSPD:GetFloat()
   -- Draw the beam sequentially being faster
   for idx = 2, szv do
@@ -3945,7 +3947,7 @@ function mtBeam:Draw(sours, imatr, color)
     LaserLib.UpdateBounds(bmin, math.min, ntx)
     LaserLib.UpdateBounds(bmax, math.max, ntx)
     -- When we need to draw the beam with rendering library
-    if(org[5]) then cup = (org[6] or cup) -- Change color
+    if(org[5]) then cup = (org[6] or csr) -- Change color
       local wdt = LaserLib.GetWidth(org[2]) -- Start width
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
       render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
@@ -4614,19 +4616,19 @@ if(SERVER) then
       local cas = target:GetClass()
       if(cas and g_damage[cas]) then
         local suc, oux = pcall(g_damage[cas], self, param)
-        if(not suc) then target:Remove(); error(oux) end -- Remove target
+        if(not suc) then target:Remove(); ErrorNoHaltWithStack(oux) end -- Remove target
         if(oux) then return end -- Exit main damage routine immediately
       else
         if(target:IsPlayer()) then
           if(target:Health() <= damage) then
             local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
-            if(not suc) then target:Kill(); error(oux) end -- Remove target
+            if(not suc) then target:Kill(); ErrorNoHaltWithStack(oux) end -- Remove target
             if(oux) then return end -- Exit main damage routine immediately
           end
         elseif(target:IsNPC()) then
           if(target:Health() <= damage) then
             local suc, oux = pcall(g_damage["#ISNPC#"], self, param)
-            if(not suc) then target:Remove(); error(oux) end -- Remove target
+            if(not suc) then target:Remove(); ErrorNoHaltWithStack(oux) end -- Remove target
             if(oux) then return end -- Exit main damage routine immediately
           end
         elseif(target:IsVehicle()) then
@@ -4635,7 +4637,7 @@ if(SERVER) then
             if(driver:Health() <= damage) then driver:ExitVehicle()
               param.target = driver -- Switch target to the driver on kill
               local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
-              if(not suc) then driver:Kill(); error(oux) end -- Remove target
+              if(not suc) then driver:Kill(); ErrorNoHaltWithStack(oux) end -- Remove target
               if(oux) then return end -- Exit main damage routine immediately
             end
           end
@@ -4678,9 +4680,9 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   -- This beam is already branched. Skip branching
   if(brn.Size > 0) then return false end
   local pmr, mar = tW.PT, (DATA.NUGE / 10)
-  local tar, ovr = self:GetTarget(), self.BmNoover
   local len = (self.NvLength + mar)
-  local src, sro = self.BmSource, tar.Entity
+  local tar, ovr = self:GetTarget(), self.BmNoover
+  local src, sro = self.BmSource, self.BoSource
   local rle, rfr = self:GetFgDivert()
   local wih = LaserLib.GetWidth(self:GetWidth())
   local dmg, frc = self:GetDamage(), self:GetForce()
@@ -4689,14 +4691,13 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   local bnc = self.NvBounce; org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   self:Finish(); tar.NoEffect = true
-  LaserLib.Print("BASE", "---------", wih, len)
   for iW = tW.IS, tW.IE do
     local recw = tW[iW] -- Current component
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
     sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
     local beam = LaserLib.Beam(org, dir, len)
     -- Setup child beam
-    beam:SetSource(src, src)
+    beam:SetSource(src, src, sro)
     beam:SetWidth(rEn * wih)
     beam:SetDamage(rEn * dmg)
     beam:SetForce(rEn * frc)
@@ -4717,8 +4718,6 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
     end
   end; return true
 end
-
-LaserLib.PrintEn(SERVER)
 
 --[[
  * Traces a laser beam from the entity provided
@@ -4826,7 +4825,7 @@ function mtBeam:Run(iStg)
           if(cas and g_actors[cas]) then
             self:Finish() -- Assume that beam stops traversing
             local suc, err = pcall(g_actors[cas], self)
-            if(not suc) then self:Finish(); target:Remove(); error(err) end
+            if(not suc) then self:Finish(); target:Remove(); ErrorNoHaltWithStack(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             self:Finish() -- When the entity is unit but does not have actor function
           else -- Otherwise must continue medium change. Reduce loops when hit dedicated units
@@ -4840,8 +4839,6 @@ function mtBeam:Run(iStg)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
-                  -- Apply power ratio when requested
-                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- Check whenever dispersion is enabled and try to decompose
                   if(not self:IsDisperse(refract)) then
                     -- The beam is monochromatic and should not be branched
@@ -4853,6 +4850,8 @@ function mtBeam:Run(iStg)
                     else -- Divert the beam with the reflected ray
                       self:Divert(trace.HitPos, vdir)
                     end -- We cannot be able to refract as the requested beam is missing
+                    -- Apply power ratio when requested
+                    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   end
                 else self:Finish() end
                 -- We are neither reflecting nor refracting and have hit a wall
@@ -4903,7 +4902,7 @@ function mtBeam:Run(iStg)
         else
           if(cas and g_actors[cas]) then
             local suc, err = pcall(g_actors[cas], self)
-            if(not suc) then self:Finish(); target:Remove(); error(err) end
+            if(not suc) then self:Finish(); target:Remove(); ErrorNoHaltWithStack(err) end
           elseif(LaserLib.IsUnit(target)) then -- Trigger for units without action function
             self:Finish() -- When the entity is unit but does not have actor function
           else -- Otherwise bust continue medium change. Reduce loops when hit dedicated units
@@ -4917,8 +4916,6 @@ function mtBeam:Run(iStg)
               if(self.StRfract or (refract and key ~= merum.S[2])) then -- Needs to be refracted
                 -- When we have refraction entry and are still tracing the beam
                 if(refract) then -- When refraction entry is available do the thing
-                  -- Apply power ratio when requested
-                  if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   -- Check whenever dispersion is enabled and try to decompose
                   if(not self:IsDisperse(refract)) then
                     -- The beam is monochromatic and should not be branched
@@ -4935,6 +4932,8 @@ function mtBeam:Run(iStg)
                       self:Divert(trace.HitPos, vdir)
                     end -- Need to make the traversed destination the new source
                     self:SetRefractWorld(refract, key)
+                    -- Apply power ratio when requested
+                    if(self.BrRefrac) then self:SetPowerRatio(refract[2]) end
                   end
                   -- We cannot be able to refract as the requested entry is missing
                 else self:Finish() end
@@ -4957,17 +4956,6 @@ function mtBeam:Run(iStg)
   until(self:IsFinish())
   -- Clear the water trigger refraction flag
   self:ClearWater()
-
-  LaserLib.Print("  Run["..self.BmRecuLS.."]", tostring(self.BmTarget.Entity))
-
-  if(self.BmRecuLS == 1 and self.BmSource.crBeamID == 1) then
-    if(SERVER) then
-      self.BmSource:SetNWVector("tes_hits", self.BmTarget.HitPos)
-    end
-  end
-
-  LaserLib.DrawPoint(self.BmSource:GetNWVector("tes_hits"), "RED")
-
   -- The beam ends inside transparent entity
   if(not self:IsNode()) then self.BmTarget = nil; return self end
   -- Update the sources and trigger the hit reports
@@ -4980,7 +4968,7 @@ function LaserLib.NumSlider(panel, convar, nmin, nmax, ndef, ndig)
   if(SERVER) then return end
   local sTool = DATA.TOOL -- Read the tool name directly
   local cV = GetConVar(sTool.."_"..convar)
-  if(not cV) then error("Convar missing: "..convar) end
+  if(not cV) then ErrorNoHaltWithStack("Convar missing: "..convar); return end
   local sT = ("tool."..sTool.."."..convar)
   local sN, sH = cV:GetName(), cV:GetHelpText()
   local sB, sC = language.GetPhrase(sT), language.GetPhrase(sT.."_con")
@@ -4993,7 +4981,7 @@ function LaserLib.CheckBox(panel, convar)
   if(SERVER) then return end
   local sTool = DATA.TOOL -- Read the tool name directly
   local cV = GetConVar(sTool.."_"..convar)
-  if(not cV) then error("Convar missing: "..convar) end
+  if(not cV) then ErrorNoHaltWithStack("Convar missing: "..convar); return end
   local sT = ("tool."..sTool.."."..convar)
   local sN, sH = cV:GetName(), cV:GetHelpText()
   local sB = language.GetPhrase(sT)

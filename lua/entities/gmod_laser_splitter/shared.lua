@@ -16,7 +16,9 @@ ENT.UnitID         = 4
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyeglass")
 
+local gtWVIS     = LaserLib.GetData("WVIS")
 local gnDOTM     = LaserLib.GetData("DOTM")
+local cvWDHUESTP = LaserLib.GetData("WDHUESTP")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:SetupDataTables()
@@ -178,8 +180,6 @@ function ENT:SetBeamDisperse(bool)
   return self
 end
 
-
-
 function ENT:GetLeanAngle(forwd, upwrd)
   return LaserLib.GetLeanAngle(forwd, upwrd,
                                self:GetBeamLeanX(),
@@ -195,6 +195,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
+  local disper = (self:GetBeamDisperse() and cvWDHUESTP:GetFloat() > 0)
   local todiv  = (self:GetBeamReplicate() and 1 or count)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
@@ -202,12 +203,14 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetDamage(self:GetBeamDamage() / todiv)
         beam:SetForce(self:GetBeamForce() / todiv)
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, false)
+        beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
-  if(self:GetBeamColorSplit()) then
-    local r, g, b, a = self:GetBeamColorRGBA()
-          r, g, b = LaserLib.GetColorID(idx, r, g, b)
+  if(self:GetBeamColorSplit() and count > 1 and idx) then
+    local dw = math.abs(gtWVIS[1] - gtWVIS[2]) / (count - 1)
+    local ww = gtWVIS[1] - (idx - 1) * dw
+    local r, g, b, a = LaserLib.WaveToColor(ww)
     beam:SetColorRGBA(r, g, b, a)
+    beam:SetWavelength(ww)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

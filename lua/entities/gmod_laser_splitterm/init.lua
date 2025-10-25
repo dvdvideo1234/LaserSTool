@@ -80,7 +80,7 @@ function ENT:Think()
   self:UpdateInit()
   self:UpdateSources()
 
-  if(self.crSizeID > 0) then
+  if(self.crSorsID > 0) then
     self:SetOn(true)
   else
     self:SetOn(false)

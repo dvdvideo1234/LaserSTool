@@ -27,17 +27,19 @@ function ENT:Draw()
       local upwrd = self:GetUpwardLocal()
       local angle = self:GetLeanAngle(forwd, upwrd)
       self:UpdateInit()
-      for idx = 1, mcount do
-        self:DrawBeam(nil, angle:Forward(), idx)
-        if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
-      end
+      if(mcount > 1) then
+        for idx = 1, mcount do
+          self:DrawBeam(nil, angle:Forward(), idx)
+          if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
+        end
+      else self:DrawBeam(nil, forwd) end
       self:SetHitReportMax(true)
     else
       self:SetHitReportMax()
     end
   else
     local lndir = cvLNDIRACT:GetFloat()
-    if(lndir > 0 and mcount > 1) then
+    if(lndir > 0 and mcount > 0) then
       render.SetColorMaterial()
       local beang = self:GetAngles()
       local orign = self:GetBeamOrigin()
@@ -45,11 +47,17 @@ function ENT:Draw()
       local forwd = self:GetDirectLocal()
       local upwrd = self:GetUpwardLocal()
       local angle = self:GetLeanAngle(forwd, upwrd)
-      for idx = 1, mcount do
-        local orend = angle:Forward(); orend:Mul(lndir)
-        orend:Rotate(beang) orend:Add(orign)
+      if(mcount > 1) then
+        for idx = 1, mcount do
+          local orend = angle:Forward(); orend:Mul(lndir)
+          orend:Rotate(beang) orend:Add(orign)
+          render.DrawLine(orign, orend, gcYELLOW)
+          if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
+        end
+      else
+        local orend = Vector(forwd); orend:Rotate(beang)
+              orend:Mul(lndir); orend:Add(orign)
         render.DrawLine(orign, orend, gcYELLOW)
-        if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
       end
     end
     self:SetHitReportMax()
