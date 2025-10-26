@@ -4675,7 +4675,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   if(not self.BmDisper) then return false end
   -- This beam contains a single wavelength
   if(self.BmWaveLn > 0) then return false end
-  -- Ignore processing when liser exit is inside a prop
+  -- Ignore processing when laser exit is inside a prop
   if(self.StRfract and self:IsFirst()) then return false end
   -- Equal refractive indices for source and destination
   local ms, me = self.TrMedium.D[1][1], tRef[1]
@@ -4702,29 +4702,29 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   local bnc = self.NvBounce; org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   -- Mark the base beam as finished and branch it
-  self:Finish(); tar.NoEffect = true
-  for iW = tW.IS, tW.IE do -- We only avaulable entries
+  self:Finish(); tar.NoEffect = true -- Turn effects off
+  for iW = tW.IS, tW.IE do -- Use only avaulable entries
     local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
     sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
-    local beam = LaserLib.Beam(org, dir, len)
+    local beam = LaserLib.Beam(org, dir, len) -- Make a beam
     -- Setup child beam and apply power modifiers
-    beam:SetSource(src, src, sro)
-    beam:SetWidth(rEn * wih)
-    beam:SetDamage(rEn * dmg)
-    beam:SetForce(rEn * frc)
-    beam:SetFgDivert(rle, rfr)
-    beam:SetFgTexture(ovr, false)
-    beam:SetBounces(bnc)
-    beam:SetWavelength(recw.W)
-    beam:SetColorRGBA(sr, sg, sb, sa)
-    -- Validate its state and start the propagation
+    beam:SetSource(src, src, sro) -- Primary source
+    beam:SetWidth(rEn * wih)      -- Weighted width
+    beam:SetDamage(rEn * dmg)     -- Weighted damage
+    beam:SetForce(rEn * frc)      -- Weighted force
+    beam:SetFgDivert(rle, rfr)    -- Inherited diversion
+    beam:SetFgTexture(ovr, false) -- Disable dispersion
+    beam:SetBounces(bnc)          -- Left over bounces
+    beam:SetWavelength(recw.W)    -- Component wavelength
+    beam:SetColorRGBA(sr, sg, sb, sa) -- Apply beam color
+    -- Validate branch beam state and start the propagation
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
-    beam:Run(self.BmRecuLS + 1)
+    beam:Run(self.BmRecuLS + 1) -- Increment recurse stage
     table.insert(brn, beam); brn.Size = (brn.Size + 1)
-    -- Adjust first point not to be drawn
-    local tvp, siz = beam:GetPoints()
+    -- Adjust first point not to be drawn due to margin
+    local tvp, siz = beam:GetPoints() -- Mark segment
     if(siz > 0) then beam:GetNode(1)[5] = false end
   end; return true
 end
