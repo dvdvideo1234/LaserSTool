@@ -42,6 +42,7 @@ DATA.VZERO = Vector()          -- Zero vector used across all sources
 DATA.VDRFW = Vector(1, 0, 0)   -- Global forward vector used across all sources
 DATA.VDRRG = Vector(0,-1, 0)   -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1)   -- Global up vector used across all sources
+DATA.GDRAW = Color(0, 0, 0)    -- For general beam temporary color-related operations
 DATA.WTCOL = Color(0, 0, 0)    -- For wavelength to color conversions. It is expensive to create color
 DATA.DSCOL = Color(0, 0, 0)    -- For dispersion to color conversions. It is expensive to create color
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
@@ -3366,13 +3367,12 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
   if(self.NxRgnode) then -- Register the node in stack
     local row = {node, width, damage, force}
     table.insert(info, row); info.Size = (info.Size + 1)
-    if(CLIENT) then
-      row[5] = (bedraw or bedraw == nil) and true or false
-      if(not row[6]) then row[6] = Color(0,0,0,0)
-        local rc = self:GetColorRGBA(true)
-        row[6].r, row[6].g = rc.r, rc.g
-        row[6].b, row[6].a = rc.b, rc.a
-      end
+    if(CLIENT) then -- Client must allocate draw color
+      row[5] = ((bedraw or bedraw == nil) and true or false)
+      if(info.Size == 1) then row[6] = {0,0,0,0}
+        local ro, rc = self:GetColorRGBA(true), row[6]
+        rc[1], rc[2], rc[3], rc[4] = ro.r, ro.g, ro.b, ro.a
+      else row[6] = info[size][6] end -- Client only
     end
   else -- Skip registering this node and write the next one
     self.NxRgnode = true -- Mark the next node for insertion
@@ -3907,14 +3907,12 @@ end
  * You can mark trace view points as visible
  * sours > Override for laser unit entity `self`
  * imatr > Reference to a beam material object
- * color > Color structure reference for RGBA
 ]]
-function mtBeam:Draw(sours, imatr, color)
+function mtBeam:Draw(sours, imatr)
   if(SERVER) then return self end
   local tvpnt, szv = self:GetPoints()
   if(szv <= 0) then return self end
   -- Update rendering boundaries
-  local tbran = self.BmBranch
   local sours = (sours or self.BmSource)
   local bmin, bmax = sours:GetRenderBounds()
         bmin:Set(sours:LocalToWorld(bmin))
@@ -3923,6 +3921,8 @@ function mtBeam:Draw(sours, imatr, color)
   local vuser = LaserLib.GetPlayerView(20)
   LaserLib.UpdateBounds(bmin, math.min, vuser)
   LaserLib.UpdateBounds(bmax, math.max, vuser)
+  -- Allocate references for branches and color
+  local tbran, g_draw = self.BmBranch, DATA.GDRAW
   -- Extend render bounds with entity OBB
   local omin = sours:LocalToWorld(sours:OBBMins())
   local omax = sours:LocalToWorld(sours:OBBMaxs())
@@ -3936,7 +3936,6 @@ function mtBeam:Draw(sours, imatr, color)
   sours:SetRenderBoundsWS(bmin, bmax) -- World space is faster
   -- Material must be cached and updated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
-  local csr = (color or self.NvColor)
   local spd = DATA.DRWBMSPD:GetFloat()
   -- Draw the beam sequentially being faster
   for idx = 2, szv do
@@ -3947,10 +3946,12 @@ function mtBeam:Draw(sours, imatr, color)
     LaserLib.UpdateBounds(bmin, math.min, ntx)
     LaserLib.UpdateBounds(bmax, math.max, ntx)
     -- When we need to draw the beam with rendering library
-    if(org[5]) then cup = (org[6] or csr) -- Change color
+    if(org[5]) then cup = org[6] -- Beam segment color
+      g_draw.r, g_draw.g = cup[1], cup[2] -- Red green
+      g_draw.b, g_draw.a = cup[3], cup[4] -- Blue alpha
       local wdt = LaserLib.GetWidth(org[2]) -- Start width
       local dtm, len = (spd * CurTime()), ntx:Distance(otx)
-      render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, cup)
+      render.DrawBeam(otx, ntx, wdt, dtm + len / 16, dtm, g_draw)
     end -- Draw the actual beam texture
   end -- Adjust the render bounds with world-space coordinates
   sours:SetRenderBoundsWS(bmin, bmax)
@@ -4133,7 +4134,7 @@ DATA.ACTORS = {
     beam:SetActor(out) -- Makes beam pass the unit
     beam:Finish(false) -- Output portal is validated. Continue
   end,
-  ["gmod_laser_rdivider"] = function(beam)
+  ["gmod_laser_research"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
     local ent = trace.Entity -- Retrieve class trace entity
     local norm = ent:GetHitNormal()
@@ -4194,7 +4195,7 @@ DATA.ACTORS = {
           force  = beam.NvForce
           length = beam.NvLength
         else -- Color needs to be changed for the current node
-          if(not node[6]) then node[6] = Color(0,0,0,0) end
+          local cup = {0,0,0,0}; node[6] = cup
           if(ent:GetBeamPowerClamp()) then
             local ew, bw = ent:GetInBeamWidth() , beam.NvWidth
             local ed, bd = ent:GetInBeamDamage(), beam.NvDamage
@@ -4205,22 +4206,22 @@ DATA.ACTORS = {
             if(not LaserLib.IsPower(width, damage)) then return end
             force  = (ef > 0) and math.Clamp(bf, 0, ef) or bf
             length = (el > 0) and math.Clamp(bl, 0, el) or bl
-            node[6].r = (ec.r > 0) and math.Clamp(sc.r, 0, ec.r) or sc.r
-            node[6].g = (ec.g > 0) and math.Clamp(sc.g, 0, ec.g) or sc.g
-            node[6].b = (ec.b > 0) and math.Clamp(sc.b, 0, ec.b) or sc.b
-            node[6].a = (ec.a > 0) and math.Clamp(sc.a, 0, ec.a) or sc.a
+            cup[1] = (ec.r > 0) and math.Clamp(sc.r, 0, ec.r) or sc.r
+            cup[2] = (ec.g > 0) and math.Clamp(sc.g, 0, ec.g) or sc.g
+            cup[3] = (ec.b > 0) and math.Clamp(sc.b, 0, ec.b) or sc.b
+            cup[4] = (ec.a > 0) and math.Clamp(sc.a, 0, ec.a) or sc.a
           else
             width  = math.max(beam.NvWidth  - ent:GetInBeamWidth() , 0)
             damage = math.max(beam.NvDamage - ent:GetInBeamDamage(), 0)
             if(not LaserLib.IsPower(width, damage)) then return end
             force  = math.max(beam.NvForce  - ent:GetInBeamForce() , 0)
             length = math.max(beam.NvLength - ent:GetInBeamLength(), 0)
-            node[6].r = math.max(sc.r - ec.r, 0)
-            node[6].g = math.max(sc.g - ec.g, 0)
-            node[6].b = math.max(sc.b - ec.b, 0)
-            node[6].a = math.max(sc.a - ec.a, 0)
-          end
-          beam:SetColorRGBA(node[6]) -- Last beam color being used
+            cup[1] = math.max(sc.r - ec.r, 0)
+            cup[2] = math.max(sc.g - ec.g, 0)
+            cup[3] = math.max(sc.b - ec.b, 0)
+            cup[4] = math.max(sc.a - ec.a, 0)
+          end -- Last beam color being used. change current cololr
+          beam:SetColorRGBA(cup[1], cup[2], cup[3], cup[4])
         end -- Remove from the output beams with such color and material
         beam.NvLength  = length; -- Length not used in visuals
         beam.NvWidth   = width ; node[2] = width
@@ -4670,15 +4671,25 @@ end
  * tRef > Refraction sodium line configuration
 ]]
 function mtBeam:IsDisperse(tRef, vOrg, vDir)
+  -- Dispersion is not being enabled
   if(not self.BmDisper) then return false end
+  -- This beam contains a single wavelength
   if(self.BmWaveLn > 0) then return false end
+  -- Ignore processing when liser exit is inside a prop
+  if(self.StRfract and self:IsFirst()) then return false end
+  -- Equal refractive indices for source and destination
+  local ms, me = self.TrMedium.D[1][1], tRef[1]
+  if(ms == me) then return false end
+  -- This beam is already branched. Skip branching
+  local brn = self.BmBranch -- Index branch table
+  if(brn.Size > 0) then return false end
+  -- The beam material does not have a base color
   local cB = self:GetColorBase()
   if(not cB) then return false end
+  -- Wave array cannot be initialized
   local tW = LaserLib.GetWaveArray(cB)
   if(not tW) then return false end
-  local brn = self.BmBranch -- Index branch table
-  -- This beam is already branched. Skip branching
-  if(brn.Size > 0) then return false end
+  -- Store local parameters used in the loop
   local pmr, mar = tW.PT, (DATA.NUGE / 10)
   local len = (self.NvLength + mar)
   local tar, ovr = self:GetTarget(), self.BmNoover
@@ -4690,13 +4701,14 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   local org = Vector(dir); org:Mul(-mar)
   local bnc = self.NvBounce; org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
+  -- Mark the base beam as finished and branch it
   self:Finish(); tar.NoEffect = true
-  for iW = tW.IS, tW.IE do
-    local recw = tW[iW] -- Current component
+  for iW = tW.IS, tW.IE do -- We only avaulable entries
+    local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
     sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
     local beam = LaserLib.Beam(org, dir, len)
-    -- Setup child beam
+    -- Setup child beam and apply power modifiers
     beam:SetSource(src, src, sro)
     beam:SetWidth(rEn * wih)
     beam:SetDamage(rEn * dmg)
@@ -4706,16 +4718,14 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
     beam:SetBounces(bnc)
     beam:SetWavelength(recw.W)
     beam:SetColorRGBA(sr, sg, sb, sa)
-    -- Validate and propagate it
+    -- Validate its state and start the propagation
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
     beam:Run(self.BmRecuLS + 1)
     table.insert(brn, beam); brn.Size = (brn.Size + 1)
-    -- Adjust point not to be drawn
+    -- Adjust first point not to be drawn
     local tvp, siz = beam:GetPoints()
-    if(siz > 0) then
-      beam:GetNode(1)[5] = false
-    end
+    if(siz > 0) then beam:GetNode(1)[5] = false end
   end; return true
 end
 

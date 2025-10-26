@@ -24,12 +24,11 @@ end
  * source > Entity that has laser related properties
  * color  > Force color to starts draw with
 ]]
-function ENT:DrawTrace(beam, source, color)
+function ENT:DrawTrace(beam, source)
   local okent = LaserLib.IsValid(source)
   local usent = (okent and source or self)
-  local corgb = usent:GetBeamColorRGBA(true)
   local imatr = usent:GetBeamMaterial(true)
-  beam:Draw(usent, imatr, color or corgb)
+  beam:Draw(usent, imatr)
 end
 
 function ENT:DrawBeam()

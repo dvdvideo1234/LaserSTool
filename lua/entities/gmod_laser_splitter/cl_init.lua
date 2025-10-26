@@ -7,7 +7,7 @@ local gcYELLOW   = LaserLib.GetColor("YELLOW")
 function ENT:DrawBeam(org, dir, idx)
   local beam = self:DoBeam(org, dir, idx)
   if(not beam) then return end
-  self:DrawTrace(beam, nil, beam.NvColor)
+  self:DrawTrace(beam)
   -- Handle drawing the effects when have to be drawn
   self:DrawEndingEffect(beam)
 end

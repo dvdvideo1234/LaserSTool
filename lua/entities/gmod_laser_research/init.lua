@@ -2,7 +2,7 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-resource.AddFile("materials/vgui/entities/gmod_laser_rdivider.vmt")
+resource.AddFile("materials/vgui/entities/gmod_laser_research.vmt")
 
 function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)

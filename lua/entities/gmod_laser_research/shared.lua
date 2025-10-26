@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
-ENT.PrintName      = "Divider Recursive"
+ENT.PrintName      = "Resaearch unit"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
@@ -9,8 +9,8 @@ else
   ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
-ENT.Purpose        = "Divides incoming beam into pass-trough and reflected"
-ENT.Instructions   = "Position this entity on the incoming beam path"
+ENT.Purpose        = "This entity is generally used for research and development"
+ENT.Instructions   = "Put code in this to test it before it gets official"
 ENT.Author         = "DVD"
 ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = false
