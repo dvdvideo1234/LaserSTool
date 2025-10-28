@@ -160,6 +160,7 @@ TOOL.ClientConVar =
   [ "direct"       ] = "",
   [ "material"     ] = "trails/laser",
   [ "model"        ] = "models/props_lab/tpplug.mdl",
+  [ "skin"         ] = 0,
   [ "dissolvetype" ] = "core",
   [ "startsound"   ] = "ambient/energy/weld1.wav",
   [ "stopsound"    ] = "ambient/energy/weld2.wav",
@@ -237,6 +238,7 @@ function TOOL:LeftClick(trace)
   local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
   local model        = self:GetClientInfo("model")
+  local mskin        = self:GetClientInfo("skin")
   local material     = self:GetClientInfo("material")
   local stopsound    = self:GetClientInfo("stopsound")
   local killsound    = self:GetClientInfo("killsound")
@@ -280,6 +282,8 @@ function TOOL:LeftClick(trace)
                                   forcecenter, frozen      , enonvermater, ensafebeam  , raycolor)
 
   if(not (LaserLib.IsValid(laser))) then return false end
+
+  laser:SetSkin(mskin)
 
   LaserLib.ApplySpawn(laser, trace, self:GetTransform())
 
@@ -575,16 +579,16 @@ function TOOL.BuildCPanel(cPanel)
   local tProp = list.GetForEdit("LaserEmitterModels")
   local uProp = table.GetKeys(tProp); table.sort(uProp, function(u, v) return u < v end)
   pProp = vgui.Create("PropSelect", cPanel)
-  pProp:Dock(TOP); pProp:SetTall(150)
-  pProp:SetConVar(gsTOOL.."_model")
+  pProp.Height = 3; pProp:Dock(TOP) -- Strech the panel to have 3 rows
+  pProp:SetConVar(gsTOOL.."_model") -- Primary convar is the model
   pProp:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
   pProp.Label:SetText(language.GetPhrase("tool."..gsTOOL..".model_con"))
   for i = 1, #uProp do
     local key = uProp[i]
     local val = tProp[key]
-    local ang = tostring(val[gsTOOL.."angle" ])
-    local org = tostring(val[gsTOOL.."origin"])
-    local dir = tostring(val[gsTOOL.."direct"])
+    local ang = tostring(val[gsTOOL.."_angle" ])
+    local org = tostring(val[gsTOOL.."_origin"])
+    local dir = tostring(val[gsTOOL.."_direct"])
     local pIco = pProp:AddModel(key, val); pIco:SetTooltip(key)
     function pIco:DoRightClick()
       local pnMenu = DermaMenu(false, self)
@@ -604,9 +608,25 @@ function TOOL.BuildCPanel(cPanel)
       if(not IsValid(pOpts)) then return end
       pOpts:SetImage(LaserLib.GetIcon("table_sort"))
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (<)", function()
-        table.sort(pProp.Controls, function(u,v) u.Value < v.Value end) end):SetImage(LaserLib.GetIcon("arrow_down"))
+        table.sort(pProp.List.Items, function(u,v) return (u.Value < v.Value) end)
+        pProp.List:PerformLayout() end):SetImage(LaserLib.GetIcon("arrow_down"))
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (>)", function()
-        table.sort(pProp.Controls, function(u,v) u.Value > v.Value end) end):SetImage(LaserLib.GetIcon("arrow_up"))
+        table.sort(pProp.List.Items, function(u,v) return (u.Value > v.Value) end)
+        pProp.List:PerformLayout() end):SetImage(LaserLib.GetIcon("arrow_up"))
+      local skn = NumModelSkins(key)
+      if(skn > 0) then
+        local cS = val[gsTOOL.."_skin"]
+        local trn = language.GetPhrase("tool."..gsTOOL..".openmanager_skin")
+        local pMenu, pOpts = pnMenu:AddSubMenu(trn)
+        if(not IsValid(pMenu)) then return end
+        if(not IsValid(pOpts)) then return end
+        pOpts:SetImage(LaserLib.GetIcon("camera"))
+        for iS = 1, skn do local vS = (iS - 1)
+          local sS = ((cS == vS) and ("["..vS.."]") or vS)
+          pMenu:AddOption(trn..": "..tostring(sS), function()
+            val[gsTOOL.."_skin"] = vS end):SetImage(LaserLib.GetIcon("paintbrush"))
+        end
+      end
       pnMenu:Open()
     end
   end; cPanel:AddItem(pProp)
