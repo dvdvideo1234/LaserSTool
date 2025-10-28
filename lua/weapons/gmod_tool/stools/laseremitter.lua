@@ -606,7 +606,7 @@ function TOOL.BuildCPanel(cPanel)
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (<)", function()
         table.sort(pProp.Controls, function(u,v) u.Value < v.Value end) end):SetImage(LaserLib.GetIcon("arrow_down"))
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (>)", function()
-        table.sort(pProp.Controls, function(u,v) u.Value < v.Value end) end):SetImage(LaserLib.GetIcon("arrow_up"))
+        table.sort(pProp.Controls, function(u,v) u.Value > v.Value end) end):SetImage(LaserLib.GetIcon("arrow_up"))
       pnMenu:Open()
     end
   end; cPanel:AddItem(pProp)
