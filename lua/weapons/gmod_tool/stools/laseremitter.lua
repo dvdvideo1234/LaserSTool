@@ -502,7 +502,7 @@ function TOOL.BuildCPanel(cPanel)
   LaserLib.NumSlider(cPanel, "width"    , 0, cvMXBMWIDT:GetFloat(), gtConvarList[gsTOOL.."_width"])
   LaserLib.NumSlider(cPanel, "length"   , 0, cvMXBMLENG:GetFloat(), gtConvarList[gsTOOL.."_length"])
   LaserLib.NumSlider(cPanel, "damage"   , 0, cvMXBMDAMG:GetFloat(), gtConvarList[gsTOOL.."_damage"])
-  LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
+  LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"])
 
   local tMat = list.GetForEdit("LaserEmitterMaterials")
   local tKey = table.GetKeys(tMat) -- Sort the keys table on material
@@ -585,7 +585,7 @@ function TOOL.BuildCPanel(cPanel)
     local ang = tostring(val[gsTOOL.."angle" ])
     local org = tostring(val[gsTOOL.."origin"])
     local dir = tostring(val[gsTOOL.."direct"])
-    local pIco = pProp:AddModel(key, val)
+    local pIco = pProp:AddModel(key, val); pIco:SetTooltip(key)
     function pIco:DoRightClick()
       local pnMenu = DermaMenu(false, self)
       if(not IsValid(pnMenu)) then return end
