@@ -88,11 +88,11 @@ if(CLIENT) then
             pnCombo:SetSortItems(false)
             pnCombo:SetPos(iPa, 24 + iPa)
             pnCombo:SetSize(pnFrame:GetWide() - (gnGRAT - 1) * pnFrame:GetWide(), 25)
-            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmaterial_find"))
-            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmaterial_findv"))
-            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepmn"), "Key", false, LaserLib.GetIcon("key_go")) end
-            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_meppr"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
-            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepri"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmanager_find"))
+            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmanager_findv"))
+            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmanager_mepmn"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmanager_meppr"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmanager_mepri"), "Ridx", false, LaserLib.GetIcon("transmit")) end
       local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
             pnText:SetParent(pnFrame)
             pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
@@ -523,37 +523,37 @@ function TOOL.BuildCPanel(cPanel)
     function pImg:DoRightClick()
       local pnMenu = DermaMenu(false, self)
       if(not IsValid(pnMenu)) then return end
-      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_copy"))
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_copy"))
       if(not IsValid(pMenu)) then return end
       if(not IsValid(pOpts)) then return end
       pOpts:SetImage(LaserLib.GetIcon("page_copy"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copyn"),
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyn"),
         function() SetClipboardText(nam) end):SetIcon(LaserLib.GetIcon("textfield_rename"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copyi"),
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyi"),
         function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("key"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copym"),
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copym"),
         function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("lightning"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_copya"),
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copya"),
         function() SetClipboardText(nam..":"..key..">"..val.name) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
-      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmaterial_sort"))
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_sort"))
       if(not IsValid(pMenu)) then return end
       if(not IsValid(pOpts)) then return end
       pOpts:SetImage(LaserLib.GetIcon("table_sort"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepmn").." (<)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepmn").." (<)", function()
         LaserLib.SortDisperse(pMat, nil, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepmn").." (>)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepmn").." (>)", function()
         LaserLib.SortDisperse(pMat, nil, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepci").." (<)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepci").." (<)", function()
         LaserLib.SortDisperse(pMat, function(r,g,b) return r+g+b end, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepci").." (>)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepci").." (>)", function()
         LaserLib.SortDisperse(pMat, function(r,g,b) return r+g+b end, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepcn").." (<)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcn").." (<)", function()
         LaserLib.SortDisperse(pMat, math.min, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepcn").." (>)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcn").." (>)", function()
         LaserLib.SortDisperse(pMat, math.min, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepcx").." (<)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcx").." (<)", function()
         LaserLib.SortDisperse(pMat, math.max, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
-      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmaterial_mepcx").." (>)", function()
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcx").." (>)", function()
         LaserLib.SortDisperse(pMat, math.max, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
       pnMenu:Open()
     end
@@ -572,14 +572,44 @@ function TOOL.BuildCPanel(cPanel)
   pMix:SetAlphaBar(true)
   cPanel:AddItem(pMix)
 
+  local tProp = list.GetForEdit("LaserEmitterModels")
+  local uProp = table.GetKeys(tProp); table.sort(uProp, function(u, v) return u < v end)
   pProp = vgui.Create("PropSelect", cPanel)
   pProp:Dock(TOP); pProp:SetTall(150)
+  pProp:SetConVar(gsTOOL.."_model")
   pProp:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
-  pProp:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
-    convar = gsTOOL.."_model", -- Pass model convar
-    models = list.GetForEdit("LaserEmitterModels"),
-    label  = language.GetPhrase("tool."..gsTOOL..".model_con")
-  }); cPanel:AddItem(pProp)
+  pProp.Label:SetText(language.GetPhrase("tool."..gsTOOL..".model_con"))
+  for i = 1, #uProp do
+    local key = uProp[i]
+    local val = tProp[key]
+    local ang = tostring(val[gsTOOL.."angle" ])
+    local org = tostring(val[gsTOOL.."origin"])
+    local dir = tostring(val[gsTOOL.."direct"])
+    local pIco = pProp:AddModel(key, val)
+    function pIco:DoRightClick()
+      local pnMenu = DermaMenu(false, self)
+      if(not IsValid(pnMenu)) then return end
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_copy"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("page_copy"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyu"),
+        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("brick"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyi"),
+        function() SetClipboardText(tostring(i)) end):SetIcon(LaserLib.GetIcon("key"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copya"),
+        function() SetClipboardText(key..":"..ang.."|"..org.."|"..dir) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_sort"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("table_sort"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (<)", function()
+        table.sort(pProp.Controls, function(u,v) u.Value < v.Value end) end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (>)", function()
+        table.sort(pProp.Controls, function(u,v) u.Value < v.Value end) end):SetImage(LaserLib.GetIcon("arrow_up"))
+      pnMenu:Open()
+    end
+  end; cPanel:AddItem(pProp)
 
   LaserLib.ComboBoxString(cPanel, "dissolvetype", "LaserDissolveTypes")
   LaserLib.ComboBoxString(cPanel, "startsound"  , "LaserStartSounds"  )

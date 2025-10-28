@@ -835,6 +835,7 @@ function LaserLib.GetSign(arg)
 end
 
 -- https://wiki.facepunch.com/gmod/Silkicons
+-- https://heyter.github.io/js-famfamfam-search/
 function LaserLib.GetIcon(icon)
   return DATA.ICON:format(tostring(icon or ""))
 end
@@ -2045,29 +2046,29 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         local pnMenu, pMenu, pOpts = DermaMenu(false, pnFrame)
         if(not IsValid(pnMenu)) then return end
         -- Attach sub-menu to the menu items ( copy )
-        pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_copy"))
+        pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmanager_copy"))
         if(not IsValid(pMenu)) then return end
         if(not IsValid(pOpts)) then return end
         pOpts:SetImage(LaserLib.GetIcon("page_copy"))
-        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copym"),
+        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_copym"),
           function() SetClipboardText(sKey) end):SetImage(LaserLib.GetIcon("lightning"))
-        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copys"),
+        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_copys"),
           function() SetClipboardText(sCon) end):SetImage(LaserLib.GetIcon("note"))
-        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_copya"),
+        pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_copya"),
           function() SetClipboardText(sInf) end):SetImage(LaserLib.GetIcon("asterisk_yellow"))
         -- Attach sub-menu to the menu items ( sort )
-        pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmaterial_sort"))
+        pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..sTool..".openmanager_sort"))
         if(not IsValid(pMenu)) then return end
         if(not IsValid(pOpts)) then return end
         pOpts:SetImage(LaserLib.GetIcon("table_sort"))
         -- Sort the data by the entry key
         if(tRow.Key) then
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepmn").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_mepmn").." (<)",
             function()
               table.SortByMember(tSort, "Key", true)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("arrow_down"))
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepmn").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_mepmn").." (>)",
             function()
               table.SortByMember(tSort, "Key", false)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
@@ -2075,12 +2076,12 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         end
         -- Sort the data by the absorption rate
         if(tRow.Rate) then
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_meppr").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_meppr").." (<)",
             function()
               table.SortByMember(tSort, "Rate", true)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("basket_remove"))
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_meppr").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_meppr").." (>)",
             function()
               table.SortByMember(tSort, "Rate", false)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
@@ -2088,12 +2089,12 @@ function LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
         end
         -- Sorted members by the medium refraction index
         if(tRow.Ridx) then
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepri").." (<)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_mepri").." (<)",
             function()
               table.SortByMember(tSort, "Ridx", true)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
             end):SetImage(LaserLib.GetIcon("ruby_get"))
-          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmaterial_mepri").." (>)",
+          pMenu:AddOption(language.GetPhrase("tool."..sTool..".openmanager_mepri").." (>)",
             function()
               table.SortByMember(tSort, "Ridx", false)
               LaserLib.UpdateMaterials(pnFrame, pnMat, tSort)
@@ -5204,7 +5205,6 @@ function LaserLib.SetupModels()
     local org =  tostring(rec[3]  or "")
     local dir =  tostring(rec[4]  or "")
     table.Empty(rec)
-    rec[pref.."model" ] = mod
     rec[pref.."angle" ] = ang
     rec[pref.."origin"] = org
     rec[pref.."direct"] = dir
