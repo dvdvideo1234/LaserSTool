@@ -121,7 +121,6 @@ if(CLIENT) then
     end)
 end
 
-TOOL.Settings = {0, "", ""}
 TOOL.Category = "Construction"
 TOOL.Name     = (language and language.GetPhrase("tool."..gsTOOL..".name"))
 
@@ -200,15 +199,19 @@ function TOOL:Holster()
 end
 
 function TOOL:GetAngleOffset()
-  local nang = self:GetClientNumber("angle", 0)
-  return math.Clamp(nang, gtAMAX[1], gtAMAX[2])
+  return math.Clamp(self:GetClientNumber("angle", 0), gtAMAX[1], gtAMAX[2])
+end
+
+function TOOL:GetSpawnSkin()
+  return math.max(math.floor(self:GetClientNumber("skin", 0)), 0)
 end
 
 function TOOL:GetTransform()
-  local tset = self.Settings
+  local tset = {0, "", "", 0}
   tset[1] = self:GetAngleOffset()
   tset[2] = self:GetClientInfo("origin")
   tset[3] = self:GetClientInfo("direct")
+  tset[4] = self:GetSpawnSkin()
   return LaserLib.SetupTransform(tset)
 end
 
@@ -238,7 +241,6 @@ function TOOL:LeftClick(trace)
   local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
   local model        = self:GetClientInfo("model")
-  local mskin        = self:GetClientInfo("skin")
   local material     = self:GetClientInfo("material")
   local stopsound    = self:GetClientInfo("stopsound")
   local killsound    = self:GetClientInfo("killsound")
@@ -282,8 +284,6 @@ function TOOL:LeftClick(trace)
                                   forcecenter, frozen      , enonvermater, ensafebeam  , raycolor)
 
   if(not (LaserLib.IsValid(laser))) then return false end
-
-  laser:SetSkin(mskin)
 
   LaserLib.ApplySpawn(laser, trace, self:GetTransform())
 
@@ -579,16 +579,13 @@ function TOOL.BuildCPanel(cPanel)
   local tProp = list.GetForEdit("LaserEmitterModels")
   local uProp = table.GetKeys(tProp); table.sort(uProp, function(u, v) return u < v end)
   pProp = vgui.Create("PropSelect", cPanel)
-  pProp.Height = 3; pProp:Dock(TOP) -- Strech the panel to have 3 rows
+  pProp.Height = 4; pProp:Dock(TOP) -- Stretch the panel to have 4 rows
   pProp:SetConVar(gsTOOL.."_model") -- Primary convar is the model
   pProp:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
   pProp.Label:SetText(language.GetPhrase("tool."..gsTOOL..".model_con"))
   for i = 1, #uProp do
     local key = uProp[i]
     local val = tProp[key]
-    local ang = tostring(val[gsTOOL.."_angle" ])
-    local org = tostring(val[gsTOOL.."_origin"])
-    local dir = tostring(val[gsTOOL.."_direct"])
     local pIco = pProp:AddModel(key, val); pIco:SetTooltip(key)
     function pIco:DoRightClick()
       local pnMenu = DermaMenu(false, self)
@@ -602,7 +599,10 @@ function TOOL.BuildCPanel(cPanel)
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyi"),
         function() SetClipboardText(tostring(i)) end):SetIcon(LaserLib.GetIcon("key"))
       pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copya"),
-        function() SetClipboardText(key..":"..ang.."|"..org.."|"..dir) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
+        function() -- Concatenate all model configurations and send them to the clipboard
+          local ang, skn = LaserLib.GetEmpty(val[gsTOOL.."_angle" ]), LaserLib.GetEmpty(val[gsTOOL.."_skin"  ])
+          local org, dir = LaserLib.GetEmpty(val[gsTOOL.."_origin"]), LaserLib.GetEmpty(val[gsTOOL.."_direct"])
+          SetClipboardText(key..":"..ang.."|"..org.."|"..dir.."|"..skn) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
       local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_sort"))
       if(not IsValid(pMenu)) then return end
       if(not IsValid(pOpts)) then return end
@@ -614,8 +614,8 @@ function TOOL.BuildCPanel(cPanel)
         table.sort(pProp.List.Items, function(u,v) return (u.Value > v.Value) end)
         pProp.List:PerformLayout() end):SetImage(LaserLib.GetIcon("arrow_up"))
       local skn = NumModelSkins(key)
-      if(skn > 0) then
-        local cS = val[gsTOOL.."_skin"]
+      if(skn > 0) then -- In case the model has any skins list them here
+        local cS = tonumber(val[gsTOOL.."_skin"]) -- Current selected skin (empty)
         local trn = language.GetPhrase("tool."..gsTOOL..".openmanager_skin")
         local pMenu, pOpts = pnMenu:AddSubMenu(trn)
         if(not IsValid(pMenu)) then return end

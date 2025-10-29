@@ -50,6 +50,14 @@ function ENT:Initialize()
   self:WireWrite("Entity", self)
 end
 
+function TOOL:GetTransform()
+  local tset, prefix = {0, "", "", 0}, (LaserLib.GetTool().."_")
+  tset[1] = math.Clamp(user:GetInfoNum(prefix.."angle", 0), gtAMAX[1], gtAMAX[2])
+  tset[2], tset[3] = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
+  tset[4] = math.max(math.floor(user:GetInfoNum(prefix.."skin", 0)), 0)
+  return LaserLib.SetupTransform(tset)
+end
+
 --[[
  * Spawns the laser via the entities tab under laser category
  * Returning with no entity is intentional because undo is duplicated
@@ -86,19 +94,16 @@ function ENT:SpawnFunction(user, trace)
   local length       = math.Clamp(user:GetInfoNum(prefix.."length", 0), 0, cvMXBMLENG:GetFloat())
   local damage       = math.Clamp(user:GetInfoNum(prefix.."damage", 0), 0, cvMXBMDAMG:GetFloat())
   local pushforce    = math.Clamp(user:GetInfoNum(prefix.."pushforce", 0), 0, cvMXBMFORC:GetFloat())
-  local angle        = math.Clamp(user:GetInfoNum(prefix.."angle", 0), gtAMAX[1], gtAMAX[2])
-  local org, dir     = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
-  local trandata     = LaserLib.SetupTransform({angle, org, dir})
-  local raycolor     = Color(colorr, colorg, colorb, colora)
+  local rayco, tran  = Color(colorr, colorg, colorb, colora), self:GetTransform()
   local laser        = LaserLib.NewLaser(user       , trace.HitPos, angspawn    , model       ,
-                                         trandata   , key         , width       , length      ,
+                                         tran       , key         , width       , length      ,
                                          damage     , material    , dissolvetype, startsound  ,
                                          stopsound  , killsound   , toggle      , starton     ,
                                          pushforce  , endingeffect, reflectrate , refractrate ,
-                                         forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
+                                         forcecenter, frozen      , enovermater , ensafebeam  , rayco)
   if(LaserLib.IsValid(laser)) then
 
-    LaserLib.ApplySpawn(laser, trace, trandata)
+    LaserLib.ApplySpawn(laser, trace, tran)
 
     user:AddCount(tool.."s", laser)
     user:AddCleanup(tool.."s", laser)

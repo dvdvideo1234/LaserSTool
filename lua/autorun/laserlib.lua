@@ -830,6 +830,11 @@ function LaserLib.SetOrtho(vFw, vUp, bNu, bNr)
   return vUp, vRg
 end
 
+function LaserLib.GetEmpty(str)
+  local str = tostring(str or "")
+  return (str == "" and DATA.NOAV or str)
+end
+
 function LaserLib.GetSign(arg)
   return arg / math.abs(arg)
 end
@@ -1104,6 +1109,7 @@ function LaserLib.SetupTransform(tran) local amax = DATA.AMAX
   else tran[2] = Vector(LaserLib.ByString(tran[2])) end
   if(not tran[3] or tran[3] == "") then tran[3] = nil -- Direction
   else tran[3] = Vector(LaserLib.ByString(tran[3])) end
+  tran[4] = math.max(math.floor(tonumber(tran[4]) or 0), 0)
   return tran -- Return the converted transform
 end
 
@@ -2496,6 +2502,7 @@ if(SERVER) then
     laser:SetPos(pos)
     laser:SetAngles(ang)
     laser:SetModel(LaserLib.GetModel(1, Model(model)))
+    laser:SetSkin(math.max(math.floor(tonumber(trandata[4]) or 0), 0))
     laser:Spawn()
     laser:SetCreator(user)
     laser:Setup(width      , length      , damage    , material   , dissolveType,
