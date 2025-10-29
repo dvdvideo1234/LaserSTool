@@ -1103,8 +1103,13 @@ function LaserLib.ByString(str)
   return a, b, c
 end
 
-function LaserLib.SetupTransform(tran) local amax = DATA.AMAX
-  tran[1] = math.Clamp(tonumber(tran[1]) or 0, amax[1], amax[2])
+function LaserLib.GetTransform(user)
+  local prefix = (LaserLib.GetTool().."_")
+  local tran, amax = {0, "", "", 0}, DATA.AMAX
+  if(not LaserLib.IsValid(user)) then return tran end
+  tran[1] = math.Clamp(user:GetInfoNum(prefix.."angle", 0), amax[1], amax[2])
+  tran[2], tran[3] = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
+  tran[4] = math.max(math.floor(user:GetInfoNum(prefix.."skin", 0)), 0)
   if(not tran[2] or tran[2] == "") then tran[2] = nil -- Origin
   else tran[2] = Vector(LaserLib.ByString(tran[2])) end
   if(not tran[3] or tran[3] == "") then tran[3] = nil -- Direction

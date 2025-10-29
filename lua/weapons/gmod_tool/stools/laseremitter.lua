@@ -206,15 +206,6 @@ function TOOL:GetSpawnSkin()
   return math.max(math.floor(self:GetClientNumber("skin", 0)), 0)
 end
 
-function TOOL:GetTransform()
-  local tset = {0, "", "", 0}
-  tset[1] = self:GetAngleOffset()
-  tset[2] = self:GetClientInfo("origin")
-  tset[3] = self:GetClientInfo("direct")
-  tset[4] = self:GetSpawnSkin()
-  return LaserLib.SetupTransform(tset)
-end
-
 function TOOL:GetUnit(ent)
   if(not LaserLib.IsValid(ent)) then return gsNOAV end
   local css = ent:GetClass():gsub(LaserLib.GetClass(1), ""):gsub("^_", "")
@@ -237,7 +228,7 @@ function TOOL:LeftClick(trace)
   local swep = self:GetSWEP()
   if(not swep:CheckLimit(gsTOOL.."s")) then return false end
   local pos, ang     = trace.HitPos, trace.HitNormal:Angle()
-  local trandata     = self:GetTransform()
+  local trandata     = LaserLib.GetTransform(user)
   local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
   local model        = self:GetClientInfo("model")
@@ -285,7 +276,7 @@ function TOOL:LeftClick(trace)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
-  LaserLib.ApplySpawn(laser, trace, self:GetTransform())
+  LaserLib.ApplySpawn(laser, trace, trandata)
 
   local we, nc = LaserLib.Weld(laser, trace, surfweld, nocollide, forcelimit)
 
@@ -420,7 +411,7 @@ function TOOL:UpdateEmitterGhost(ent, user)
   local ang = trace.HitNormal:Angle()
   ent:SetPos(pos); ent:SetAngles(ang)
 
-  LaserLib.ApplySpawn(ent, trace, self:GetTransform())
+  LaserLib.ApplySpawn(ent, trace, LaserLib.GetTransform(user))
 
   if(not trace.Hit or tre:IsPlayer()
       or tre:GetClass() == LaserLib.GetClass(1)
