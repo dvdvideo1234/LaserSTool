@@ -42,9 +42,7 @@ DATA.VZERO = Vector()          -- Zero vector used across all sources
 DATA.VDRFW = Vector(1, 0, 0)   -- Global forward vector used across all sources
 DATA.VDRRG = Vector(0,-1, 0)   -- Global right vector used across all sources. Positive is at the left
 DATA.VDRUP = Vector(0, 0, 1)   -- Global up vector used across all sources
-DATA.GDRAW = Color(0, 0, 0)    -- For general beam temporary color-related operations
-DATA.WTCOL = Color(0, 0, 0)    -- For wavelength to color conversions. It is expensive to create color
-DATA.DSCOL = Color(0, 0, 0)    -- For dispersion to color conversions. It is expensive to create color
+DATA.COTMP = Color(0, 0, 0)    -- For general beam temporary color-related operations
 DATA.DISID = DATA.TOOL.."_torch[%d]" -- Format to update dissolver target with entity index
 DATA.EXPLP = DATA.TOOL.."_exitpair"  -- General key for storing laser portal-pair entity networking
 DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties modifier
@@ -2561,22 +2559,23 @@ end
  * https://en.wikipedia.org/wiki/HSL_and_HSV#/media/File:Hsl-hsv_models.svg
  * https://wiki.facepunch.com/gmod/Global.HSVToColor
 ]]
-function LaserLib.WaveToColor(wave, bobc)
+function LaserLib.WaveToColor(wave, marg, bobc)
   local wvis, wcol = DATA.WVIS, DATA.WCOL
+  local marg = math.Clamp(tonumber(marg) or 1, 0, 1)
   local hue = math.Remap(wave, wvis[1], wvis[2], wcol[1], wcol[2])
-  local tab = HSVToColor(hue, 1, 1) -- Returns table not color
-  if(bobc) then local wtcol = DATA.WTCOL
-    wtcol.r, wtcol.g = tab.r, tab.g
-    wtcol.b, wtcol.a = tab.b, tab.a; return wtcol
+  local tab = HSVToColor(hue, 1, marg) -- Returns table not color
+  if(bobc) then local ctmp = DATA.COTMP
+    ctmp.r, ctmp.g = tab.r, tab.g
+    ctmp.b, ctmp.a = tab.b, tab.a; return ctmp
   end; return tab.r, tab.g, tab.b, tab.a
 end
 
 function LaserLib.ColorToWave(mr, mg, mb, ma)
-  local wvis, wcol, wtcol = DATA.WVIS, DATA.WCOL, DATA.WTCOL
+  local wvis, wcol, ctmp = DATA.WVIS, DATA.WCOL, DATA.COTMP
   local r, g, b, a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
-        wtcol.r, wtcol.g, wtcol.b = r, g, b
-  local mh, ms, mv = ColorToHSV(wtcol)
-  local rm = math.Remap(mh, 0, 360, wcol[1], wcol[2])
+        ctmp.r, ctmp.g, ctmp.b = r, g, b
+  local mh, ms, mv = ColorToHSV(ctmp)
+  local rm = math.Remap(mh, 0, 360, w0col[1], wcol[2])
   return math.Remap(rm, wcol[1], wcol[2], wvis[1], wvis[2])
 end
 
@@ -2610,8 +2609,7 @@ end
 function LaserLib.GetWaveArray(cow)
   local tW = LaserLib.SetWaveArray()
   if(not tW) then return nil end
-  local comx, wvis = DATA.CLMX, DATA.WVIS
-  local weco, wcol = DATA.WTCOL, DATA.WCOL
+  local comx, weco = DATA.CLMX, DATA.COTMP
   local coax = math.max(cow.r, cow.g, cow.b)
   local coan = math.min(cow.r, cow.g, cow.b)
   local marg = -tW.Marg; tW.PT = 0
@@ -2910,16 +2908,16 @@ function mtBeam:GetColorBase(mco)
   if(not LaserLib.IsValid(src)) then return nil end
   local cov = g_disperse[src:GetInBeamMaterial()]
   if(not cov) then return nil end
-  local g_dscol, g_clmx = DATA.DSCOL, DATA.CLMX
+  local g_cotmp, g_clmx = DATA.COTMP, DATA.CLMX
   local cor = (mco or self:GetColorRGBA(true))
   local r = ((cov[1] or 255) / g_clmx) * cor.r
   local g = ((cov[2] or 255) / g_clmx) * cor.g
   local b = ((cov[3] or 255) / g_clmx) * cor.b
   local a = ((cov[4] or 255) / g_clmx) * cor.a
   r, g, b, a = LaserLib.GetColorRGBA(r, g, b, a)
-  g_dscol.r, g_dscol.g = r, g
-  g_dscol.b, g_dscol.a = b, a
-  return g_dscol
+  g_cotmp.r, g_cotmp.g = r, g
+  g_cotmp.b, g_cotmp.a = b, a
+  return g_cotmp
 end
 
 --[[
@@ -3935,7 +3933,7 @@ function mtBeam:Draw(sours, imatr)
   LaserLib.UpdateBounds(bmin, math.min, vuser)
   LaserLib.UpdateBounds(bmax, math.max, vuser)
   -- Allocate references for branches and color
-  local tbran, g_draw = self.BmBranch, DATA.GDRAW
+  local tbran, g_draw = self.BmBranch, DATA.COTMP
   -- Extend render bounds with entity OBB
   local omin = sours:LocalToWorld(sours:OBBMins())
   local omax = sours:LocalToWorld(sours:OBBMaxs())
