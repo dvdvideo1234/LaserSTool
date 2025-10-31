@@ -18,7 +18,7 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyegla
 
 local gtWVIS     = LaserLib.GetData("WVIS")
 local gnDOTM     = LaserLib.GetData("DOTM")
-local cvWDHUESTP = LaserLib.GetData("WDHUESTP")
+local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:SetupDataTables()
@@ -195,7 +195,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
-  local disper = (self:GetBeamDisperse() and cvWDHUESTP:GetFloat() > 0)
+  local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetFloat() > 0)
   local todiv  = (self:GetBeamReplicate() and 1 or count)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)

@@ -78,7 +78,7 @@ DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Con
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
-DATA.WDHUESTP = CreateConVar(DATA.TOOL.."_wdhuestp"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
+DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuestp"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
@@ -2575,59 +2575,75 @@ function LaserLib.ColorToWave(mr, mg, mb, ma)
   local r, g, b, a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
         ctmp.r, ctmp.g, ctmp.b = r, g, b
   local mh, ms, mv = ColorToHSV(ctmp)
-  local rm = math.Remap(mh, 0, 360, w0col[1], wcol[2])
+  local rm = math.Remap(mh, 0, 360, wcol[1], wcol[2])
   return math.Remap(rm, wcol[1], wcol[2], wvis[1], wvis[2])
 end
 
-function LaserLib.SetWaveArray()
-  local tW   = DATA.WDDAT
-  local step = DATA.WDHUESTP:GetFloat()
-  local marg = DATA.WDRGBMAR:GetFloat()
-  if(step <= 0 or marg <  0) then
+--[[
+ * Implements visible lights color calculation splits
+ * tW > Color wavelengths placeholder. Specific or default
+ * iN > Amount of beams to be allocated. Zero to clear automatically
+ * nM > Margin to be compared for wavelength extraction
+ * nS > HSV color space start wavelength hue ( RED )
+ * nE > HSV color space end wavelength hue   ( VIOLET )
+ * wS > Start wavelength corresponding to nS or default
+ * wE > End wavelength corresponding to nE or default
+]]
+function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
+  local tW = (tW or DATA.WDDAT)
+  local iN = (iN or DATA.WDHUECNT:GetFloat())
+  local nM = (nM or DATA.WDRGBMAR:GetFloat())
+  if(iN <= 0 or nM <  0) then
     if(tW.Size) then table.Empty(tW) end; return nil end
-  if(step == (tonumber(tW.Step) or 0)) then return tW end
+  if(iN == (tonumber(tW.Step) or 0)) then return tW end
+  local g_wvis, g_wcol = DATA.WVIS, DATA.WCOL
+  local wS, wE = (wS or g_wvis[1]), (wE or g_wvis[2])
+  local nS, nE = (nS or g_wcol[1]), (nE or g_wcol[2])
   table.Empty(tW) -- Clears the data and prepare for the change
-  tW.Size = 0     -- Amount of entries the decomposition has
-  tW.Step = step  -- Hue adjustment step when defining components
-  tW.Marg = marg  -- Color compare margin for component check
+  tW.Size = iN    -- Amount of entries the decomposition has
+  tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
+  tW.Marg = nM    -- Color compare margin for component check
   tW.PT = 0       -- Total power sum of every color component
   tW.PM = 0       -- Power multiplier converted scaled for comparison
   tW.PX = 0       -- Individual component power for non-white light part
   tW.PN = 0       -- Individual component power for white light part
   tW.IS = 0       -- Index start for the component extraction
   tW.IE = 0       -- Index end for the component extraction
-  local wvis, wcol = DATA.WVIS, DATA.WCOL
-  local huS, huE = wcol[1], wcol[2]
-  for hue = huS, huE, step do
-    local co = HSVToColor(hue, 1, 1)
-    local wv = math.Remap(hue, huS, huE, wvis[1], wvis[2])
-    table.insert(tW, {C = co, P = 0, W = wv, B = false})
-    tW.Size = tW.Size + 1
+  for iH = 0, (iN - 1) do
+    local vH = nS + iH * tW.Step
+    local cH = HSVToColor(vH, 1, 1)
+    local vW = math.Remap(vH, nS, nE, wS, wE)
+    table.insert(tW, {C = cH, P = 0, W = vW, B = false})
   end; return tW
 end
 
-function LaserLib.GetWaveArray(cow)
-  local tW = LaserLib.SetWaveArray()
+--[[
+ * Splits a color to color components with intensity
+ * Used the wavelength configuration stored in tW
+ * cB > Color being split to component wavelengths
+]]
+function LaserLib.GetWaveArray(cB, ...)
+  local tW = LaserLib.SetWaveArray(...)
   if(not tW) then return nil end
   local comx, weco = DATA.CLMX, DATA.COTMP
-  local coax = math.max(cow.r, cow.g, cow.b)
-  local coan = math.min(cow.r, cow.g, cow.b)
+  local coax = math.max(cB.r, cB.g, cB.b)
+  local coan = math.min(cB.r, cB.g, cB.b)
   local marg = -tW.Marg; tW.PT = 0
   if(coan > 0) then
-    tW.PN = (coan / comx)
     coax  = (coax - coan)
+    tW.PN = (coan / comx)
     tW.PX = (coax / comx)
     tW.PM = (comx / coax)
-    weco.r = tW.PM * (cow.r - coan)
-    weco.g = tW.PM * (cow.g - coan)
-    weco.b = tW.PM * (cow.b - coan)
+    weco.r = tW.PM * (cB.r - coan)
+    weco.g = tW.PM * (cB.g - coan)
+    weco.b = tW.PM * (cB.b - coan)
     tW.IS, tW.IE = 1, tW.Size
   else
     tW.PM = (comx / coax)
     tW.PX, tW.PN = (coax / comx), 0
-    weco.r = (tW.PM * cow.r)
-    weco.g = (tW.PM * cow.g)
-    weco.b = (tW.PM * cow.b)
+    weco.r = (tW.PM * cB.r)
+    weco.g = (tW.PM * cB.g)
+    weco.b = (tW.PM * cB.b)
   end
   for iH = 1, tW.Size do
     local wav = tW[iH]
@@ -2669,10 +2685,8 @@ function LaserLib.Beam(origin, direct, length)
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
   self.VrDirect = Vector(direct) -- Copy direction and normalize when present
   self.BmLength = math.max(tonumber(length) or 0, 0) -- Initial start beam length
-  if(self.VrDirect:LengthSqr() > 0) then -- Length is not available use direct
-    if(self.BmLength == 0) then self.BmLength = self.VrDirect:Length() end
-    self.VrDirect:Normalize() -- Normalize the direction after transfer
-  end -- Ray is configured. When direction length is zero we have invalid beam
+  if(self.BmLength == 0) then self.BmLength = self.VrDirect:Length() end -- Use direct
+  self.VrDirect:Normalize() -- Ray is configured. Normalize the direction after transfer
   self.TsWater  = {P = Vector(), N = Vector()} -- Water surface storage specific
   self.TrMedium = {} -- Contains information for the mediums being traversed
   -- Trace data node points notation row for a given node ID
@@ -2727,13 +2741,13 @@ function mtBeam:IsValid()
   if(self.BrRefrac == nil) then
     ErrorNoHaltWithStack("Beam refract missing!");  return false end
   if(self.BmNoover == nil) then
-    ErrorNoHaltWithStack("Beam no-ovrm missing!");  return false end
+    ErrorNoHaltWithStack("Beam override missing!");  return false end
   if(self.BmDisper == nil) then
-    ErrorNoHaltWithStack("Beam dispers missing!");  return false end
+    ErrorNoHaltWithStack("Beam dispersion missing!");  return false end
   if(self.NvBounce == nil) then
     ErrorNoHaltWithStack("Beam bounce missing!"); return false end
   if(self.MxBounce == nil) then
-    ErrorNoHaltWithStack("Beam mx-bounce missing!"); return false end
+    ErrorNoHaltWithStack("Beam max bounce missing!"); return false end
   if(not LaserLib.IsValid(self.BmSource)) then
     ErrorNoHaltWithStack("Beam source missing!"); return false end
   if(not LaserLib.IsValid(self.BoSource)) then
@@ -4662,7 +4676,7 @@ end
 
 --[[
  * Dedicated beam refract method for specific wavelengths
- * LaserLib.GetRefracted(direct, normal, source, destin)
+ * LaserLib.GetRefracted(direct, normal, source, destination)
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
 function mtBeam:Refract(vDir, vNor, nSrc, nDst)
@@ -4714,7 +4728,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   local sr, sg, sb, sa = self:GetColorRGBA()
   -- Mark the base beam as finished and branch it
   self:Finish(); tar.NoEffect = true -- Turn effects off
-  for iW = tW.IS, tW.IE do -- Use only avaulable entries
+  for iW = tW.IS, tW.IE do -- Use only available entries
     local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
     sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
