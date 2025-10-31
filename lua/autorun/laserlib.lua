@@ -2590,12 +2590,13 @@ end
  * wE > End wavelength corresponding to nE or default
 ]]
 function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
-  local tW = (tW or DATA.WDDAT)
+  local tW, cN = (tW or DATA.WDDAT)
   local iN = (iN or DATA.WDHUECNT:GetFloat())
+        iN = math.max(math.floor(tonumber(iN) or 0), 0)
   local nM = (nM or DATA.WDRGBMAR:GetFloat())
-  if(iN <= 0 or nM <  0) then
-    if(tW.Size) then table.Empty(tW) end; return nil end
-  if(iN == (tonumber(tW.Step) or 0)) then return tW end
+        nM, cN = math.max(tonumber(nM) or 0), tW.Size
+  if(iN < 3) then if(cN) then table.Empty(tW) end; return nil end
+  if(iN == (tonumber(cN) or 0)) then return tW end
   local g_wvis, g_wcol = DATA.WVIS, DATA.WCOL
   local wS, wE = (wS or g_wvis[1]), (wE or g_wvis[2])
   local nS, nE = (nS or g_wcol[1]), (nE or g_wcol[2])
@@ -2727,31 +2728,31 @@ end
 ]]
 function mtBeam:IsValid()
   if(not self.VrOrigin) then
-    ErrorNoHaltWithStack("Beam origin missing!"); return false end
+    ErrorNoHaltWithStack("Origin missing!"); return false end
   if(not self.VrDirect) then
-    ErrorNoHaltWithStack("Beam direct missing!");  return false end
+    ErrorNoHaltWithStack("Direction missing!");  return false end
   if(self.VrDirect:LengthSqr() == 0) then
-    ErrorNoHaltWithStack("Beam direct is zero!"); return false end
+    ErrorNoHaltWithStack("Direction is zero!"); return false end
   if(not self.BmLength) then
-    ErrorNoHaltWithStack("Beam length missing!"); return false end
+    ErrorNoHaltWithStack("Length missing!"); return false end
   if(self.BmLength <= 0) then
-    ErrorNoHaltWithStack("Beam length invalid!");  return false end
+    ErrorNoHaltWithStack("Length invalid!");  return false end
   if(self.BrReflec == nil) then
-    ErrorNoHaltWithStack("Beam reflect missing!");  return false end
+    ErrorNoHaltWithStack("Reflect missing!");  return false end
   if(self.BrRefrac == nil) then
-    ErrorNoHaltWithStack("Beam refract missing!");  return false end
+    ErrorNoHaltWithStack("Refract missing!");  return false end
   if(self.BmNoover == nil) then
-    ErrorNoHaltWithStack("Beam override missing!");  return false end
+    ErrorNoHaltWithStack("Override missing!");  return false end
   if(self.BmDisper == nil) then
-    ErrorNoHaltWithStack("Beam dispersion missing!");  return false end
+    ErrorNoHaltWithStack("Dispersion missing!");  return false end
   if(self.NvBounce == nil) then
-    ErrorNoHaltWithStack("Beam bounce missing!"); return false end
+    ErrorNoHaltWithStack("Bounces missing!"); return false end
   if(self.MxBounce == nil) then
-    ErrorNoHaltWithStack("Beam max bounce missing!"); return false end
+    ErrorNoHaltWithStack("Max bounce missing!"); return false end
   if(not LaserLib.IsValid(self.BmSource)) then
-    ErrorNoHaltWithStack("Beam source missing!"); return false end
+    ErrorNoHaltWithStack("Source missing!"); return false end
   if(not LaserLib.IsValid(self.BoSource)) then
-    ErrorNoHaltWithStack("Beam primary missing!"); return false end
+    ErrorNoHaltWithStack("Primary missing!"); return false end
   return true
 end
 
