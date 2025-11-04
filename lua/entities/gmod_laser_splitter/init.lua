@@ -163,7 +163,7 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    local delta = gtAMAX[2] / mcount
+    local delta = (gtAMAX[2] / mcount)
     local forwd = self:GetDirectLocal()
     local upwrd = self:GetUpwardLocal()
     local angle = self:GetLeanAngle(forwd, upwrd)

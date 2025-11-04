@@ -203,6 +203,23 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
+function ENT:SetWaveArray(beam, iC, iD)
+  if(not iC) then return end
+  if(not iD) then return end
+  if(not beam) then return end
+  local cB, tW = beam:GetColorBase()
+  if(not cB) then return end
+  if(iD > 1) then tW = self.WaveAR else
+    tW = LaserLib.GetWaveArray(cB, self.WaveAR, iC) end
+  if(not tW) then return end
+  local sr, sg, sb, sa = beam:GetColorRGBA()
+  local recw = tW[iD] -- Current component indexing
+  local rCo, rPw = recw.C, recw.P
+  sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
+  beam:SetWavelength(recw.W)    -- Component wavelength
+  beam:SetColorRGBA(sr, sg, sb, sa) -- Apply beam color
+end
+
 --[[
  * Specific beam traced for divider
  * ent  > Entity source to be divided
@@ -221,12 +238,8 @@ function ENT:DoBeam(ent, org, dir, bmsr, vdot, indx)
         beam:SetFgDivert (bmsr.BrReflec, bmsr.BrRefrac)
         beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
         beam:SetBounces(bmsr:GetBounces())
-  if(self:GetBeamColorSplit() and self.crCount > 1 and indx) then
-    local dw = math.abs(gtWVIS[1] - gtWVIS[2]) / (self.crCount - 1)
-    local ww = gtWVIS[1] - (indx - 1) * dw
-    local r, g, b, a = LaserLib.WaveToColor(ww)
-    beam:SetColorRGBA(r, g, b, a)
-    beam:SetWavelength(ww)
+  if(self:GetBeamColorSplit() and indx) then
+    self:SetWaveArray(beam, self.crCount, indx)
   else
     beam:SetColorRGBA(bmsr:GetColorRGBA(true))
     beam:SetWavelength(bmsr:GetWavelength())

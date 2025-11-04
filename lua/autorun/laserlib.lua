@@ -2595,11 +2595,11 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
         iN = math.max(math.floor(tonumber(iN) or 0), 0)
   local nM = (nM or DATA.WDRGBMAR:GetFloat())
         nM, cN = math.max(tonumber(nM) or 0), tW.Size
-  if(iN < 3) then if(cN) then table.Empty(tW) end; return nil end
+  if(iN <= 0) then if(cN) then table.Empty(tW) end; return nil end
   if(iN == (tonumber(cN) or 0)) then return tW end
   local g_wvis, g_wcol = DATA.WVIS, DATA.WCOL
-  local wS, wE = (wS or g_wvis[1]), (wE or g_wvis[2])
   local nS, nE = (nS or g_wcol[1]), (nE or g_wcol[2])
+  local wS, wE = (wS or g_wvis[1]), (wE or g_wvis[2])
   table.Empty(tW) -- Clears the data and prepare for the change
   tW.Size = iN    -- Amount of entries the decomposition has
   tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
@@ -2624,6 +2624,7 @@ end
  * cB > Color being split to component wavelengths
 ]]
 function LaserLib.GetWaveArray(cB, ...)
+  if(not cB) then return nil end
   local tW = LaserLib.SetWaveArray(...)
   if(not tW) then return nil end
   local comx, weco = DATA.CLMX, DATA.COTMP

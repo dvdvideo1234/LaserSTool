@@ -12,6 +12,7 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.WaveAR         = {}
 ENT.UnitID         = 4
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyeglass")
@@ -187,6 +188,23 @@ function ENT:GetLeanAngle(forwd, upwrd)
                                self:GetBeamLeanZ())
 end
 
+function ENT:SetWaveArray(beam, iC, iD)
+  if(not iC) then return end
+  if(not iD) then return end
+  if(not beam) then return end
+  local cB, tW = beam:GetColorBase()
+  if(not cB) then return end
+  if(iD > 1) then tW = self.WaveAR else
+    tW = LaserLib.GetWaveArray(cB, self.WaveAR, iC) end
+  if(not tW) then return end
+  local sr, sg, sb, sa = beam:GetColorRGBA()
+  local recw = tW[iD] -- Current component indexing
+  local rCo, rPw = recw.C, recw.P
+  sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
+  beam:SetWavelength(recw.W)    -- Component wavelength
+  beam:SetColorRGBA(sr, sg, sb, sa) -- Apply beam color
+end
+
 function ENT:DoBeam(org, dir, idx)
   local count  = self:GetBeamCount()
   local origin = self:GetBeamOrigin(org)
@@ -205,12 +223,8 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetFgDivert(usrfle, usrfre)
         beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
-  if(self:GetBeamColorSplit() and count > 1 and idx) then
-    local dw = math.abs(gtWVIS[1] - gtWVIS[2]) / (count - 1)
-    local ww = gtWVIS[1] - (idx - 1) * dw
-    local r, g, b, a = LaserLib.WaveToColor(ww)
-    beam:SetColorRGBA(r, g, b, a)
-    beam:SetWavelength(ww)
+  if(self:GetBeamColorSplit() and idx) then
+    self:SetWaveArray(beam, count, idx)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
