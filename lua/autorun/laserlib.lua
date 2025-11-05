@@ -771,33 +771,30 @@ end
 
 --[[
  * Copies data contents from a table
- * tSrc > Array to copy from
- * tSkp > Skipped fields list
- * tOny > Selected fields list
- * tAsn > Fields to use assignment for
- * tCpn > Fields to use table.Copy for
- * tDst > Destination table when provided
+ * tSr > Record to copy data from
+ * tCn > Copy configuration or none
+ * tDs > Destination table when provided
 ]]
-local function CopyData(tSrc, tSkp, tOny, tAsn, tCpn, tDst)
-  local tCpy = (tDst or {}) -- Destination data
-  for nam, vsm in pairs(tSrc) do
-    if((not tOny or (tOny and tOny[nam])) and
-       (not tSkp or (tSkp and not tSkp[nam]))
+local function CopyData(tSr, tCn, tDs)
+  local tCp, tCn = (tDs or {}), (tCn or {})
+  local tO, tS = tCn.ONLY, tCn.SKIP
+  local tC, tA = tCn.COPY, tCn.ASGN
+  for nam, vsm in pairs(tSr) do
+    if((not tO or (tO and tO[nam])) and
+       (not tS or (tS and not tS[nam]))
     ) then -- Field is selected to be copied
       local typ = type(vsm) -- Read data type
-      local fcn = DATA.COPYCV[typ] -- Constructor
+      local fcn = DATA.COPYCV[typ] -- Create
       if(fcn) then -- Copy-conversion exists
-        tCpy[nam] = fcn(vsm) -- Copy-convert
-      else -- Table or other case
-        if(tAsn and tAsn[nam]) then
-          tCpy[nam] = vsm -- Assign enable for field
-        elseif(tCpn and tCpn[nam]) then
-          tCpy[nam] = table.Copy(vsm) -- General copy table
-        else -- Unhanded field. Report error to the user
-          ErrorNoHaltWithStack("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
-        end -- Assign a copy table
+        tCp[nam] = fcn(vsm) -- Copy-convert
+      elseif(tA and tA[nam]) then
+        tCp[nam] = vsm -- Assign enable for field
+      elseif(tC and tC[nam]) then
+        tCp[nam] = table.Copy(vsm) -- General copy table
+      else -- Unhanded field. Report error to the user
+        ErrorNoHaltWithStack("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
       end -- The snapshot is completed
-  end; end; return tCpy
+  end; end; return tCp
 end
 
 --[[
@@ -3003,14 +3000,11 @@ end
  * Creates a beam snapshot copy
  * Snapshots have the same property as origin
  * They represent dedicated beam copy at a time
- * tSkp > Keys that are not processed or skipped
- * tOny > Keys that are copied nothing else
- * tAsn > Keys being copied via direct assignment
- * tCpn > Keys that are copied via table.copy
- * tDst > Store the beam copy in this table
+ * tCn > Copy configuration or none
+ * tDs > Destination table when provided
 ]]
-function mtBeam:GetCopy(tSkp, tOny, tAsn, tCpn, tDst)
-  local cpBeam = CopyData(self, tSkp, tOny, tAsn, tCpn, tDst)
+function mtBeam:GetCopy(tCn, tDs)
+  local cpBeam = CopyData(self, tCn, tDs)
   setmetatable(cpBeam, mtBeam); return cpBeam
 end
 
@@ -4405,11 +4399,11 @@ DATA.ACTORS = {
         local tcb, bcn = pss.Copy, false
         if(dat) then -- Update beam entry
           dat.Src = src; dat.Tim = pss.Time
-          dat.Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn, tcb.Cpn, dat.Pbm)
+          dat.Pbm = beam:GetCopy(tcb, dat.Pbm)
         else -- Entry is missing so create one
           pdt[pky] = {}; dat = pdt[pky]; bcn = true
           dat.Src = src; dat.Tim = pss.Time
-          dat.Pbm = beam:GetCopy(nil, tcb.Ony, tcb.Asn, tcb.Cpn)
+          dat.Pbm = beam:GetCopy(tcb)
         end -- Work only for valid entity sources
         for key, set in pairs(pdt) do  -- Check all items
           if(LaserLib.IsTime(set.Tim)) then -- Time delta is passed

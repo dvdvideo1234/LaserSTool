@@ -40,7 +40,7 @@ function ENT:InitSources()
     Keys = {}, -- Contains the ordered by time keys
     Data = {}, -- contain the data set used to call every beam
     Copy = {   -- For pass-trough copy of current beam is needed
-      Ony = {  -- Beam copy ONLY the specified fields
+      ONLY = {  -- Beam copy ONLY the specified fields
         ["NvWidth" ] = true, -- Copy beam width
         ["NvDamage"] = true, -- Copy beam damage
         ["NvForce" ] = true, -- Copy beam force
@@ -52,11 +52,11 @@ function ENT:InitSources()
         ["BoSource"] = true, -- Copy reference to external source
         ["BmSource"] = true  -- Copy reference to current source
       }, -- Copy only the needed fields. Nothing else
-      Asn = {
+      ASGN = { -- Uses direct assignment. Reference equals value
         ["BoSource"] = true, -- Copy external source as pointer
         ["BmSource"] = true  -- Copy current source as pointer
       }, -- Direct assignment of beam source entity
-      Cpn = {
+      COPY = { -- Use table.Copy to provide the data
         ["NvColor"]  = true, -- Copy current color
         ["BmTarget"] = true  -- Copy current trace data
       }
