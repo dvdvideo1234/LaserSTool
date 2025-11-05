@@ -203,10 +203,12 @@ function ENT:UpdateSources()
   return self:UpdateArrays()
 end
 
-function ENT:SetWaveArray(beam, iC, iD)
-  if(not iC) then return end
-  if(not iD) then return end
+function ENT:SetColorWave(beam, iC, iD)
   if(not beam) then return end
+  local iC = math.floor(tonumber(iC) or 0)
+  if(iC <= 0) then return end
+  local iD = math.floor(tonumber(iD) or 0)
+  if(iD <= 0) then return end
   local cB, tW = beam:GetColorBase()
   if(not cB) then return end
   if(iD > 1) then tW = self.WaveAR else
@@ -239,7 +241,7 @@ function ENT:DoBeam(ent, org, dir, bmsr, vdot, indx)
         beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
         beam:SetBounces(bmsr:GetBounces())
   if(self:GetBeamColorSplit() and indx) then
-    self:SetWaveArray(beam, self.crCount, indx)
+    self:SetColorWave(beam, self.crCount, indx)
   else
     beam:SetColorRGBA(bmsr:GetColorRGBA(true))
     beam:SetWavelength(bmsr:GetWavelength())

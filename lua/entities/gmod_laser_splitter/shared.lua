@@ -188,10 +188,12 @@ function ENT:GetLeanAngle(forwd, upwrd)
                                self:GetBeamLeanZ())
 end
 
-function ENT:SetWaveArray(beam, iC, iD)
-  if(not iC) then return end
-  if(not iD) then return end
+function ENT:SetColorWave(beam, iC, iD)
   if(not beam) then return end
+  local iC = math.floor(tonumber(iC) or 0)
+  if(iC <= 0) then return end
+  local iD = math.floor(tonumber(iD) or 0)
+  if(iD <= 0) then return end
   local cB, tW = beam:GetColorBase()
   if(not cB) then return end
   if(iD > 1) then tW = self.WaveAR else
@@ -213,7 +215,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
-  local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetFloat() > 0)
+  local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetInt() > 0)
   local todiv  = (self:GetBeamReplicate() and 1 or count)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
@@ -224,7 +226,7 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
   if(self:GetBeamColorSplit() and idx) then
-    self:SetWaveArray(beam, count, idx)
+    self:SetColorWave(beam, count, idx)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

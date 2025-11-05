@@ -2584,8 +2584,8 @@ end
  * tW > Color wavelengths placeholder. Specific or default
  * iN > Amount of beams to be allocated. Zero to clear automatically
  * nM > Margin to be compared for wavelength extraction
- * nS > HSV color space start wavelength hue ( RED )
- * nE > HSV color space end wavelength hue   ( VIOLET )
+ * nS > HSV color space start wavelength hue in degrees ( RED )
+ * nE > HSV color space end wavelength hue in degrees ( VIOLET )
  * wS > Start wavelength corresponding to nS or default
  * wE > End wavelength corresponding to nE or default
 ]]
@@ -2604,6 +2604,8 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   tW.Size = iN    -- Amount of entries the decomposition has
   tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
   tW.Marg = nM    -- Color compare margin for component check
+  tW.HS, tW.HE = nS, nE -- HUE interval in degrees
+  tW.WS, tW.WE = wS, wE -- Mapped wavelength interval
   tW.PT = 0       -- Total power sum of every color component
   tW.PM = 0       -- Power multiplier converted scaled for comparison
   tW.PX = 0       -- Individual component power for non-white light part
@@ -2938,9 +2940,14 @@ end
 
 --[[
  * Returns the beam current active source entity
+ * bS > Swap source priority
 ]]
-function mtBeam:GetSource()
-  return (self.BoSource or self.BmSource)
+function mtBeam:GetSource(bS)
+  if(bS) then
+    return (self.BmSource or self.BoSource)
+  else
+    return (self.BoSource or self.BmSource)
+  end
 end
 
 --[[
@@ -2961,7 +2968,7 @@ end
 
 --[[
  * Returns the beam current active length
- bS > Swap length priority
+ * bS > Swap length priority
 ]]
 function mtBeam:GetLength(bS)
   if(bS) then
@@ -4716,6 +4723,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   -- Wave array cannot be initialized
   local tW = LaserLib.GetWaveArray(cB)
   if(not tW) then return false end
+  if(tW.PT <= 0) then return false end
   -- Store local parameters used in the loop
   local pmr, mar = tW.PT, (DATA.NUGE / 10)
   local len = (self.NvLength + mar)
