@@ -2681,6 +2681,28 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__vtdir = Vector() -- Temporary calculation direct vector
       mtBeam.__meair = {DATA.REFRACT["air"  ], "air"  } -- General air info
       mtBeam.__mewat = {DATA.REFRACT["water"], "water"} -- General water info
+      mtBeam.__xcopy =  {   -- For pass-trough copy of current beam is needed
+        ONLY = {  -- Beam copy ONLY the specified fields
+          ["NvWidth" ] = true, -- Copy beam width
+          ["NvDamage"] = true, -- Copy beam damage
+          ["NvForce" ] = true, -- Copy beam force
+          ["NvLength"] = true, -- Copy beam length
+          ["NvColor" ] = true, -- Copy beam color
+          ["VrOrigin"] = true, -- Copy last trace origin
+          ["VrDirect"] = true, -- Copy last trace direction
+          ["BmTarget"] = true, -- Copy current trace data
+          ["BoSource"] = true, -- Copy reference to external source
+          ["BmSource"] = true  -- Copy reference to current source
+        }, -- Copy only the needed fields. Nothing else
+        ASGN = { -- Uses direct assignment. Reference equals value
+          ["BoSource"] = true, -- Copy external source as pointer
+          ["BmSource"] = true  -- Copy current source as pointer
+        }, -- Direct assignment of beam source entity
+        COPY = { -- Use table.Copy to provide the data
+          ["NvColor"]  = true, -- Copy current color
+          ["BmTarget"] = true  -- Copy current trace data
+        }
+      } -- Configure how node data is being copied
 function LaserLib.Beam(origin, direct, length)
   local self = {}; setmetatable(self, mtBeam)
   self.VrOrigin = Vector(origin) -- Create local copy for origin not to modify it
@@ -3003,8 +3025,8 @@ end
  * tCn > Copy configuration or none
  * tDs > Destination table when provided
 ]]
-function mtBeam:GetCopy(tCn, tDs)
-  local cpBeam = CopyData(self, tCn, tDs)
+function mtBeam:GetCopy(tDs)
+  local cpBeam = CopyData(self, self.__xcopy, tDs)
   setmetatable(cpBeam, mtBeam); return cpBeam
 end
 
@@ -4395,15 +4417,14 @@ DATA.ACTORS = {
       if(LaserLib.IsValid(src)) then
         local idx, pdt = src.crBeamID, pss.Data
         local pky = DATA.FPSS:format(src:EntIndex(), idx)
-        local dat = pdt[pky]; pss.Time = CurTime()
-        local tcb, bcn = pss.Copy, false
+        local dat, bcn = pdt[pky], false; pss.Time = CurTime()
         if(dat) then -- Update beam entry
           dat.Src = src; dat.Tim = pss.Time
-          dat.Pbm = beam:GetCopy(tcb, dat.Pbm)
+          dat.Pbm = beam:GetCopy(dat.Pbm)
         else -- Entry is missing so create one
           pdt[pky] = {}; dat = pdt[pky]; bcn = true
           dat.Src = src; dat.Tim = pss.Time
-          dat.Pbm = beam:GetCopy(tcb)
+          dat.Pbm = beam:GetCopy()
         end -- Work only for valid entity sources
         for key, set in pairs(pdt) do  -- Check all items
           if(LaserLib.IsTime(set.Tim)) then -- Time delta is passed

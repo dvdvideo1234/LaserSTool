@@ -38,29 +38,7 @@ function ENT:InitSources()
     Size = 0,  -- Contains the loop upper limit
     Time = 0,  -- Contains the current time for pass-trough
     Keys = {}, -- Contains the ordered by time keys
-    Data = {}, -- contain the data set used to call every beam
-    Copy = {   -- For pass-trough copy of current beam is needed
-      ONLY = {  -- Beam copy ONLY the specified fields
-        ["NvWidth" ] = true, -- Copy beam width
-        ["NvDamage"] = true, -- Copy beam damage
-        ["NvForce" ] = true, -- Copy beam force
-        ["NvLength"] = true, -- Copy beam length
-        ["NvColor" ] = true, -- Copy beam color
-        ["VrOrigin"] = true, -- Copy last trace origin
-        ["VrDirect"] = true, -- Copy last trace direction
-        ["BmTarget"] = true, -- Copy current trace data
-        ["BoSource"] = true, -- Copy reference to external source
-        ["BmSource"] = true  -- Copy reference to current source
-      }, -- Copy only the needed fields. Nothing else
-      ASGN = { -- Uses direct assignment. Reference equals value
-        ["BoSource"] = true, -- Copy external source as pointer
-        ["BmSource"] = true  -- Copy current source as pointer
-      }, -- Direct assignment of beam source entity
-      COPY = { -- Use table.Copy to provide the data
-        ["NvColor"]  = true, -- Copy current color
-        ["BmTarget"] = true  -- Copy current trace data
-      }
-    } -- Configure how node data is being copied
+    Data = {}  -- contain the data set used to call every beam
   } -- Pass-trough internal configuration data
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
