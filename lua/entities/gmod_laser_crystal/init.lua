@@ -128,8 +128,7 @@ function ENT:EveryBeam(entity, index, beam)
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
     if(mrg) then self.crNcolor = beam:GetColorRGBA(true) end
-    self.crNpower = LaserLib.GetPower(beam.NvWidth,
-                                      beam.NvDamage)
+    self.crNpower = beam:GetPower()
     if(not self:IsInfinite(entity)) then
       self.crBpower = (self.crBpower or true)
       self.crForce = self.crForce + beam.NvForce

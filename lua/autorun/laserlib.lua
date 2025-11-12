@@ -2886,6 +2886,20 @@ function mtBeam:SetWidth(nW)
 end
 
 --[[
+ * Calculates the beam trigger power
+]]
+function mtBeam:GetPower()
+  return LaserLib.GetPower(self.NvWidth, self.NvDamage)
+end
+
+--[[
+ * Returns true if the beam is still visible
+]]
+function mtBeam:IsPower()
+  return LaserLib.IsPower(self.NvWidth, self.NvDamage)
+end
+
+--[[
  * Forces max bounces count
  * iBns > Maximum bounces used during run
 ]]

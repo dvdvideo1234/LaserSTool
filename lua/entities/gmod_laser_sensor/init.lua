@@ -15,6 +15,7 @@ end
 function ENT:ResetInternals()
   self.crOrigin:SetUnpacked(0,0,0)
   self.crDirect:SetUnpacked(0,0,0)
+  self.crWaveLen = 0
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
   self.crSorsID , self.crNormh , self.crDomsrc = 0, false, nil
@@ -66,6 +67,7 @@ function ENT:Initialize()
     {"Direct"  , "VECTOR", "Sensor source beam direction"  },
     {"Entity"  , "ENTITY", "Sensor entity itself"          },
     {"Dominant", "ENTITY", "Sensor dominant entity"        },
+    {"WaveLen" , "NORMAL", "Sensor dominant wavelength"    },
     {"Count"   , "NORMAL", "Sensor sources count"          },
     {"Array"   , "ARRAY" , "Sensor sources array"          },
     {"Level"   , "ARRAY" , "Sensor power level array"      },
@@ -138,7 +140,7 @@ function ENT:EveryBeam(entity, index, beam)
     local bdot, mdot = self:GetHitPower(norm, beam, trace)
     self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
-      self.crNpower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
+      self.crNpower = beam:GetPower()
       self.crWidth  = self.crWidth  + beam.NvWidth
       self.crDamage = self.crDamage + beam.NvDamage
       self.crForce  = self.crForce  + beam.NvForce
@@ -148,6 +150,7 @@ function ENT:EveryBeam(entity, index, beam)
         self.crOpower = self.crNpower
         self.crDomsrc = beam:GetSource()
         self.crLength = beam.NvLength
+        self.crWaveLen = beam.BmWaveLn
         self.crOrigin:Set(beam.VrOrigin)
         self.crDirect:Set(beam.VrDirect)
         crCo.r, crCo.g, crCo.b, crCo.a = beam:GetColorRGBA()
@@ -157,12 +160,13 @@ function ENT:EveryBeam(entity, index, beam)
 end
 
 function ENT:UpdateOutputs(dom, bon)
-  self:WireWrite("Width" , self.crWidth)
-  self:WireWrite("Length", self.crLength)
-  self:WireWrite("Damage", self.crDamage)
-  self:WireWrite("Force" , self.crForce)
-  self:WireWrite("Origin", self.crOrigin)
-  self:WireWrite("Direct", self.crDirect)
+  self:WireWrite("Width"  , self.crWidth)
+  self:WireWrite("Length" , self.crLength)
+  self:WireWrite("Damage" , self.crDamage)
+  self:WireWrite("Force"  , self.crForce)
+  self:WireWrite("Origin" , self.crOrigin)
+  self:WireWrite("Direct" , self.crDirect)
+  self:WireWrite("WaveLen", self.crWaveLen)
 
   if(dom ~= nil) then
     self:WireWrite("Dominant", dom)

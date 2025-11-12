@@ -112,9 +112,7 @@ end
 function ENT:EveryBeam(entity, index, beam)
   if(not beam) then return end
   local trace = beam:GetTarget()
-  if(trace and trace.Hit) then
-    local npower = LaserLib.GetPower(beam.NvWidth,
-                                     beam.NvDamage)
+  if(trace and trace.Hit) then local npower = beam:GetPower()
     if(not self.crOpower or npower > self.crOpower) then
       self.crOpower, self.crDobeam, self.crDoment = npower, beam, entity
     end
