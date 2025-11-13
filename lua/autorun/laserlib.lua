@@ -3867,22 +3867,28 @@ end
 function mtBeam:UpdateSource(trace)
   local trace = (trace and trace or self.BmTarget)
   local sorce, target = self.BmSource, trace.Entity
+  local recur, vatarg = self.BmRecuLS, LaserLib.IsValid(target)
   -- Calculates the range as beam distance traveled
-  if(trace.Hit and self.RaLength > self.NvLength) then
-    self.RaLength = self.RaLength - self.NvLength
-  end -- Update hit report of the source
-  if(sorce.SetHitReport) then
-    -- Update the current beam source hit report
-    sorce:SetHitReport(self) -- What we just hit
-  end -- Register us to the target sources table
-  if(self.BmRecuLS == 0) then -- Recurse stage surface
+  if(trace.Hit) then -- Update ranger and reports
+    if(recur == 0) then -- Recurse surface stage
+      -- The build-in ranger is present only for base stage
+      local leng = self.NvLength -- Indexing length
+      local rang = self.RaLength -- Indexing ranger
+      if(rang > leng) then -- Can we decrement
+        self.RaLength = (rang - leng) -- Do it
+      end -- Decrease the ranger with what is left
+    end -- Update the current beam source hit report
+    if(sorce.SetHitReport) then -- Less hit reports
+      sorce:SetHitReport(self) -- What we just hit
+    end -- Register us to the target sources table
+  end -- Register a report only is something is hit
+  if(recur == 0) then -- Recurse surface stage
     -- In case hit reports trim is enabled. Trim array
-    if(sorce.SetHitReportMax) then
-      -- Every surface recursive level will trim entries
+    if(sorce.SetHitReportMax) then -- Trim entries
       sorce:SetHitReportMax(true) -- Use entity trim
-    end
+    end -- Keep the hit reports array tidy. Remove stuff
   end -- We need to apply the top index hit reports count
-  if(LaserLib.IsValid(target) and target.RegisterSource) then
+  if(vatarg and target.RegisterSource) then
     -- Register the beam initial entity to target sources
     target:RegisterSource(sorce) -- Register target in sources
   end; return self -- Coding effective API
@@ -3952,17 +3958,19 @@ function mtBeam:ApplyGravity()
         end
       else info.Registry[hole] = nil end
     end
-  end
-  if(vgrv) then self.VrDirect:Add(vgrv); return self end
+  end -- Segment is in the gravity well
+  if(vgrv) then
+    self.VrDirect:Add(vgrv); return self
+  end -- Segment enters a gravity well
   if(ngrv) then
     if(self.NvLength > ngrv) then
       self.IsHoleGv, self.NvHoleLn = true, ngrv
     else self.IsHoleGv = false end; return self
-  end
+  end -- Segment exits a gravity well
   if(xgrv) then
     self.IsHoleGv = false
     return self
-  end
+  end --
   return self
 end
 
