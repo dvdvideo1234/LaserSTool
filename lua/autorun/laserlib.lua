@@ -4052,12 +4052,11 @@ function mtBeam:DrawEffect(sours, endrw)
   if(trace and not trace.HitSky and
      endrw and sours.isEffect)
   then -- Drawing effects is enabled
-    if(not sours.dtEffect) then
-      sours.dtEffect = EffectData()
-    end -- Allocate effect class
     if(not trace.Hit) then return self end
     if(trace.NoEffect) then return self end
     local ent, eff = trace.Entity, sours.dtEffect
+    if(not eff) then -- Allocate effect data
+      eff = EffectData(); sours.dtEffect = eff end
     if(LaserLib.IsUnit(ent)) then return self end
     eff:SetStart(trace.HitPos)
     eff:SetOrigin(trace.HitPos)
