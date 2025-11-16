@@ -6,6 +6,7 @@ local gnGRAT     = LaserLib.GetData("GRAT")
 local gnWLMR     = LaserLib.GetData("WLMR")
 local gsFNUH     = LaserLib.GetData("FNUH")
 local gsLSEP     = LaserLib.GetData("LSEP")
+local gtDISPERSE = LaserLib.GetData("DISPERSE")
 local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
 local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
@@ -87,11 +88,11 @@ if(CLIENT) then
             pnCombo:SetSortItems(false)
             pnCombo:SetPos(iPa, 24 + iPa)
             pnCombo:SetSize(pnFrame:GetWide() - (gnGRAT - 1) * pnFrame:GetWide(), 25)
-            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmaterial_find"))
-            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmaterial_find0"))
-            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find1"), "Key", false, LaserLib.GetIcon("key_go")) end
-            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find2"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
-            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmaterial_find3"), "Ridx", false, LaserLib.GetIcon("transmit")) end
+            pnCombo:SetTooltip(language.GetPhrase("tool."..gsTOOL..".openmanager_find"))
+            pnCombo:SetValue(language.GetPhrase("tool."..gsTOOL..".openmanager_findv"))
+            if(tseq[1]["Key"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmanager_mepmn"), "Key", false, LaserLib.GetIcon("key_go")) end
+            if(tseq[1]["Rate"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmanager_meppr"), "Rate", false, LaserLib.GetIcon("chart_bar")) end
+            if(tseq[1]["Ridx"]) then pnCombo:AddChoice(language.GetPhrase("tool."..gsTOOL..".openmanager_mepri"), "Ridx", false, LaserLib.GetIcon("transmit")) end
       local pnText = vgui.Create("DTextEntry"); if(not IsValid(pnText)) then return nil end
             pnText:SetParent(pnFrame)
             pnText:SetPos(pnCombo:GetWide() + 2 * iPa, pnCombo:GetY())
@@ -120,7 +121,6 @@ if(CLIENT) then
     end)
 end
 
-TOOL.Settings = {0, "", ""}
 TOOL.Category = "Construction"
 TOOL.Name     = (language and language.GetPhrase("tool."..gsTOOL..".name"))
 
@@ -159,6 +159,7 @@ TOOL.ClientConVar =
   [ "direct"       ] = "",
   [ "material"     ] = "trails/laser",
   [ "model"        ] = "models/props_lab/tpplug.mdl",
+  [ "skin"         ] = 0,
   [ "dissolvetype" ] = "core",
   [ "startsound"   ] = "ambient/energy/weld1.wav",
   [ "stopsound"    ] = "ambient/energy/weld2.wav",
@@ -198,16 +199,11 @@ function TOOL:Holster()
 end
 
 function TOOL:GetAngleOffset()
-  local nang = self:GetClientNumber("angle", 0)
-  return math.Clamp(nang, gtAMAX[1], gtAMAX[2])
+  return math.Clamp(self:GetClientNumber("angle", 0), gtAMAX[1], gtAMAX[2])
 end
 
-function TOOL:GetTransform()
-  local tset = self.Settings
-  tset[1] = self:GetAngleOffset()
-  tset[2] = self:GetClientInfo("origin")
-  tset[3] = self:GetClientInfo("direct")
-  return LaserLib.SetupTransform(tset)
+function TOOL:GetSpawnSkin()
+  return math.max(math.floor(self:GetClientNumber("skin", 0)), 0)
 end
 
 function TOOL:GetUnit(ent)
@@ -232,7 +228,7 @@ function TOOL:LeftClick(trace)
   local swep = self:GetSWEP()
   if(not swep:CheckLimit(gsTOOL.."s")) then return false end
   local pos, ang     = trace.HitPos, trace.HitNormal:Angle()
-  local trandata     = self:GetTransform()
+  local trandata     = LaserLib.GetTransform(user)
   local raycolor     = self:GetBeamRayColor()
   local key          = self:GetClientNumber("key")
   local model        = self:GetClientInfo("model")
@@ -280,7 +276,7 @@ function TOOL:LeftClick(trace)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
-  LaserLib.ApplySpawn(laser, trace, self:GetTransform())
+  LaserLib.ApplySpawn(laser, trace, trandata)
 
   local we, nc = LaserLib.Weld(laser, trace, surfweld, nocollide, forcelimit)
 
@@ -415,7 +411,7 @@ function TOOL:UpdateEmitterGhost(ent, user)
   local ang = trace.HitNormal:Angle()
   ent:SetPos(pos); ent:SetAngles(ang)
 
-  LaserLib.ApplySpawn(ent, trace, self:GetTransform())
+  LaserLib.ApplySpawn(ent, trace, LaserLib.GetTransform(user))
 
   if(not trace.Hit or tre:IsPlayer()
       or tre:GetClass() == LaserLib.GetClass(1)
@@ -481,51 +477,150 @@ end
 local gtConvarList = TOOL:BuildConVarList()
 
 -- Enter `spawnmenu_reload` in the console to reload the panel
-function TOOL.BuildCPanel(cPanel) local pItem, pName, vData
+function TOOL.BuildCPanel(cPanel)
   cPanel:ClearControls(); cPanel:DockPadding(5, 0, 5, 10)
   cPanel:SetName(language.GetPhrase("tool."..gsTOOL..".name"))
   cPanel:Help   (language.GetPhrase("tool."..gsTOOL..".desc"))
 
-  pItem = vgui.Create("ControlPresets", cPanel)
-  pItem:SetPreset(gsTOOL)
-  pItem:AddOption("Default", gtConvarList)
-  for key, val in pairs(table.GetKeys(gtConvarList)) do pItem:AddConVar(val) end
-  cPanel:AddItem(pItem)
+  pCon = vgui.Create("ControlPresets", cPanel)
+  pCon:SetPreset(gsTOOL)
+  pCon:AddOption("Default", gtConvarList)
+  for key, val in pairs(table.GetKeys(gtConvarList)) do pCon:AddConVar(val) end
+  cPanel:AddItem(pCon)
 
-  pItem = vgui.Create("CtrlNumPad", cPanel)
-  pItem:SetConVar1(gsTOOL.."_key")
-  pItem:SetLabel1(language.GetPhrase("tool."..gsTOOL..".key_con"))
-  pItem.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTOOL..".key"))
-  cPanel:AddPanel(pItem)
+  pNum = vgui.Create("CtrlNumPad", cPanel)
+  pNum:SetConVar1(gsTOOL.."_key")
+  pNum:SetLabel1(language.GetPhrase("tool."..gsTOOL..".key_con"))
+  pNum.NumPad1:SetTooltip(language.GetPhrase("tool."..gsTOOL..".key"))
+  cPanel:AddPanel(pNum)
 
   LaserLib.NumSlider(cPanel, "width"    , 0, cvMXBMWIDT:GetFloat(), gtConvarList[gsTOOL.."_width"])
   LaserLib.NumSlider(cPanel, "length"   , 0, cvMXBMLENG:GetFloat(), gtConvarList[gsTOOL.."_length"])
   LaserLib.NumSlider(cPanel, "damage"   , 0, cvMXBMDAMG:GetFloat(), gtConvarList[gsTOOL.."_damage"])
-  LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"], 5)
+  LaserLib.NumSlider(cPanel, "pushforce", 0, cvMXBMFORC:GetFloat(), gtConvarList[gsTOOL.."_pushforce"])
 
-  local tMat = table.MemberValuesFromKey(list.GetForEdit("LaserEmitterMaterials"), "name")
-  pItem = cPanel:MatSelect(gsTOOL.."_material", tMat, true, 0.15, 0.24)
-  pItem.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
+  local tMat = list.GetForEdit("LaserEmitterMaterials")
+  local tKey = table.GetKeys(tMat) -- Sort the keys table on material
+  table.sort(tKey, function(u, v) return tMat[u].name < tMat[v].name end)
+  pMat = cPanel:MatSelect(gsTOOL.."_material", nil, true, 0.15, 0.24)
+  pMat.Label:SetText(language.GetPhrase("tool."..gsTOOL..".material_con"))
+  pMat:SetTooltip(language.GetPhrase("tool."..gsTOOL..".material"))
+  for iK = 1, #tKey do
+    local key = tKey[iK]
+    local val, nam = tMat[key], nil
+    local pImg = pMat:AddMaterial(key, val.name)
+    key = ((key:sub(1,1) == "#") and key:sub(2,-1) or key)
+    nam = language.GetPhrase(key); pImg:SetTooltip(nam)
+    function pImg:DoClick()
+      LaserLib.SetPaintOver(pMat, self)
+      LaserLib.ConCommand(nil, "material", self.Value)
+    end
+    function pImg:DoRightClick()
+      local pnMenu = DermaMenu(false, self)
+      if(not IsValid(pnMenu)) then return end
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_copy"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("page_copy"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyn"),
+        function() SetClipboardText(nam) end):SetIcon(LaserLib.GetIcon("textfield_rename"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyi"),
+        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("key"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copym"),
+        function() SetClipboardText(val.name) end):SetIcon(LaserLib.GetIcon("lightning"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copya"),
+        function() SetClipboardText(nam..":"..key..">"..val.name) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_sort"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("table_sort"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepmn").." (<)", function()
+        LaserLib.SortDisperse(pMat, nil, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepmn").." (>)", function()
+        LaserLib.SortDisperse(pMat, nil, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepci").." (<)", function()
+        LaserLib.SortDisperse(pMat, function(r,g,b) return r+g+b end, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepci").." (>)", function()
+        LaserLib.SortDisperse(pMat, function(r,g,b) return r+g+b end, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcn").." (<)", function()
+        LaserLib.SortDisperse(pMat, math.min, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcn").." (>)", function()
+        LaserLib.SortDisperse(pMat, math.min, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcx").." (<)", function()
+        LaserLib.SortDisperse(pMat, math.max, false) end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepcx").." (>)", function()
+        LaserLib.SortDisperse(pMat, math.max, true) end):SetImage(LaserLib.GetIcon("arrow_up"))
+      pnMenu:Open()
+    end
+  end
 
-  pItem = vgui.Create("DColorMixer", cPanel)
-  pItem:Dock(TOP); pItem:SetTall(250)
-  pItem:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".color"))
-  pItem:SetConVarR(gsTOOL.."_colorr")
-  pItem:SetConVarG(gsTOOL.."_colorg")
-  pItem:SetConVarB(gsTOOL.."_colorb")
-  pItem:SetConVarA(gsTOOL.."_colora")
-  cPanel:AddItem(pItem)
+  pMix = vgui.Create("DColorMixer", cPanel)
+  pMix:Dock(TOP); pMix:SetTall(250)
+  pMix:SetLabel(language.GetPhrase("tool."..gsTOOL..".color_con"))
+  pMix:SetTooltip(language.GetPhrase("tool."..gsTOOL..".color"))
+  pMix:SetConVarR(gsTOOL.."_colorr")
+  pMix:SetConVarG(gsTOOL.."_colorg")
+  pMix:SetConVarB(gsTOOL.."_colorb")
+  pMix:SetConVarA(gsTOOL.."_colora")
+  pMix:SetWangs(true)
+  pMix:SetPalette(true)
+  pMix:SetAlphaBar(true)
+  cPanel:AddItem(pMix)
 
-  pItem = vgui.Create("PropSelect", cPanel)
-  pItem:Dock(TOP); pItem:SetTall(150)
-  pItem:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
-  pItem:ControlValues({ -- garrysmod/lua/vgui/propselect.lua#L99
-    convar = gsTOOL.."_model", -- Pass model convar
-    models = list.GetForEdit("LaserEmitterModels"),
-    label  = language.GetPhrase("tool."..gsTOOL..".model_con")
-  }); cPanel:AddItem(pItem)
+  local tProp = list.GetForEdit("LaserEmitterModels")
+  local uProp = table.GetKeys(tProp); table.sort(uProp, function(u, v) return u < v end)
+  pProp = vgui.Create("PropSelect", cPanel)
+  pProp.Height = 4; pProp:Dock(TOP) -- Stretch the panel to have 4 rows
+  pProp:SetConVar(gsTOOL.."_model") -- Primary convar is the model
+  pProp:SetTooltip(language.GetPhrase("tool."..gsTOOL..".model"))
+  pProp.Label:SetText(language.GetPhrase("tool."..gsTOOL..".model_con"))
+  for i = 1, #uProp do
+    local key = uProp[i]
+    local val = tProp[key]
+    local pIco = pProp:AddModel(key, val); pIco:SetTooltip(key)
+    function pIco:DoRightClick()
+      local pnMenu = DermaMenu(false, self)
+      if(not IsValid(pnMenu)) then return end
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_copy"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("page_copy"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyu"),
+        function() SetClipboardText(key) end):SetIcon(LaserLib.GetIcon("brick"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copyi"),
+        function() SetClipboardText(tostring(i)) end):SetIcon(LaserLib.GetIcon("key"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_copya"),
+        function() -- Concatenate all model configurations and send them to the clipboard
+          local ang, skn = LaserLib.GetEmpty(val[gsTOOL.."_angle" ]), LaserLib.GetEmpty(val[gsTOOL.."_skin"  ])
+          local org, dir = LaserLib.GetEmpty(val[gsTOOL.."_origin"]), LaserLib.GetEmpty(val[gsTOOL.."_direct"])
+          SetClipboardText(key..":"..ang.."|"..org.."|"..dir.."|"..skn) end):SetIcon(LaserLib.GetIcon("asterisk_yellow"))
+      local pMenu, pOpts = pnMenu:AddSubMenu(language.GetPhrase("tool."..gsTOOL..".openmanager_sort"))
+      if(not IsValid(pMenu)) then return end
+      if(not IsValid(pOpts)) then return end
+      pOpts:SetImage(LaserLib.GetIcon("table_sort"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (<)", function()
+        table.sort(pProp.List.Items, function(u,v) return (u.Value < v.Value) end)
+        pProp.List:PerformLayout() end):SetImage(LaserLib.GetIcon("arrow_down"))
+      pMenu:AddOption(language.GetPhrase("tool."..gsTOOL..".openmanager_mepun").." (>)", function()
+        table.sort(pProp.List.Items, function(u,v) return (u.Value > v.Value) end)
+        pProp.List:PerformLayout() end):SetImage(LaserLib.GetIcon("arrow_up"))
+      local skn = NumModelSkins(key)
+      if(skn > 0) then -- In case the model has any skins list them here
+        local cS = tonumber(val[gsTOOL.."_skin"]) -- Current selected skin (empty)
+        local trn = language.GetPhrase("tool."..gsTOOL..".openmanager_skin")
+        local pMenu, pOpts = pnMenu:AddSubMenu(trn)
+        if(not IsValid(pMenu)) then return end
+        if(not IsValid(pOpts)) then return end
+        pOpts:SetImage(LaserLib.GetIcon("camera"))
+        for iS = 1, skn do local vS = (iS - 1)
+          local sS = ((cS == vS) and ("["..vS.."]") or vS)
+          pMenu:AddOption(trn..": "..tostring(sS), function()
+            val[gsTOOL.."_skin"] = vS end):SetImage(LaserLib.GetIcon("paintbrush"))
+        end
+      end
+      pnMenu:Open()
+    end
+  end; cPanel:AddItem(pProp)
 
   LaserLib.ComboBoxString(cPanel, "dissolvetype", "LaserDissolveTypes")
   LaserLib.ComboBoxString(cPanel, "startsound"  , "LaserStartSounds"  )
@@ -578,8 +673,13 @@ if(CLIENT) then
     LaserLib.NumSlider(cPanel, "nspliter"  )
     LaserLib.NumSlider(cPanel, "xspliter"  )
     LaserLib.NumSlider(cPanel, "yspliter"  )
+    LaserLib.NumSlider(cPanel, "zspliter"  )
     LaserLib.NumSlider(cPanel, "damagedt"  )
     LaserLib.NumSlider(cPanel, "vesfbeam"  )
+    LaserLib.NumSlider(cPanel, "timeasync" )
+    LaserLib.NumSlider(cPanel, "blholesg"  )
+    LaserLib.NumSlider(cPanel, "wdhuecnt"  )
+    LaserLib.NumSlider(cPanel, "wdrgbmar"  )
   end
 
   LaserLib.Controls("Utilities", "Admin", setupAdminSettings)

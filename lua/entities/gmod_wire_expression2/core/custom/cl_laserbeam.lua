@@ -21,6 +21,8 @@ E2Helper.Descriptions["laserIsPrimary(e:)"]                 = "Returns true when
 E2Helper.Descriptions["laserIsSource(e:)"]                  = "Returns true when entity is an actual laser source"
 E2Helper.Descriptions["laserIsUnit(e:)"]                    = "Returns true when entity is registered as unit"
 E2Helper.Descriptions["laserIsBeam(e:)"]                    = "Returns true when entity can produce output beams"
+-- Check if we have any hit reports. Does the beam hit anything
+E2Helper.Descriptions["laserGetReportSize(e:)"]             = "Returns the laser unit hit reports count"
 -- Wiremod dedicated entity method to retrieve beam information from hit reports
 E2Helper.Descriptions["laserGetDataBounceMax(e:n)"]         = "Returns the maximum allowed laser beam bounces"
 E2Helper.Descriptions["laserGetDataBounceRest(e:n)"]        = "Returns the remaining laser beam bounces"

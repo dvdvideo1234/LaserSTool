@@ -8,37 +8,30 @@ local gnCLMX = LaserLib.GetData("CLMX")
 
 function ENT:UpdateInternals(once)
   if(once) then
-    self.hitSize = 0
-    self.crXlength, self.crBpower = nil, nil
-    self.crXforce , self.crXwidth, self.crXdamage = nil, nil, nil
-    self.crOpower , self.crNpower, self.crForce   = nil, nil, nil
-    self.crWidth  , self.crLength, self.crDamage  = nil, nil, nil
-    self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
     self.crDomcor = Color(0,0,0,0)
     self.crXomcor = Color(0,0,0,0)
-  else
-    self.hitSize = 0 -- Add sources in array
-    self.crXlength, self.crBpower = 0, false
-    self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
-    self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
-    self.crWidth  , self.crLength, self.crDamage  = 0  , 0  , 0
-    self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
-    self.crDomcor.r, self.crDomcor.g = 0, 0
-    self.crDomcor.b, self.crDomcor.a = 0, 0
-    self.crXomcor.r, self.crXomcor.g = 0, 0
-    self.crXomcor.b, self.crXomcor.a = 0, 0
-  end
+  end -- Run multiple. Everything is allocated
+  self.crSorsID = 0 -- Add sources in array
+  self.crXlength, self.crBpower = 0, false
+  self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
+  self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
+  self.crWidth  , self.crLength, self.crDamage  = 0  , 0  , 0
+  self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
+  self.crDomcor.r, self.crDomcor.g = 0, 0
+  self.crDomcor.b, self.crDomcor.a = 0, 0
+  self.crXomcor.r, self.crXomcor.g = 0, 0
+  self.crXomcor.b, self.crXomcor.a = 0, 0
   return self
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:InitSources()
   self:UpdateInternals(true) -- Amount of sources to have
-  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self.meSources = {} -- Sources in notation `[ent] = true`
   self:InitArrays("Array")
   return self
 end
@@ -57,6 +50,7 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
     {"Safety"  , "NORMAL", "Concentrator beam safety"    },
+    {"Disperse", "NORMAL", "Concentrator beam disperse"  },
     {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
     {"Target"  , "ENTITY", "Concentrator target entity"  },
@@ -82,6 +76,7 @@ function ENT:Initialize()
   self:SetDissolveType("")
   self:SetBeamSafety(false)
   self:SetForceCenter(false)
+  self:SetBeamDisperse(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)
   self:SetRefractRatio(false)
@@ -126,14 +121,13 @@ function ENT:EveryBeam(entity, index, beam)
     self:SetArrays(entity)
     local mrg = self:GetBeamColorMerge()
     if(mrg) then self.crNcolor = beam:GetColorRGBA(true) end
-    self.crNpower = LaserLib.GetPower(beam.NvWidth,
-                                      beam.NvDamage)
+    self.crNpower = beam:GetPower()
     if(not self:IsInfinite(entity)) then
       self.crBpower = (self.crBpower or true)
       self.crForce = self.crForce + beam.NvForce
       self.crWidth = self.crWidth + beam.NvWidth
-      self.crLength = math.max(self.crLength, beam.NvLength)
       self.crDamage = self.crDamage + beam.NvDamage
+      self.crLength = math.max(self.crLength, beam.NvLength)
       if(mrg) then
         self.crDomcor.r = self.crDomcor.r + self.crNcolor.r
         self.crDomcor.g = self.crDomcor.g + self.crNcolor.g
@@ -190,7 +184,7 @@ function ENT:UpdateSources()
   self:UpdateInternals()
   self:ProcessSources()
 
-  if(self.hitSize > 0) then
+  if(self.crSorsID > 0) then
     if(self:GetBeamColorMerge()) then
       if(self.crBpower) then -- No infinite
         self:DominantColor(self.crDobeam, self.crDomcor)
@@ -227,14 +221,14 @@ function ENT:Think()
   local mwidth = self:GetBeamWidth()
   local mdamage = self:GetBeamDamage()
 
-  if(self.hitSize > 0 and LaserLib.IsPower(mwidth, mdamage)) then
+  if(self.crSorsID > 0 and LaserLib.IsPower(mwidth, mdamage)) then
     self:SetOn(true)
   else
     self:SetOn(false)
   end
 
   if(self:GetOn()) then
-    self:UpdateFlags()
+    self:UpdateInit()
     local beam  = self:DoBeam()
     local trace = beam:GetTarget()
 
@@ -256,11 +250,11 @@ function ENT:Think()
 
     self:DoDamage(beam)
   else
-    self:SetHitReportMax()
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)
     self:WireWrite("Target")
     self:WireWrite("Dominant")
+    self:SetHitReportMax()
   end
 
   self:WireArrays()

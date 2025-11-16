@@ -12,11 +12,14 @@ ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = true
 ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
+ENT.WaveAR         = {}
 ENT.UnitID         = 4
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/pottery04a.mdl", "models/dog/eyeglass")
 
+local gtWVIS     = LaserLib.GetData("WVIS")
 local gnDOTM     = LaserLib.GetData("DOTM")
+local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
 
 function ENT:SetupDataTables()
@@ -163,11 +166,46 @@ function ENT:GetBeamSafety()
   return self:GetInBeamSafety()
 end
 
+--[[
+ * Safety. Makes the beam acts like in the
+ * portal series towards all players
+]]
+function ENT:GetBeamDisperse()
+  return self:GetInBeamDisperse()
+end
+
+function ENT:SetBeamDisperse(bool)
+  local disp = tobool(bool)
+  self:SetInBeamDisperse(disp)
+  self:WireWrite("Disperse", (disp and 1 or 0))
+  return self
+end
+
 function ENT:GetLeanAngle(forwd, upwrd)
   return LaserLib.GetLeanAngle(forwd, upwrd,
                                self:GetBeamLeanX(),
                                self:GetBeamLeanY(),
                                self:GetBeamLeanZ())
+end
+
+function ENT:SetColorWave(beam, iC, iD)
+  if(not beam) then return end
+  local iC = math.floor(tonumber(iC) or 0)
+  if(iC <= 0) then return end
+  local iD = math.floor(tonumber(iD) or 0)
+  if(iD <= 0) then return end
+  local cB, tW = beam:GetColorBase()
+  if(not cB) then return end
+  if(iD > 1) then tW = self.WaveAR else
+    tW = LaserLib.GetWaveArray(cB, self.WaveAR, iC) end
+  if(not tW) then return end
+  local sr, sg, sb, sa = beam:GetColorRGBA()
+  local recw = tW[iD] -- Current component indexing
+  local rCo, rPw = recw.C, tW.PC
+  sa = ((recw.P > 0) and sa or 0)
+  sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
+  beam:SetWavelength(recw.W)    -- Component wavelength
+  beam:SetColorRGBA(sr, sg, sb, sa) -- Apply beam color
 end
 
 function ENT:DoBeam(org, dir, idx)
@@ -178,6 +216,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
+  local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetInt() > 0)
   local todiv  = (self:GetBeamReplicate() and 1 or count)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
@@ -185,14 +224,12 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetDamage(self:GetBeamDamage() / todiv)
         beam:SetForce(self:GetBeamForce() / todiv)
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, false)
+        beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
-  if(self:GetBeamColorSplit()) then
-    local r, g, b, a = self:GetBeamColorRGBA()
-          r, g, b = LaserLib.GetColorID(idx, r, g, b)
-    beam:SetColorRGBA(r, g, b, a)
+  if(self:GetBeamColorSplit() and idx) then
+    self:SetColorWave(beam, count, idx)
   end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(idx)
+  return beam:Run()
 end

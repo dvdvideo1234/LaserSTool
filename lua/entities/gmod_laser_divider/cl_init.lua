@@ -1,9 +1,9 @@
 include("shared.lua")
 
-function ENT:DrawBeam(src, org, dir, bmex)
-  local beam = self:DoBeam(src, org, dir, bmex)
+function ENT:DrawBeam(src, org, dir, bmsr)
+  local beam = self:DoBeam(src, org, dir, bmsr)
   if(not beam) then return end
-  local sors = bmex:GetSource()
+  local sors = bmsr:GetSource()
   self:DrawTrace(beam, sors)
   self:DrawEndingEffect(beam, sors)
 end
@@ -13,7 +13,7 @@ function ENT:Draw()
   self:DrawShadow(false)
   self:InitSources()
   if(self:GetOn()) then
-    self:UpdateFlags()
+    self:UpdateInit()
     self:UpdateSources()
   end
 end

@@ -7,20 +7,17 @@
 if(first() || dupefinished())
 {
     Src = entity():isConstrainedTo(1)
-
-    event tick()
-    {
-        W = Src:laserGetBeamWidth()
-        D = Src:laserGetBeamDamage()
-        F = Src:laserGetBeamForce()
-        L = Src:laserGetBeamLength()
-        P = Src:laserGetBeamPower()
-        SS = Src:laserGetStartSound()
-        SE = Src:laserGetStopSound()
-        SK = Src:laserGetKillSound()
-        DT = Src:laserGetDissolveType()
-        DTI = Src:laserGetDissolveTypeID()
-        RR = Src:laserGetRefractRatio()
-        RL = Src:laserGetReflectRatio()
-    }
+    
+    W = Src:laserGetBeamWidth()
+    D = Src:laserGetBeamDamage()
+    F = Src:laserGetBeamForce()
+    L = Src:laserGetBeamLength()
+    P = Src:laserGetBeamPower()
+    SS = Src:laserGetStartSound()
+    SE = Src:laserGetStopSound()
+    SK = Src:laserGetKillSound()
+    DT = Src:laserGetDissolveType()
+    DTI = Src:laserGetDissolveTypeID()
+    RR = Src:laserGetRefractRatio()
+    RL = Src:laserGetReflectRatio()
 }

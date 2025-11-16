@@ -19,8 +19,8 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/furnitureshelf001b.mdl", "models/do
 local gnDOTM = LaserLib.GetData("DOTM")
 
 function ENT:UpdateInternals()
-  self.hitSize = 0 -- Add sources in array
-  self.crHdx = 0 -- Current bean index
+  self.crSorsID = 0 -- Add sources in array
+  self.crBeamID = 0 -- Current bean index
   return self
 end
 
@@ -32,8 +32,8 @@ function ENT:SetupDataTables()
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 -- Override the beam transformation
@@ -45,11 +45,11 @@ end
 
 function ENT:InitSources()
   if(SERVER) then
-    self.hitSources = {} -- Sources in notation `[ent] = true`
+    self.meSources = {} -- Sources in notation `[ent] = true`
     self:InitArrays("Array")
   else
-    if(not self.hitSources) then
-      self.hitSources = {} -- Sources in notation `[ent] = true`
+    if(not self.meSources) then
+      self.meSources = {} -- Sources in notation `[ent] = true`
       self:InitArrays("Array")
     end
   end
@@ -109,7 +109,7 @@ end
 function ENT:UpdateSources()
   self:UpdateInternals() -- Add sources in array
   self:ProcessSources()
-  self:SetHitReportMax(self.crHdx)
+  self:SetHitReportMax(true)
 
   return self:UpdateArrays()
 end
@@ -119,21 +119,22 @@ end
  * ent  > Entity source to be divided
  * org  > Beam origin location
  * dir  > Beam trace direction
- * bmex > Source trace beam class
+ * bmsr > Source trace beam class
 ]]
-function ENT:DoBeam(ent, org, dir, bmex)
-  self.crHdx = self.crHdx + 1
+function ENT:DoBeam(ent, org, dir, bmsr)
   local todiv = (self:GetBeamReplicate() and 1 or 2)
-  local beam = LaserLib.Beam(org, dir, bmex.NvLength)
-        beam:SetLength(bmex.NvLength)
-        beam:SetSource(self, ent, bmex:GetSource())
-        beam:SetWidth(LaserLib.GetWidth(bmex.NvWidth / todiv))
-        beam:SetDamage(bmex.NvDamage / todiv)
-        beam:SetForce(bmex.NvForce  / todiv)
-        beam:SetFgDivert( bmex.BrReflec, bmex.BrRefrac)
-        beam:SetFgTexture(bmex.BmNoover, false)
-        beam:SetBounces()
+  local beam = LaserLib.Beam(org, dir, bmsr.NvLength)
+        beam:SetLength(bmsr.NvLength)
+        beam:SetSource(self, ent, bmsr.BoSource, bmsr.BmSource)
+        beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
+        beam:SetDamage(bmsr.NvDamage / todiv)
+        beam:SetForce(bmsr.NvForce  / todiv)
+        beam:SetFgDivert( bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
+        beam:SetColorRGBA(bmsr:GetColorRGBA(true))
+        beam:SetWavelength(bmsr:GetWavelength())
+        beam:SetBounces(bmsr:GetBounces())
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.crHdx)
+  return beam:Run()
 end

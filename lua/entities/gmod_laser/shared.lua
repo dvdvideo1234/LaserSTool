@@ -24,9 +24,8 @@ local gnDOTM     = LaserLib.GetData("DOTM")
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gvVDRUP    = LaserLib.GetData("VDRUP")
 local gvVZERO    = LaserLib.GetData("VZERO")
-local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
-local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
 local cvENSOUNDS = LaserLib.GetData("ENSOUNDS")
+local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
@@ -162,6 +161,30 @@ function ENT:GetBeamSafety()
   else
     local safe = self:GetInBeamSafety()
     return self:GetNWBool("GetInBeamSafety", safe)
+  end
+end
+
+--[[
+ * Disperse. Makes the beam vomit unicorn puke
+ * Magenta is refracted the most, red the least
+]]
+function ENT:SetBeamDisperse(bool)
+  local disp = tobool(bool)
+  self:SetInBeamDisperse(disp)
+  return self
+end
+
+function ENT:GetBeamDisperse()
+  if(SERVER) then
+    local disp = self:WireRead("Disperse", true)
+    if(disp ~= nil) then disp = tobool(disp)
+    else disp = self:GetInBeamDisperse() end
+    self:SetNWBool("GetInBeamDisperse", disp)
+    self:WireWrite("Disperse", (disp and 1 or 0))
+    return disp
+  else
+    local disp = self:GetInBeamDisperse()
+    return self:GetNWBool("GetInBeamDisperse", disp)
   end
 end
 
@@ -339,13 +362,14 @@ function ENT:DoBeam(org, dir, idx)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
+  local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetInt() > 0)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
         beam:SetWidth(self:GetBeamWidth())
         beam:SetDamage(self:GetBeamDamage())
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, false)
+        beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

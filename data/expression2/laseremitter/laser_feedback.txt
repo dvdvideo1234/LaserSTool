@@ -7,29 +7,30 @@
 if(first() || dupefinished())
 {
     Src = entity():isConstrainedTo(1)
+    
     RW = 10
-    RD = 12
+    RD = 100
     RF = 15
-
-    event tick()
-    {
-        if(Start)
-        {
-            if(Src:laserGetBeamPower() <= 0)
-            {
-                OW = 1
-            }else{
-                PW = Src:laserGetBeamWidth()
-                OW = OW + 0.1 * (RW - PW)
-                PD = Src:laserGetBeamDamage()
-                OD = OD + 0.1 * (RD - PD)
-                PF = Src:laserGetBeamForce()
-                OF = OF + 0.1 * (RF - PF)
-            }
-        }else{
-            OW = OD = OF = 0
-        }
-    }
+    OD = 0
+    OF = 0
 }
 
-
+event tick()
+{
+    if(Start)
+    {
+        if(Src:laserGetBeamPower() <= 0)
+        {
+            OW = 1
+        }else{
+            PW = Src:laserGetBeamWidth()
+            OW = OW + 0.1 * (RW - PW)
+            PD = Src:laserGetBeamDamage()
+            OD = OD + 0.1 * (RD - PD)
+            PF = Src:laserGetBeamForce()
+            OF = OF + 0.1 * (RF - PF)
+        }
+    }else{
+        OW = OD = OF = 0
+    }
+}

@@ -38,12 +38,11 @@ local gsPref = gsTool.."_"
 
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gnCLMX     = LaserLib.GetData("CLMX")
+local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
 local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
 local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
 local cvMXBMLENG = LaserLib.GetData("MXBMLENG")
-local cvEFFECTDT = LaserLib.GetData("EFFECTDT")
-local cvDAMAGEDT = LaserLib.GetData("DAMAGEDT")
 
 if(SERVER) then
   resource.AddFile("materials/vgui/entities/gmod_laser_rifle.vmt")
@@ -225,13 +224,14 @@ function SWEP:DoBeam(origin, direct)
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
   local r, g, b, a = self:GetBeamColorRGBA()
+  local disper = (cvWDHUECNT:GetInt() > 0)
   local beam = LaserLib.Beam(origin, direct, self:GetBeamLength())
         beam:SetSource(self:GetOwner(), self)
         beam:SetWidth(LaserLib.GetWidth(self:GetBeamWidth()))
         beam:SetDamage(self:GetBeamDamage())
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, false)
+        beam:SetFgTexture(noverm, disper)
         beam:SetBounces(1)
         beam:SetColorRGBA(r, g, b, a)
   if(not beam:IsValid() and SERVER) then
@@ -240,7 +240,7 @@ function SWEP:DoBeam(origin, direct)
 end
 
 function SWEP:ServerBeam()
-  self:UpdateFlags()
+  self:UpdateInit()
 
   if(self:GetOn()) then
     local vorg = self:GetBeamOrigin()
@@ -271,7 +271,7 @@ if(SERVER) then
 else
 
   function SWEP:DrawBeam(origin, direct)
-    self:UpdateFlags()
+    self:UpdateInit()
 
     local beam = self:DoBeam(origin, direct)
     if(not beam) then return end

@@ -18,12 +18,12 @@ function ENT:UpdateInternals()
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:InitSources()
-  self.hitSources = {} -- Sources in notation `[ent] = true`
+  self.meSources = {} -- Sources in notation `[ent] = true`
   return self
 end
 
@@ -33,14 +33,15 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateOutputs(
-    {"On"      , "NORMAL", "Splitter working state"  },
-    {"Width"   , "NORMAL", "Splitter beam width"     },
-    {"Length"  , "NORMAL", "Splitter length width"   },
-    {"Damage"  , "NORMAL", "Splitter damage width"   },
-    {"Force"   , "NORMAL", "Splitter force amount"   },
-    {"Safety"  , "NORMAL", "Splitter beam safety"    },
-    {"Entity"  , "ENTITY", "Splitter entity itself"  },
-    {"Dominant", "ENTITY", "Splitter dominant entity"}
+    {"On"        , "NORMAL", "Splitter working state"  },
+    {"Width"     , "NORMAL", "Splitter beam width"     },
+    {"Length"    , "NORMAL", "Splitter length width"   },
+    {"Damage"    , "NORMAL", "Splitter damage width"   },
+    {"Force"     , "NORMAL", "Splitter force amount"   },
+    {"Safety"    , "NORMAL", "Splitter beam safety"    },
+    {"Disperse"  , "NORMAL", "Splitter beam disperse"  },
+    {"Entity"    , "ENTITY", "Splitter entity itself"  },
+    {"Dominant"  , "ENTITY", "Splitter dominant entity"}
   )
 
   local phys = self:GetPhysicsObject()
@@ -65,6 +66,7 @@ function ENT:Initialize()
   self:SetDissolveType("")
   self:SetBeamSafety(false)
   self:SetForceCenter(false)
+  self:SetBeamDisperse(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)
   self:SetRefractRatio(false)
@@ -110,9 +112,7 @@ end
 function ENT:EveryBeam(entity, index, beam)
   if(not beam) then return end
   local trace = beam:GetTarget()
-  if(trace and trace.Hit) then
-    local npower = LaserLib.GetPower(beam.NvWidth,
-                                     beam.NvDamage)
+  if(trace and trace.Hit) then local npower = beam:GetPower()
     if(not self.crOpower or npower > self.crOpower) then
       self.crOpower, self.crDobeam, self.crDoment = npower, beam, entity
     end
@@ -161,23 +161,27 @@ function ENT:Think()
   end
 
   if(self:GetOn()) then
-    local delta = gtAMAX[2] / mcount
+    local delta = (gtAMAX[2] / mcount)
     local forwd = self:GetDirectLocal()
     local upwrd = self:GetUpwardLocal()
     local angle = self:GetLeanAngle(forwd, upwrd)
-    self:UpdateFlags()
-    for idx = 1, mcount do
-      self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
-      if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
+    self:UpdateInit()
+    if(mcount > 1) then
+      for idx = 1, mcount do
+        self:DoDamage(self:DoBeam(nil, angle:Forward(), idx))
+        if(mcount > 1) then angle:RotateAroundAxis(forwd, delta) end
+      end
+    else
+      self:DoDamage(self:DoBeam(nil, forwd))
     end
-    self:SetHitReportMax(mcount)
+    self:SetHitReportMax(true)
   else
-    self:SetHitReportMax()
     self:WireWrite("Width" , 0)
     self:WireWrite("Length", 0)
     self:WireWrite("Damage", 0)
     self:WireWrite("Force" , 0)
     self:WireWrite("Dominant")
+    self:SetHitReportMax()
   end
 
   self:NextThink(CurTime())

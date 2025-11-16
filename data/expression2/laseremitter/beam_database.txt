@@ -1,19 +1,21 @@
 @name Beam database tester
-@inputs Source:entity
 @outputs [A B]:array
-@persist
+@persist [A B]:array
 @trigger none
 
-RF = "chrome"
-RR = "glass"
-
-A[1, number] = laserGetReflectDataRatio(RF)
-A[2, string] = laserGetReflectDataKey(RF)
-A[3, number] = laserGetRefractDataIndex(RR)
-A[4, number] = laserGetRefractDataRatio(RR)
-A[5, string] = laserGetRefractDataKey(RR)
-B[1, number] = laserGetBeamPower(1,1)
-B[2, number] = laserGetBeamIsPower(1,1)
-B[2, number] = laserGetBeamIsPower(1,1)
-B[3, number] = laserGetRefractAngleRad(1, 1.333)
-B[4, number] = laserGetRefractAngleDeg(1, 1.333)
+if(first() || dupefinished())
+{
+    RF = "chrome"
+    RR = "glass"
+    
+    A[1, number] = laserGetReflectDataRatio(RF)
+    A[2, string] = laserGetReflectDataKey(RF)
+    A[3, number] = laserGetRefractDataIndex(RR)
+    A[4, number] = laserGetRefractDataRatio(RR)
+    A[5, string] = laserGetRefractDataKey(RR)
+    B[1, number] = laserGetBeamPower(1,1)
+    B[2, number] = laserGetBeamIsPower(1,1)
+    B[2, number] = laserGetBeamIsPower(1,1)
+    B[3, number] = laserGetRefractAngleRad(1, 1.333)
+    B[4, number] = laserGetRefractAngleDeg(1, 1.333)
+}

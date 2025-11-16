@@ -6,27 +6,27 @@
 
 ### Description
 This is the `LaserSTool` I've originally ported to [Garry's mod 13][ref-gmod-link]
-since then, I am constantly improving it. My goal is making it behave as similar to a
+since then, I have been constantly improving it. My goal is to make it behave similarly to a
 real [laser beam][ref-laser-beam]. The repository contains [MadJawa][ref-author-org]'s
 original SVN, but drastically changed to include a lot of added features, better user
-experience and improved beam physics behavior accuracy. This is by far the most bug
-free laser addon that is up to date and with active development.
+experience, and improved beam physics behavior accuracy. This is by far the most
+bug-free laser addon that is up to date and with active development.
 
 ### Brief history
-The original creator and huge credit goes to one and only [MadJawa][ref-author-org].
+The original creator and huge credit goes to the one and only [MadJawa][ref-author-org].
 His repository is [located here][ref-org-repo]. I cannot tell you that he will still
-and eventually support this repo in the future, but we can clearly see no commits are
+and eventually support this repo in the future, but we can clearly see that no commits have been
 made since `2009`. This has been quite a ride since `January 2020` when I first started
-fixing this, but as the time flew by I got hooked on another projects [IRL][ref-exp-irl]
-and this was kind of aside forgotten. I did not make a repository at the time, so I kept
-fixing it on my local machine at home, thinking that no one will eventually get interested
-in me reviving this gem, but here we are now and boy was I wrong! Last I decided to push
-it to github, so the code will not get lost again or something may happen to this marvel!
+fixing this, but as time flew by, I got hooked on other projects [IRL][ref-exp-irl]
+and this was forgotten. I did not make a repository at the time, so I kept
+fixing it on my local machine at home, thinking that no one would eventually get interested
+in me reviving this gem, but here we are now, and boy, was I wrong! Last, I decided to push
+it to GitHub, so the code will not get lost again, or something may happen to this marvel!
 
 ![LaserSTool][ref-screenshot]
 
 ### Installation
-Just clone this repo in your addons folder or subscribe in the [workshop][ref-workshop].
+Just clone this repo in your addons folder or subscribe to the [workshop][ref-workshop].
 
 ### Features
 The code base has been drastically changed now and does not correspond to the original `2.0`
@@ -41,26 +41,26 @@ version anymore. This was the only way I could support the things I needed the m
 7. [Wire inputs][ref-wire] override internals when connected
 8. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
 9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
-10. Better model for the crystal entity not to get confused where beam comes out
+10. A better model for the crystal entity so as not to get confused about where the beam comes out
 11. [Material override][ref-mat-override] can be saved and restored with advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
 12. [Editable entity][ref-ent-edit] support option for changing internals of the laser elements
 13. User customizable models for active entities and reflectors via convar tweak
-14. Absorption [degradation and self sustain beam loop][ref-crystal] for crystal entities
-15. Wiremod [API][ref-wire-api] for retrieving beam source settings and make control feedback
+14. Absorption [degradation and self-sustained beam loop][ref-crystal] for crystal entities
+15. Wiremod [API][ref-wire-api] for retrieving beam source settings and making control feedback
 16. A bunch of different laser addon dedicated elements you can find [here in the wiki page][ref-wiki-page]
-17. Coding effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
+17. Coding an effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
 18. You can combine the refraction with [Shadowscion's primitive][ref-primitive] for using lenses
 
 ### Workshop
 I see many copies of this tool everywhere, but still, there is none that
-have crated official repository for community contribution, besides, I think
-the original author will not like that in general. If you want to try the tool
+have created an official repository for community contribution, besides, I
+think the original author will not like that in general. If you want to try the tool
 go ahead and install it.
 
 ### Versioning
 Small modifications are pushed to the workshop when they are tested. Large
-modifications require a dedicated [PR][ref-git-pr], which when gets tested
-and when merged is pushed to the workshop [automatically][ref-ws-publish].
+modifications require a dedicated [PR][ref-git-pr], which, when it gets tested
+and merged, is pushed to the workshop [automatically][ref-ws-publish].
 
 ### Pull requests
 I am a fan of this tool, so any help I get will be appreciated.

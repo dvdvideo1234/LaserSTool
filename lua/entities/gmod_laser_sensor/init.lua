@@ -8,16 +8,17 @@ local gnCTOL  = LaserLib.GetData("CTOL")
 local gcWHITE = LaserLib.GetColor("WHITE")
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:ResetInternals()
   self.crOrigin:SetUnpacked(0,0,0)
   self.crDirect:SetUnpacked(0,0,0)
+  self.crWaveLen = 0
   self.crWidth , self.crLength, self.crDamage = 0, 0, 0
   self.crNpower, self.crForce , self.crOpower = 0, 0, nil
-  self.hitSize , self.crNormh , self.crDomsrc = 0, false, nil
+  self.crSorsID , self.crNormh , self.crDomsrc = 0, false, nil
   self.crColor.r, self.crColor.g = 0, 0
   self.crColor.b, self.crColor.a = 0, 0
   return self
@@ -33,34 +34,12 @@ end
 
 function ENT:InitSources()
   self:UpdateInternals() -- Initialize sensor internals
-  self.hitSources = {} -- Entity sources in notation `[ent] = true`
+  self.meSources = {} -- Entity sources in notation `[ent] = true`
   self.pssSources = {
     Size = 0,  -- Contains the loop upper limit
     Time = 0,  -- Contains the current time for pass-trough
     Keys = {}, -- Contains the ordered by time keys
-    Data = {}, -- contain the data set used to call every beam
-    Copy = {   -- For pass-trough copy of current beam is needed
-      Ony = {  -- Beam copy ONLY the specified fields
-        ["NvWidth" ] = true, -- Copy beam width
-        ["NvDamage"] = true, -- Copy beam damage
-        ["NvForce" ] = true, -- Copy beam force
-        ["NvLength"] = true, -- Copy beam length
-        ["NvColor" ] = true, -- Copy beam color
-        ["VrOrigin"] = true, -- Copy last trace origin
-        ["VrDirect"] = true, -- Copy last trace direction
-        ["BmTarget"] = true, -- Copy current trace data
-        ["BoSource"] = true, -- Copy reference to external source
-        ["BmSource"] = true  -- Copy reference to current source
-      }, -- Copy only the needed fields. Nothing else
-      Asn = {
-        ["BoSource"] = true, -- Copy external source as pointer
-        ["BmSource"] = true  -- Copy current source as pointer
-      }, -- Direct assignment of beam source entity
-      Cpn = {
-        ["NvColor"]  = true, -- Copy current color
-        ["BmTarget"] = true  -- Copy current trace data
-      }
-    } -- Configure how node data is being copied
+    Data = {}  -- contain the data set used to call every beam
   } -- Pass-trough internal configuration data
   self:InitArrays("Array", "Index", "Level", "Front")
   return self
@@ -72,18 +51,19 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Origin", "VECTOR", "Sensor beam hit origin"  },
-    {"Direct", "VECTOR", "Sensor extern hit normal"},
-    {"Length", "NORMAL", "Sensor beam length brink"},
-    {"Width" , "NORMAL", "Sensor beam width brink" },
-    {"Damage", "NORMAL", "Sensor beam damage brink"},
-    {"Force" , "NORMAL", "Sensor beam force brink" }
+    {"Origin" , "VECTOR", "Sensor beam hit origin"    },
+    {"Direct" , "VECTOR", "Sensor extern hit normal"  },
+    {"Length" , "NORMAL", "Sensor beam length brink"  },
+    {"Width"  , "NORMAL", "Sensor beam width brink"   },
+    {"Damage" , "NORMAL", "Sensor beam damage brink"  },
+    {"Force"  , "NORMAL", "Sensor beam force brink"   }
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Sensor enabled state"          },
     {"Width"   , "NORMAL", "Sensor beam width"             },
     {"Length"  , "NORMAL", "Sensor length width"           },
     {"Damage"  , "NORMAL", "Sensor damage width"           },
     {"Force"   , "NORMAL", "Sensor force amount"           },
+    {"WaveLen" , "NORMAL", "Sensor dominant wavelength"    },
     {"Origin"  , "VECTOR", "Sensor source beam origin"     },
     {"Direct"  , "VECTOR", "Sensor source beam direction"  },
     {"Entity"  , "ENTITY", "Sensor entity itself"          },
@@ -158,9 +138,9 @@ function ENT:EveryBeam(entity, index, beam)
   if(trace and trace.Hit) then
     local norm = self:GetUnitDirection()
     local bdot, mdot = self:GetHitPower(norm, beam, trace)
-    self:SetArrays(entity, beam.BmIdenty, mdot, (bdot and 1 or 0))
+    self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
-      self.crNpower = LaserLib.GetPower(beam.NvWidth, beam.NvDamage)
+      self.crNpower = beam:GetPower()
       self.crWidth  = self.crWidth  + beam.NvWidth
       self.crDamage = self.crDamage + beam.NvDamage
       self.crForce  = self.crForce  + beam.NvForce
@@ -170,6 +150,7 @@ function ENT:EveryBeam(entity, index, beam)
         self.crOpower = self.crNpower
         self.crDomsrc = beam:GetSource()
         self.crLength = beam.NvLength
+        self.crWaveLen = beam.BmWaveLn
         self.crOrigin:Set(beam.VrOrigin)
         self.crDirect:Set(beam.VrDirect)
         crCo.r, crCo.g, crCo.b, crCo.a = beam:GetColorRGBA()
@@ -179,12 +160,13 @@ function ENT:EveryBeam(entity, index, beam)
 end
 
 function ENT:UpdateOutputs(dom, bon)
-  self:WireWrite("Width" , self.crWidth)
-  self:WireWrite("Length", self.crLength)
-  self:WireWrite("Damage", self.crDamage)
-  self:WireWrite("Force" , self.crForce)
-  self:WireWrite("Origin", self.crOrigin)
-  self:WireWrite("Direct", self.crDirect)
+  self:WireWrite("Width"  , self.crWidth)
+  self:WireWrite("Length" , self.crLength)
+  self:WireWrite("Damage" , self.crDamage)
+  self:WireWrite("Force"  , self.crForce)
+  self:WireWrite("Origin" , self.crOrigin)
+  self:WireWrite("Direct" , self.crDirect)
+  self:WireWrite("WaveLen", self.crWaveLen)
 
   if(dom ~= nil) then
     self:WireWrite("Dominant", dom)
@@ -244,6 +226,7 @@ function ENT:UpdateDominant(dom)
         local mendeff = self:GetEndingEffect()
         local mmatera = self:GetBeamMaterial()
         local mbmsafe = self:GetInBeamSafety()
+        local mbmdisp = self:GetInBeamDisperse()
         local movrmat = self:GetInNonOverMater()
         -- Dominant configurations ( booleans have true/false )
         local dfcentr = domsrc:GetForceCenter()  and 2 or 1
@@ -253,6 +236,7 @@ function ENT:UpdateDominant(dom)
         local dendeff = domsrc:GetEndingEffect() and 2 or 1
         local dmatera = domsrc:GetBeamMaterial()
         local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
+        local dbmdisp = domsrc:GetBeamDisperse() and 2 or 1
         local dovrmat = domsrc:GetNonOverMater() and 2 or 1
         -- Compare the internal configuration and trigger sensor
         if((mmatera == "" or (mmatera ~= "" and mmatera == dmatera)) and
@@ -262,6 +246,7 @@ function ENT:UpdateDominant(dom)
            (mrefrac == 0  or (mrefrac ~= 0  and mrefrac == drefrac)) and
            (mendeff == 0  or (mendeff ~= 0  and mendeff == dendeff)) and
            (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
+           (mbmdisp == 0  or (mbmdisp ~= 0  and mbmdisp == dbmdisp)) and
            (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
         ) then -- Dominant beam is like sensor beam
           self:SetOn(true)
@@ -295,7 +280,7 @@ function ENT:UpdateSources()
   self:ResetInternals()
   self:ProcessSources()
 
-  if(self.hitSize > 0) then
+  if(self.crSorsID > 0) then
     self:UpdateDominant()
   else
     self:UpdateOutputs()

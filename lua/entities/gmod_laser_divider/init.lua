@@ -61,10 +61,10 @@ function ENT:SpawnFunction(ply, tr)
 end
 
 function ENT:Think()
-  self:UpdateFlags()
+  self:UpdateInit()
   self:UpdateSources()
 
-  if(self.hitSize > 0) then
+  if(self.crSorsID > 0) then
     self:SetOn(true)
   else
     self:SetOn(false)

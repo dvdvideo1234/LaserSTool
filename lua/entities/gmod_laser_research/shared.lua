@@ -1,6 +1,6 @@
 ENT.Type           = "anim"
 ENT.Category       = LaserLib.GetData("CATG")
-ENT.PrintName      = "Divider Recursive"
+ENT.PrintName      = "Resaearch unit"
 ENT.Information    = ENT.Category.." "..ENT.PrintName
 if(WireLib) then
   ENT.Base          = "base_wire_entity"
@@ -9,8 +9,8 @@ else
   ENT.Base          = "base_entity"
 end
 ENT.Editable       = true
-ENT.Purpose        = "Divides incoming beam into pass-trough and reflected"
-ENT.Instructions   = "Position this entity on the incoming beam path"
+ENT.Purpose        = "This entity is generally used for research and development"
+ENT.Instructions   = "Put code in this to test it before it gets official"
 ENT.Author         = "DVD"
 ENT.Contact        = "dvdvideo123@gmail.com"
 ENT.Spawnable      = false
@@ -27,18 +27,17 @@ function ENT:SetupDataTables()
   self:EditableSetVector("NormalLocal"  , "General") -- Used as forward
   self:EditableSetBool  ("BeamReplicate", "General")
   LaserLib.Configure(self)
-  self.hitSources = {}
+  self.meSources = {}
 end
 
 function ENT:RegisterSource(ent)
-  if(not self.hitSources) then return self end
-  self.hitSources[ent] = true; return self
+  if(not self.meSources) then return self end
+  self.meSources[ent] = true; return self
 end
 
 function ENT:GetOn()
-  local src = self.hitSources
+  local src = self.meSources
   if(not src) then return false end
-  LaserLib.Print("ON:", table.IsEmpty(src))
   return (not table.IsEmpty(src))
 end
 
@@ -71,25 +70,23 @@ function ENT:GetHitPower(normal, beam, trace)
   return (dott > (1 - gnDOTM))
 end
 
-function ENT:DoBeam(org, dir, bmex)
+function ENT:DoBeam(org, dir, bmsr)
   if(self.RecuseBeamID > 10) then
     self.RecuseBeamID = 0
     self:SetHitReportMax()
-    LaserLib.Print("Limit reached")
   end
   self.RecuseBeamID = self.RecuseBeamID + 1
-  LaserLib.Print("Beam", self.RecuseBeamID, bmex.BmRecstg, bmex.TeFilter)
   local todiv  = (self:GetBeamReplicate() and 1 or 2)
-  local beam   = LaserLib.Beam(org, dir, bmex.NvLength)
-        beam:SetSource(self, bmex:GetSource())
-        beam:SetWidth(LaserLib.GetWidth(bmex.NvWidth / todiv))
-        beam:SetDamage(bmex.NvDamage / todiv)
-        beam:SetForce(bmex.NvForce  / todiv)
-        beam:SetFgDivert(bmex.BrReflec, bmex.BrRefrac)
-        beam:SetFgTexture(bmex.BmNoover, false)
+  local beam   = LaserLib.Beam(org, dir, bmsr.NvLength)
+        beam:SetSource(self, bmsr:GetSource())
+        beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
+        beam:SetDamage(bmsr.NvDamage / todiv)
+        beam:SetForce(bmsr.NvForce  / todiv)
+        beam:SetFgDivert (bmsr.BrReflec, bmsr.BrRefrac)
+        beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.RecuseBeamID, bmex.BmRecstg)
+  return beam:Run(self.RecuseBeamID, bmsr.BmRecstg)
 end
 

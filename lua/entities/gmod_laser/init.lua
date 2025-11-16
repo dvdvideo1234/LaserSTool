@@ -21,23 +21,25 @@ function ENT:Initialize()
   self:SetSolid(SOLID_VPHYSICS)
 
   self:WireCreateInputs(
-    {"On"    , "NORMAL", "Turns the laser on/off" },
-    {"Length", "NORMAL", "Updates the beam length"},
-    {"Width" , "NORMAL", "Updates the beam width" },
-    {"Damage", "NORMAL", "Updates the beam damage"},
-    {"Force" , "NORMAL", "Updates the beam force" },
-    {"Safety", "NORMAL", "Updates the beam safety"}
+    {"On"      , "NORMAL", "Turns the laser on/off"   },
+    {"Length"  , "NORMAL", "Updates the beam length"  },
+    {"Width"   , "NORMAL", "Updates the beam width"   },
+    {"Damage"  , "NORMAL", "Updates the beam damage"  },
+    {"Force"   , "NORMAL", "Updates the beam force"   },
+    {"Safety"  , "NORMAL", "Updates the beam safety"  },
+    {"Disperse", "NORMAL", "Updates the beam disperse"}
   ):WireCreateOutputs(
-    {"On"    , "NORMAL", "Laser entity status"    },
-    {"Hit"   , "NORMAL", "Laser entity hit"       },
-    {"Range" , "NORMAL", "Returns the beam range" },
-    {"Length", "NORMAL", "Returns the beam length"},
-    {"Width" , "NORMAL", "Returns the beam width" },
-    {"Damage", "NORMAL", "Returns the beam damage"},
-    {"Force" , "NORMAL", "Returns the beam force" },
-    {"Safety", "NORMAL", "Returns the beam safety"},
-    {"Target", "ENTITY", "Laser entity target"    },
-    {"Entity", "ENTITY", "Laser entity itself"    }
+    {"On"      , "NORMAL", "Laser entity status"      },
+    {"Hit"     , "NORMAL", "Laser entity hit"         },
+    {"Range"   , "NORMAL", "Returns the beam range"   },
+    {"Length"  , "NORMAL", "Returns the beam length"  },
+    {"Width"   , "NORMAL", "Returns the beam width"   },
+    {"Damage"  , "NORMAL", "Returns the beam damage"  },
+    {"Force"   , "NORMAL", "Returns the beam force"   },
+    {"Safety"  , "NORMAL", "Returns the beam safety"  },
+    {"Disperse", "NORMAL", "Returns the beam disperse"},
+    {"Target"  , "ENTITY", "Laser entity target"      },
+    {"Entity"  , "ENTITY", "Laser entity itself"      }
   )
 
   local phys = self:GetPhysicsObject()
@@ -84,19 +86,16 @@ function ENT:SpawnFunction(user, trace)
   local length       = math.Clamp(user:GetInfoNum(prefix.."length", 0), 0, cvMXBMLENG:GetFloat())
   local damage       = math.Clamp(user:GetInfoNum(prefix.."damage", 0), 0, cvMXBMDAMG:GetFloat())
   local pushforce    = math.Clamp(user:GetInfoNum(prefix.."pushforce", 0), 0, cvMXBMFORC:GetFloat())
-  local angle        = math.Clamp(user:GetInfoNum(prefix.."angle", 0), gtAMAX[1], gtAMAX[2])
-  local org, dir     = user:GetInfo(prefix.."origin"), user:GetInfo(prefix.."direct")
-  local trandata     = LaserLib.SetupTransform({angle, org, dir})
-  local raycolor     = Color(colorr, colorg, colorb, colora)
+  local rayco, trans = Color(colorr, colorg, colorb, colora), LaserLib.GetTransform(user)
   local laser        = LaserLib.NewLaser(user       , trace.HitPos, angspawn    , model       ,
-                                         trandata   , key         , width       , length      ,
+                                         trans      , key         , width       , length      ,
                                          damage     , material    , dissolvetype, startsound  ,
                                          stopsound  , killsound   , toggle      , starton     ,
                                          pushforce  , endingeffect, reflectrate , refractrate ,
-                                         forcecenter, frozen      , enovermater , ensafebeam  , raycolor)
+                                         forcecenter, frozen      , enovermater , ensafebeam  , rayco)
   if(LaserLib.IsValid(laser)) then
 
-    LaserLib.ApplySpawn(laser, trace, trandata)
+    LaserLib.ApplySpawn(laser, trace, trans)
 
     user:AddCount(tool.."s", laser)
     user:AddCleanup(tool.."s", laser)
@@ -112,7 +111,7 @@ end
 
 function ENT:Think()
   if(self:GetOn()) then
-    self:UpdateFlags()
+    self:UpdateInit()
     local beam  = self:DoBeam()
     local trace = beam:GetTarget()
 
@@ -137,6 +136,7 @@ function ENT:Think()
     self:WireWrite("Hit", 0)
     self:WireWrite("Range", 0)
     self:WireWrite("Target")
+    self:SetHitReportMax()
   end
 
   self:NextThink(CurTime())
