@@ -33,6 +33,10 @@ local function toString(src)
   return tostring(src or "")
 end
 
+local function getReports(ent)
+  if(not LaserLib.IsUnit(ent)) then return nil end
+  return ent.mrReports -- Entity hit reports
+end
 --[[
  * Returns the specified laser hit report entry under the requested index
  * ent > Entity to search for hit reports
@@ -40,8 +44,7 @@ end
  * trc > Switch to beam hit report trace result structure
 ]]
 local function getReport(ent, idx, trc)
-  if(not LaserLib.IsUnit(ent)) then return nil end
-  local rep = ent.mrReports -- Entity hit reports
+  local rep = getReports(ent) -- Entity reports
   if(not rep) then return nil end -- No reports
   local siz = rep.Size -- Entity hit report size
   if(not siz or siz == 0) then return nil end
@@ -222,6 +225,12 @@ e2function number entity:laserIsSource()
 end
 
 __e2setcost(1)
+e2function number entity:laserGetReportSize()
+  local ext = getReports(this) -- Entity hit reports
+  return (ext and toNumber(ext.Size) or 0)  -- No reports
+end
+
+__e2setcost(1)
 e2function vector entity:laserGetDataOrigin(number idx)
   local ext = getReportKey(this, idx, "VrOrigin")
   if(not ext) then return Vector() end
@@ -394,7 +403,7 @@ end
 
 __e2setcost(1)
 e2function number entity:laserGetTraceHitNoDraw(number idx)
-  local ext = getReportKey(this, idx, "HitNoDraw", true
+  local ext = getReportKey(this, idx, "HitNoDraw", true)
   if(not ext) then return 0 end; return toBool(ext)
 end
 

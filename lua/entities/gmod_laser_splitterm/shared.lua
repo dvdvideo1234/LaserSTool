@@ -216,7 +216,8 @@ function ENT:SetColorWave(beam, iC, iD)
   if(not tW) then return end
   local sr, sg, sb, sa = beam:GetColorRGBA()
   local recw = tW[iD] -- Current component indexing
-  local rCo, rPw = recw.C, recw.P
+  local rCo, rPw = recw.C, tW.PC
+  sa = ((recw.P > 0) and sa or 0)
   sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
   beam:SetWavelength(recw.W)    -- Component wavelength
   beam:SetColorRGBA(sr, sg, sb, sa) -- Apply beam color

@@ -8,26 +8,19 @@ local gnCLMX = LaserLib.GetData("CLMX")
 
 function ENT:UpdateInternals(once)
   if(once) then
-    self.crSorsID = 0
-    self.crXlength, self.crBpower = nil, nil
-    self.crXforce , self.crXwidth, self.crXdamage = nil, nil, nil
-    self.crOpower , self.crNpower, self.crForce   = nil, nil, nil
-    self.crWidth  , self.crLength, self.crDamage  = nil, nil, nil
-    self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
     self.crDomcor = Color(0,0,0,0)
     self.crXomcor = Color(0,0,0,0)
-  else
-    self.crSorsID = 0 -- Add sources in array
-    self.crXlength, self.crBpower = 0, false
-    self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
-    self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
-    self.crWidth  , self.crLength, self.crDamage  = 0  , 0  , 0
-    self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
-    self.crDomcor.r, self.crDomcor.g = 0, 0
-    self.crDomcor.b, self.crDomcor.a = 0, 0
-    self.crXomcor.r, self.crXomcor.g = 0, 0
-    self.crXomcor.b, self.crXomcor.a = 0, 0
-  end
+  end -- Run multiple. Everything is allocated
+  self.crSorsID = 0 -- Add sources in array
+  self.crXlength, self.crBpower = 0, false
+  self.crXforce , self.crXwidth, self.crXdamage = 0  , 0  , 0
+  self.crOpower , self.crNpower, self.crForce   = nil, 0  , 0
+  self.crWidth  , self.crLength, self.crDamage  = 0  , 0  , 0
+  self.crDoment , self.crDobeam, self.crNcolor  = nil, nil, nil
+  self.crDomcor.r, self.crDomcor.g = 0, 0
+  self.crDomcor.b, self.crDomcor.a = 0, 0
+  self.crXomcor.r, self.crXomcor.g = 0, 0
+  self.crXomcor.b, self.crXomcor.a = 0, 0
   return self
 end
 
@@ -133,8 +126,8 @@ function ENT:EveryBeam(entity, index, beam)
       self.crBpower = (self.crBpower or true)
       self.crForce = self.crForce + beam.NvForce
       self.crWidth = self.crWidth + beam.NvWidth
-      self.crLength = math.max(self.crLength, beam.NvLength)
       self.crDamage = self.crDamage + beam.NvDamage
+      self.crLength = math.max(self.crLength, beam.NvLength)
       if(mrg) then
         self.crDomcor.r = self.crDomcor.r + self.crNcolor.r
         self.crDomcor.g = self.crDomcor.g + self.crNcolor.g

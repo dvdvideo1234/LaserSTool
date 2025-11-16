@@ -78,7 +78,7 @@ DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Con
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
-DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuestp"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
+DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuecnt"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
@@ -293,21 +293,20 @@ DATA.REFRACT = {
 
 DATA.DISPERSE = {
   ["cable/cable2"                       ] = { 25,  25,  25},
-  ["cable/crystal_beam1"                ] = {140, 110,  55},
-  ["cable/redlaser"                     ] = {140, 110,  55},
+  ["cable/crystal_beam1"                ] = {255, 255,   0},
   ["trails/plasma"                      ] = {225, 225, 225},
   ["trails/electric"                    ] = { 30,  50, 225},
   ["trails/smoke"                       ] = {100, 100, 100},
   ["trails/laser"                       ] = {225, 225, 225},
-  ["trails/love"                        ] = {130,  40, 100},
+  ["trails/love"                        ] = {225, 225, 225},
   ["trails/lol"                         ] = {225, 225, 225},
   ["effects/beam_generic01"             ] = {225, 225, 225},
-  ["effects/beam001_blu"                ] = { 10,  10,  50},
-  ["effects/beam001_red"                ] = { 50,  10,  10},
+  ["effects/beam001_blu"                ] = { 25, 150, 225},
+  ["effects/beam001_red"                ] = {225, 150,  25},
   ["effects/beam001_white"              ] = {225, 225, 225},
-  ["effects/repair_claw_trail_blue"     ] = { 50,  50, 190},
-  ["effects/repair_claw_trail_red"      ] = {210, 130,  50},
-  ["effects/australiumtrail_red"        ] = {255,  33,   0}
+  ["effects/repair_claw_trail_blue"     ] = {  0, 240, 255},
+  ["effects/repair_claw_trail_red"      ] = {255, 240,   0},
+  ["effects/australiumtrail_red"        ] = {255, 240,   0}
 }
 
 -- Black hole interfaces
@@ -972,6 +971,12 @@ function LaserLib.GetColorRGBA(mr, mg, mb, ma)
            math.Clamp(LaserLib.GetNumber(2, mb, m), 0, m),
            math.Clamp(LaserLib.GetNumber(2, ma, m), 0, m)
   end
+end
+
+function LaserLib.GetColorPower(...)
+  local m, n = DATA.CLMX, 3 -- RGB only
+  local cr, cg, cb = LaserLib.GetColorRGBA(...)
+  return (math.Clamp((cr + cg + cb) / n, 0, m) / m)
 end
 
 --[[
@@ -2603,6 +2608,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   tW.Marg = nM    -- Color compare margin for component check
   tW.HS, tW.HE = nS, nE -- HUE interval in degrees
   tW.WS, tW.WE = wS, wE -- Mapped wavelength interval
+  tW.PC = 0       -- Power the finction recieves form the input color
   tW.PT = 0       -- Total power sum of every color component
   tW.PM = 0       -- Power multiplier converted scaled for comparison
   tW.PX = 0       -- Individual component power for non-white light part
@@ -2630,6 +2636,7 @@ function LaserLib.GetWaveArray(cB, ...)
   local coax = math.max(cB.r, cB.g, cB.b)
   local coan = math.min(cB.r, cB.g, cB.b)
   local marg = -tW.Marg; tW.PT = 0
+  tW.PC = LaserLib.GetColorPower(cB)
   if(coan > 0) then
     coax  = (coax - coan)
     tW.PN = (coan / comx)
@@ -2687,12 +2694,13 @@ local mtBeam = {} -- Object metatable for class methods
           ["NvDamage"] = true, -- Copy beam damage
           ["NvForce" ] = true, -- Copy beam force
           ["NvLength"] = true, -- Copy beam length
+          ["BmWaveLn"] = true, -- Copy beam wavelength
           ["NvColor" ] = true, -- Copy beam color
           ["VrOrigin"] = true, -- Copy last trace origin
           ["VrDirect"] = true, -- Copy last trace direction
           ["BmTarget"] = true, -- Copy current trace data
           ["BoSource"] = true, -- Copy reference to external source
-          ["BmSource"] = true  -- Copy reference to current source
+          ["BmSource"] = true -- Copy reference to current source
         }, -- Copy only the needed fields. Nothing else
         ASGN = { -- Uses direct assignment. Reference equals value
           ["BoSource"] = true, -- Copy external source as pointer
@@ -3970,7 +3978,7 @@ function mtBeam:ApplyGravity()
   if(xgrv) then
     self.IsHoleGv = false
     return self
-  end --
+  end -- Gravity was accumulated
   return self
 end
 
@@ -4453,9 +4461,9 @@ DATA.ACTORS = {
           end -- Continue to trace the beam
         end -- Ordering is needed
         if(bcn) then -- Data change is present start handling it
-          pss.Keys = table.GetKeys(pss.Data) -- Read keys from key-table
-          table.sort(pss.Keys, function(cr, nx) -- Sort keys by data content
-            return (pss.Data[cr].Tim > pss.Data[nx].Tim) -- Return boolean
+          pss.Keys = table.GetKeys(pdt) -- Read keys from key-table
+          table.sort(pss.Keys, function(u, v) -- Sort keys by data content
+            return (pdt[u].Tim > pdt[v].Tim) -- Return boolean
           end); pss.Size = #pss.Keys -- Record with the biggest time is more recent
         end -- Order by the time the beam hits the sensor
       end -- Work only for valid entity sources

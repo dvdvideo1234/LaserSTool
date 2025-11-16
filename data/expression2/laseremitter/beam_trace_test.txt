@@ -1,14 +1,14 @@
 @name Beam trace tester
 @inputs
-@outputs [A B C]:array
-@persist Src:entity
+@outputs Src:entity [A B C]:array
+@persist Src:entity [A B C]:array
 @trigger none
 
 if(first() || dupefinished())
 {
     Src = entity():isConstrainedTo(1)
-
-    event tick()
+    
+    if(Src:laserGetReportSize())
     {
         A[1, number] = Src:laserGetTraceAllSolid(1)
         A[2, number] = Src:laserGetTraceContents(1)
@@ -34,4 +34,9 @@ if(first() || dupefinished())
         C[9, number] = Src:laserGetTraceSurfacePropsID(1)
         C[10, string] = Src:laserGetTraceSurfacePropsName(1)
     }
+    else
+    {
+        print(_HUD_PRINTTALK, "Hit report 1 unavailable!")
+    }
 }
+

@@ -51,23 +51,23 @@ function ENT:Initialize()
   self:SetMoveType(MOVETYPE_VPHYSICS)
 
   self:WireCreateInputs(
-    {"Origin", "VECTOR", "Sensor beam hit origin"  },
-    {"Direct", "VECTOR", "Sensor extern hit normal"},
-    {"Length", "NORMAL", "Sensor beam length brink"},
-    {"Width" , "NORMAL", "Sensor beam width brink" },
-    {"Damage", "NORMAL", "Sensor beam damage brink"},
-    {"Force" , "NORMAL", "Sensor beam force brink" }
+    {"Origin" , "VECTOR", "Sensor beam hit origin"    },
+    {"Direct" , "VECTOR", "Sensor extern hit normal"  },
+    {"Length" , "NORMAL", "Sensor beam length brink"  },
+    {"Width"  , "NORMAL", "Sensor beam width brink"   },
+    {"Damage" , "NORMAL", "Sensor beam damage brink"  },
+    {"Force"  , "NORMAL", "Sensor beam force brink"   }
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Sensor enabled state"          },
     {"Width"   , "NORMAL", "Sensor beam width"             },
     {"Length"  , "NORMAL", "Sensor length width"           },
     {"Damage"  , "NORMAL", "Sensor damage width"           },
     {"Force"   , "NORMAL", "Sensor force amount"           },
+    {"WaveLen" , "NORMAL", "Sensor dominant wavelength"    },
     {"Origin"  , "VECTOR", "Sensor source beam origin"     },
     {"Direct"  , "VECTOR", "Sensor source beam direction"  },
     {"Entity"  , "ENTITY", "Sensor entity itself"          },
     {"Dominant", "ENTITY", "Sensor dominant entity"        },
-    {"WaveLen" , "NORMAL", "Sensor dominant wavelength"    },
     {"Count"   , "NORMAL", "Sensor sources count"          },
     {"Array"   , "ARRAY" , "Sensor sources array"          },
     {"Level"   , "ARRAY" , "Sensor power level array"      },

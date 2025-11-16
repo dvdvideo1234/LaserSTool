@@ -513,7 +513,7 @@ function TOOL.BuildCPanel(cPanel)
     nam = language.GetPhrase(key); pImg:SetTooltip(nam)
     function pImg:DoClick()
       LaserLib.SetPaintOver(pMat, self)
-      LaserLib.ConCommand(nil, gsTOOL.."_material", self.Value)
+      LaserLib.ConCommand(nil, "material", self.Value)
     end
     function pImg:DoRightClick()
       local pnMenu = DermaMenu(false, self)
@@ -678,7 +678,7 @@ if(CLIENT) then
     LaserLib.NumSlider(cPanel, "vesfbeam"  )
     LaserLib.NumSlider(cPanel, "timeasync" )
     LaserLib.NumSlider(cPanel, "blholesg"  )
-    LaserLib.NumSlider(cPanel, "wdhuestp"  )
+    LaserLib.NumSlider(cPanel, "wdhuecnt"  )
     LaserLib.NumSlider(cPanel, "wdrgbmar"  )
   end
 
