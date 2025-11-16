@@ -78,7 +78,7 @@ DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Con
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
-DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuecnt"  , 15   , DATA.FGSRVCN, "Hue step when using dispersion and splitting color components", 0, 50)
+DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuecnt"  , 15   , DATA.FGSRVCN, "Hue count when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
@@ -315,7 +315,7 @@ DATA.BLHOLE = {
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
     GetAffect = function(ent, pos, stp)
-      local kve, wve = DATA.BVKEY, nil
+      local kve, eps, grs, wve = DATA.BVKEY, DATA.ZEPS, 10, nil
       local cen = ent:LocalToWorld(ent:OBBCenter())
       local rav = Vector(pos); rav:Sub(cen)
       local grv, drg, req = Vector(rav), Vector(), rav:LengthSqr()
@@ -326,8 +326,8 @@ DATA.BLHOLE = {
         ent:SetNWVector(kve, wve)
       else wve = ent:GetNWVector(kve, drg) end
       if(not wve:IsZero()) then -- D = aGM / r^3
-        drg:Set(wve:Cross(rav))
-        drg:Mul(stp / (10 * req ^ 1.5)); grv:Add(drg)
+        drg:Set(wve:Cross(rav)) -- Stabilize the singularity
+        drg:Mul(stp / (grs * (eps + req ^ 1.5))); grv:Add(drg)
       end; return grv
     end,
     Registry = {}

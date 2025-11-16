@@ -35,21 +35,23 @@ version anymore. This was the only way I could support the things I needed the m
 1. Very stable [crystal][ref-crystal] calculating routine and beam trace
 2. [Reflect][ref-reflect] beam traces via hit surface material override
 3. [Refract][ref-refract-pic] beam traces via hit surface material override
-4. Calculate [full internal reflection][ref-total-reflect] according to [medium boundary][ref-boundary]
-5. Code base and updates in tone with [Garry's mod 13][ref-gmod-link]
-6. Supports [wire][ref-wire] and every element supports advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
-7. [Wire inputs][ref-wire] override internals when connected
-8. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
-9. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
-10. A better model for the crystal entity so as not to get confused about where the beam comes out
-11. [Material override][ref-mat-override] can be saved and restored with advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
-12. [Editable entity][ref-ent-edit] support option for changing internals of the laser elements
-13. User customizable models for active entities and reflectors via convar tweak
-14. Absorption [degradation and self-sustained beam loop][ref-crystal] for crystal entities
-15. Wiremod [API][ref-wire-api] for retrieving beam source settings and making control feedback
-16. A bunch of different laser addon dedicated elements you can find [here in the wiki page][ref-wiki-page]
-17. Coding an effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
-18. You can combine the refraction with [Shadowscion's primitive][ref-primitive] for using lenses
+4. [Disperse][ref-disperse] beam traces via hit surface material override
+5. [Gravity well][ref-blackhole] interface for trace direction adjustment. Spin and stationary.
+6. Calculate [full internal reflection][ref-total-reflect] according to [medium boundary][ref-boundary]
+7. Code base and updates in tone with [Garry's mod 13][ref-gmod-link]
+8. Supports [wire][ref-wire] and every element supports advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
+9. [Wire inputs][ref-wire] override internals when connected
+10. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
+11. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
+12. A better model for the crystal entity so as not to get confused about where the beam comes out
+13. [Material override][ref-mat-override] can be saved and restored with advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
+14. [Editable entity][ref-ent-edit] support option for changing internals of the laser elements
+15. User customizable models for active entities and reflectors via convar tweak
+16. Absorption [degradation and self-sustained beam loop][ref-crystal] for crystal entities
+17. Wiremod [API][ref-wire-api] for retrieving beam source settings and making control feedback
+18. A bunch of different laser addon dedicated elements you can find [here in the wiki page][ref-wiki-page]
+19. Coding an effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
+20. You can combine the refraction with [Shadowscion's primitive][ref-primitive] for using lenses
 
 ### Workshop
 I see many copies of this tool everywhere, but still, there is none that
@@ -68,6 +70,8 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-total-reflect]: https://en.wikipedia.org/wiki/Total_internal_reflection
 [ref-reflect]: https://en.wikipedia.org/wiki/Reflection_(physics)
 [ref-refract]: https://en.wikipedia.org/wiki/Refraction
+[ref-disperse]: https://en.wikipedia.org/wiki/Dispersion_(optics)
+[ref-blackhole]: https://en.wikipedia.org/wiki/Black_hole
 [ref-screenshot]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/screenshot.jpg
 [ref-reflect-rate]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/reflect_rate.jpg
 [ref-refract-pic]: https://raw.githubusercontent.com/dvdvideo1234/LaserSTool/main/data/laseremitter/tools/pictures/refract.jpg
