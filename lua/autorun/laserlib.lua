@@ -1255,12 +1255,8 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     ErrorNoHaltWithStack("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     ErrorNoHaltWithStack("Suffix empty: "..tostring(usrc)) end
-  --[[
   local vset = (DATA.UNITS[index] or {}); if(vset and vset[5]) then
     ErrorNoHaltWithStack("Unit present ["..index.."]["..vset[1].."]: "..ucas) end
-  ]] local vset = (DATA.UNITS[index] or {})
-
-
   local uset = vset[1]; if(uset and uset ~= ucas) then
     ErrorNoHaltWithStack("Unit mismatch ["..index.."]["..vset[1].."]: "..ucas) end
   -- Allocate class configuration. Make it accessible to the library
