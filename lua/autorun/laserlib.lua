@@ -2738,7 +2738,7 @@ function LaserLib.Beam(origin, direct, length)
   self.DmRfract = 0 -- Diameter trace-back dimensions of the entity
   self.TrRfract = 0 -- Full length for traces not being bound by hit events
   self.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
-  self.BmNoover = false -- Whenever not to use the override material on interaction
+  self.BmNoover = false -- Use the original entity material when no override is present
   self.BmDisper = false -- Enable decomposing upcoming beam to wavelengths
   self.BrReflec = false -- The beam power decreases with every reflection
   self.BrRefrac = false -- The beam power decreases with every refraction
