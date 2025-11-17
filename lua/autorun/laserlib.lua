@@ -2258,7 +2258,7 @@ end
 --[[
  * Updates render bounds vector by calling min/max
  * vmin > Minimum bound being adjusted
- * vmax > Minimum bound being adjusted
+ * vmax > Maximum bound being adjusted
  * vmrg > Location margin to update with
 ]]
 function LaserLib.UpdateBounds(vmin, vmax, vmrg)
@@ -2606,7 +2606,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   tW.Marg = nM    -- Color compare margin for component check
   tW.HS, tW.HE = nS, nE -- HUE interval in degrees
   tW.WS, tW.WE = wS, wE -- Mapped wavelength interval
-  tW.PC = 0       -- Power the finction recieves form the input color
+  tW.PC = 0       -- Power the function receives form the input color
   tW.PT = 0       -- Total power sum of every color component
   tW.PM = 0       -- Power multiplier converted scaled for comparison
   tW.PX = 0       -- Individual component power for non-white light part
@@ -2738,7 +2738,11 @@ function LaserLib.Beam(origin, direct, length)
   self.DmRfract = 0 -- Diameter trace-back dimensions of the entity
   self.TrRfract = 0 -- Full length for traces not being bound by hit events
   self.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
-  self.IsTrace  = true -- Library is still tracing the beam and calculating nodes
+  self.BmNoover = false -- Whenever not to use the override material on interaction
+  self.BmDisper = false -- Enable decomposing upcoming beam to wavelengths
+  self.BrReflec = false -- The beam power decreases with every reflection
+  self.BrRefrac = false -- The beam power decreases with every refraction
+  self.IsTrace  = true  -- Library is still tracing the beam and calculating nodes
   self.StRfract = false -- Start tracing the beam inside a medium boundary
   self.TrFActor = false -- Trace filter was updated by actor and must be cleared
   self.NvIWorld = false -- Ignore world flag to make it hit the other side
@@ -2765,14 +2769,6 @@ function mtBeam:IsValid()
     ErrorNoHaltWithStack("Length missing!"); return false end
   if(self.BmLength <= 0) then
     ErrorNoHaltWithStack("Length invalid!");  return false end
-  if(self.BrReflec == nil) then
-    ErrorNoHaltWithStack("Reflect missing!");  return false end
-  if(self.BrRefrac == nil) then
-    ErrorNoHaltWithStack("Refract missing!");  return false end
-  if(self.BmNoover == nil) then
-    ErrorNoHaltWithStack("Override missing!");  return false end
-  if(self.BmDisper == nil) then
-    ErrorNoHaltWithStack("Dispersion missing!");  return false end
   if(self.NvBounce == nil) then
     ErrorNoHaltWithStack("Bounces missing!"); return false end
   if(self.MxBounce == nil) then
@@ -2825,8 +2821,8 @@ end
  * Updates the current beam flags
 ]]
 function mtBeam:SetFgTexture(bNov, bDsp)
-  self.BmNoover = tobool(bNov) -- Beam no override material flag. Try to extract original material
-  self.BmDisper = tobool(bDsp) -- Beam dispersion enable flag. Split white light to its components
+  self.BmNoover = tobool(bNov) -- No override material flag. Try to extract original material
+  self.BmDisper = tobool(bDsp) -- Dispersion enable flag. Split white light to its components
   return self
 end
 
@@ -2841,8 +2837,8 @@ end
  * Updates the current beam flags
 ]]
 function mtBeam:SetFgDivert(bRfl, bRfr)
-  self.BrReflec = tobool(bRfl) -- Beam reflection ratio flag. Reduce beam power when reflecting
-  self.BrRefrac = tobool(bRfr) -- Beam refraction ratio flag. Reduce beam power when refracting
+  self.BrReflec = tobool(bRfl) -- Reflection ratio flag. Reduce beam power when reflecting
+  self.BrRefrac = tobool(bRfr) -- Refraction ratio flag. Reduce beam power when refracting
   return self
 end
 
@@ -2907,10 +2903,14 @@ end
 
 --[[
  * Forces max bounces count
- * iBns > Maximum bounces used during run
+ * bS > Maximum bounces otherwise current bounces
 ]]
-function mtBeam:GetBounces()
-  return (self.NvBounce or self.MxBounce)
+function mtBeam:GetBounces(bS)
+  if(bS) then
+    return (self.NvBounce or self.MxBounce)
+  else
+    return (self.MxBounce or self.NvBounce)
+  end
 end
 
 --[[
@@ -2979,7 +2979,7 @@ end
 
 --[[
  * Returns the beam current active source entity
- * bS > Swap source priority
+ * bS > Original source otherwise the current source
 ]]
 function mtBeam:GetSource(bS)
   if(bS) then
@@ -3007,7 +3007,7 @@ end
 
 --[[
  * Returns the beam current active length
- * bS > Swap length priority
+ * bS > Original length otherwise current length
 ]]
 function mtBeam:GetLength(bS)
   if(bS) then

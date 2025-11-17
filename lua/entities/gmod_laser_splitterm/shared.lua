@@ -240,7 +240,7 @@ function ENT:DoBeam(ent, org, dir, bmsr, vdot, indx)
         beam:SetForce(bmsr.NvForce  / todiv)
         beam:SetFgDivert (bmsr.BrReflec, bmsr.BrRefrac)
         beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
-        beam:SetBounces(bmsr:GetBounces())
+        beam:SetBounces(bmsr:GetBounces(true))
   if(self:GetBeamColorSplit() and indx) then
     self:SetColorWave(beam, self.crCount, indx)
   else

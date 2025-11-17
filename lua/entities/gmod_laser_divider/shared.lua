@@ -133,7 +133,7 @@ function ENT:DoBeam(ent, org, dir, bmsr)
         beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
         beam:SetColorRGBA(bmsr:GetColorRGBA(true))
         beam:SetWavelength(bmsr:GetWavelength())
-        beam:SetBounces(bmsr:GetBounces())
+        beam:SetBounces(bmsr:GetBounces(true))
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
   return beam:Run()
