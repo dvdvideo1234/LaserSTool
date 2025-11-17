@@ -1377,8 +1377,7 @@ function LaserLib.Configure(unit)
         vmin = self:LocalToWorld(self:OBBMins()) end
       if(emax) then vmax = emax else -- External MINS
         vmax = self:LocalToWorld(self:OBBMaxs()) end
-      LaserLib.UpdateBounds(vmin, math.min, vpos)
-      LaserLib.UpdateBounds(vmax, math.max, vpos)
+      LaserLib.UpdateBounds(vmin, vmax, vpos)
       self:SetRenderBoundsWS(vmin, vmax)
     end
   end
@@ -2258,18 +2257,21 @@ end
 
 --[[
  * Updates render bounds vector by calling min/max
- * vcbase > Vector to be updated and manipulated
- * action > The function to be called. Either max or min
- * bounds > Vector the base must be updated with
+ * vmin > Minimum bound being adjusted
+ * vmax > Minimum bound being adjusted
+ * vmrg > Location margin to update with
 ]]
-function LaserLib.UpdateBounds(vcbase, action, bounds)
-  local sx, ox = pcall(action, vcbase.x, bounds.x)
-  if(not sx) then ErrorNoHaltWithStack("Bounds error X: "..ox) end
-  local sy, oy = pcall(action, vcbase.y, bounds.y)
-  if(not sy) then ErrorNoHaltWithStack("Bounds error Y: "..oy) end
-  local sz, oz = pcall(action, vcbase.z, bounds.z)
-  if(not sz) then ErrorNoHaltWithStack("Bounds error Z: "..oz) end
-  vcbase.x, vcbase.y, vcbase.z = ox, oy, oz
+function LaserLib.UpdateBounds(vmin, vmax, vmrg)
+  local xmi, ymi, zmi = vmin:Unpack()
+  local xmx, ymx, zmx = vmax:Unpack()
+  local xmr, ymr, zmr = vmrg:Unpack()
+  -- Apply minimum and maximum margin
+  xmi, xmx = math.min(xmi, xmr), math.max(xmx, xmr)
+  ymi, ymx = math.min(ymi, ymr), math.max(ymx, ymr)
+  zmi, zmx = math.min(zmi, zmr), math.max(zmx, zmr)
+  -- Update minimum and maximum margin
+  vmin:SetUnpacked(xmi, ymi, zmi)
+  vmax:SetUnpacked(xmx, ymx, zmx)
 end
 
 --[[
@@ -3995,32 +3997,28 @@ function mtBeam:Draw(sours, imatr)
         bmax:Set(sours:LocalToWorld(bmax))
   -- Extend render bounds with player view
   local vuser = LaserLib.GetPlayerView(20)
-  LaserLib.UpdateBounds(bmin, math.min, vuser)
-  LaserLib.UpdateBounds(bmax, math.max, vuser)
-  -- Allocate references for branches and color
-  local tbran, g_draw = self.BmBranch, DATA.COTMP
+  LaserLib.UpdateBounds(bmin, bmax, vuser)
   -- Extend render bounds with entity OBB
   local omin = sours:LocalToWorld(sours:OBBMins())
   local omax = sours:LocalToWorld(sours:OBBMaxs())
-  LaserLib.UpdateBounds(bmin, math.min, omin)
-  LaserLib.UpdateBounds(bmax, math.max, omax)
+  LaserLib.UpdateBounds(bmin, bmax, omin)
   -- Extend render bounds with the first node
   local from = tvpnt[1][1] -- Beam start
-  LaserLib.UpdateBounds(bmin, math.min, from)
-  LaserLib.UpdateBounds(bmax, math.max, from)
+  LaserLib.UpdateBounds(bmin, bmax, from)
   -- Adjust the render bounds with world-space coordinates
   sours:SetRenderBoundsWS(bmin, bmax) -- World space is faster
   -- Material must be cached and updated with left click setup
   if(imatr) then render.SetMaterial(imatr) end
   local spd = DATA.DRWBMSPD:GetFloat()
+  -- Allocate references for branches and color
+  local tbran, g_draw = self.BmBranch, DATA.COTMP
   -- Draw the beam sequentially being faster
   for idx = 2, szv do
     local new = tvpnt[idx]
     local org = tvpnt[idx - 1]
     local ntx, otx = new[1], org[1] -- Read origin
     -- Make sure the coordinates are converted to world ones
-    LaserLib.UpdateBounds(bmin, math.min, ntx)
-    LaserLib.UpdateBounds(bmax, math.max, ntx)
+    LaserLib.UpdateBounds(bmin, bmax, ntx)
     -- When we need to draw the beam with rendering library
     if(org[5]) then cup = org[6] -- Beam segment color
       g_draw.r, g_draw.g = cup[1], cup[2] -- Red green
@@ -4049,38 +4047,41 @@ function mtBeam:DrawEffect(sours, endrw)
   local tbran = self.BmBranch
   local trace = self:GetTarget()
   local sours = (sours or self:GetSource())
-  if(tbran.Size > 0) then
-    for idx = 1, tbran.Size do
+  if(tbran.Size > 0) then -- Draw children eff
+    for idx = 1, tbran.Size do -- Every branch
       tbran[idx]:DrawEffect(sours, endrw) end
-  end
-  if(trace and not trace.HitSky and
-     endrw and sours.isEffect)
-  then -- Drawing effects is enabled
-    if(not trace.Hit) then return self end
-    if(trace.NoEffect) then return self end
-    local ent, eff = trace.Entity, sours.dtEffect
-    if(not eff) then -- Allocate effect data
-      eff = EffectData(); sours.dtEffect = eff end
-    if(LaserLib.IsUnit(ent)) then return self end
-    eff:SetStart(trace.HitPos)
-    eff:SetOrigin(trace.HitPos)
-    eff:SetNormal(trace.HitNormal)
-    util.Effect("AR2Impact", eff)
-    -- Draw particle effects
-    if(self.NvDamage <= 0) then return self end
-    if(ent:IsPlayer() or ent:IsNPC()) then
-      util.Effect("BloodImpact", eff)
-    else
-      local dmr = DATA.MXBMDAMG:GetFloat()
-      local mul = (self.NvDamage / dmr)
-      local dir = LaserLib.GetReflected(self.VrDirect,
-                                        trace.HitNormal)
-      eff:SetNormal(dir)
-      eff:SetScale(0.5)
-      eff:SetRadius(10 * mul)
-      eff:SetMagnitude(3 * mul)
-      util.Effect("Sparks", eff)
-    end
+  end -- Should the effect be drawn right now
+  if(not endrw) then return self end
+  if(not trace) then return self end
+  if(not trace.Hit) then return self end
+  if(trace.HitSky) then return self end
+  if(trace.NoEffect) then return self end
+  if(not sours.isEffect) then return self end
+  -- Drawing effects is enabled. Time to draw
+  local ent, eff = trace.Entity, sours.dtEffect
+  if(LaserLib.IsUnit(ent)) then return self end
+  if(not eff) then -- Allocate effect data
+    eff = EffectData() -- Create effect data
+    sours.dtEffect = eff -- Store it in the source
+  end -- Effect data is present. Draw the effects
+  eff:SetStart(trace.HitPos)
+  eff:SetOrigin(trace.HitPos)
+  eff:SetNormal(trace.HitNormal)
+  util.Effect("AR2Impact", eff)
+  -- Draw particle effects
+  if(self.NvDamage <= 0) then return self end
+  if(ent:IsPlayer() or ent:IsNPC()) then
+    util.Effect("BloodImpact", eff)
+  else
+    local dmr = DATA.MXBMDAMG:GetFloat()
+    local mul = (self.NvDamage / dmr)
+    local dir = LaserLib.GetReflected(self.VrDirect,
+                                      trace.HitNormal)
+    eff:SetNormal(dir)
+    eff:SetScale(0.5)
+    eff:SetRadius(10 * mul)
+    eff:SetMagnitude(3 * mul)
+    util.Effect("Sparks", eff)
   end; return self
 end
 
