@@ -2903,7 +2903,7 @@ end
 
 --[[
  * Forces max bounces count
- * bS > Maximum bounces otherwise current bounces
+ * bS > Original bounces otherwise current bounces
 ]]
 function mtBeam:GetBounces(bS)
   if(bS) then
@@ -2915,11 +2915,11 @@ end
 
 --[[
  * Forces max bounces count
- * iBns > Maximum bounces used during run
+ * iB > Maximum bounces used during run
 ]]
-function mtBeam:SetBounces(iBns)
-  if(iBns) then -- These is forced bounce count
-    self.MxBounce = math.max(tonumber(iBns) or 0, 0)
+function mtBeam:SetBounces(iB)
+  if(iB) then -- These is forced bounce count
+    self.MxBounce = math.max(tonumber(iB) or 0, 0)
   else -- Use the global convar value
     self.MxBounce = DATA.MBOUNCES:GetInt()
   end -- Amount of bounces to control the loop
@@ -2932,7 +2932,7 @@ end
 ]]
 function mtBeam:GetColorRGBA(bcol)
   local c = self.NvColor -- Else source color
-  if(not c) then
+  if(not c) then -- Allocate current color
     local src = self:GetSource()
     if(LaserLib.IsValid(src)) then
       c = src:GetBeamColorRGBA(true) -- Get the color
@@ -3042,7 +3042,6 @@ end
  * Creates a beam snapshot copy
  * Snapshots have the same property as origin
  * They represent dedicated beam copy at a time
- * tCn > Copy configuration or none
  * tDs > Destination table when provided
 ]]
 function mtBeam:GetCopy(tDs)
@@ -3078,11 +3077,7 @@ end
 ]]
 function mtBeam:GetWater(key)
   local wat = self.TsWater
-  if(key) then
-    return wat[key]
-  else
-    return wat
-  end
+  return (key and wat[key] or wat)
 end
 
 --[[
