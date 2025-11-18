@@ -2621,9 +2621,9 @@ end
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
 function LaserLib.WaveToIndex(wave, nidx)
-  local wr, mr, ms = DATA.WHUEMP.Lims.W, DATA.WMAP, DATA.SOMR
-  local s = math.Remap(DATA.SODD, wr[1], wr[2], mr[1], mr[2])
-  local x = math.Remap(wave, wr[1], wr[2], mr[1], mr[2])
+  local wm, mr, ms = DATA.WHUEMP.Lims.W, DATA.WMAP, DATA.SOMR
+  local s = math.Remap(DATA.SODD, wm[1], wm[2], mr[1], mr[2])
+  local x = math.Remap(wave, wm[1], wm[2], mr[1], mr[2])
   local h = -math.log(s) / ms -- Sodium line index
   return (-math.log(x) / ms - h) + nidx
 end
@@ -2637,7 +2637,6 @@ end
  * https://wiki.facepunch.com/gmod/Global.HSVToColor
 ]]
 function LaserLib.WaveToColor(wave, bobc)
-  local wvis, wcol = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H
   local hue, mrg = LaserLib.WaveToHue(wave)
   local hsv = HSVToColor(hue, 1, mrg)
   if(bobc) then local ctmp = DATA.COTMP
@@ -2647,12 +2646,14 @@ function LaserLib.WaveToColor(wave, bobc)
 end
 
 function LaserLib.ColorToWave(mr, mg, mb, ma)
-  local wvis, wcol, ctmp = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H, DATA.COTMP
+  local ctmp = DATA.COTMP
+  local wm = DATA.WHUEMP.Lims.W
+  local um = DATA.WHUEMP.Lims.H
   local r, g, b, a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
         ctmp.r, ctmp.g, ctmp.b = r, g, b
   local mh, ms, mv = ColorToHSV(ctmp)
-  local rm = math.Remap(mh, 0, 360, wcol[1], wcol[2])
-  return math.Remap(rm, wcol[1], wcol[2], wvis[1], wvis[2])
+  local rm = math.Remap(mh, 0, 360, um[1], um[2])
+  return math.Remap(rm, um[1], um[2], wm[1], wm[2])
 end
 
 --[[
@@ -2673,9 +2674,9 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
         nM, cN = math.max(tonumber(nM) or 0), tW.Size
   if(iN <= 0) then if(cN) then table.Empty(tW) end; return nil end
   if(iN == (tonumber(cN) or 0)) then return tW end
-  local g_wvis, g_wcol = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H
-  local nS, nE = (nS or g_wcol[1]), (nE or g_wcol[2])
-  local wS, wE = (wS or g_wvis[1]), (wE or g_wvis[2])
+  local g_wm, g_um = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H
+  local nS, nE = (nS or g_um[1]), (nE or g_um[2])
+  local wS, wE = (wS or g_wm[1]), (wE or g_wm[2])
   table.Empty(tW) -- Clears the data and prepare for the change
   tW.Size = iN    -- Amount of entries the decomposition has
   tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
