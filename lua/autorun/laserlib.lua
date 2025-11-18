@@ -27,7 +27,6 @@ DATA.FMVA = "%f,%f,%f"         -- Utilized to output formatted vectors in proper
 DATA.FNUH = "%.2f"             -- Formats number to be printed on a HUD
 DATA.FPSS = "%09d#%09d"        -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
-DATA.WCOL = {  0 , 300}        -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {   5,  20}        -- Dispersion wavelength mapping for refractive index
 DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
 DATA.SOMR = 10                 -- General coefficient for wave to refractive index conversion
@@ -53,7 +52,6 @@ DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world fi
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
 DATA.DMPAR = {}                      -- Table to store the damage parameter specific values
 DATA.WDDAT = {}                      -- Stores the wavelength steps and configuration data
-DATA.WVIS  = {}                      -- General wavelength limits for visible light
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
@@ -152,20 +150,23 @@ DATA.UNITS = {
 
 DATA.COLOR = {
   [DATA.KEYD] = "BLACK",
+  ["RED"]     = Color(255,  0 ,  0 , 255),
+  ["ORANGE"]  = Color(255, 165,  0 , 255),
+  ["YELLOW"]  = Color(255, 255,  0 , 255),
+  ["GREEN"]   = Color( 0 , 255,  0 , 255),
+  ["CYAN"]    = Color( 0 , 255, 255, 255),
+  ["BLUE"]    = Color( 0 ,  0 , 255, 255),
+  ["VIOLET"]  = Color(127,   0, 255, 255),
+  ["MAGENTA"] = Color(255,  0 , 255, 255),
   ["BACKGND"] = Color(150, 150, 255, 180),
   ["BLACK"]   = Color( 0 ,  0 ,  0 , 255),
-  ["RED"]     = Color(255,  0 ,  0 , 255),
-  ["GREEN"]   = Color( 0 , 255,  0 , 255),
-  ["BLUE"]    = Color( 0 ,  0 , 255, 255),
-  ["YELLOW"]  = Color(255, 255,  0 , 255),
-  ["MAGENTA"] = Color(255,  0 , 255, 255),
-  ["CYAN"]    = Color( 0 , 255, 255, 255),
   ["WHITE"]   = Color(255, 255, 255, 255),
   ["BACKGR"]  = Color(150, 150, 255, 190),
   ["FOREGR"]  = Color(150, 255, 150, 240)
 }
 
 DATA.WHUEMP = {
+  [DATA.KEYD] = "RED",
   [1] = "RED"    ,
   [2] = "ORANGE" ,
   [3] = "YELLOW" ,
@@ -194,9 +195,6 @@ DATA.WHUEMP.Lims = {
     DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].H[2]
   }
 }
-
-DATA.WVIS[1] = DATA.WHUEMP.Lims.W[1]
-DATA.WVIS[2] = DATA.WHUEMP.Lims.W[2]
 
 DATA.DISTYPE = {
   [DATA.KEYD]   = "core",
@@ -2623,7 +2621,7 @@ end
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
 function LaserLib.WaveToIndex(wave, nidx)
-  local wr, mr, ms = DATA.WVIS, DATA.WMAP, DATA.SOMR
+  local wr, mr, ms = DATA.WHUEMP.Lims.W, DATA.WMAP, DATA.SOMR
   local s = math.Remap(DATA.SODD, wr[1], wr[2], mr[1], mr[2])
   local x = math.Remap(wave, wr[1], wr[2], mr[1], mr[2])
   local h = -math.log(s) / ms -- Sodium line index
@@ -2639,7 +2637,7 @@ end
  * https://wiki.facepunch.com/gmod/Global.HSVToColor
 ]]
 function LaserLib.WaveToColor(wave, bobc)
-  local wvis, wcol = DATA.WVIS, DATA.WCOL
+  local wvis, wcol = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H
   local hue, mrg = LaserLib.WaveToHue(wave)
   local hsv = HSVToColor(hue, 1, mrg)
   if(bobc) then local ctmp = DATA.COTMP
@@ -2649,7 +2647,7 @@ function LaserLib.WaveToColor(wave, bobc)
 end
 
 function LaserLib.ColorToWave(mr, mg, mb, ma)
-  local wvis, wcol, ctmp = DATA.WVIS, DATA.WCOL, DATA.COTMP
+  local wvis, wcol, ctmp = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H, DATA.COTMP
   local r, g, b, a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
         ctmp.r, ctmp.g, ctmp.b = r, g, b
   local mh, ms, mv = ColorToHSV(ctmp)
@@ -2675,7 +2673,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
         nM, cN = math.max(tonumber(nM) or 0), tW.Size
   if(iN <= 0) then if(cN) then table.Empty(tW) end; return nil end
   if(iN == (tonumber(cN) or 0)) then return tW end
-  local g_wvis, g_wcol = DATA.WVIS, DATA.WCOL
+  local g_wvis, g_wcol = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H
   local nS, nE = (nS or g_wcol[1]), (nE or g_wcol[2])
   local wS, wE = (wS or g_wvis[1]), (wE or g_wvis[2])
   table.Empty(tW) -- Clears the data and prepare for the change
