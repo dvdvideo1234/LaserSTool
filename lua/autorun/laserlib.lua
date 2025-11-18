@@ -2637,23 +2637,21 @@ end
  * https://wiki.facepunch.com/gmod/Global.HSVToColor
 ]]
 function LaserLib.WaveToColor(wave, bobc)
-  local hue, mrg = LaserLib.WaveToHue(wave)
-  local hsv = HSVToColor(hue, 1, mrg)
+  local cmx, hue, mrg = DATA.CLMX, LaserLib.WaveToHue(wave)
+  local hsv = HSVToColor(hue, 1, 1); hsv.a = (mrg * cmx)
   if(bobc) then local ctmp = DATA.COTMP
     ctmp.r, ctmp.g = hsv.r, hsv.g
     ctmp.b, ctmp.a = hsv.b, hsv.a; return ctmp
   end; return hsv.r, hsv.g, hsv.b, hsv.a
 end
 
-function LaserLib.ColorToWave(mr, mg, mb, ma)
+function LaserLib.ColorToWave(...)
   local ctmp = DATA.COTMP
-  local wm = DATA.WHUEMP.Lims.W
-  local um = DATA.WHUEMP.Lims.H
-  local r, g, b, a = LaserLib.GetColorRGBA(mr, mg, mb, ma)
-        ctmp.r, ctmp.g, ctmp.b = r, g, b
+  local r, g, b, a = LaserLib.GetColorRGBA(...)
+        ctmp.r, ctmp.g = r, g
+        ctmp.b, ctmp.a = b, a
   local mh, ms, mv = ColorToHSV(ctmp)
-  local rm = math.Remap(mh, 0, 360, um[1], um[2])
-  return math.Remap(rm, um[1], um[2], wm[1], wm[2])
+  return LaserLib.HueToWave(mh)
 end
 
 --[[
