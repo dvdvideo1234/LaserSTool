@@ -27,7 +27,6 @@ DATA.FMVA = "%f,%f,%f"         -- Utilized to output formatted vectors in proper
 DATA.FNUH = "%.2f"             -- Formats number to be printed on a HUD
 DATA.FPSS = "%09d#%09d"        -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
-DATA.WVIS = { 700, 300}        -- General wavelength limits for visible light
 DATA.WCOL = {  0 , 300}        -- Mapping for wavelength to color hue conversion
 DATA.WMAP = {   5,  20}        -- Dispersion wavelength mapping for refractive index
 DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
@@ -54,6 +53,7 @@ DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world fi
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
 DATA.DMPAR = {}                      -- Table to store the damage parameter specific values
 DATA.WDDAT = {}                      -- Stores the wavelength steps and configuration data
+DATA.WVIS  = {}                      -- General wavelength limits for visible light
 
 -- Server controlled flags for console variables
 DATA.FGSRVCN = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
@@ -164,6 +164,39 @@ DATA.COLOR = {
   ["BACKGR"]  = Color(150, 150, 255, 190),
   ["FOREGR"]  = Color(150, 255, 150, 240)
 }
+
+DATA.WHUEMP = {
+  [1] = "RED"    ,
+  [2] = "ORANGE" ,
+  [3] = "YELLOW" ,
+  [4] = "GREEN"  ,
+  [5] = "CYAN"   ,
+  [6] = "BLUE"   ,
+  [7] = "VIOLET" ,
+  [8] = "MAGENTA",
+  ["RED"    ] = {W = {750, 625}, H = {  0,  20}},
+  ["ORANGE" ] = {W = {625, 590}, H = { 20,  40}},
+  ["YELLOW" ] = {W = {590, 565}, H = { 40,  90}},
+  ["GREEN"  ] = {W = {565, 500}, H = { 90, 150}},
+  ["CYAN"   ] = {W = {500, 485}, H = {150, 200}},
+  ["BLUE"   ] = {W = {485, 450}, H = {200, 260}},
+  ["VIOLET" ] = {W = {450, 380}, H = {260, 280}},
+  ["MAGENTA"] = {W = {380, 300}, H = {280, 300}}
+}; DATA.WHUEMP.Size = #DATA.WHUEMP
+
+DATA.WHUEMP.Lims = {
+  W = {
+    DATA.WHUEMP[DATA.WHUEMP[1]].W[1],
+    DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2]
+  },
+  H = {
+    DATA.WHUEMP[DATA.WHUEMP[1]].H[1],
+    DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].H[2]
+  }
+}
+
+DATA.WVIS[1] = DATA.WHUEMP.Lims.W[1]
+DATA.WVIS[2] = DATA.WHUEMP.Lims.W[2]
 
 DATA.DISTYPE = {
   [DATA.KEYD]   = "core",
@@ -2535,6 +2568,52 @@ if(SERVER) then
 end
 
 --[[
+ * Converts beam wavelength to a dedicated hue/intensity using the wavelength map
+ * nW > Wavelength of the input beam traversing the medium
+ * Returns: [1]: Color wheel hue [2]: Color intensity ( alpha value ) 0-1
+]]
+function LaserLib.WaveToHue(nW)
+  local g_wfade = DATA.WFADE
+  local g_guemp = DATA.WHUEMP
+  local g_limsw = g_guemp.Lims.W
+  local g_limsh = g_guemp.Lims.H
+  local W1, W2 = g_limsw[1], g_limsw[2]
+  local nW = math.max((tonumber(nW) or 0), 0)
+  if(nW > W1) then return g_limsh[1], math.max(math.Remap(nW, W1, W1+g_wfade, 1, 0), 0) end
+  if(nW < W2) then return g_limsh[2], math.max(math.Remap(nW, W2, W2-g_wfade, 1, 0), 0) end
+  for iD = 1, g_guemp.Size do
+    local key = g_guemp[iD]
+    local map = g_guemp[key]
+    local w, h = map.W, map.H
+    if(nW <= w[1] and nW >= w[2]) then
+      return math.Remap(nW, w[1], w[2], h[1], h[2]), 1
+    end
+  end
+end
+
+--[[
+ * Converts hue to beam wavelength using the wavelength map
+ * nH > Hue of the input color wheel HSV
+ * Returns: Wavelength mapped to a hue
+]]
+function LaserLib.HueToWave(nH)
+  local g_guemp = DATA.WHUEMP
+  local g_limsw = g_guemp.Lims.W
+  local g_limsh = g_guemp.Lims.H
+  local nH = math.max((tonumber(nH) or 0), 0)
+  if(nH < g_limsh[1]) then return g_limsw[1] end
+  if(nH > g_limsh[2]) then return g_limsw[2] end
+  for iD = 1, g_guemp.Size do
+    local key = g_guemp[iD]
+    local map = g_guemp[key]
+    local w, h = map.W, map.H
+    if(nH >= h[1] and nH <= h[2]) then
+      return math.Remap(nH, h[1], h[2], w[1], w[2])
+    end
+  end; return nil
+end
+
+--[[
  * Remaps refraction index according to material sodium line
  * Returns the dynamic refraction index based on wavelength
  * This is mainly used for calculating component light dispersion
@@ -2559,15 +2638,14 @@ end
  * https://en.wikipedia.org/wiki/HSL_and_HSV#/media/File:Hsl-hsv_models.svg
  * https://wiki.facepunch.com/gmod/Global.HSVToColor
 ]]
-function LaserLib.WaveToColor(wave, marg, bobc)
+function LaserLib.WaveToColor(wave, bobc)
   local wvis, wcol = DATA.WVIS, DATA.WCOL
-  local marg = math.Clamp(tonumber(marg) or 1, 0, 1)
-  local hue = math.Remap(wave, wvis[1], wvis[2], wcol[1], wcol[2])
-  local tab = HSVToColor(hue, 1, marg) -- Returns table not color
+  local hue, mrg = LaserLib.WaveToHue(wave)
+  local hsv = HSVToColor(hue, 1, mrg)
   if(bobc) then local ctmp = DATA.COTMP
-    ctmp.r, ctmp.g = tab.r, tab.g
-    ctmp.b, ctmp.a = tab.b, tab.a; return ctmp
-  end; return tab.r, tab.g, tab.b, tab.a
+    ctmp.r, ctmp.g = hsv.r, hsv.g
+    ctmp.b, ctmp.a = hsv.b, hsv.a; return ctmp
+  end; return hsv.r, hsv.g, hsv.b, hsv.a
 end
 
 function LaserLib.ColorToWave(mr, mg, mb, ma)
@@ -2616,7 +2694,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   for iH = 0, (iN - 1) do
     local vH = nS + iH * tW.Step
     local cH = HSVToColor(vH, 1, 1)
-    local vW = math.Remap(vH, nS, nE, wS, wE)
+    local vW = LaserLib.HueToWave(vH)
     table.insert(tW, {C = cH, P = 0, W = vW, B = false})
   end; return tW
 end
