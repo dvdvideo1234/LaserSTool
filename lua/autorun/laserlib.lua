@@ -30,6 +30,7 @@ DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
 DATA.WMAP = {   5,  20}        -- Dispersion wavelength mapping for refractive index
 DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
 DATA.SOMR = 10                 -- General coefficient for wave to refractive index conversion
+DATA.WFAD = 70                 -- The wavelength margin where color starts to fade away on conversion
 DATA.KEYD  = "#"               -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"               -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"               -- The first symbol used to disable given things
@@ -2571,19 +2572,17 @@ end
  * Returns: [1]: Color wheel hue [2]: Color intensity ( alpha value ) 0-1
 ]]
 function LaserLib.WaveToHue(nW)
-  local g_wfade = DATA.WFADE
-  local g_guemp = DATA.WHUEMP
-  local g_limsw = g_guemp.Lims.W
-  local g_limsh = g_guemp.Lims.H
-  local W1, W2 = g_limsw[1], g_limsw[2]
-  local nW = math.max((tonumber(nW) or 0), 0)
+  local g_wfade, g_guemp = DATA.WFAD, DATA.WHUEMP
+  local g_limsw, g_limsh = g_guemp.Lims.W, g_guemp.Lims.H
+  local W1, W2 = g_limsw[1], g_limsw[2] -- Wave limits
+  local nW = math.max((tonumber(nW) or 0), 0) -- Process only positive or zero
   if(nW > W1) then return g_limsh[1], math.max(math.Remap(nW, W1, W1+g_wfade, 1, 0), 0) end
   if(nW < W2) then return g_limsh[2], math.max(math.Remap(nW, W2, W2-g_wfade, 1, 0), 0) end
-  for iD = 1, g_guemp.Size do
-    local key = g_guemp[iD]
-    local map = g_guemp[key]
-    local w, h = map.W, map.H
-    if(nW <= w[1] and nW >= w[2]) then
+  for iD = 1, g_guemp.Size do -- Search the color regions
+    local key = g_guemp[iD] -- Pick the color hash name
+    local map = g_guemp[key] -- Pick the color region data
+    local w, h = map.W, map.H -- Read Wave-Hue mapping
+    if(nW <= w[1] and nW >= w[2]) then -- Check region
       return math.Remap(nW, w[1], w[2], h[1], h[2]), 1
     end
   end
@@ -2624,8 +2623,8 @@ function LaserLib.WaveToIndex(wave, nidx)
   local wm, mr, ms = DATA.WHUEMP.Lims.W, DATA.WMAP, DATA.SOMR
   local s = math.Remap(DATA.SODD, wm[1], wm[2], mr[1], mr[2])
   local x = math.Remap(wave, wm[1], wm[2], mr[1], mr[2])
-  local h = -math.log(s) / ms -- Sodium line index
-  return (-math.log(x) / ms - h) + nidx
+  local so = (-math.log(s) / ms) -- Sodium line index
+  return (-math.log(x) / ms - so) + nidx
 end
 
 --[[
