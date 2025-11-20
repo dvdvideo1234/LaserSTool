@@ -2676,7 +2676,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   local wS, wE = (wS or g_wm[1]), (wE or g_wm[2])
   table.Empty(tW) -- Clears the data and prepare for the change
   tW.Size = iN    -- Amount of entries the decomposition has
-  tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
+  tW.Step = (wE - wS) / (iN - 1)  -- Hue adjustment step components
   tW.Marg = nM    -- Color compare margin for component check
   tW.HS, tW.HE = nS, nE -- HUE interval in degrees
   tW.WS, tW.WE = wS, wE -- Mapped wavelength interval
@@ -2687,10 +2687,10 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   tW.PN = 0       -- Individual component power for white light part
   tW.IS = 0       -- Index start for the component extraction
   tW.IE = 0       -- Index end for the component extraction
-  for iH = 0, (iN - 1) do
-    local vH = nS + iH * tW.Step
-    local cH = HSVToColor(vH, 1, 1)
-    local vW = LaserLib.HueToWave(vH)
+  for iW = 0, (iN - 1) do
+    local vW = wS + iW * tW.Step
+    local vH, vM = LaserLib.WaveToHue(vW)
+    local cH = HSVToColor(vH, 1, vM)
     table.insert(tW, {C = cH, P = 0, W = vW, B = false})
   end; return tW
 end
