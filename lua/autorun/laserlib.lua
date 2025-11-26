@@ -17,7 +17,7 @@ DATA.NUGE = 2                  -- Nudge amount for origin vectors back-tracing
 DATA.MINW = 0.05               -- Minimum width to be considered visible
 DATA.DOTM = 0.01               -- Collinearity and dot product margin check
 DATA.POWL = 0.001              -- Lowest bounds of laser power
-DATA.ZEPS = 1e-10              -- General use epsilon near zero value
+DATA.ZEPS = 1e-6               -- General use epsilon near zero value
 DATA.BRAD = 2.5                -- How much the bounding radius is scaled for back-trace
 DATA.ERAD = 1.5                -- Entity refract coefficient for back trace origins
 DATA.TRWD = 0.27               -- Beam back trace width when refracting
@@ -27,10 +27,8 @@ DATA.FMVA = "%f,%f,%f"         -- Utilized to output formatted vectors in proper
 DATA.FNUH = "%.2f"             -- Formats number to be printed on a HUD
 DATA.FPSS = "%09d#%09d"        -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
-DATA.WMAP = {   5,  20}        -- Dispersion wavelength mapping for refractive index
 DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
 DATA.SOMR = 10                 -- General coefficient for wave to refractive index conversion
-DATA.WFAD = 70                 -- The wavelength margin where color starts to fade away on conversion
 DATA.KEYD  = "#"               -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"               -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"               -- The first symbol used to disable given things
@@ -187,11 +185,14 @@ DATA.WHUEMP = {
 }; DATA.WHUEMP.Size = #DATA.WHUEMP
 
 DATA.WHUEMP.Lims = {
-  W = {
+  -- The wavelength margin where color starts to fade away on conversion
+  F = DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2],
+  I = {11, 3}, -- Dispersion wavelength mapping for refractive index
+  W = {   -- General wavelength limits for visible light
     DATA.WHUEMP[DATA.WHUEMP[1]].W[1],
     DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2]
   },
-  H = {
+  H = { -- Mapping for wavelength to color hue conversion
     DATA.WHUEMP[DATA.WHUEMP[1]].H[1],
     DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].H[2]
   }
@@ -2572,17 +2573,19 @@ end
  * Returns: [1]: Color wheel hue [2]: Color intensity ( alpha value ) 0-1
 ]]
 function LaserLib.WaveToHue(nW)
-  local g_wfade, g_guemp = DATA.WFAD, DATA.WHUEMP
-  local g_limsw, g_limsh = g_guemp.Lims.W, g_guemp.Lims.H
-  local W1, W2 = g_limsw[1], g_limsw[2] -- Wave limits
-  local nW = math.max((tonumber(nW) or 0), 0) -- Process only positive or zero
+  local g_guemp = DATA.WHUEMP
+  local g_limsw = g_guemp.Lims.W
+  local g_limsh = g_guemp.Lims.H
+  local g_wfade = g_guemp.Lims.F
+  local W1, W2 = g_limsw[1], g_limsw[2]
+  local nW = math.max((tonumber(nW) or 0), 0)
   if(nW > W1) then return g_limsh[1], math.max(math.Remap(nW, W1, W1+g_wfade, 1, 0), 0) end
   if(nW < W2) then return g_limsh[2], math.max(math.Remap(nW, W2, W2-g_wfade, 1, 0), 0) end
-  for iD = 1, g_guemp.Size do -- Search the color regions
-    local key = g_guemp[iD] -- Pick the color hash name
-    local map = g_guemp[key] -- Pick the color region data
-    local w, h = map.W, map.H -- Read Wave-Hue mapping
-    if(nW <= w[1] and nW >= w[2]) then -- Check region
+  for iD = 1, g_guemp.Size do
+    local key = g_guemp[iD]
+    local map = g_guemp[key]
+    local w, h = map.W, map.H
+    if(nW <= w[1] and nW >= w[2]) then
       return math.Remap(nW, w[1], w[2], h[1], h[2]), 1
     end
   end
@@ -2620,9 +2623,11 @@ end
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
 function LaserLib.WaveToIndex(wave, nidx)
-  local wm, mr, ms = DATA.WHUEMP.Lims.W, DATA.WMAP, DATA.SOMR
-  local s = math.Remap(DATA.SODD, wm[1], wm[2], mr[1], mr[2])
-  local x = math.Remap(wave, wm[1], wm[2], mr[1], mr[2])
+  local wim, eps = DATA.WHUEMP.Lims, DATA.ZEPS
+  local mr, ms, fw = wim.I, DATA.SOMR, wim.F
+  local wm1, wm2 = wim.W[1]+fw, wim.W[2]-fw
+  local s = math.max(math.Remap(DATA.SODD, wm1, wm2, mr[1], mr[2]), eps)
+  local x = math.max(math.Remap(wave, wm1, wm2, mr[1], mr[2]), eps)
   local so = (-math.log(s) / ms) -- Sodium line index
   return (-math.log(x) / ms - so) + nidx
 end
@@ -4851,7 +4856,8 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   for iW = tW.IS, tW.IE do -- Use only available entries
     local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
-    sr, sg, sb = (rCo.r * rPw), (rCo.g * rPw), (rCo.b * rPw)
+    sr, sg = (rCo.r * rPw), (rCo.g * rPw)
+    sb, sa = (rCo.b * rPw), (sa * rPw)
     local beam = LaserLib.Beam(org, dir, len) -- Make a beam
     -- Setup child beam and apply power modifiers
     beam:SetSource(src, src, sro) -- Primary source
