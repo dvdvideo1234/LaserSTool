@@ -27,8 +27,6 @@ DATA.FMVA = "%f,%f,%f"         -- Utilized to output formatted vectors in proper
 DATA.FNUH = "%.2f"             -- Formats number to be printed on a HUD
 DATA.FPSS = "%09d#%09d"        -- Formats pass-trough sensor keys
 DATA.AMAX = {-360, 360}        -- General angular limits for having min/max
-DATA.SODD = 589.29             -- General wavelength for sodium line used for dispersion
-DATA.SOMR = 10                 -- General coefficient for wave to refractive index conversion
 DATA.KEYD  = "#"               -- The default key in a collection point to take when not found
 DATA.KEYA  = "*"               -- The all key in a collection point to return the all in set
 DATA.KEYX  = "~"               -- The first symbol used to disable given things
@@ -186,6 +184,8 @@ DATA.WHUEMP = {
 
 DATA.WHUEMP.Lims = {
   -- The wavelength margin where color starts to fade away on conversion
+  D = 589.29, -- General wavelength for sodium line used for dispersion
+  M = 10,     -- General coefficient for wave to refractive index conversion
   F = DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2],
   I = {11, 3}, -- Dispersion wavelength mapping for refractive index
   W = {   -- General wavelength limits for visible light
@@ -2624,9 +2624,9 @@ end
 ]]
 function LaserLib.WaveToIndex(wave, nidx)
   local wim, eps = DATA.WHUEMP.Lims, DATA.ZEPS
-  local mr, ms, fw = wim.I, DATA.SOMR, wim.F
+  local mr, ms, fw = wim.I, wim.M, wim.F
   local wm1, wm2 = wim.W[1]+fw, wim.W[2]-fw
-  local s = math.max(math.Remap(DATA.SODD, wm1, wm2, mr[1], mr[2]), eps)
+  local s = math.max(math.Remap(wim.D, wm1, wm2, mr[1], mr[2]), eps)
   local x = math.max(math.Remap(wave, wm1, wm2, mr[1], mr[2]), eps)
   local so = (-math.log(s) / ms) -- Sodium line index
   return (-math.log(x) / ms - so) + nidx
@@ -2641,9 +2641,10 @@ end
  * https://wiki.facepunch.com/gmod/Global.HSVToColor
 ]]
 function LaserLib.WaveToColor(wave, bobc)
-  local cmx, hue, mrg = DATA.CLMX, LaserLib.WaveToHue(wave)
+  local cmx, ctmp = DATA.CLMX, DATA.COTMP
+  local hue, mrg = LaserLib.WaveToHue(wave)
   local hsv = HSVToColor(hue, 1, 1); hsv.a = (mrg * cmx)
-  if(bobc) then local ctmp = DATA.COTMP
+  if(bobc) then -- Return the temporary color
     ctmp.r, ctmp.g = hsv.r, hsv.g
     ctmp.b, ctmp.a = hsv.b, hsv.a; return ctmp
   end; return hsv.r, hsv.g, hsv.b, hsv.a
@@ -4804,13 +4805,12 @@ end
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
 function mtBeam:Refract(vDir, vNor, nSrc, nDst)
-  local nWav, nSo = self.BmWaveLn, DATA.SODD
-  local tTrg, vUp = self.BmTarget, DATA.VDRUP
+  local nW, tTg = self.BmWaveLn, self.BmTarget
   local vDir = (vDir or self.VrDirect)
-  local vNor = (vNor or tTrg.HitNormal or vUp)
-  if(nWav > 0) then -- Internal monochromatic
-    nSrc = LaserLib.WaveToIndex(nWav, nSrc)
-    nDst = LaserLib.WaveToIndex(nWav, nDst)
+  local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
+  if(nW > 0) then -- Internal monochromatic
+    nSrc = LaserLib.WaveToIndex(nW, nSrc)
+    nDst = LaserLib.WaveToIndex(nW, nDst)
   end; return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
 end
 
@@ -4856,8 +4856,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   for iW = tW.IS, tW.IE do -- Use only available entries
     local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
-    sr, sg = (rCo.r * rPw), (rCo.g * rPw)
-    sb, sa = (rCo.b * rPw), (sa * rPw)
+    sr, sg, sb, sa = rCo.r, rCo.g, rCo.b, (sa * rPw)
     local beam = LaserLib.Beam(org, dir, len) -- Make a beam
     -- Setup child beam and apply power modifiers
     beam:SetSource(src, src, sro) -- Primary source
