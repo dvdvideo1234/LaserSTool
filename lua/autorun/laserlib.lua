@@ -182,17 +182,17 @@ DATA.WHUEMP = {
   ["MAGENTA"] = {W = {380, 300}, H = {280, 300}}
 }; DATA.WHUEMP.Size = #DATA.WHUEMP
 
-DATA.WHUEMP.Lims = {
+DATA.WHUEMP.CONF = {
   -- The wavelength margin where color starts to fade away on conversion
-  D = 589.29, -- General wavelength for sodium line used for dispersion
-  M = 10,     -- General coefficient for wave to refractive index conversion
-  F = DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2],
-  I = {11, 3}, -- Dispersion wavelength mapping for refractive index
-  W = {   -- General wavelength limits for visible light
+  SODD = 589.29, -- General wavelength for sodium line used for dispersion
+  MARG = 10,     -- General coefficient for wave to refractive index conversion
+  FADE = DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2],
+  INDW = {11, 3}, -- Dispersion wavelength mapping for refractive index
+  WAVE = {   -- General wavelength limits for visible light
     DATA.WHUEMP[DATA.WHUEMP[1]].W[1],
     DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].W[2]
   },
-  H = { -- Mapping for wavelength to color hue conversion
+  HUES = { -- Mapping for wavelength to color hue conversion
     DATA.WHUEMP[DATA.WHUEMP[1]].H[1],
     DATA.WHUEMP[DATA.WHUEMP[DATA.WHUEMP.Size]].H[2]
   }
@@ -2573,22 +2573,23 @@ end
  * Returns: [1]: Color wheel hue [2]: Color intensity ( alpha value ) 0-1
 ]]
 function LaserLib.WaveToHue(nW)
-  local g_guemp = DATA.WHUEMP
-  local g_limsw = g_guemp.Lims.W
-  local g_limsh = g_guemp.Lims.H
-  local g_wfade = g_guemp.Lims.F
-  local W1, W2 = g_limsw[1], g_limsw[2]
+  local g_hue = DATA.WHUEMP -- Hue map settings
+  local g_cnf = g_hue.CONF -- Configuration
+  local wav, hue = g_cnf.WAVE, g_cnf.HUES
+  local WF, W1, W2 = g_cnf.FADE, wav[1], wav[2]
   local nW = math.max((tonumber(nW) or 0), 0)
-  if(nW > W1) then return g_limsh[1], math.max(math.Remap(nW, W1, W1+g_wfade, 1, 0), 0) end
-  if(nW < W2) then return g_limsh[2], math.max(math.Remap(nW, W2, W2-g_wfade, 1, 0), 0) end
-  for iD = 1, g_guemp.Size do
-    local key = g_guemp[iD]
-    local map = g_guemp[key]
-    local w, h = map.W, map.H
+  if(nW > W1) then -- Out of visible. Color fades for infrared
+    return hue[1], math.max(math.Remap(nW, W1, W1+WF, 1, 0), 0) end
+  if(nW < W2) then -- Out of visible. Color fades for ultraviolet
+    return hue[2], math.max(math.Remap(nW, W2, W2-WF, 1, 0), 0) end
+  for iD = 1, g_hue.Size do -- In visible. Find the region
+    local key = g_hue[iD] -- Sequential key for the region
+    local map = g_hue[key] -- Region configuration
+    local w, h = map.W, map.H -- Region remap limits
     if(nW <= w[1] and nW >= w[2]) then
       return math.Remap(nW, w[1], w[2], h[1], h[2]), 1
-    end
-  end
+    end -- Will most likely never ever happen
+  end; return nil
 end
 
 --[[
@@ -2597,19 +2598,21 @@ end
  * Returns: Wavelength mapped to a hue
 ]]
 function LaserLib.HueToWave(nH)
-  local g_guemp = DATA.WHUEMP
-  local g_limsw = g_guemp.Lims.W
-  local g_limsh = g_guemp.Lims.H
+  local g_hue = DATA.WHUEMP -- Hue map settings
+  local g_cnf = g_hue.CONF -- Configuration
+  local wav, hue = g_cnf.WAVE, g_cnf.HUES
+  local W1, W2 = wav[1], wav[2]
+  local H1, H2 = hue[1], hue[2]
   local nH = math.max((tonumber(nH) or 0), 0)
-  if(nH < g_limsh[1]) then return g_limsw[1] end
-  if(nH > g_limsh[2]) then return g_limsw[2] end
-  for iD = 1, g_guemp.Size do
-    local key = g_guemp[iD]
-    local map = g_guemp[key]
+  if(nH < hue[1]) then return wav[1] end
+  if(nH > hue[2]) then return wav[2] end
+  for iD = 1, g_hue.Size do
+    local key = g_hue[iD]
+    local map = g_hue[key]
     local w, h = map.W, map.H
     if(nH >= h[1] and nH <= h[2]) then
       return math.Remap(nH, h[1], h[2], w[1], w[2])
-    end
+    end -- Will most likely never ever happen
   end; return nil
 end
 
@@ -2623,10 +2626,10 @@ end
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
 function LaserLib.WaveToIndex(wave, nidx)
-  local wim, eps = DATA.WHUEMP.Lims, DATA.ZEPS
-  local mr, ms, fw = wim.I, wim.M, wim.F
-  local wm1, wm2 = wim.W[1]+fw, wim.W[2]-fw
-  local s = math.max(math.Remap(wim.D, wm1, wm2, mr[1], mr[2]), eps)
+  local cnf, eps = DATA.WHUEMP.CONF, DATA.ZEPS
+  local mr, ms, fw = cnf.INDW, cnf.MARG, cnf.FADE
+  local wm1, wm2 = cnf.WAVE[1]+fw, cnf.WAVE[2]-fw
+  local s = math.max(math.Remap(cnf.SODD, wm1, wm2, mr[1], mr[2]), eps)
   local x = math.max(math.Remap(wave, wm1, wm2, mr[1], mr[2]), eps)
   local so = (-math.log(s) / ms) -- Sodium line index
   return (-math.log(x) / ms - so) + nidx
@@ -2677,7 +2680,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
         nM, cN = math.max(tonumber(nM) or 0), tW.Size
   if(iN <= 0) then if(cN) then table.Empty(tW) end; return nil end
   if(iN == (tonumber(cN) or 0)) then return tW end
-  local g_wm, g_um = DATA.WHUEMP.Lims.W, DATA.WHUEMP.Lims.H
+  local g_wm, g_um = DATA.WHUEMP.CONF.WAVE, DATA.WHUEMP.CONF.HUES
   local nS, nE = (nS or g_um[1]), (nE or g_um[2])
   local wS, wE = (wS or g_wm[1]), (wE or g_wm[2])
   table.Empty(tW) -- Clears the data and prepare for the change
