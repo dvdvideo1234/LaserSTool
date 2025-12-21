@@ -70,6 +70,7 @@ DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1    , DATA.FGSRVCN, "Con
 DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.IGFIREBM = CreateConVar(DATA.TOOL.."_igfirebm"  , 50   , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
@@ -1379,6 +1380,7 @@ function LaserLib.Configure(unit)
         self:SetKillSound(src:GetKillSound())
         self:SetStartSound(src:GetStartSound())
         self:SetBeamSafety(src:GetBeamSafety())
+        self:SetBeamIgnite(src:GetBeamIgnite())
         self:SetForceCenter(src:GetForceCenter())
         self:SetBeamDisperse(src:GetBeamDisperse())
         self:SetBeamMaterial(src:GetBeamMaterial())
@@ -2517,12 +2519,11 @@ if(SERVER) then
     end
   end
 
-  function LaserLib.NewLaser(user       , pos         , ang         , model      ,
-                             trandata   , key         , width       , length     ,
-                             damage     , material    , dissolveType, startSound ,
-                             stopSound  , killSound   , runToggle   , startOn    ,
-                             pushForce  , endingEffect, reflectRate , refractRate,
-                             forceCenter, frozen      , enOverMater , enSafeBeam , rayColor )
+  function LaserLib.NewLaser(user        , pos       , ang         , model      , trandata   ,
+                             key         , width     , length      , damage     , material   ,
+                             dissolveType, startSound, stopSound   , killSound  , runToggle  ,
+                             startOn     , pushForce , endingEffect, reflectRate, refractRate,
+                             forceCenter , frozen    , enOverMater , enSafeBeam , enIgneBeam , rayColor )
 
     if(not LaserLib.IsValid(user)) then return end
     if(not user:IsPlayer()) then return end
@@ -2544,7 +2545,7 @@ if(SERVER) then
     laser:Setup(width      , length      , damage    , material   , dissolveType,
                 startSound , stopSound   , killSound , runToggle  , startOn     ,
                 pushForce  , endingEffect, trandata  , reflectRate, refractRate ,
-                forceCenter, enOverMater , enSafeBeam, rayColor   , false)
+                forceCenter, enOverMater , enSafeBeam, enIgneBeam , rayColor    , false)
 
     local phys = laser:GetPhysicsObject()
     if(LaserLib.IsValid(phys)) then
@@ -4690,34 +4691,53 @@ if(SERVER) then
   end
 
   function mtBeam:DoDissolve(torch)
-    if(not LaserLib.IsValid(torch)) then return end
+    if(not LaserLib.IsValid(torch)) then return self end
     torch:Fire("Dissolve", torch.Target, 0)
     torch:Fire("Kill", "", 0.1)
-    torch:Remove()
+    torch:Remove(); return self
   end
 
   function mtBeam:DoSound(param)
     local target, noise = param.target, param.noise
-    if(not LaserLib.IsValid(target)) then return end
+    if(not LaserLib.IsValid(target)) then return self end
     if(noise and (target:Health() > 0 or target:IsPlayer())) then
       sound.Play(noise, target:GetPos())
       target:EmitSound(Sound(noise))
-    end
+    end; return self
   end
 
   function mtBeam:DoBurn(param)
     local target, origin = param.target, param.origin
-    if(not LaserLib.IsValid(target)) then return end
+    if(not LaserLib.IsValid(target)) then return self end
     local direct, safety = param.direct, param.safety
-    if(not safety) then return end -- Beam safety skipped
+    if(not safety) then return self end -- Beam safety skipped
     local smu = DATA.VESFBEAM:GetFloat() -- Safety velocity
-    if(smu <= 0) then return end -- General setting
+    if(smu <= 0) then return self end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
     local obb = target:LocalToWorld(target:OBBCenter())
     local pbb = LaserLib.ProjectPointRay(obb, origin, direct)
           obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
           obb.z = 0; target:SetVelocity(obb)
-    timer.Simple(0.5, function() target:StopLoopingSound(idx) end)
+    timer.Simple(0.5, function()
+      target:StopLoopingSound(idx)
+    end); return self
+  end
+
+  function mtBeam:DoIgnite(param)
+    local target = param.target
+    if(not LaserLib.IsValid(target)) then return self end
+    if(target:IsOnFire()) then return self end
+    local ignite = param.ignite -- Beam ignite skipped
+    if(not ignite) then return self end
+    local damage = param.damage -- Beam no danage
+    if(damage <= 0) then return self end
+    local smu = DATA.IGFIREBM:GetFloat() -- Ignite radius
+    if(smu <= 0) then return self end
+    if(damage <= 0) then target:Ignite(smu) else
+      local maxdmg = DATA.MXBMDAMG:GetFloat()
+      local ignera = (200 * (damage / maxdmg))
+      target:Ignite(smu, ignera)
+    end; return self
   end
 
   function mtBeam:DoDamage(laser)
@@ -4727,12 +4747,12 @@ if(SERVER) then
         tbran[idx]:DoDamage(laser) end
     end
     local trace = self:GetTarget()
-    if(not (trace and trace.Hit)) then return end
+    if(not (trace and trace.Hit)) then return self end
     local target, param = trace.Entity, DATA.DMPAR
-    if(not LaserLib.IsValid(target)) then return end
-    if(LaserLib.IsUnit(target)) then return end
+    if(not LaserLib.IsValid(target)) then return self end
+    if(LaserLib.IsUnit(target)) then return self end
     local sours = self:GetSource()
-    if(not LaserLib.IsValid(sours)) then return end
+    if(not LaserLib.IsValid(sours)) then return self end
     -- Localize the calculated parameters
     param.target   = target
     param.laser    = laser
@@ -4747,6 +4767,7 @@ if(SERVER) then
     param.noise    = sours:GetKillSound()
     param.fcenter  = sours:GetForceCenter()
     param.safety   = sours:GetBeamSafety()
+    param.ignite   = sours:GetBeamIgnite()
     -- Create a reference to what is used locally
     local direct, damage = param.direct, param.damage
     local force , origin = param.force , param.origin
@@ -4761,8 +4782,12 @@ if(SERVER) then
           phys:ApplyForceOffset(direct * force, origin)
         end -- This is the way laser can be used as forcer
       end -- Do not apply force on laser units
-      if(target:IsPlayer() and damage > 0) then -- Portal beam safety
-        self:DoBurn(param)
+      if(damage > 0) then -- Portal beam safety
+        if(target:IsPlayer()) then
+          self:DoBurn(param)
+        else
+          self:DoIgnite(param)
+        end
       end -- Target is not unit. Check emiter safety
     end
     -- Time to do next damage blast when there is damage
@@ -4771,19 +4796,19 @@ if(SERVER) then
       if(cas and g_damage[cas]) then
         local suc, oux = pcall(g_damage[cas], self, param)
         if(not suc) then target:Remove(); ErrorNoHaltWithStack(oux) end -- Remove target
-        if(oux) then return end -- Exit main damage routine immediately
+        if(oux) then return self end -- Exit main damage routine immediately
       else
         if(target:IsPlayer()) then
           if(target:Health() <= damage) then
             local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
             if(not suc) then target:Kill(); ErrorNoHaltWithStack(oux) end -- Remove target
-            if(oux) then return end -- Exit main damage routine immediately
+            if(oux) then return self end -- Exit main damage routine immediately
           end
         elseif(target:IsNPC()) then
           if(target:Health() <= damage) then
             local suc, oux = pcall(g_damage["#ISNPC#"], self, param)
             if(not suc) then target:Remove(); ErrorNoHaltWithStack(oux) end -- Remove target
-            if(oux) then return end -- Exit main damage routine immediately
+            if(oux) then return self end -- Exit main damage routine immediately
           end
         elseif(target:IsVehicle()) then
           local driver = target:GetDriver()
@@ -4792,14 +4817,14 @@ if(SERVER) then
               param.target = driver -- Switch target to the driver on kill
               local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
               if(not suc) then driver:Kill(); ErrorNoHaltWithStack(oux) end -- Remove target
-              if(oux) then return end -- Exit main damage routine immediately
+              if(oux) then return self end -- Exit main damage routine immediately
             end
           end
         end
       end -- When target is not supposed to be killed yet
       self:TakeDamage(param) -- Make it eat one more slap
     end
-  end
+  end; return self
 end
 
 --[[
@@ -5465,7 +5490,7 @@ if(CLIENT) then
       local tre = tr.Entity; if(not LaserLib.IsValid(tre)) then return end
       if(tre:GetClass():find("gmod_laser", 1, true)) then -- For all laser units
         local vor, vdr = LaserLib.GetTransformUnit(tre) -- Read unit transform
-        vor, vdr = (vor or tr.HitPos), (vdr or tr.HitNormal) -- Fail-safe rays
+        vor, vdr = (vor or tr.HitPos), (vdr or tr.HitNormal) -- Fail-safe rays4
         LaserLib.DrawAssist(vor, vdr, ray, tre, ply) -- Convert to world-space
       end
   end)

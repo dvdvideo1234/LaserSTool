@@ -203,6 +203,10 @@ function SWEP:GetBeamSafety()
   return (self:GetOwner():GetInfoNum(gsPref.."ensafebeam", 0) ~= 0)
 end
 
+function SWEP:GetBeamIgnite()
+  return (self:GetOwner():GetInfoNum(gsPref.."enignebeam", 0) ~= 0)
+end
+
 function SWEP:GetBeamOrigin()
   local user = self:GetOwner()
   local vorg = user:GetCurrentViewOffset()

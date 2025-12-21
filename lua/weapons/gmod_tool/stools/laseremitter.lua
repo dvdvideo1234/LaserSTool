@@ -132,12 +132,11 @@ if(SERVER) then
     function(user, ent, dupe) LaserLib.SetMaterial(ent, dupe.Material) end)
 
   duplicator.RegisterEntityClass(LaserLib.GetClass(1), LaserLib.NewLaser,
-    --[[  user  ]] "pos"         , "ang"         , "model"      ,
-    "tranData"   , "key"         , "width"       , "length"     ,
-    "damage"     , "material"    , "dissolveType", "startSound" ,
-    "stopSound"  , "killSound"   , "runToggle"   , "startOn"    ,
-    "pushForce"  , "endingEffect", "reflectRate" , "refractRate",
-    "forceCenter", "frozen"      , "enOverMater" , "enSafeBeam" , "rayColor")
+    --[[  user  ]]  "pos"       , "ang"         , "model"      , "tranData"   ,
+    "key"         , "width"     , "length"      , "damage"     , "material"   ,
+    "dissolveType", "startSound", "stopSound"   , "killSound"  , "runToggle"  ,
+    "startOn"     , "pushForce" , "endingEffect", "reflectRate", "refractRate",
+    "forceCenter" , "frozen"    , "enOverMater" , "enSafeBeam" , "enIgneBeam" , "rayColor")
 
   CreateConVar("sbox_max"..gsTOOL.."s", 20)
 end
@@ -177,6 +176,7 @@ TOOL.ClientConVar =
   [ "refractused"  ] = LaserLib.DataRefract(),
   [ "enonvermater" ] = 0,
   [ "ensafebeam"   ] = 0,
+  [ "enignebeam"   ] = 0,
   [ "forcecenter"  ] = 0,
   [ "portalexit"   ] = 0,
   [ "rayassist"    ] = 25,
@@ -247,6 +247,7 @@ function TOOL:LeftClick(trace)
   local endingeffect = (self:GetClientNumber("endingeffect", 0) ~= 0)
   local forcecenter  = (self:GetClientNumber("forcecenter", 0) ~= 0)
   local ensafebeam   = (self:GetClientNumber("ensafebeam", 0) ~= 0)
+  local enignebeam   = (self:GetClientNumber("enignebeam", 0) ~= 0)
   local enonvermater = (self:GetClientNumber("enonvermater", 0) ~= 0)
   local width        = math.Clamp(self:GetClientNumber("width", 0), 0, cvMXBMWIDT:GetFloat())
   local length       = math.Clamp(self:GetClientNumber("length", 0), 0, cvMXBMLENG:GetFloat())
@@ -259,7 +260,7 @@ function TOOL:LeftClick(trace)
     ent:Setup(width      , length      , damage    , material   , dissolvetype,
               startsound , stopsound   , killsound , toggle     , starton     ,
               pushforce  , endingeffect, trandata  , reflectrate, refractrate ,
-              forcecenter, enonvermater, ensafebeam, raycolor   , true)
+              forcecenter, enonvermater, ensafebeam, enignebeam , raycolor    , true)
     return true
   elseif(LaserLib.IsValid(ent) and ent:GetClass() == LaserLib.GetClass(9)) then
     local idx = self:GetClientInfo("portalexit"); ent:SetEntityExitID(idx)
@@ -267,12 +268,11 @@ function TOOL:LeftClick(trace)
     return true
   end
 
-  local laser = LaserLib.NewLaser(user       , pos         , ang         , model       ,
-                                  trandata   , key         , width       , length      ,
-                                  damage     , material    , dissolvetype, startsound  ,
-                                  stopsound  , killsound   , toggle      , starton     ,
-                                  pushforce  , endingeffect, reflectrate , refractrate ,
-                                  forcecenter, frozen      , enonvermater, ensafebeam  , raycolor)
+  local laser = LaserLib.NewLaser(user        , pos         , ang         , model       , trandata   ,
+                                  key         , width       , length      , damage      , material   ,
+                                  dissolvetype, startsound  , stopsound   , killsound   , toggle     ,
+                                  starton     , pushforce   , endingeffect, reflectrate , refractrate,
+                                  forcecenter , frozen      , enonvermater, ensafebeam  , enignebeam , raycolor)
 
   if(not (LaserLib.IsValid(laser))) then return false end
 
@@ -313,6 +313,7 @@ function TOOL:RightClick(trace)
       LaserLib.ConCommand(user, "length"      , ent:GetBeamLength())
       LaserLib.ConCommand(user, "damage"      , ent:GetBeamDamage())
       LaserLib.ConCommand(user, "ensafebeam"  , (ent:GetBeamSafety() and 1 or 0))
+      LaserLib.ConCommand(user, "enignebeam"  , (ent:GetBeamSafety() and 1 or 0))
       LaserLib.ConCommand(user, "material"    , ent:GetBeamMaterial())
       LaserLib.ConCommand(user, "dissolvetype", ent:GetDissolveType())
       LaserLib.ConCommand(user, "startsound"  , ent:GetStartSound())
@@ -640,6 +641,7 @@ function TOOL.BuildCPanel(cPanel)
   LaserLib.CheckBox (cPanel, "forcecenter")
   LaserLib.CheckBox (cPanel, "enonvermater")
   LaserLib.CheckBox (cPanel, "ensafebeam")
+  LaserLib.CheckBox (cPanel, "enignebeam")
 end
 
 if(CLIENT) then

@@ -2,6 +2,7 @@
 E2Helper.Descriptions["laserGetBeamDamage(e:)"]             = "Returns the laser source beam damage"
 E2Helper.Descriptions["laserGetBeamForce(e:)"]              = "Returns the laser source beam force"
 E2Helper.Descriptions["laserGetBeamSafety(e:)"]             = "Returns the laser source beam safety"
+E2Helper.Descriptions["laserGetBeamIgnite(e:)"]             = "Returns the laser source beam ignite"
 E2Helper.Descriptions["laserGetBeamLength(e:)"]             = "Returns the laser source beam length"
 E2Helper.Descriptions["laserGetBeamMaterial(e:)"]           = "Returns the laser source beam material"
 E2Helper.Descriptions["laserGetBeamPower(e:)"]              = "Returns the laser source beam power"

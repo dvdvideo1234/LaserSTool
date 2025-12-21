@@ -39,6 +39,7 @@ function ENT:Initialize()
     {"Damage"    , "NORMAL", "Splitter damage width"   },
     {"Force"     , "NORMAL", "Splitter force amount"   },
     {"Safety"    , "NORMAL", "Splitter beam safety"    },
+    {"Ignite"    , "NORMAL", "Splitter beam ignite"    },
     {"Disperse"  , "NORMAL", "Splitter beam disperse"  },
     {"Entity"    , "ENTITY", "Splitter entity itself"  },
     {"Dominant"  , "ENTITY", "Splitter dominant entity"}

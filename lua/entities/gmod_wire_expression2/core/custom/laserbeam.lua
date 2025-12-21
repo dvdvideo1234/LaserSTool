@@ -205,6 +205,13 @@ e2function number entity:laserGetBeamSafety()
 end
 
 __e2setcost(1)
+e2function number entity:laserGetBeamIgnite()
+  local src = getSource(this)
+  if(not src) then return 0 end
+  return toBool(src:GetBeamIgnite())
+end
+
+__e2setcost(1)
 e2function number entity:laserIsUnit()
   return toBool(LaserLib.IsUnit(this))
 end

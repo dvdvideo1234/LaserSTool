@@ -50,6 +50,7 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Concentrator damage width"   },
     {"Force"   , "NORMAL", "Concentrator force amount"   },
     {"Safety"  , "NORMAL", "Concentrator beam safety"    },
+    {"Ignite"  , "NORMAL", "Concentrator beam ignite"    },
     {"Disperse", "NORMAL", "Concentrator beam disperse"  },
     {"Entity"  , "ENTITY", "Concentrator entity itself"  },
     {"Dominant", "ENTITY", "Concentrator dominant entity"},
