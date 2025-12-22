@@ -167,8 +167,22 @@ function ENT:GetBeamSafety()
 end
 
 --[[
- * Safety. Makes the beam acts like in the
+ * Ignite. Makes the beam ignite props
  * portal series towards all players
+]]
+function ENT:SetBeamIgnite(bool)
+  local igne = tobool(bool)
+  self:SetInBeamIgnite(igne)
+  self:WireWrite("Ignite", (igne and 1 or 0))
+  return self
+end
+
+function ENT:GetBeamIgnite()
+  return self:GetInBeamIgnite()
+end
+
+--[[
+ * Disperse. Makes the beam disperse
 ]]
 function ENT:GetBeamDisperse()
   return self:GetInBeamDisperse()

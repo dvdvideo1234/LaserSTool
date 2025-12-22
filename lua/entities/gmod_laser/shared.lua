@@ -165,6 +165,29 @@ function ENT:GetBeamSafety()
 end
 
 --[[
+ * Ignite. Makes the beam ignite entities
+]]
+function ENT:SetBeamIgnite(bool)
+  local igne = tobool(bool)
+  self:SetInBeamIgnite(igne)
+  return self
+end
+
+function ENT:GetBeamIgnite()
+  if(SERVER) then
+    local igne = self:WireRead("Ignite", true)
+    if(igne ~= nil) then igne = tobool(igne)
+    else igne = self:GetInBeamIgnite() end
+    self:SetNWBool("GetInBeamIgnite", igne)
+    self:WireWrite("Ignite", (igne and 1 or 0))
+    return igne
+  else
+    local igne = self:GetInBeamIgnite()
+    return self:GetNWBool("GetInBeamIgnite", igne)
+  end
+end
+
+--[[
  * Disperse. Makes the beam vomit unicorn puke
  * Magenta is refracted the most, red the least
 ]]
@@ -355,7 +378,7 @@ function ENT:GetNonOverMater()
   return self:GetInNonOverMater()
 end
 
-function ENT:DoBeam(org, dir, idx)
+function ENT:DoBeam(org, dir)
   local origin = self:GetBeamOrigin(org)
   local direct = self:GetBeamDirection(dir)
   local length = self:GetBeamLength()
@@ -373,13 +396,15 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(idx)
+  if(beam.Run) then
+    return beam:Run()
+  end
 end
 
 function ENT:Setup(width      , length      , damage    , material   , dissolveType,
                    startSound , stopSound   , killSound , runToggle  , startOn     ,
                    pushForce  , endingEffect, tranData  , reflectRate, refractRate ,
-                   forceCenter, enOverMater , enSafeBeam, rayColor   , update)
+                   forceCenter, enOverMater , enSafeBeam, enIgneBeam , rayColor    , update)
   self:SetBeamWidth(width)
   self:SetBeamLength(length)
   self:SetBeamDamage(damage)
@@ -397,6 +422,7 @@ function ENT:Setup(width      , length      , damage    , material   , dissolveT
   self:SetRefractRatio(refractRate)
   self:SetNonOverMater(enOverMater)
   self:SetBeamSafety(enSafeBeam)
+  self:SetBeamIgnite(enIgneBeam)
 
   if(not update) then
     self:SetBeamTransform(tranData)
@@ -425,6 +451,7 @@ function ENT:Setup(width      , length      , damage    , material   , dissolveT
     forceCenter  = forceCenter,
     enOverMater  = enOverMater,
     enSafeBeam   = enSafeBeam,
+    enIgneBeam   = enIgneBeam,
     tranData     = tranData,
     rayColor     = {r, g, b, a}
   })

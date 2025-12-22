@@ -27,6 +27,7 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Updates the beam damage"  },
     {"Force"   , "NORMAL", "Updates the beam force"   },
     {"Safety"  , "NORMAL", "Updates the beam safety"  },
+    {"Ignite"  , "NORMAL", "Updates the beam ignite"  },
     {"Disperse", "NORMAL", "Updates the beam disperse"}
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Laser entity status"      },
@@ -37,6 +38,7 @@ function ENT:Initialize()
     {"Damage"  , "NORMAL", "Returns the beam damage"  },
     {"Force"   , "NORMAL", "Returns the beam force"   },
     {"Safety"  , "NORMAL", "Returns the beam safety"  },
+    {"Ignite"  , "NORMAL", "Updates the beam ignite"  },
     {"Disperse", "NORMAL", "Returns the beam disperse"},
     {"Target"  , "ENTITY", "Laser entity target"      },
     {"Entity"  , "ENTITY", "Laser entity itself"      }
@@ -78,6 +80,7 @@ function ENT:SpawnFunction(user, trace)
   local endingeffect = (user:GetInfoNum(prefix.."endingeffect", 0) ~= 0)
   local enovermater  = (user:GetInfoNum(prefix.."enonvermater", 0) ~= 0)
   local ensafebeam   = (user:GetInfoNum(prefix.."ensafebeam", 0) ~= 0)
+  local enignebeam   = (user:GetInfoNum(prefix.."enignebeam", 0) ~= 0)
   local colorr       = math.Clamp(user:GetInfoNum(prefix.."colorr", 0), 0 , 255)
   local colorg       = math.Clamp(user:GetInfoNum(prefix.."colorg", 0), 0 , 255)
   local colorb       = math.Clamp(user:GetInfoNum(prefix.."colorb", 0), 0 , 255)
@@ -87,12 +90,11 @@ function ENT:SpawnFunction(user, trace)
   local damage       = math.Clamp(user:GetInfoNum(prefix.."damage", 0), 0, cvMXBMDAMG:GetFloat())
   local pushforce    = math.Clamp(user:GetInfoNum(prefix.."pushforce", 0), 0, cvMXBMFORC:GetFloat())
   local rayco, trans = Color(colorr, colorg, colorb, colora), LaserLib.GetTransform(user)
-  local laser        = LaserLib.NewLaser(user       , trace.HitPos, angspawn    , model       ,
-                                         trans      , key         , width       , length      ,
-                                         damage     , material    , dissolvetype, startsound  ,
-                                         stopsound  , killsound   , toggle      , starton     ,
-                                         pushforce  , endingeffect, reflectrate , refractrate ,
-                                         forcecenter, frozen      , enovermater , ensafebeam  , rayco)
+  local laser        = LaserLib.NewLaser(user        , trace.HitPos, angspawn    , model       , trans       ,
+                                         key         , width       , length      , damage      , material    ,
+                                         dissolvetype, startsound  , stopsound   , killsound   , toggle      ,
+                                         starton     , pushforce   , endingeffect, reflectrate , refractrate ,
+                                         forcecenter , frozen      , enovermater , ensafebeam  , enignebeam  , rayco)
   if(LaserLib.IsValid(laser)) then
 
     LaserLib.ApplySpawn(laser, trace, trans)

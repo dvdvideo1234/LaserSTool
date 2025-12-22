@@ -115,8 +115,21 @@ function ENT:SetBeamSafety(bool)
 end
 
 --[[
- * Safety. Makes the beam acts like in the
- * portal series towards all players
+ * Ignite. Makes the beam ignite entities
+]]
+function ENT:GetBeamIgnite()
+  return self:GetInBeamIgnite()
+end
+
+function ENT:SetBeamIgnite(bool)
+  local igne = tobool(bool)
+  self:SetInBeamIgnite(igne)
+  self:WireWrite("Ignite", (igne and 1 or 0))
+  return self
+end
+
+--[[
+ * Safety. Makes the beam disperse
 ]]
 function ENT:GetBeamDisperse()
   return self:GetInBeamDisperse()
