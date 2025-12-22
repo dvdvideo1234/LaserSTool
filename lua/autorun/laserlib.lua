@@ -69,8 +69,8 @@ DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0    , DATA.FGSRVCN, "Con
 DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter Z direction", -1, 1)
 DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
-DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
-DATA.IGFIREBM = CreateConVar(DATA.TOOL.."_igfirebm"  , 50   , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 500)
+DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 600)
+DATA.IGENTMBM = CreateConVar(DATA.TOOL.."_igentmbm"  , 20   , DATA.FGSRVCN, "Controls the beam fire hazard duration for flaming entities", 0, 600)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
@@ -4714,6 +4714,7 @@ if(SERVER) then
     local smu = DATA.VESFBEAM:GetFloat() -- Safety velocity
     if(smu <= 0) then return self end -- General setting
     local idx = target:StartLoopingSound(DATA.BURN)
+    if(idx and idx < 0) then return self end -- Loop failed
     local obb = target:LocalToWorld(target:OBBCenter())
     local pbb = LaserLib.ProjectPointRay(obb, origin, direct)
           obb:Sub(pbb); obb:Normalize(); obb:Mul(smu)
@@ -4731,7 +4732,7 @@ if(SERVER) then
     if(not ignite) then return self end
     local damage = param.damage -- Beam no danage
     if(damage <= 0) then return self end
-    local smu = DATA.IGFIREBM:GetFloat() -- Ignite radius
+    local smu = DATA.IGENTMBM:GetFloat() -- Ignite radius
     if(smu <= 0) then return self end
     if(damage <= 0) then target:Ignite(smu) else
       local maxdmg = DATA.MXBMDAMG:GetFloat()
@@ -5183,6 +5184,7 @@ function LaserLib.CheckBox(panel, convar)
 end
 
 function LaserLib.ComboBoxString(panel, convar, nameset)
+  if(SERVER) then return end
   local sTool = DATA.TOOL -- Read the tool name directly
   local sVar  = GetConVar(sTool.."_"..convar):GetString()
   local sBase = language.GetPhrase("tool."..sTool.."."..convar.."_con")
