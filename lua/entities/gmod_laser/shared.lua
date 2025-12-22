@@ -177,12 +177,12 @@ function ENT:GetBeamIgnite()
   if(SERVER) then
     local igne = self:WireRead("Ignite", true)
     if(igne ~= nil) then igne = tobool(igne)
-    else igne = self:SetInBeamIgnite() end
+    else igne = self:GetInBeamIgnite() end
     self:SetNWBool("GetInBeamIgnite", igne)
     self:WireWrite("Ignite", (igne and 1 or 0))
     return igne
   else
-    local igne = self:SetInBeamIgnite()
+    local igne = self:GetInBeamIgnite()
     return self:GetNWBool("GetInBeamIgnite", igne)
   end
 end
@@ -394,10 +394,6 @@ function ENT:DoBeam(org, dir)
         beam:SetFgDivert(usrfle, usrfre)
         beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
-  if(not beam.Run) then
-    sn = SERVER and "SV" or (CLIENT and "CL" or "XX")
-    print("RUN", sn, beam.Run)
-  end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
   if(beam.Run) then

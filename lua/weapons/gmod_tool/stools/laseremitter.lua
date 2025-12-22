@@ -15,6 +15,11 @@ local cvMFORCELM = LaserLib.GetData("MFORCELM")
 local cvMAXRAYAS = LaserLib.GetData("MAXRAYAS")
 local cvLANGUAGE = GetConVar("gmod_language")
 
+if(not LaserLib.IsInit()) then
+  ErrorNoHaltWithStack("Library is incomplete or malsormed!")
+  return true
+end
+
 if(CLIENT) then
 
   TOOL.Information = {

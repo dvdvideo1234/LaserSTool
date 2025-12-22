@@ -181,7 +181,6 @@ function ENT:GetBeamIgnite()
   return self:GetInBeamIgnite()
 end
 
-
 --[[
  * Disperse. Makes the beam disperse
 ]]

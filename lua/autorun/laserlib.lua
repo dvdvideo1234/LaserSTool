@@ -1,5 +1,7 @@
 LaserLib = LaserLib or {} -- Initialize the global variable of the library
 
+LaserLib.__newindex = nil
+
 local DATA = {}; setmetatable(LaserLib, LaserLib)
 
 DATA.GRAT = 1.61803398875      -- Golden ratio used for panels
@@ -597,6 +599,16 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
     g_trace.output = nil
     return g_trace.action(g_trace)
   end
+end
+
+--[[
+ * This is used for validating the library to preven
+ * Any incnessesasy returns that remove varius functions
+]]
+function LaserLib.IsInit()
+  local idx = LaserLib.__newindex
+  local typ, ret = type(idx), "function"
+  return (idx ~= nil and typ == ret)
 end
 
 --[[
@@ -2688,7 +2700,7 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   local wS, wE = (wS or g_wm[1]), (wE or g_wm[2])
   table.Empty(tW) -- Clears the data and prepare for the change
   tW.Size = iN    -- Amount of entries the decomposition has
-  tW.Step = (wE - wS) / (iN - 1)  -- Hue adjustment step components
+  tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
   tW.Marg = nM    -- Color compare margin for component check
   tW.HS, tW.HE = nS, nE -- HUE interval in degrees
   tW.WS, tW.WE = wS, wE -- Mapped wavelength interval
@@ -2699,11 +2711,11 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   tW.PN = 0       -- Individual component power for white light part
   tW.IS = 0       -- Index start for the component extraction
   tW.IE = 0       -- Index end for the component extraction
-  for iW = 0, (iN - 1) do
-    local vW = wS + iW * tW.Step
-    local vH, vM = LaserLib.WaveToHue(vW)
-    local cH = HSVToColor(vH, 1, vM)
-    table.insert(tW, {C = cH, P = 0, W = vW, B = false})
+  for iS = 0, (iN - 1) do
+    local vH = (nS + iS * tW.Step)
+    local vW = LaserLib.HueToWave(vH)
+    local vC = HSVToColor(vH, 1, 1)
+    table.insert(tW, {C = vC, P = 0, W = vW, B = false})
   end; return tW
 end
 
@@ -2894,7 +2906,6 @@ function mtBeam:SetWavelength(nWav)
   self.BmWaveLn = math.max(0, (tonumber(nWav) or 0))
   return self
 end
-
 
 --[[
  * Returns the current beam flags
@@ -3089,7 +3100,6 @@ function mtBeam:SetSource(base, ...)
     end -- Source is found. Store it
   end; return self -- No source is found
 end
-
 
 --[[
  * Returns the beam current active length
@@ -4738,7 +4748,7 @@ if(SERVER) then
     if(smu <= 0) then return self end
     if(damage <= 0) then target:Ignite(smu) else
       local maxdmg = DATA.MXBMDAMG:GetFloat()
-      local ignera = (200 * (damage / maxdmg))
+      local ignera = (500 * (damage / maxdmg))
       target:Ignite(smu, ignera)
     end; return self
   end
@@ -4826,8 +4836,8 @@ if(SERVER) then
         end
       end -- When target is not supposed to be killed yet
       self:TakeDamage(param) -- Make it eat one more slap
-    end
-  end; return self
+    end; return self
+  end
 end
 
 --[[
@@ -4887,7 +4897,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   for iW = tW.IS, tW.IE do -- Use only available entries
     local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
-    sr, sg, sb, sa = rCo.r, rCo.g, rCo.b, (sa * rPw)
+    local vr, vg, vb, va = rCo.r, rCo.g, rCo.b, (sa * rPw)
     local beam = LaserLib.Beam(org, dir, len) -- Make a beam
     -- Setup child beam and apply power modifiers
     beam:SetSource(src, src, sro) -- Primary source
@@ -4898,7 +4908,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
     beam:SetFgTexture(ovr, false) -- Disable dispersion
     beam:SetBounces(bnc)          -- Left over bounces
     beam:SetWavelength(recw.W)    -- Component wavelength
-    beam:SetColorRGBA(sr, sg, sb, sa) -- Apply beam color
+    beam:SetColorRGBA(vr, vg, vb, va) -- Apply beam color
     -- Validate branch beam state and start the propagation
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
