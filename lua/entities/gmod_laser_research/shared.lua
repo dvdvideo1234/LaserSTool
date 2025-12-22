@@ -87,6 +87,6 @@ function ENT:DoBeam(org, dir, bmsr)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(self.RecuseBeamID, bmsr.BmRecstg)
+  return beam:Run(self.BmRecuLS + 1)
 end
 

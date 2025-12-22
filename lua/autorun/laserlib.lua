@@ -1,6 +1,6 @@
 LaserLib = LaserLib or {} -- Initialize the global variable of the library
 
-local DATA = {}
+local DATA = {}; setmetatable(LaserLib, LaserLib)
 
 DATA.GRAT = 1.61803398875      -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"     -- Tool name for internal use
@@ -1257,11 +1257,13 @@ function LaserLib.SetPrimary(ent, nov)
   if(nov) then
     ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("InBeamIgnite"  , "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("InBeamDisperse", "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool, "name", "icon")
   else
     ent:EditableSetBool("InNonOverMater", "Internals")
     ent:EditableSetBool("InBeamSafety"  , "Internals")
+    ent:EditableSetBool("InBeamIgnite"  , "Internals")
     ent:EditableSetBool("InBeamDisperse", "Internals")
     ent:EditableSetBool("EndingEffect"  , "Visuals")
   end
@@ -5502,3 +5504,11 @@ CheckMaterials(DATA.REFLECT, 7)
 CheckMaterials(DATA.REFRACT, 6)
 
 ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
+
+LaserLib.__newindex = function(t, k, v)
+  local g = debug.getinfo(2)
+  local k = (isstring(k) and ("\""..k.."\"") or tostring(k))
+  local s = "["..tostring(g.short_src or g.source).."]"
+  local n = "["..tostring(g.currentline or g.lastlinedefined).."]"
+  error("Laser member refused ["..k.."] = "..tostring(v).." at "..s.." line "..n)
+end

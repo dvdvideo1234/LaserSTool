@@ -378,7 +378,7 @@ function ENT:GetNonOverMater()
   return self:GetInNonOverMater()
 end
 
-function ENT:DoBeam(org, dir, idx)
+function ENT:DoBeam(org, dir)
   local origin = self:GetBeamOrigin(org)
   local direct = self:GetBeamDirection(dir)
   local length = self:GetBeamLength()
@@ -394,9 +394,15 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetFgDivert(usrfle, usrfre)
         beam:SetFgTexture(noverm, disper)
         beam:SetBounces()
+  if(not beam.Run) then
+    sn = SERVER and "SV" or (CLIENT and "CL" or "XX")
+    print("RUN", sn, beam.Run)
+  end
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
-  return beam:Run(idx)
+  if(beam.Run) then
+    return beam:Run()
+  end
 end
 
 function ENT:Setup(width      , length      , damage    , material   , dissolveType,

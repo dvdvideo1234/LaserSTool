@@ -15,8 +15,6 @@ local cvMFORCELM = LaserLib.GetData("MFORCELM")
 local cvMAXRAYAS = LaserLib.GetData("MAXRAYAS")
 local cvLANGUAGE = GetConVar("gmod_language")
 
-PrintTable(LaserLib)
-
 if(CLIENT) then
 
   TOOL.Information = {
@@ -121,6 +119,12 @@ if(CLIENT) then
       pnFrame:SetVisible(true)
       pnFrame:MakePopup()
     end)
+
+  LaserLib.SetupModels()
+  LaserLib.SetupMaterials()
+  LaserLib.SetupComboBools()
+  LaserLib.SetupSoundEffects()
+  LaserLib.SetupDissolveTypes()
 end
 
 TOOL.Category = "Construction"
@@ -184,14 +188,6 @@ TOOL.ClientConVar =
   [ "rayassist"    ] = 25,
   [ "frozen"       ] = 1 -- The cold never bothered me anyway
 }
-
-
-
-LaserLib.SetupModels()
-LaserLib.SetupMaterials()
-LaserLib.SetupComboBools()
-LaserLib.SetupSoundEffects()
-LaserLib.SetupDissolveTypes()
 
 cleanup.Register(gsTOOL.."s")
 
@@ -467,21 +463,16 @@ function TOOL:DrawHUD()
 end
 
 function TOOL:Think()
+  local user  = self:GetOwner()
   local model = self:GetClientInfo("model")
-
-  print(1, self.GhostEntity, model)
-
   if(not LaserLib.IsValid(self.GhostEntity)
       or self.GhostEntity:GetModel() ~= model)
   then
     local pos, ang = LaserLib.GetZeroTransform()
-
-    print(2, model, util.IsValidProp( model ), pos, ang)
-
     self:MakeGhostEntity(model, pos, ang)
   end
 
-  self:UpdateEmitterGhost(self.GhostEntity, self:GetOwner())
+  self:UpdateEmitterGhost(self.GhostEntity, user)
 end
 
 local gtConvarList = TOOL:BuildConVarList()
