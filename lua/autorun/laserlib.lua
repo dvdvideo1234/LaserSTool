@@ -4740,12 +4740,11 @@ if(SERVER) then
     local target = param.target
     if(not LaserLib.IsValid(target)) then return self end
     if(target:IsOnFire()) then return self end
-    local ignite = param.ignite -- Beam ignite skipped
+    local ignite = param.ignite -- Ignite flag
     if(not ignite) then return self end
-    local damage = param.damage -- Beam no danage
-    if(damage <= 0) then return self end
-    local smu = DATA.IGENTMBM:GetFloat() -- Ignite radius
+    local smu = DATA.IGENTMBM:GetFloat() -- Ignite time
     if(smu <= 0) then return self end
+    local damage = param.damage -- Beam damage
     if(damage <= 0) then target:Ignite(smu) else
       local maxdmg = DATA.MXBMDAMG:GetFloat()
       local ignera = (500 * (damage / maxdmg))
