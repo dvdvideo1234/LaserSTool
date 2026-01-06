@@ -34,6 +34,7 @@ DATA.KEYA  = "*"               -- The all key in a collection point to return th
 DATA.KEYX  = "~"               -- The first symbol used to disable given things
 DATA.IMAT  = "*"               -- First and last symbol to match studio displacement empty mats
 DATA.LSEP  = ","               -- General list separator. Used for string splits and concatenation
+DATA.RADIE = 500               -- How far the ignited entity heat radiates with max damage
 DATA.AZERO = Angle()           -- Zero angle used across all sources
 DATA.VZERO = Vector()          -- Zero vector used across all sources
 DATA.VDRFW = Vector(1, 0, 0)   -- Global forward vector used across all sources
@@ -72,7 +73,7 @@ DATA.ZSPLITER = CreateConVar(DATA.TOOL.."_zspliter"  , 1    , DATA.FGSRVCN, "Con
 DATA.ENSOUNDS = CreateConVar(DATA.TOOL.."_ensounds"  , 1    , DATA.FGSRVCN, "Trigger this to enable or disable redirection sounds")
 DATA.DAMAGEDT = CreateConVar(DATA.TOOL.."_damagedt"  , 0.1  , DATA.FGSRVCN, "The time frame to pass between the beam damage cycles", 0, 10)
 DATA.VESFBEAM = CreateConVar(DATA.TOOL.."_vesfbeam"  , 150  , DATA.FGSRVCN, "Controls the beam safety velocity for player pushed aside", 0, 600)
-DATA.IGENTMBM = CreateConVar(DATA.TOOL.."_igentmbm"  , 20   , DATA.FGSRVCN, "Controls the beam fire hazard duration for flaming entities", 0, 600)
+DATA.IGENTMBM = CreateConVar(DATA.TOOL.."_igentmbm"  , 10   , DATA.FGSRVCN, "Controls the beam fire hazard duration for flaming entities", 0, 60)
 DATA.NRASSIST = CreateConVar(DATA.TOOL.."_nrassist"  , 1000 , DATA.FGSRVCN, "Controls the area that is searched when drawing assist", 0, 10000)
 DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Controls the time delta checked for asynchronous events", 0, 5)
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
@@ -4718,10 +4719,17 @@ if(SERVER) then
     end; return self
   end
 
+  --[[
+   * Play burning sounds while roasting players
+   * Applicable when damage parameter is present
+   * Mmmmm... You know that smells kinda nice
+  ]]
   function mtBeam:DoBurn(param)
     local target, origin = param.target, param.origin
     if(not LaserLib.IsValid(target)) then return self end
     local direct, safety = param.direct, param.safety
+    local damage = param.damage -- Beam damage
+    if(damage <= 0) then return self end
     if(not safety) then return self end -- Beam safety skipped
     local smu = DATA.VESFBEAM:GetFloat() -- Safety velocity
     if(smu <= 0) then return self end -- General setting
@@ -4736,20 +4744,25 @@ if(SERVER) then
     end); return self
   end
 
+  --[[
+   * Flame-On! Set entities on fire
+   * The heat radiates DATA.RADIE units away
+   * Applicable when damage parameter is present
+  ]]
   function mtBeam:DoIgnite(param)
     local target = param.target
     if(not LaserLib.IsValid(target)) then return self end
     if(target:IsOnFire()) then return self end
     local ignite = param.ignite -- Ignite flag
     if(not ignite) then return self end
+    local damage = param.damage -- Beam damage
+    if(damage <= 0) then return self end
     local smu = DATA.IGENTMBM:GetFloat() -- Ignite time
     if(smu <= 0) then return self end
-    local damage = param.damage -- Beam damage
-    if(damage <= 0) then target:Ignite(smu) else
-      local maxdmg = DATA.MXBMDAMG:GetFloat()
-      local ignera = (500 * (damage / maxdmg))
-      target:Ignite(smu, ignera)
-    end; return self
+    local maxdmg = DATA.MXBMDAMG:GetFloat()
+    local ignera = (DATA.RADIE * (damage / maxdmg))
+    target:Ignite(smu, ignera)
+    return self
   end
 
   function mtBeam:DoDamage(laser)
