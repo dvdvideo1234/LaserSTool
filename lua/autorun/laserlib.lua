@@ -432,7 +432,7 @@ else -- Server-side initialization. Put server related code here
   DATA.DMGI = DamageInfo() -- Create a server-side damage information class
   DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
   -- User notification configuration type. Used to format notifications via string.format
-  DATA.NTIF = {"GAMEMODE:AddNotify(\"%s\", NOTIFY_%s, 6)", "surface.PlaySound(\"ambient/water/drip%d.wav\")"}
+  DATA.NTIF = {"notification.AddLegacy(\"%s\", NOTIFY_%s, 6)", "surface.PlaySound(\"ambient/water/drip%d.wav\")"}
 end
 
 --[[
