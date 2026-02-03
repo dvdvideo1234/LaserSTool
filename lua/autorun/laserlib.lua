@@ -542,25 +542,23 @@ end
 
 --[[
  * Performs general traces according to the parameters passed
- * origin > Trace origin as world position vector
- * direct > Trace direction as world aim vector
- * length > Trace length in source units
- * filter > Trace filter as standard config
- * mask   > Trace mask as standard config
- * colgrp > Trace collision group as standard config
- * iworld > Trace ignore world as standard config
- * width  > When larger than zero will run a hull trace instead
- * result > Trace output destination table as standard config
+ * origin > Trace origin as world position vector (mandatory)
+ * direct > Trace direction as world aim vector (mandatory)
+ * length > Trace length in source units (If missing direction is used)
+ * filter > Trace filter as standard config (optional)
+ * mask   > Trace mask as standard config (optional)
+ * colgrp > Trace collision group as standard config (optional)
+ * iworld > Trace ignore world as standard config (optional)
+ * width  > When larger than zero will run a hull trace instead (optional)
+ * result > Trace output destination table as standard config (optional)
 ]]
 local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, result)
-  local g_trace = DATA.TRACE
+  local g_trace, length = DATA.TRACE, (tonumber(length) or 0)
   g_trace.start:Set(origin)
-  g_trace.endpos:Set(direct)
-  g_trace.endpos:Normalize()
-  if(length and length > 0) then
+  g_trace.endpos:Set(direct) 
+  if(length > 0) then -- Length argument
+    g_trace.endpos:Normalize()
     g_trace.endpos:Mul(length)
-  else -- Use proper length even if missing
-    g_trace.endpos:Mul(direct:Length())
   end -- Utilize direction length when not provided
   g_trace.endpos:Add(origin)
   g_trace.filter = filter
