@@ -186,7 +186,7 @@ DATA.WHUEMP = {
   ["MAGENTA"] = {W = {380, 300}, H = {280, 300}}
 }; DATA.WHUEMP.Size = #DATA.WHUEMP
 
-DATA.WHUEMP.CONF = {
+DATA.WHUECF = {
   -- The wavelength margin where color starts to fade away on conversion
   SODD = 589.29, -- General wavelength for sodium line used for dispersion
   MARG = 10,     -- General coefficient for wave to refractive index conversion
@@ -601,8 +601,8 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
 end
 
 --[[
- * This is used for validating the library to preven
- * Any incnessesasy returns that remove varius functions
+ * This is used for validating the library to prevent
+ * Any unnecessary returns that remove various functions
 ]]
 function LaserLib.IsInit()
   local idx = LaserLib.__newindex
@@ -2588,7 +2588,7 @@ end
 ]]
 function LaserLib.WaveToHue(nW)
   local g_hue = DATA.WHUEMP -- Hue map settings
-  local g_cnf = g_hue.CONF -- Configuration
+  local g_cnf = DATA.WHUECF -- Configuration
   local wav, hue = g_cnf.WAVE, g_cnf.HUES
   local WF, W1, W2 = g_cnf.FADE, wav[1], wav[2]
   local nW = math.max((tonumber(nW) or 0), 0)
@@ -2613,7 +2613,7 @@ end
 ]]
 function LaserLib.HueToWave(nH)
   local g_hue = DATA.WHUEMP -- Hue map settings
-  local g_cnf = g_hue.CONF -- Configuration
+  local g_cnf = DATA.WHUECF -- Configuration
   local wav, hue = g_cnf.WAVE, g_cnf.HUES
   local W1, W2 = wav[1], wav[2]
   local H1, H2 = hue[1], hue[2]
@@ -2640,7 +2640,7 @@ end
  * http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/dispersion.html#c1
 ]]
 function LaserLib.WaveToIndex(wave, nidx)
-  local cnf, eps = DATA.WHUEMP.CONF, DATA.ZEPS
+  local cnf, eps = DATA.WHUECF, DATA.ZEPS
   local mr, ms, fw = cnf.INDW, cnf.MARG, cnf.FADE
   local wm1, wm2 = cnf.WAVE[1]+fw, cnf.WAVE[2]-fw
   local s = math.max(math.Remap(cnf.SODD, wm1, wm2, mr[1], mr[2]), eps)
@@ -2694,12 +2694,12 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
         nM, cN = math.max(tonumber(nM) or 0), tW.Size
   if(iN <= 0) then if(cN) then table.Empty(tW) end; return nil end
   if(iN == (tonumber(cN) or 0)) then return tW end
-  local g_wm, g_um = DATA.WHUEMP.CONF.WAVE, DATA.WHUEMP.CONF.HUES
+  local g_wm, g_um = DATA.WHUECF.WAVE, DATA.WHUECF.HUES
   local nS, nE = (nS or g_um[1]), (nE or g_um[2])
   local wS, wE = (wS or g_wm[1]), (wE or g_wm[2])
   table.Empty(tW) -- Clears the data and prepare for the change
   tW.Size = iN    -- Amount of entries the decomposition has
-  tW.Step = (nE - nS) / (iN - 1)  -- Hue adjustment step components
+  tW.Step = (wE - wS) / (iN - 1)  -- Hue adjustment step components
   tW.Marg = nM    -- Color compare margin for component check
   tW.HS, tW.HE = nS, nE -- HUE interval in degrees
   tW.WS, tW.WE = wS, wE -- Mapped wavelength interval
@@ -2710,11 +2710,11 @@ function LaserLib.SetWaveArray(tW, iN, nM, nS, nE, wS, wE)
   tW.PN = 0       -- Individual component power for white light part
   tW.IS = 0       -- Index start for the component extraction
   tW.IE = 0       -- Index end for the component extraction
-  for iS = 0, (iN - 1) do
-    local vH = (nS + iS * tW.Step)
-    local vW = LaserLib.HueToWave(vH)
-    local vC = HSVToColor(vH, 1, 1)
-    table.insert(tW, {C = vC, P = 0, W = vW, B = false})
+  for iS = 0, (iN - 1) do -- On every step retrieve the delta
+    local vW = wS + iS * tW.Step -- Calculate wavelength
+    local vH, vM = LaserLib.WaveToHue(vW) -- Map wavelength to hue
+    local vC = HSVToColor(vH, 1, 1) -- Produce and cache the RGBA color
+    table.insert(tW, {C = vC, P = 0, H = vH, M = vM, W = vW, B = false})
   end; return tW
 end
 
