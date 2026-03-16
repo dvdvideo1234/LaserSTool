@@ -564,12 +564,16 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   g_trace.filter = filter
   if(width and width > 0) then
     local m = width / 2
-    g_trace.action = util.TraceHull
     g_trace.mins:SetUnpacked(-m, -m, -m)
     g_trace.maxs:SetUnpacked( m,  m,  m)
-  else
-    if(SeamlessPortals) then -- Mee's Seamless-Portals
-      g_trace.action = SeamlessPortals.TraceLine
+    if(SeamlessPortals) then -- Mee's Seamless-Portals (hull)
+      g_trace.action = (SeamlessPortals.TraceHull or util.TraceHull)
+    else -- Seamless portals are not installed
+      g_trace.action = util.TraceHull
+    end -- Use the original no detour trace line
+  else -- Trace width is unavailable use the regular trace
+    if(SeamlessPortals) then -- Mee's Seamless-Portals (regular)
+      g_trace.action = (SeamlessPortals.TraceLine or util.TraceLine)
     else -- Seamless portals are not installed
       g_trace.action = util.TraceLine
     end -- Use the original no detour trace line
