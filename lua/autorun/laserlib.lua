@@ -4845,8 +4845,10 @@ end
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
 function mtBeam:Refract(vDir, vNor, nSrc, nDst)
-  local nW, tTg = self.BmWaveLn, self.BmTarget
+  local nSrc = (tonumber(nSrc) or 0)
+  local nDst = (tonumber(nDst) or 0)
   local vDir = (vDir or self.VrDirect)
+  local nW, tTg = self.BmWaveLn, self.BmTarget
   local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
   if(nW > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nW, nSrc)
