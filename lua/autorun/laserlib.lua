@@ -409,7 +409,8 @@ DATA.TRACE = {
   mins           = Vector(),
   maxs           = Vector(),
   mask           = MASK_SOLID,
-  collisiongroup = COLLISION_GROUP_NONE
+  collisiongroup = COLLISION_GROUP_NONE,
+  actiontype     = {[true] = "TraceHull", [false] = "TraceLine"}
 }
 
 if(CLIENT) then
@@ -553,7 +554,10 @@ end
  * result > Trace output destination table as standard config (optional)
 ]]
 local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, width, result)
-  local g_trace, length = DATA.TRACE, (tonumber(length) or 0)
+  local g_trace = DATA.TRACE
+  local width   = (tonumber(width) or 0)
+  local length  = (tonumber(length) or 0)
+  local actype  = g_trace.actiontype[width > 0]
   g_trace.start:Set(origin)
   g_trace.endpos:Set(direct) 
   if(length > 0) then -- Length argument
@@ -561,37 +565,18 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
     g_trace.endpos:Mul(length)
   end -- Utilize direction length when not provided
   g_trace.endpos:Add(origin)
-  g_trace.filter = filter
-  if(width and width > 0) then
-    local m = width / 2
+  g_trace.filter = filter -- Filter entity array or function
+  g_trace.action = util[actype] -- Index original action routine
+  g_trace.ignoreworld = tobool(iworld) -- Ignore world default boolean
+  g_trace.mask = (tonumber(mask) or MASK_SOLID) -- Trace hit mask
+  g_trace.collisiongroup = (tonumber(colgrp) or COLLISION_GROUP_NONE)
+  if(SeamlessPortals) then -- Mee's Seamless-Portals. Change action
+    g_trace.action = (SeamlessPortals[actype] or g_trace.action)
+  end -- In case of seamless portals the original will be replaced
+  if(width > 0) then -- Trace hull is used for internal reflection
+    local m = (width / 2)
     g_trace.mins:SetUnpacked(-m, -m, -m)
     g_trace.maxs:SetUnpacked( m,  m,  m)
-    if(SeamlessPortals) then -- Mee's Seamless-Portals (hull)
-      g_trace.action = (SeamlessPortals.TraceHull or util.TraceHull)
-    else -- Seamless portals are not installed
-      g_trace.action = util.TraceHull
-    end -- Use the original no detour trace line
-  else -- Trace width is unavailable use the regular trace
-    if(SeamlessPortals) then -- Mee's Seamless-Portals (regular)
-      g_trace.action = (SeamlessPortals.TraceLine or util.TraceLine)
-    else -- Seamless portals are not installed
-      g_trace.action = util.TraceLine
-    end -- Use the original no detour trace line
-  end
-  if(mask) then
-    g_trace.mask = mask
-  else -- Default trace mask
-    g_trace.mask = MASK_SOLID
-  end
-  if(iworld) then
-    g_trace.ignoreworld = true
-  else -- Default world ignore
-    g_trace.ignoreworld = false
-  end
-  if(colgrp) then
-    g_trace.collisiongroup = colgrp
-  else -- Default collision group
-    g_trace.collisiongroup = COLLISION_GROUP_NONE
   end
   if(result) then
     g_trace.output = result
@@ -5529,10 +5514,14 @@ CheckMaterials(DATA.REFRACT, 6)
 
 ConfigureHookRegistry(DATA.BLHOLE, "sp_black_hole")
 
+--[[ When every needed function is defined lock the library
+ * In this case nobody will be able to add or remove anything
+ * Any attempt to add new stuff after this will result in an error
+]]
 LaserLib.__newindex = function(t, k, v)
   local g = debug.getinfo(2)
   local k = (isstring(k) and ("\""..k.."\"") or tostring(k))
   local s = "["..tostring(g.short_src or g.source).."]"
   local n = "["..tostring(g.currentline or g.lastlinedefined).."]"
-  error("Laser member refused ["..k.."] = "..tostring(v).." at "..s.." line "..n)
+  error("Library is locked ["..k.."] = "..tostring(v).." at "..s.." line "..n)
 end
