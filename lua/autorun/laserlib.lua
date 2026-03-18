@@ -1281,20 +1281,20 @@ end
 ]]
 function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   -- Is index is provided populate model and create convars
-  local index = (tonumber(uent.UnitID) or 0); if(index <= 1) then
+  local index = math.floor(tonumber(uent.UnitID) or 0); if(index <= 1) then
     ErrorNoHaltWithStack("Index invalid: "..tostring(iunit)) end
   local usrc = tostring(uent.Folder or ""); if(usrc == "") then
     ErrorNoHaltWithStack("Name invalid: "..tostring(cunit)) end
   local ocas = LaserLib.GetClass(1); if(ocas == "") then
     ErrorNoHaltWithStack("Base empty: "..tostring(ocas)) end
-  local ucas = usrc:match(ocas..".+$", 1); if(ucas == "") then
+  local ucas = usrc:match(ocas..".+$", 1); if(not ucas or ucas == "") then
     ErrorNoHaltWithStack("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     ErrorNoHaltWithStack("Suffix empty: "..tostring(usrc)) end
   local vset = (DATA.UNITS[index] or {}); if(vset and vset[5]) then
-    ErrorNoHaltWithStack("Unit present ["..index.."]["..vset[1].."]: "..ucas) end
+    ErrorNoHaltWithStack("Unit present ["..index.."]["..tostring(vset[1]).."]: "..ucas) end
   local uset = vset[1]; if(uset and uset ~= ucas) then
-    ErrorNoHaltWithStack("Unit mismatch ["..index.."]["..vset[1].."]: "..ucas) end
+    ErrorNoHaltWithStack("Unit mismatch ["..index.."]["..tostring(vset[1]).."]: "..ucas) end
   -- Allocate class configuration. Make it accessible to the library
   local vidx = tostring(conv or udrr):lower() -- Extract variable suffix
   vset[1], vset[2], vset[3], vset[4], vset[5] = ucas, vidx, mdef, vdef, true
@@ -1310,8 +1310,9 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   local vanm = varm:GetName()
   cvars.RemoveChangeCallback(vanm, vanm)
   cvars.AddChangeCallback(vanm, function(name, o, n)
-    local m = tostring(n):Trim()
-    if(m:sub(1,1) ~= DATA.KEYD) then LaserLib.GetModel(index, m) else
+    local m = tostring(n or ""):Trim()
+    local o = (m:sub(1,1) ~= DATA.KEYD and file.Exists(m, "GAME") and not IsUselessModel(m))
+    if(o) then LaserLib.GetModel(index, m) else
       varm:SetString(LaserLib.GetModel(index, varm:GetDefault()))
     end -- Update current model at index [4]
   end, vanm); LaserLib.GetModel(index, varm:GetString():lower())
@@ -1319,8 +1320,9 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
   local vanv = varv:GetName()
   cvars.RemoveChangeCallback(vanv, vanv)
   cvars.AddChangeCallback(vanv, function(name, o, n)
-    local v = tostring(n):Trim()
-    if(v:sub(1,1) ~= DATA.KEYD) then LaserLib.GetMaterial(index, v) else
+    local v = tostring(n or ""):Trim()
+    local o = (v:sub(1,1) ~= DATA.KEYD and v:len() >= 1)
+    if(o) then LaserLib.GetMaterial(index, v) else
       varv:SetString(LaserLib.GetMaterial(index, varv:GetDefault()))
     end -- Update current material at index [5]
   end, vanv); LaserLib.GetMaterial(index, varv:GetString():lower())
