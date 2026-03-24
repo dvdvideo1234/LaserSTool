@@ -227,6 +227,7 @@ function ENT:UpdateDominant(dom)
         local mmatera = self:GetBeamMaterial()
         local mbmsafe = self:GetInBeamSafety()
         local mbmigne = self:GetInBeamIgnite()
+        local mbmfres = self:GetInBeamFresnel()
         local mbmdisp = self:GetInBeamDisperse()
         local movrmat = self:GetInNonOverMater()
         -- Dominant configurations ( booleans have true/false )
@@ -238,6 +239,7 @@ function ENT:UpdateDominant(dom)
         local dmatera = domsrc:GetBeamMaterial()
         local dbmsafe = domsrc:GetBeamSafety()   and 2 or 1
         local dbmigne = domsrc:GetBeamIgnite()   and 2 or 1
+        local dbmfres = domsrc:GetBeamFresnel()  and 2 or 1
         local dbmdisp = domsrc:GetBeamDisperse() and 2 or 1
         local dovrmat = domsrc:GetNonOverMater() and 2 or 1
         -- Compare the internal configuration and trigger sensor
@@ -250,6 +252,7 @@ function ENT:UpdateDominant(dom)
            (mbmsafe == 0  or (mbmsafe ~= 0  and mbmsafe == dbmsafe)) and
            (mbmigne == 0  or (mbmigne ~= 0  and mbmigne == dbmigne)) and
            (mbmdisp == 0  or (mbmdisp ~= 0  and mbmdisp == dbmdisp)) and
+           (mbmfres == 0  or (mbmfres ~= 0  and mbmfres == dbmfres)) and
            (movrmat == 0  or (movrmat ~= 0  and movrmat == dovrmat))
         ) then -- Dominant beam is like sensor beam
           self:SetOn(true)

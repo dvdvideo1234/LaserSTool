@@ -79,6 +79,7 @@ DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Con
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
 DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuecnt"  , 15   , DATA.FGSRVCN, "Hue count when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
+DATA.FRESNELR = CreateConVar(DATA.TOOL.."_fresnelr"  , 1    , DATA.FGSRVCN, "Enable the fresnel effect for medium interface beam when refracting", 0, 1)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -1258,12 +1259,14 @@ function LaserLib.SetPrimary(ent, nov)
     ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("InBeamIgnite"  , "Internals", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("InBeamFresnel" , "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("InBeamDisperse", "Internals", comxbool, "name", "icon")
     ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool, "name", "icon")
   else
     ent:EditableSetBool("InNonOverMater", "Internals")
     ent:EditableSetBool("InBeamSafety"  , "Internals")
     ent:EditableSetBool("InBeamIgnite"  , "Internals")
+    ent:EditableSetBool("InBeamFresnel" , "Internals")
     ent:EditableSetBool("InBeamDisperse", "Internals")
     ent:EditableSetBool("EndingEffect"  , "Visuals")
   end
@@ -1386,6 +1389,7 @@ function LaserLib.Configure(unit)
         self:SetBeamSafety(src:GetBeamSafety())
         self:SetBeamIgnite(src:GetBeamIgnite())
         self:SetForceCenter(src:GetForceCenter())
+        self:SetBeamFresnel(src:GetBeamFresnel())
         self:SetBeamDisperse(src:GetBeamDisperse())
         self:SetBeamMaterial(src:GetBeamMaterial())
         self:SetDissolveType(src:GetDissolveType())
@@ -2828,6 +2832,7 @@ function LaserLib.Beam(origin, direct, length)
   self.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
   self.BmNoover = false -- Use the original entity material when no override is present
   self.BmDisper = false -- Enable decomposing upcoming beam to wavelengths
+  self.BmFresne = false -- Enable fresnel effect interface reflection when refracting
   self.BrReflec = false -- The beam power decreases with every reflection
   self.BrRefrac = false -- The beam power decreases with every refraction
   self.IsTrace  = true  -- Library is still tracing the beam and calculating nodes
@@ -2901,15 +2906,16 @@ end
  * Returns the current beam flags
 ]]
 function mtBeam:GetFgTexture()
-  return self.BmNoover, self.BmDisper
+  return self.BmNoover, self.BmDisper, self.BmFresne
 end
 
 --[[
  * Updates the current beam flags
 ]]
-function mtBeam:SetFgTexture(bNov, bDsp)
+function mtBeam:SetFgTexture(bNov, bDsp, bFre)
   self.BmNoover = tobool(bNov) -- No override material flag. Try to extract original material
   self.BmDisper = tobool(bDsp) -- Dispersion enable flag. Split white light to its components
+  self.BmFresne = tobool(bFre) -- Fresnel effect interface enable flag. Reflect from medium interface
   return self
 end
 
@@ -4855,7 +4861,11 @@ function mtBeam:Refract(vDir, vNor, nSrc, nDst)
   if(nW > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nW, nSrc)
     nDst = LaserLib.WaveToIndex(nW, nDst)
-  end; return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
+  end
+  local nAng = LaserLib.GetRefractAngle(nSrc, nDst)
+
+
+  return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
 end
 
 --[[

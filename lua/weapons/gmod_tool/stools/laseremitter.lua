@@ -83,6 +83,7 @@ if(CLIENT) then
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
       local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
       pnFrame:SetTitle(tseq.Name)
+      pnFrame:SetIcon(LaserLib.GetIcon("shape_move_forwards"))
       pnFrame:SetVisible(false)
       pnFrame:SetDraggable(true)
       pnFrame:SetDeleteOnClose(true)
