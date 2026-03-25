@@ -2248,25 +2248,28 @@ end
   [1] > The refracted ray direction vector
 ]]
 function LaserLib.GetReflected(direct, normal)
-  local ref = Vector(normal) -- Always normalized
+  local ref = normal:GetNormalized()
   local inc = direct:GetNormalized()
   local mul = (-2 * inc:Dot(ref))
   ref:Mul(mul); ref:Add(inc); return ref
 end
 
 --[[
- * Calculates the refract interface border angle
+ * Calculates the refract interface critical angle
  * between two mediums. Returns angles in range
  * from (-pi/2) to (pi/2)
  * source > Source refraction index
  * destin > Destination refraction index
- * bdegr  > Return the result in degrees
+ * outarg > [true]  : Return the result in degrees
+ *          [false] : Return the result in radians
+ *          [nil]   : Return the result as cosine
 ]]
-function LaserLib.GetRefractAngle(source, destin, bdegr)
+function LaserLib.GetRefractAngle(source, destin, outarg)
   local mar = (source / destin) -- Calculate ref ratio
   if(math.abs(mar) > 1) then mar = 1 / mar end -- Reverse
+  if(outarg == nil) then return mar end -- Return margin
   local arg = math.asin(mar) -- Calculate sine argument
-  if(not bdegr) then return arg end -- Return radians
+  if(not outarg) then return arg end -- Return radians
   return math.deg(arg) -- Do some extra work for degrees
 end
 
@@ -2283,18 +2286,31 @@ end
  *    [3] > Mediums have the same refractive index
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
-  local inc = direct:GetNormalized() -- Read normalized copy or incident
-  if(source == destin) then return inc, true, true end -- Continue out medium
-  local nrm = Vector(normal); nrm:Negate()  -- Call copy-constructor
-  local vcr = inc:Cross(nrm) -- Always normalized. Sine: |i||n|sin(i^n)
-  local ang, sii = nrm:AngleEx(vcr), vcr:Length()
-  local mar = (sii * source) / destin -- Apply Snell's law
-  if(math.abs(mar) <= 1) then -- Valid angle available
-    local sio, aup = math.asin(mar), ang:Up()
-    ang:RotateAroundAxis(aup, -math.deg(sio))
-    return ang:Forward(), true, false -- Make refraction
-  else -- Reflect from medium interface boundary
-    return LaserLib.GetReflected(direct, normal), false, false
+  if(DATA.NSPLITER:GetInt() > 1) then
+    local inc = direct:GetNormalized() -- Read normalized copy or incident
+    if(source == destin) then return inc, true, true end -- Continue out medium
+    local nrm = Vector(normal); nrm:Negate()  -- Call copy-constructor
+    local vcr = inc:Cross(nrm) -- Always normalized. Sine: |i||n|sin(i^n)
+    local ang, sii = nrm:AngleEx(vcr), vcr:Length()
+    local mar = (sii * source) / destin -- Apply Snell's law
+    if(math.abs(mar) <= 1) then -- Valid angle available
+      local sio, aup = math.asin(mar), ang:Up()
+      ang:RotateAroundAxis(aup, -math.deg(sio))
+      return ang:Forward(), true, false, sio -- Make refraction
+    else -- Reflect from medium interface boundary
+      return LaserLib.GetReflected(direct, normal), false, false
+    end
+  else
+    local inc = direct:GetNormalized() -- Read normalized copy or incident
+    local nrm, eta = normal:GetNormalized(), (source / destin)  -- Copy-constructor
+    local cos = -inc:Dot(nrm); if(cos < 0) then nrm:Negate(); cos = -cos end
+    if(eta == 1) then return inc, true, true, cos end -- Continue out medium
+    local sin = eta * eta * (1 - cos * cos) -- Calculate sin squared
+    if(sin > 1) then return LaserLib.GetReflected(direct, normal), false, false, cos end
+    local ref = Vector(inc); ref:Mul(eta) -- Create output direction
+    local mar = eta * cos - math.sqrt(1 - sin) -- Calculate trig margin
+    nrm:Mul(mar); ref:Add(nrm); ref:Normalize() -- Adjust direction and normalize
+    return ref, true, false, cos
   end
 end
 
@@ -2874,16 +2890,38 @@ function mtBeam:IsValid()
 end
 
 --[[
- * Returns the beam target
- * nT > Target index for the specific branch
+ * Returns the beam branch
+ * nB > Branch index for the specific branch
         Otherwise gets the current beam branching
 ]]
+function mtBeam:GetBranch(nB)
+  local nB, pB = tonumber(nB), self.BmBranch
+  if(not nB) then return pB end
+  if(pB.Size <= 0) then return nil end
+  return pB[nB] -- Index the desired branch
+end
+
+--[[
+ * Pushes a beam as a branch
+ * tB > Branch to push to the stack
+]]
+function mtBeam:SetBranch(oB)
+  if(getmetatable(oB) ~= mtBeam) then return self end
+  local pB = self.BmBranch -- Pointer to branches
+  table.insert(pB, oB); pB.Size = (pB.Size + 1)
+  return self
+end
+
+--[[
+ * Returns the beam target
+ * nT > Target index for the specific branch
+        Otherwise gets the current beam target
+]]
 function mtBeam:GetTarget(nT)
-  local nT, pT = tonumber(nT), nil
+  local nT = tonumber(nT)
   if(not nT) then return self.BmTarget end
-  pT = self.BmBranch; if(not pT) then return nil end
-  if(pT.Size <= 0) then return nil end
-  pT = pT[nT]; if(not pT) then return nil end
+  local pT = self:GetBranch(nT)
+  if(not pT) then return nil end
   return pT.BmTarget
 end
 
@@ -4098,7 +4136,7 @@ function mtBeam:Draw(sours, imatr)
   if(imatr) then render.SetMaterial(imatr) end
   local spd = DATA.DRWBMSPD:GetFloat()
   -- Allocate references for branches and color
-  local tbran, g_draw = self.BmBranch, DATA.COTMP
+  local tbran, g_draw = self:GetBranch(), DATA.COTMP
   -- Draw the beam sequentially being faster
   for idx = 2, szv do
     local new = tvpnt[idx]
@@ -4131,7 +4169,7 @@ end
 ]]
 function mtBeam:DrawEffect(sours, endrw)
   if(SERVER) then return self end
-  local tbran = self.BmBranch
+  local tbran = self:GetBranch()
   local trace = self:GetTarget()
   local sours = (sours or self:GetSource())
   if(tbran.Size > 0) then -- Draw children eff
@@ -4761,7 +4799,7 @@ if(SERVER) then
   end
 
   function mtBeam:DoDamage(laser)
-    local tbran = self.BmBranch
+    local tbran = self:GetBranch()
     if(tbran.Size > 0) then
       for idx = 1, tbran.Size do
         tbran[idx]:DoDamage(laser) end
@@ -4856,16 +4894,51 @@ function mtBeam:Refract(vDir, vNor, nSrc, nDst)
   local nSrc = (tonumber(nSrc) or 0)
   local nDst = (tonumber(nDst) or 0)
   local vDir = (vDir or self.VrDirect)
-  local nW, tTg = self.BmWaveLn, self.BmTarget
+  local nW   = self:GetWavelength()
+  local tTg  = self:GetTarget()
   local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
   if(nW > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nW, nSrc)
     nDst = LaserLib.WaveToIndex(nW, nDst)
   end
-  local nAng = LaserLib.GetRefractAngle(nSrc, nDst)
-
-
-  return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
+  if(self.BmFresne and nSrc ~= nDst) then
+    local mar = (DATA.NUGE / 10)
+    local len = (self.NvLength + mar)
+    local brn = self:GetBranch()
+    local ovr, dis, frn = self:GetFgTexture()
+    local src, sro = self.BmSource, self.BoSource
+    local wih = LaserLib.GetWidth(self:GetWidth())
+    local dmg, frc = self:GetDamage(), self:GetForce()
+    local rle, rfr = self:GetFgDivert()
+    local bnc = self:GetBounces(true)
+    local vr, vg, vb, va = self:GetColorRGBA()
+    local rbs = ((nSrc - nDst) / (nSrc + nDst))^2
+    local vBir, bNex, bSam, nCos = LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
+    local ref = rbs + (1 - rbs) * (1 - nCos)^5 -- Schlick’s approximation
+    local vOrg = Vector() -- ??
+    local rel = LaserLib.GetReflected(vDir, vNor)
+    local beam = LaserLib.Beam(vOrg, rel, len) -- Make a beam
+    -- Setup child beam and apply power modifiers
+    beam:SetSource(src, src, sro)     -- Primary source
+    beam:SetWidth(ref * wih)          -- Weighted width
+    beam:SetDamage(ref * dmg)         -- Weighted damage
+    beam:SetForce(ref * frc)          -- Weighted force
+    beam:SetFgDivert(rle, rfr)        -- Inherited diversion
+    beam:SetFgTexture(ovr, dis, frn ) -- Disable dispersion
+    beam:SetBounces(bnc)              -- Left over bounces
+    beam:SetWavelength(nW)            -- Component wavelength
+    beam:SetColorRGBA(vr, vg, vb, va) -- Apply beam color
+    -- Validate branch beam state and start the propagation
+    if(not beam:IsValid() and SERVER) then
+      beam:Clear(); src:Remove(); return false end
+    -- Register the branch in the current beam
+    beam:Run(self.BmRecuLS + 1)
+    self:SetPowerRatio(1 - ref)
+    self:SetBranch(beam)
+    return vBir, bNex, bSam, nCos
+  else
+    return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
+  end
 end
 
 --[[
@@ -4884,7 +4957,7 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   local ms, me = self.TrMedium.D[1][1], tRef[1]
   if(ms == me) then return false end
   -- This beam is already branched. Skip branching
-  local brn = self.BmBranch -- Index branch table
+  local brn = self:GetBranch() -- Index branch table
   if(brn.Size > 0) then return false end
   -- The beam material does not have a base color
   local cB = self:GetColorBase()
@@ -4895,15 +4968,15 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
   if(tW.PT <= 0) then return false end
   -- Store local parameters used in the loop
   local pmr, mar = tW.PT, (DATA.NUGE / 10)
-  local len = (self.NvLength + mar)
-  local tar, ovr = self:GetTarget(), self.BmNoover
+  local len, tar = (self.NvLength + mar), self:GetTarget()
+  local ovr, dis, frn = self:GetFgTexture(); dis = false
   local src, sro = self.BmSource, self.BoSource
   local rle, rfr = self:GetFgDivert()
   local wih = LaserLib.GetWidth(self:GetWidth())
   local dmg, frc = self:GetDamage(), self:GetForce()
   local dir = Vector(vDir or self.VrDirect)
   local org = Vector(dir); org:Mul(-mar)
-  local bnc = self.NvBounce; org:Add(vOrg or tar.HitPos)
+  local bnc = self:GetBounces(true); org:Add(vOrg or tar.HitPos)
   local sr, sg, sb, sa = self:GetColorRGBA()
   -- Mark the base beam as finished and branch it
   self:Finish(); tar.NoEffect = true -- Turn effects off
@@ -4913,20 +4986,19 @@ function mtBeam:IsDisperse(tRef, vOrg, vDir)
     local vr, vg, vb, va = rCo.r, rCo.g, rCo.b, (sa * rPw)
     local beam = LaserLib.Beam(org, dir, len) -- Make a beam
     -- Setup child beam and apply power modifiers
-    beam:SetSource(src, src, sro) -- Primary source
-    beam:SetWidth(rEn * wih)      -- Weighted width
-    beam:SetDamage(rEn * dmg)     -- Weighted damage
-    beam:SetForce(rEn * frc)      -- Weighted force
-    beam:SetFgDivert(rle, rfr)    -- Inherited diversion
-    beam:SetFgTexture(ovr, false) -- Disable dispersion
-    beam:SetBounces(bnc)          -- Left over bounces
-    beam:SetWavelength(recw.W)    -- Component wavelength
+    beam:SetSource(src, src, sro)     -- Primary source
+    beam:SetWidth(rEn * wih)          -- Weighted width
+    beam:SetDamage(rEn * dmg)         -- Weighted damage
+    beam:SetForce(rEn * frc)          -- Weighted force
+    beam:SetFgDivert(rle, rfr)        -- Inherited diversion
+    beam:SetFgTexture(ovr, dis, frn)  -- Disable dispersion
+    beam:SetBounces(bnc)              -- Left over bounces
+    beam:SetWavelength(recw.W)        -- Component wavelength
     beam:SetColorRGBA(vr, vg, vb, va) -- Apply beam color
     -- Validate branch beam state and start the propagation
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
-    beam:Run(self.BmRecuLS + 1) -- Increment recurse stage
-    table.insert(brn, beam); brn.Size = (brn.Size + 1)
+    beam:Run(self.BmRecuLS + 1); self:SetBranch(beam)
     -- Adjust first point not to be drawn due to margin
     local tvp, siz = beam:GetPoints() -- Mark segment
     if(siz > 0) then beam:GetNode(1)[5] = false end
