@@ -3860,7 +3860,7 @@ function mtBeam:RefractWaterAir()
   local mewat, meair, vtm = mtBeam.__mewat, mtBeam.__meair, self.__vtorg
   -- Registering the node cannot be done with direct subtraction
   self:RegisterNode(vwa, true); vtm:Set(wat.N); vtm:Negate()
-  local vdir, bnex = self:Refract(dir, vtm, mewat[1][1], meair[1][1])
+  local vdir, bnex = self:Refract(dir, vwa, vtm, mewat[1][1], meair[1][1])
   if(bnex) then
     self.NvMask = MASK_ALL -- We change the medium to air
     self:ClearWater() -- Set water normal flag to zero
@@ -3950,7 +3950,7 @@ function mtBeam:IsTraverse(origin, direct, normal, target)
   local refract = self:GetSolidMedium(org, dir, target)
   if(not refract) then return false end
   -- Refract the hell out of this requested beam with entity destination
-  local vdir, bnex, bsam = self:Refract(dir,
+  local vdir, bnex, bsam = self:Refract(dir, org,
                  normal, self.TrMedium.D[1][1], refract[1])
   if(bnex) then
     self.IsRfract, self.StRfract = false, true -- Force start-refract
@@ -4025,6 +4025,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
   local bnex, bsam, vdir -- Refraction entity direction and reflection
   local trace = (trace and trace or self.BmTarget) -- Trace reference
   local dir, merum = self.VrDirect, self.TrMedium -- Localize medium
+  local org = (trace and trace.HitPos or self.VrOrigin)
   -- Call refraction cases and prepare to trace-back
   if(self.StRfract) then -- Bounces were decremented so move it up
     if(self:IsFirst()) then
@@ -4032,7 +4033,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
     else -- When two props are stuck save the middle boundary and traverse
       -- When the traverse mediums is different and node is not inside a laser
       if(self:IsMemory(index)) then
-        vdir, bnex, bsam = self:Refract(dir, merum.M[3], merum.M[1][1], index)
+        vdir, bnex, bsam = self:Refract(dir, org, merum.M[3], merum.M[1][1], index)
         -- Do not waste game ticks to refract the same refraction ratio
       else -- When there is no medium refractive index traverse change
         vdir, bsam = Vector(dir), true -- Keep the last beam direction
@@ -4040,7 +4041,7 @@ function mtBeam:GetBoundaryEntity(index, trace)
     end -- Marking the fraction being zero and refracting from the last entity
     self.StRfract = false -- Make sure to disable the flag again
   else -- Otherwise do a normal water-entity-air refraction
-    vdir, bnex, bsam = self:Refract(dir, trace.HitNormal, merum.S[1][1], index)
+    vdir, bnex, bsam = self:Refract(dir, org, trace.HitNormal, merum.S[1][1], index)
   end
   return bnex, bsam, vdir
 end
@@ -4881,13 +4882,14 @@ end
  * LaserLib.GetRefracted(direct, normal, source, destination)
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
-function mtBeam:Refract(vDir, vNor, nSrc, nDst)
+function mtBeam:Refract(vDir, vPos, vNor, nSrc, nDst)
   local nSrc = (tonumber(nSrc) or 0)
   local nDst = (tonumber(nDst) or 0)
   local vDir = (vDir or self.VrDirect)
   local nW   = self:GetWavelength()
   local tTg  = self:GetTarget()
   local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
+  local vPos = (vPos or tTg.HitPos or self.VrOrigin)
   if(nW > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nW, nSrc)
     nDst = LaserLib.WaveToIndex(nW, nDst)
@@ -4906,9 +4908,9 @@ function mtBeam:Refract(vDir, vNor, nSrc, nDst)
     local rbs = ((nSrc - nDst) / (nSrc + nDst))^2
     local vBir, bNex, bSam, nCos = LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
     local ref = rbs + (1 - rbs) * (1 - nCos)^5 -- Schlick’s approximation
-    local vOrg = Vector() -- ??
+    local org = util.IntersectRayWithPlane(self.VrOrigin, self.VrDirect, vPos, vNor)
     local rel = LaserLib.GetReflected(vDir, vNor)
-    local beam = LaserLib.Beam(vOrg, rel, len) -- Make a beam
+    local beam = LaserLib.Beam(org, rel, len) -- Make a beam
     -- Setup child beam and apply power modifiers
     beam:SetSource(src, src, sro)     -- Primary source
     beam:SetWidth(ref * wih)          -- Weighted width
@@ -5086,7 +5088,7 @@ function mtBeam:Run(iStg)
           if(self.NvLength > 0) then
             if(not self:IsTraverse(trace.HitPos, nil, trace.HitNormal, target)) then
               -- Refract the hell out of this requested beam with entity destination
-              local vdir, bnex = self:Refract(self.VrDirect,
+              local vdir, bnex = self:Refract(self.VrDirect, trace.HitPos,
                              trace.HitNormal, merum.D[1][1], merum.S[1][1])
               if(bnex) then -- When the beam gets out of the medium
                 self:Divert(trace.HitPos, vdir, true)
@@ -5158,7 +5160,7 @@ function mtBeam:Run(iStg)
             -- Do the refraction according to medium boundary
             if(self.NvLength > 0) then
               if(not self:IsTraverse(org, nil, nrm, target)) then
-                local vdir, bnex = self:Refract(self.VrDirect,
+                local vdir, bnex = self:Refract(self.VrDirect, org,
                                      nrm, merum.D[1][1], meair[1][1])
                 if(bnex) then -- When the beam gets out of the medium
                   self:Divert(org, vdir, true)
@@ -5204,7 +5206,7 @@ function mtBeam:Run(iStg)
                       self:Divert(trace.HitPos) -- Keep the same direction and initial origin
                     else -- Beam comes from the air and hits the water. Store water surface and refract
                       -- Get the trace ready to check the other side and point and register the location
-                      local vdir, bnex = self:Refract(self.VrDirect,
+                      local vdir, bnex = self:Refract(self.VrDirect, trace.HitPos,
                                            trace.HitNormal, merum.S[1][1], refract[1])
                       self:Divert(trace.HitPos, vdir)
                     end -- Need to make the traversed destination the new source
