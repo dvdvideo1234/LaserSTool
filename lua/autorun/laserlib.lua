@@ -804,34 +804,6 @@ function LaserLib.GetMarginPortal(entity, origin, direct, normal)
 end
 
 --[[
- * Copies data contents from a table
- * tSr > Record to copy data from
- * tCn > Copy configuration or none
- * tDs > Destination table when provided
-]]
-local function CopyData(tSr, tCn, tDs)
-  local tCp, tCn = (tDs or {}), (tCn or {})
-  local tO, tS = tCn.ONLY, tCn.SKIP
-  local tC, tA = tCn.COPY, tCn.ASGN
-  for nam, vsm in pairs(tSr) do
-    if((not tO or (tO and tO[nam])) and
-       (not tS or (tS and not tS[nam]))
-    ) then -- Field is selected to be copied
-      local typ = type(vsm) -- Read data type
-      local fcn = DATA.COPYCV[typ] -- Create
-      if(fcn) then -- Copy-conversion exists
-        tCp[nam] = fcn(vsm) -- Copy-convert
-      elseif(tA and tA[nam]) then
-        tCp[nam] = vsm -- Assign enable for field
-      elseif(tC and tC[nam]) then
-        tCp[nam] = table.Copy(vsm) -- General copy table
-      else -- Unhanded field. Report error to the user
-        ErrorNoHaltWithStack("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
-      end -- The snapshot is completed
-  end; end; return tCp
-end
-
---[[
  * Checks if The given vectors are orthogonal
  * vFw > Forward axis vector as direction
  * vUp > Up axis vector finishing the plane
@@ -3170,13 +3142,32 @@ end
 
 --[[
  * Creates a beam snapshot copy
- * Snapshots have the same property as origin
+ * Snapshots have the same property as original
  * They represent dedicated beam copy at a time
  * tDs > Destination table when provided
+ * tCn > Copy configuration or none
 ]]
-function mtBeam:GetCopy(tDs)
-  local cpBeam = CopyData(self, self.__xcopy, tDs)
-  setmetatable(cpBeam, mtBeam); return cpBeam
+function mtBeam:GetCopy(tDs, tCn)
+  local cpBeam = (tDs or {})
+  local cpConf = (tCn or self.__xcopy)
+  local tO, tS = cpConf.ONLY, cpConf.SKIP
+  local tC, tA = cpConf.COPY, cpConf.ASGN
+  for nam, vsm in pairs(self) do
+    if((not tO or (tO and tO[nam])) and
+       (not tS or (tS and not tS[nam]))
+    ) then -- Field is selected to be copied
+      local typ = type(vsm) -- Read data type
+      local fcn = DATA.COPYCV[typ] -- Create
+      if(fcn) then -- Copy-conversion exists
+        cpBeam[nam] = fcn(vsm) -- Copy-convert
+      elseif(tA and tA[nam]) then
+        cpBeam[nam] = vsm -- Assign enable for field
+      elseif(tC and tC[nam]) then
+        cpBeam[nam] = table.Copy(vsm) -- General copy table
+      else -- Unhanded field. Report error to the user
+        ErrorNoHaltWithStack("Mismatch ["..typ.."]["..nam.."]: "..tostring(vsm))
+      end -- The snapshot is completed
+  end; end; setmetatable(cpBeam, mtBeam); return cpBeam
 end
 
 --[[
