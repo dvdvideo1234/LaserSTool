@@ -66,6 +66,7 @@ DATA.MXBMFORC = CreateConVar(DATA.TOOL.."_maxbmforc" , 25000, DATA.FGSRVCN, "Max
 DATA.MXBMLENG = CreateConVar(DATA.TOOL.."_maxbmleng" , 25000, DATA.FGSRVCN, "Maximum beam length for all laser beams", 0, 50000)
 DATA.MBOUNCES = CreateConVar(DATA.TOOL.."_maxbounces", 10   , DATA.FGSRVCN, "Maximum surface bounces for the laser beam", 0, 1000)
 DATA.MFORCELM = CreateConVar(DATA.TOOL.."_maxforclim", 25000, DATA.FGSRVCN, "Maximum force limit available to the welds", 0, 50000)
+DATA.MXFRESNE = CreateConVar(DATA.TOOL.."_mxfresnel" , 4    , DATA.FGSRVCN, "Maximum fresnel effect medium traverse splits", 0, 10)
 DATA.NSPLITER = CreateConVar(DATA.TOOL.."_nspliter"  , 2    , DATA.FGSRVCN, "Controls the default splitter outputs count", 0, 16)
 DATA.XSPLITER = CreateConVar(DATA.TOOL.."_xspliter"  , 1    , DATA.FGSRVCN, "Controls the default splitter X direction", -1, 1)
 DATA.YSPLITER = CreateConVar(DATA.TOOL.."_yspliter"  , 0    , DATA.FGSRVCN, "Controls the default splitter Y direction", -1, 1)
@@ -79,7 +80,6 @@ DATA.TIMEASYN = CreateConVar(DATA.TOOL.."_timeasync" , 0.2  , DATA.FGSRVCN, "Con
 DATA.BLHOLESG = CreateConVar(DATA.TOOL.."_blholesg"  , 5    , DATA.FGSRVCN, "Black hole gravity curving interpolation segment length", 0, 20)
 DATA.WDHUECNT = CreateConVar(DATA.TOOL.."_wdhuecnt"  , 15   , DATA.FGSRVCN, "Hue count when using dispersion and splitting color components", 0, 50)
 DATA.WDRGBMAR = CreateConVar(DATA.TOOL.."_wdrgbmar"  , 15   , DATA.FGSRVCN, "Hue compare margin for dispersion and splitting color components", 0, 100)
-DATA.FRESNELR = CreateConVar(DATA.TOOL.."_fresnelr"  , 1    , DATA.FGSRVCN, "Enable the fresnel effect for medium interface beam when refracting", 0, 1)
 
 -- Library internal variables for limits and realtime tweaks ( independent )
 DATA.MAXRAYAS = CreateConVar(DATA.TOOL.."_maxrayast" , 100  , DATA.FGINDCN, "Maximum distance to compare projection to units center", 0, 250)
@@ -2237,10 +2237,10 @@ end
  *          [nil]   : Return the result as cosine
 ]]
 function LaserLib.GetRefractAngle(source, destin, outarg)
-  local mar = (source / destin) -- Calculate ref ratio
-  if(math.abs(mar) > 1) then mar = 1 / mar end -- Reverse
-  if(outarg == nil) then return mar end -- Return margin
-  local arg = math.asin(mar) -- Calculate sine argument
+  local eta = (source / destin) -- Calculate ref ratio
+  if(math.abs(eta) > 1) then eta = 1 / eta end -- Reverse
+  if(outarg == nil) then return eta end -- Return ratio
+  local arg = math.asin(eta) -- Calculate sine argument
   if(not outarg) then return arg end -- Return radians
   return math.deg(arg) -- Do some extra work for degrees
 end
@@ -2258,32 +2258,16 @@ end
  *    [3] > Mediums have the same refractive index
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
-  if(DATA.NSPLITER:GetInt() > 1) then
-    local inc = direct:GetNormalized() -- Read normalized copy or incident
-    if(source == destin) then return inc, true, true end -- Continue out medium
-    local nrm = Vector(normal); nrm:Negate()  -- Call copy-constructor
-    local vcr = inc:Cross(nrm) -- Always normalized. Sine: |i||n|sin(i^n)
-    local ang, sii = nrm:AngleEx(vcr), vcr:Length()
-    local mar = (sii * source) / destin -- Apply Snell's law
-    if(math.abs(mar) <= 1) then -- Valid angle available
-      local sio, aup = math.asin(mar), ang:Up()
-      ang:RotateAroundAxis(aup, -math.deg(sio))
-      return ang:Forward(), true, false, sio -- Make refraction
-    else -- Reflect from medium interface boundary
-      return LaserLib.GetReflected(direct, normal), false, false
-    end
-  else
-    local inc = direct:GetNormalized() -- Read normalized copy or incident
-    local nrm, eta = normal:GetNormalized(), (source / destin)  -- Copy-constructor
-    local cos = -inc:Dot(nrm); if(cos < 0) then nrm:Negate(); cos = -cos end
-    if(eta == 1) then return inc, true, true, cos end -- Continue out medium
-    local sin = eta * eta * (1 - cos * cos) -- Calculate sin squared
-    if(sin > 1) then return LaserLib.GetReflected(direct, normal), false, false, cos end
-    local ref = Vector(inc); ref:Mul(eta) -- Create output direction
-    local mar = eta * cos - math.sqrt(1 - sin) -- Calculate trig margin
-    nrm:Mul(mar); ref:Add(nrm); ref:Normalize() -- Adjust direction and normalize
-    return ref, true, false, cos
-  end
+  local inc = direct:GetNormalized() -- Read normalized copy or incident
+  local nrm, eta = normal:GetNormalized(), (source / destin)  -- Copy-constructor
+  local cos = -inc:Dot(nrm); if(cos < 0) then nrm:Negate(); cos = -cos end
+  if(eta == 1) then return inc, true, true, cos end -- Continue out medium
+  local sin = eta * eta * (1 - cos * cos) -- Calculate sin squared
+  if(sin > 1) then return LaserLib.GetReflected(direct, normal), false, false, cos end
+  local ref = Vector(inc); ref:Mul(eta) -- Create output direction
+  local mar = eta * cos - math.sqrt(1 - sin) -- Calculate trig margin
+  nrm:Mul(mar); ref:Add(nrm); ref:Normalize() -- Adjust direction and normalize
+  return ref, true, false, cos
 end
 
 --[[
@@ -2762,8 +2746,7 @@ local mtBeam = {} -- Object metatable for class methods
       mtBeam.__type  = "BeamData" -- Store class type here
       mtBeam.__trace = {} -- Temporary trace result to fill
       mtBeam.__index = mtBeam -- If not found in self search here
-      mtBeam.__vtorg = Vector() -- Temporary calculation origin vector
-      mtBeam.__vtdir = Vector() -- Temporary calculation direct vector
+      -- Fast access to air and water refraction configuration
       mtBeam.__meair = {DATA.REFRACT["air"  ], "air"  } -- General air info
       mtBeam.__mewat = {DATA.REFRACT["water"], "water"} -- General water info
       mtBeam.__xcopy =  {   -- For pass-trough copy of current beam is needed
@@ -2806,6 +2789,7 @@ function LaserLib.Beam(origin, direct, length)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
   self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
+  self.NvFresne = DATA.MXFRESNE:GetInt() -- Ammowed fresnel splits count
   self.IsHoleGv = false -- Is is currently affected by gravity wells
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
@@ -2859,6 +2843,22 @@ function mtBeam:IsValid()
   if(not LaserLib.IsValid(self.BoSource)) then
     ErrorNoHaltWithStack("Primary missing!"); return false end
   return true
+end
+
+--[[
+ * Returns the decremented fresnel breanches
+]]
+function mtBeam:GetFresnel(bD)
+  if(bD) then self.NvFresne = (self.NvFresne - 1) end
+  return self.NvFresne
+end
+
+--[[
+ * Applies the fresnel count to the triggered beam
+]]
+function mtBeam:SetFresnel(nF)
+  self.NvFresne = (tonumber(nF) or 0)
+  return self
 end
 
 --[[
@@ -3261,7 +3261,7 @@ end
 ]]
 function mtBeam:GetWaterDirect(dir)
   if(self:IsAir()) then return nil end
-  local wat, tmp = self:GetWater(), self.__vtdir
+  local wat, tmp = self:GetWater(), Vector()
   tmp:Set(dir or self.VrDirect)
   return tmp:Dot(wat.N)
 end
@@ -3279,7 +3279,7 @@ end
 ]]
 function mtBeam:GetWaterOrigin(pos)
   if(self:IsAir()) then return nil end
-  local wat, tmp = self:GetWater(), self.__vtorg
+  local wat, tmp = self:GetWater(), Vector()
   tmp:Set(pos or self.VrOrigin); tmp:Sub(wat.P)
   return tmp:Dot(wat.N)
 end
@@ -3292,8 +3292,8 @@ end
 ]]
 function mtBeam:SetWaterSurface(origin, direct, length, filter)
   local len = (tonumber(length) or DATA.TRWU)
-  local dir = self.__vtdir; dir:Set(direct or DATA.VDRUP)
-  local org = self.__vtorg; org:Set(origin or self.VrOrigin)
+  local dir = Vector(); dir:Set(direct or DATA.VDRUP)
+  local org = Vector(); org:Set(origin or self.VrOrigin)
   if(len <= 0) then len = dir:Length() end; dir:Normalize()
   local wat, tr = self:GetWater(), self:GetTrace(org, dir, len, filter, MASK_ALL)
   wat.P:Set(tr.Normal); wat.P:Mul(tr.FractionLeftSolid * len)
@@ -3363,7 +3363,7 @@ end
  * margn > Margin to adjust the temporary with
 ]]
 function mtBeam:GetNudge(mar)
-  local vtm = self.__vtorg
+  local vtm = Vector()
   local mar = (tonumber(mar) or DATA.NUGE)
   vtm:Set(self.VrDirect); vtm:Mul(mar)
   vtm:Add(self.VrOrigin); return vtm
@@ -3519,7 +3519,7 @@ function mtBeam:SetTraceWidth(trace, length)
      self.IsRfract and -- Library must be refracting
      self.BmTracew and -- Beam width is available
      self.BmTracew > 0) then -- Beam width is present
-    local vtm = self.__vtorg; vtm:Set(trace.HitNormal)
+    local vtm = Vector(); vtm:Set(trace.HitNormal)
     vtm:Mul(-DATA.TRDGQ * self.BmTracew); trace.HitPos:Add(vtm)
   end -- At this point we know exactly how long will the trace be
   self:SetTraceLength(trace, length)
@@ -3545,7 +3545,7 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
     self:Pass(cnlen) -- Direct length
   else -- Read node stack size and use distance for travel
     if(size > 0 and nbulen) then -- Length is not provided
-      local prev, vtmp = info[size][1], self.__vtorg
+      local prev, vtmp = info[size][1], Vector()
       vtmp:Set(node); vtmp:Sub(prev) -- Relative to previous
       self:Pass(vtmp:Length()) -- Slower but correct
     end -- Use the nodes and make sure previous exists
@@ -3596,7 +3596,7 @@ end
 function mtBeam:IsNode()
   if(self.NvLength >= 0) then return true end
   local set, siz = self:GetPoints() -- Set of nodes
-  local nxt, dir = set[siz][1], self.__vtdir
+  local nxt, dir = set[siz][1], Vector()
   dir:Set(self.VrDirect) dir:Mul(self.NvLength)
   nxt:Add(dir); self.NvLength = 0; return false
 end
@@ -3801,7 +3801,7 @@ end
  * util.IntersectRayWithOBB
 ]]
 function mtBeam:SetTraceExit()
-  local org, dir = self.__vtorg, self.__vtdir
+  local org, dir = Vector(), Vector()
   local ent, len = self:GetSource(), self:GetLength()
   local mib, mab = ent:OBBMins(), ent:OBBMaxs()
   local anb, psb = ent:GetAngles(), ent:GetPos()
@@ -3857,7 +3857,7 @@ function mtBeam:RefractWaterAir()
   local vwa = util.IntersectRayWithPlane(org, dir, wat.P, wat.N)
   -- Water-air intersection point is stored in `vwa`
   -- The intersection point will never be empty in this case
-  local mewat, meair, vtm = mtBeam.__mewat, mtBeam.__meair, self.__vtorg
+  local mewat, meair, vtm = mtBeam.__mewat, mtBeam.__meair, Vector()
   -- Registering the node cannot be done with direct subtraction
   self:RegisterNode(vwa, true); vtm:Set(wat.N); vtm:Negate()
   local vdir, bnex = self:Refract(dir, vwa, vtm, mewat[1][1], meair[1][1])
@@ -3945,8 +3945,8 @@ end
  * target > Entity being the current beam target
 ]]
 function mtBeam:IsTraverse(origin, direct, normal, target)
-  local org = mtBeam.__vtorg; org:Set(origin or self.VrOrigin)
-  local dir = mtBeam.__vtdir; dir:Set(direct or self.VrDirect)
+  local org = Vector(); org:Set(origin or self.VrOrigin)
+  local dir = Vector(); dir:Set(direct or self.VrDirect)
   local refract = self:GetSolidMedium(org, dir, target)
   if(not refract) then return false end
   -- Refract the hell out of this requested beam with entity destination
@@ -4883,20 +4883,23 @@ end
  * Returns [vdir, bnex, bsam] according to wavelength
 ]]
 function mtBeam:Refract(vDir, vPos, vNor, nSrc, nDst)
+  local tTg  = self:GetTarget()
+  local iFr  = self:GetFresnel()
+  local nW   = self:GetWavelength()
   local nSrc = (tonumber(nSrc) or 0)
   local nDst = (tonumber(nDst) or 0)
   local vDir = (vDir or self.VrDirect)
-  local nW   = self:GetWavelength()
-  local tTg  = self:GetTarget()
   local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
   local vPos = (vPos or tTg.HitPos or self.VrOrigin)
   if(nW > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nW, nSrc)
     nDst = LaserLib.WaveToIndex(nW, nDst)
   end
-  if(self.BmFresne and nSrc ~= nDst) then
+  local vBir, bNex, bSam, nCos = LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
+  if(self.BmFresne and not self.StRfract and bNex and not bSam and iFr > 0) then
+    local iFr  = self:GetFresnel(true)
     local mar = (DATA.NUGE / 10)
-    local len = (self.NvLength + mar)
+    local len = (self.NvLength - mar)
     local brn = self:GetBranch()
     local ovr, dis, frn = self:GetFgTexture()
     local src, sro = self.BmSource, self.BoSource
@@ -4906,20 +4909,21 @@ function mtBeam:Refract(vDir, vPos, vNor, nSrc, nDst)
     local bnc = self:GetBounces(true)
     local vr, vg, vb, va = self:GetColorRGBA()
     local rbs = ((nSrc - nDst) / (nSrc + nDst))^2
-    local vBir, bNex, bSam, nCos = LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
     local ref = rbs + (1 - rbs) * (1 - nCos)^5 -- Schlick’s approximation
-    local org = util.IntersectRayWithPlane(self.VrOrigin, self.VrDirect, vPos, vNor)
+    local org = LaserLib.GetReflected(vDir, vNor)
+    local dir = Vector(org); org:Mul(mar); org:Add(vPos)
     local rel = LaserLib.GetReflected(vDir, vNor)
-    local beam = LaserLib.Beam(org, rel, len) -- Make a beam
+    local beam = LaserLib.Beam(org, dir, len) -- Make a beam
     -- Setup child beam and apply power modifiers
     beam:SetSource(src, src, sro)     -- Primary source
     beam:SetWidth(ref * wih)          -- Weighted width
     beam:SetDamage(ref * dmg)         -- Weighted damage
     beam:SetForce(ref * frc)          -- Weighted force
     beam:SetFgDivert(rle, rfr)        -- Inherited diversion
-    beam:SetFgTexture(ovr, dis, frn ) -- Disable dispersion
+    beam:SetFgTexture(ovr, dis, frn)  -- Disable dispersion
     beam:SetBounces(bnc)              -- Left over bounces
     beam:SetWavelength(nW)            -- Component wavelength
+    beam:SetFresnel(iFr)              -- Fresnel count
     beam:SetColorRGBA(vr, vg, vb, va) -- Apply beam color
     -- Validate branch beam state and start the propagation
     if(not beam:IsValid() and SERVER) then
@@ -4928,10 +4932,7 @@ function mtBeam:Refract(vDir, vPos, vNor, nSrc, nDst)
     beam:Run(self.BmRecuLS + 1)
     self:SetPowerRatio(1 - ref)
     self:SetBranch(beam)
-    return vBir, bNex, bSam, nCos
-  else
-    return LaserLib.GetRefracted(vDir, vNor, nSrc, nDst)
-  end
+  end; return vBir, bNex, bSam, nCos
 end
 
 --[[
