@@ -141,3 +141,18 @@ function ENT:SetBeamDisperse(bool)
   self:WireWrite("Disperse", (disp and 1 or 0))
   return self
 end
+
+--[[
+ * Fresnel. Makes the beam utilize fresnel effect
+ * When `true` reflection triggered for every interface
+]]
+function ENT:GetBeamFresnel()
+  return self:GetInBeamFresnel()
+end
+
+function ENT:SetBeamFresnel(bool)
+  local fres = tobool(bool)
+  self:SetInBeamFresnel(fres)
+  self:WireWrite("Fresnel", (fres and 1 or 0))
+  return self
+end

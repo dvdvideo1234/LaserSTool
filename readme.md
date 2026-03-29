@@ -36,22 +36,23 @@ version anymore. This was the only way I could support the things I needed the m
 2. [Reflect][ref-reflect] beam traces via hit surface material override
 3. [Refract][ref-refract-pic] beam traces via hit surface material override
 4. [Disperse][ref-disperse] beam traces via hit surface material override
-5. [Gravity well][ref-blackhole] interface for trace direction adjustment. Spin and stationary.
-6. Calculate [full internal reflection][ref-total-reflect] according to [medium boundary][ref-boundary]
-7. Code base and updates in tone with [Garry's mod 13][ref-gmod-link]
-8. Supports [wire][ref-wire] and every element supports advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
-9. [Wire inputs][ref-wire] override internals when connected
-10. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
-11. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
-12. A better model for the crystal entity so as not to get confused about where the beam comes out
-13. [Material override][ref-mat-override] can be saved and restored with advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
-14. [Editable entity][ref-ent-edit] support option for changing internals of the laser elements
-15. User customizable models for active entities and reflectors via convar tweak
-16. Absorption [degradation and self-sustained beam loop][ref-crystal] for crystal entities
-17. Wiremod [API][ref-wire-api] for retrieving beam source settings and making control feedback
-18. A bunch of different laser addon dedicated elements you can find [here in the wiki page][ref-wiki-page]
-19. Coding an effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
-20. You can combine the refraction with [Shadowscion's primitive][ref-primitive] for using lenses
+5. [Fresnel effect][ref-fresnel] beam traces via hit surface material override
+6. [Gravity well][ref-blackhole] interface for trace direction adjustment. Spin and stationary.
+7. Calculate [full internal reflection][ref-total-reflect] according to [medium boundary][ref-boundary]
+8. Code base and updates in tone with [Garry's mod 13][ref-gmod-link]
+9. Supports [wire][ref-wire] and every element supports advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
+10. [Wire inputs][ref-wire] override internals when connected
+11. Internal [wire wrapper][ref-wire-wrap] taking care of the wire interface
+12. Surface [reflection][ref-reflect] and medium [refraction][ref-refract] power [absorption][ref-reflect-rate]
+13. A better model for the crystal entity so as not to get confused about where the beam comes out
+14. [Material override][ref-mat-override] can be saved and restored with advanced duplicator [1][ref-adv-dupe1] and [2][ref-adv-dupe2]
+15. [Editable entity][ref-ent-edit] support option for changing internals of the laser elements
+16. User customizable models for active entities and reflectors via convar tweak
+17. Absorption [degradation and self-sustained beam loop][ref-crystal] for crystal entities
+18. Wiremod [API][ref-wire-api] for retrieving beam source settings and making control feedback
+19. A bunch of different laser addon dedicated elements you can find [here in the wiki page][ref-wiki-page]
+20. Coding an effective wrapper for [editable entity][ref-ent-edit] manipulation and adjustment
+21. You can combine the refraction with [Shadowscion's primitive][ref-primitive] for using lenses
 
 ### Workshop
 I see many copies of this tool everywhere, but still, there is none that
@@ -99,3 +100,4 @@ I am a fan of this tool, so any help I get will be appreciated.
 [ref-ws-date]: https://img.shields.io/steam/update-date/2546685571
 [ref-ws-updt]: https://steamcommunity.com/sharedfiles/filedetails/changelog/2546685571
 [ref-primitive]: https://github.com/shadowscion/Primitive
+[ref-fresnel]: https://en.wikipedia.org/wiki/Fresnel_equations

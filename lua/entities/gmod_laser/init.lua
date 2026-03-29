@@ -28,6 +28,7 @@ function ENT:Initialize()
     {"Force"   , "NORMAL", "Updates the beam force"   },
     {"Safety"  , "NORMAL", "Updates the beam safety"  },
     {"Ignite"  , "NORMAL", "Updates the beam ignite"  },
+    {"Fresnel" , "NORMAL", "Updates the beam fresnel" },
     {"Disperse", "NORMAL", "Updates the beam disperse"}
   ):WireCreateOutputs(
     {"On"      , "NORMAL", "Laser entity status"      },
@@ -39,6 +40,7 @@ function ENT:Initialize()
     {"Force"   , "NORMAL", "Returns the beam force"   },
     {"Safety"  , "NORMAL", "Returns the beam safety"  },
     {"Ignite"  , "NORMAL", "Updates the beam ignite"  },
+    {"Fresnel" , "NORMAL", "Updates the beam fresnel" },
     {"Disperse", "NORMAL", "Returns the beam disperse"},
     {"Target"  , "ENTITY", "Laser entity target"      },
     {"Entity"  , "ENTITY", "Laser entity itself"      }

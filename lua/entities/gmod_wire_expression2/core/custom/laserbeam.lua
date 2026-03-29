@@ -587,3 +587,9 @@ e2function number laserGetRefractAngleDeg(number source, number destin)
   return toNumber(LaserLib.GetRefractAngle(source, destin, true))
 end
 
+__e2setcost(1)
+e2function number laserGetRefractAngleRatio(number source, number destin)
+  return toNumber(LaserLib.GetRefractAngle(source, destin))
+end
+
+

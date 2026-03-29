@@ -40,6 +40,7 @@ function ENT:Initialize()
     {"Force"     , "NORMAL", "Splitter force amount"   },
     {"Safety"    , "NORMAL", "Splitter beam safety"    },
     {"Ignite"    , "NORMAL", "Splitter beam ignite"    },
+    {"Fresnel"   , "NORMAL", "Splitter beam fresnel"   },
     {"Disperse"  , "NORMAL", "Splitter beam disperse"  },
     {"Entity"    , "ENTITY", "Splitter entity itself"  },
     {"Dominant"  , "ENTITY", "Splitter dominant entity"}
@@ -67,6 +68,7 @@ function ENT:Initialize()
   self:SetDissolveType("")
   self:SetBeamSafety(false)
   self:SetForceCenter(false)
+  self:SetBeamFresnel(false)
   self:SetBeamDisperse(false)
   self:SetEndingEffect(false)
   self:SetReflectRatio(false)

@@ -26,6 +26,7 @@ local gvVDRUP    = LaserLib.GetData("VDRUP")
 local gvVZERO    = LaserLib.GetData("VZERO")
 local cvENSOUNDS = LaserLib.GetData("ENSOUNDS")
 local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
+local cvMXFRESNE = LaserLib.GetData("MXFRESNE")
 
 function ENT:SetupDataTables()
   LaserLib.SetPrimary(self)
@@ -212,6 +213,30 @@ function ENT:GetBeamDisperse()
 end
 
 --[[
+ * Fresnel. Makes the beam utilize fresnel effect
+ * When `true` reflection triggered for every interface
+]]
+function ENT:SetBeamFresnel(bool)
+  local fren = tobool(bool)
+  self:SetInBeamFresnel(fren)
+  return self
+end
+
+function ENT:GetBeamFresnel()
+  if(SERVER) then
+    local fren = self:WireRead("Fresnel", true)
+    if(fren ~= nil) then fren = tobool(fren)
+    else fren = self:GetInBeamFresnel() end
+    self:SetNWBool("GetInBeamFresnel", fren)
+    self:WireWrite("Fresnel", (fren and 1 or 0))
+    return fren
+  else
+    local fren = self:GetInBeamFresnel()
+    return self:GetNWBool("GetInBeamFresnel", fren)
+  end
+end
+
+--[[
  * Material. The actual material used drawing the beam
  * When `true` is passed will return a material object
 ]]
@@ -385,6 +410,7 @@ function ENT:DoBeam(org, dir)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
+  local fresne = (self:GetBeamFresnel() and cvMXFRESNE:GetInt() > 0)
   local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetInt() > 0)
   local beam   = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self, self)
@@ -392,7 +418,7 @@ function ENT:DoBeam(org, dir)
         beam:SetDamage(self:GetBeamDamage())
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, disper)
+        beam:SetFgTexture(noverm, disper, fresne)
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end

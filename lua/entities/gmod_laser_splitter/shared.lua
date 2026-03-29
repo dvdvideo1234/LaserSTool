@@ -21,6 +21,7 @@ local gtWVIS     = LaserLib.GetData("WVIS")
 local gnDOTM     = LaserLib.GetData("DOTM")
 local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
 local cvMXSPLTBC = LaserLib.GetData("MXSPLTBC")
+local cvMXFRESNE = LaserLib.GetData("MXFRESNE")
 
 function ENT:SetupDataTables()
   self:EditableSetInt   ("InBeamCount"  , "Internals", 0, cvMXSPLTBC:GetInt())
@@ -195,6 +196,21 @@ function ENT:SetBeamDisperse(bool)
   return self
 end
 
+--[[
+ * Fresnel. Makes the beam utilize fresnel effect
+ * When `true` reflection triggered for every interface
+]]
+function ENT:GetBeamFresnel()
+  return self:GetInBeamFresnel()
+end
+
+function ENT:SetBeamFresnel(bool)
+  local fres = tobool(bool)
+  self:SetInBeamFresnel(fres)
+  self:WireWrite("Fresnel", (fres and 1 or 0))
+  return self
+end
+
 function ENT:GetLeanAngle(forwd, upwrd)
   return LaserLib.GetLeanAngle(forwd, upwrd,
                                self:GetBeamLeanX(),
@@ -230,6 +246,7 @@ function ENT:DoBeam(org, dir, idx)
   local usrfre = self:GetRefractRatio()
   local direct = self:GetBeamDirection(dir)
   local noverm = self:GetNonOverMater()
+  local fresne = (self:GetBeamFresnel() and cvMXFRESNE:GetInt() > 0)
   local disper = (self:GetBeamDisperse() and cvWDHUECNT:GetInt() > 0)
   local todiv  = (self:GetBeamReplicate() and 1 or count)
   local beam   = LaserLib.Beam(origin, direct, length)
@@ -238,7 +255,7 @@ function ENT:DoBeam(org, dir, idx)
         beam:SetDamage(self:GetBeamDamage() / todiv)
         beam:SetForce(self:GetBeamForce() / todiv)
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, disper)
+        beam:SetFgTexture(noverm, disper, fresne)
         beam:SetBounces()
   if(self:GetBeamColorSplit() and idx) then
     self:SetColorWave(beam, count, idx)
