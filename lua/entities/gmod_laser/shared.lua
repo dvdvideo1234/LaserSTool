@@ -61,15 +61,6 @@ function ENT:GetBeamDirection(direct, nocnv)
   return dir
 end
 
-function ENT:GetHitPower(normal, beam, trace, bmln)
-  local norm = Vector(normal)
-        norm:Rotate(self:GetAngles())
-  local dotv = math.abs(norm:Dot(beam.VrDirect))
-  if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
-  local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - gnDOTM)), dotv
-end
-
 --[[
  * Width. How wide does the beam appear when drawn
  * This is different than the trace width itself

@@ -89,10 +89,3 @@ function ENT:GetHitNormal()
     return self:GetNWVector("GetNormalLocal", normal)
   end
 end
-
-function ENT:GetHitPower(normal, beam, trace)
-  local norm = Vector(normal)
-        norm:Rotate(self:GetAngles())
-  local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - gnDOTM))
-end

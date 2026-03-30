@@ -63,13 +63,6 @@ function ENT:GetHitNormal()
   end
 end
 
-function ENT:GetHitPower(normal, beam, trace)
-  local norm = Vector(normal)
-        norm:Rotate(self:GetAngles())
-  local dott = math.abs(norm:Dot(trace.HitNormal))
-  return (dott > (1 - gnDOTM))
-end
-
 function ENT:DoBeam(org, dir, bmsr)
   if(self.RecuseBeamID > 10) then
     self.RecuseBeamID = 0

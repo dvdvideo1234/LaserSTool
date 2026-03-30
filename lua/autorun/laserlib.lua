@@ -1398,6 +1398,24 @@ function LaserLib.Configure(unit)
   end
 
   --[[
+   * Calculates dot product between entity normal local
+   * and beam target local to make sure the beam hits
+   * the entity surface. The second value is the dot
+   * product with the current beam to determine the skew
+   * normal > Entity local normal vector to be checked
+   * beam   > Current beam object being checked
+   * trace  > Trace used to extract hit normal
+   * bmln   > Retrieve the skew as a linear angle margin
+  ]]
+  function unit:GetHitPower(normal, beam, trace, bmln)
+    local norm = Vector(normal); norm:Rotate(self:GetAngles())
+    local dotv = math.abs(norm:Dot(beam.VrDirect))
+    if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
+    local dott = math.abs(norm:Dot(trace.HitNormal))
+    return (dott > (1 - gnDOTM)), dotv
+  end
+
+  --[[
    * Effects draw handling decides whenever
    * the current tick has to draw the effects
    * Flag is automatically reset in every call
@@ -1428,20 +1446,18 @@ function LaserLib.Configure(unit)
    * set  > Contains the already processed items
   ]]
   function unit:IsInfinite(ent, set)
-    local set = (set or {}) -- Allocate pass-trough entity registration table
-    if(LaserLib.IsValid(ent)) then -- Invalid entities cannot do infinite loops
-      if(set[ent]) then return false end -- This has already been checked for infinite
-      if(ent == self) then return true else set[ent] = true end -- Check and register
-      if(LaserLib.IsBeam(ent) and ent.meSources) then -- Can output names and has sources
-        for src, stat in pairs(ent.meSources) do -- Other hits and we are in its sources
-          if(LaserLib.IsValid(src)) then -- Crystal has been hit by other crystal
-            if(src == self) then return true end -- Performance optimization
-            if(LaserLib.IsBeam(src) and src.meSources) then -- Class propagates the tree
-              if(self:IsInfinite(src, set)) then return true end end
-          end -- Cascades propagate trough the crystal sources from `self`
-        end; return false -- The entity does not persists in itself
-      else return false end
-    else return false end
+    local set = (set or {}) -- Allocate pass-through entity registration table
+    if(not LaserLib.IsValid(ent)) then return false end -- Invalid ents cannot do infinite loops
+    if(set[ent]) then return false end -- This has already been checked for infinite loops
+    if(ent == self) then return true else set[ent] = true end -- Check entity and register
+    if(not (LaserLib.IsBeam(ent) and ent.meSources)) then return false end -- Output and sources
+    for src, stat in pairs(ent.meSources) do -- Other hits and we are in its sources
+      if(LaserLib.IsValid(src)) then -- Crystal has been hit by other valid crystal
+        if(src == self) then return true end -- Performance optimization. Find yourself
+        if(LaserLib.IsBeam(src) and src.meSources) then -- Class propagates the tree
+          if(self:IsInfinite(src, set)) then return true end end
+      end -- Cascades propagate through the crystal sources from `self`
+    end; return false -- The entity does not persist in itself
   end
 
   ------ HIT REPORTS MANAGER ------
@@ -1452,7 +1468,7 @@ function LaserLib.Configure(unit)
   function unit:GetHitReportMax()
     local ros = self.mrReports
     if(not ros) then return 0 end
-    return ros.Size or 0
+    return (ros.Size or 0)
   end
 
   --[[
@@ -1591,11 +1607,17 @@ function LaserLib.Configure(unit)
    * sources `ent` affect our `self` behavior.
    * Automatically removes the non related reports
    * self > Entity base item that is being issued
-   * proc > Scope function to process. Arguments:
-   *      > entity > Hit report active entity
+   * proc > Scope function per-beam handler. Arguments:
+   *      > entity > Hit report active source
    *      > index  > Hit report active index
-   *      > trace  > Hit report active trace
    *      > beam   > Hit report active beam
+   * each > Scope function per-source handler. Arguments:
+   *      > entity > Hit report active source
+   *      > index  > Hit report active index
+   * apre > Action taken for pre-processing
+   *      > entity > Source entity
+   * post > Action taken for post-processing
+   *      > entity > Source entity
    * Process how `ent` hit reports affects us `self`. Remove when no hits
   ]]
   function unit:ProcessSources(proc, each, apre, post)
@@ -3619,7 +3641,7 @@ end
 
 --[[
  * Checks whenever the last node location
- * belongs on the laser beam. Adjusts if not
+ * belongs on the laser beam and adjusts if not
 ]]
 function mtBeam:IsNode()
   if(self.NvLength >= 0) then return true end
@@ -4444,7 +4466,7 @@ DATA.ACTORS = {
             cup[2] = math.max(sc.g - ec.g, 0)
             cup[3] = math.max(sc.b - ec.b, 0)
             cup[4] = math.max(sc.a - ec.a, 0)
-          end -- Last beam color being used. change current cololr
+          end -- Last beam color being used. change current color
           beam:SetColorRGBA(cup[1], cup[2], cup[3], cup[4])
         end -- Remove from the output beams with such color and material
         beam.NvLength  = length; -- Length not used in visuals
