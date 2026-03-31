@@ -1451,11 +1451,9 @@ function LaserLib.Configure(unit)
     if(set[ent]) then return false end -- This has already been checked for infinite loops
     if(ent == self) then return true else set[ent] = true end -- Check entity and register
     if(not (LaserLib.IsBeam(ent) and ent.meSources)) then return false end -- Output and sources
-    for src, stat in pairs(ent.meSources) do -- Other hits and we are in its sources
-      if(LaserLib.IsValid(src)) then -- Crystal has been hit by other valid crystal
-        if(src == self) then return true end -- Performance optimization. Find yourself
-        if(LaserLib.IsBeam(src) and src.meSources) then -- Class propagates the tree
-          if(self:IsInfinite(src, set)) then return true end end
+    for src, hit in pairs(ent.meSources) do -- Other hits and we are in its sources
+      if(hit and LaserLib.IsValid(src)) then -- Crystal has been hit by other valid crystal
+        if(self:IsInfinite(src, set)) then return true end -- Check the valid ents only
       end -- Cascades propagate through the crystal sources from `self`
     end; return false -- The entity does not persist in itself
   end
