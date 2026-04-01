@@ -1406,6 +1406,7 @@ function LaserLib.Configure(unit)
    * beam  > Current beam object being checked
    * trace > Trace used to extract hit normal
    * bmln  > Retrieve the skew as a linear angle margin
+   * skip  > Skips the normal check. Surface does not matter
   ]]
   function unit:GetHitPower(norm, trace, beam, bmln, skip)
     local norm, dotm = Vector(norm), DATA.DOTM; norm:Rotate(self:GetAngles())
@@ -1477,7 +1478,6 @@ function LaserLib.Configure(unit)
        [true]      > Trims the array to report ID
        [false]     > Trims the array to report size
        [nil]       > Clears the array and removes all
-
    * wipe > Forced wiping control on size change def. true
    * Data is stored in notation: self.mrReports[ID]
   ]]
