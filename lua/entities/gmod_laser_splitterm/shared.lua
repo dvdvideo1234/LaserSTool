@@ -145,12 +145,6 @@ function ENT:GetOn()
   return state
 end
 
-function ENT:IsHitNormal(trace)
-  local normal = Vector(self:GetHitNormal())
-        normal:Rotate(self:GetAngles())
-  return (math.abs(normal:Dot(trace.HitNormal)) > (1 - gnDOTM))
-end
-
 function ENT:GetLeanAngle(forwd, upwrd)
   return LaserLib.GetLeanAngle(forwd, upwrd,
                                self:GetBeamLeanX(),
@@ -160,8 +154,8 @@ end
 
 function ENT:EveryBeam(entity, index, beam)
   if(not beam) then return end
-  local trace = beam:GetTarget()
-  if(trace and trace.Hit and self:IsHitNormal(trace)) then
+  local norm, trace = self:GetHitNormal(), beam:GetTarget()
+  if(trace and trace.Hit and self:GetHitPower(norm, trace)) then
     local count = self.crCount; self:SetArrays(entity)
     if(count > 0) then
       local mnang = (gtAMAX[2] / count)

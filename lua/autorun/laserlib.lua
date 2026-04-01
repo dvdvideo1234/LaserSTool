@@ -1402,17 +1402,18 @@ function LaserLib.Configure(unit)
    * and beam target local to make sure the beam hits
    * the entity surface. The second value is the dot
    * product with the current beam to determine the skew
-   * normal > Entity local normal vector to be checked
-   * beam   > Current beam object being checked
-   * trace  > Trace used to extract hit normal
-   * bmln   > Retrieve the skew as a linear angle margin
+   * norm  > Entity local normal vector to be checked
+   * beam  > Current beam object being checked
+   * trace > Trace used to extract hit normal
+   * bmln  > Retrieve the skew as a linear angle margin
   ]]
-  function unit:GetHitPower(normal, beam, trace, bmln)
-    local norm = Vector(normal); norm:Rotate(self:GetAngles())
-    local dotv = math.abs(norm:Dot(beam.VrDirect))
-    if(bmln) then dotv = 2 * math.asin(dotv) / math.pi end
+  function unit:GetHitPower(norm, trace, beam, bmln, skip)
+    local norm, dotm = Vector(norm), DATA.DOTM; norm:Rotate(self:GetAngles())
+    local dotv = (beam and math.abs(norm:Dot(beam.VrDirect)) or nil)
+    if(dotv and bmln) then dotv = -2 * math.acos(dotv) / math.pi end
+    if(skip and norm:LengthSqr() < dotm) then return true, dotv end
     local dott = math.abs(norm:Dot(trace.HitNormal))
-    return (dott > (1 - gnDOTM)), dotv
+    return (dott > (1 - dotm)), dotv
   end
 
   --[[
@@ -4280,9 +4281,9 @@ DATA.ACTORS = {
     beam:SetActor(out); beam:Finish(false)
   end,
   ["gmod_laser_portal"] = function(beam)
-    local trace = beam:GetTarget() -- Read current trace
+    local norm, trace = self:GetNormalLocal(), beam:GetTarget()
     local ent, src = trace.Entity, beam:GetSource()
-    if(not ent:IsHitNormal(trace)) then return end
+    if(not ent:GetHitPower(norm, trace, nil, nil, true)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
     if(idx <= 0) then return end -- No output ID chosen
     local out = ent:GetActiveExit(idx) -- Validate output entity
@@ -4341,7 +4342,7 @@ DATA.ACTORS = {
     local trace = beam:GetTarget() -- Read current trace
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
-    local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
+    local bdot, mdot = ent:GetHitPower(norm, trace, beam, bmln)
     if(trace and trace.Hit and bdot) then
       beam:Finish(false) -- Beam hits correct surface. Continue
       local vdot = (ent:GetBeamReplicate() and 1 or mdot)
@@ -4382,7 +4383,7 @@ DATA.ACTORS = {
     local trace = beam:GetTarget() -- Read current trace
     local ent = trace.Entity -- Retrieve class trace entity
     local norm = ent:GetHitNormal()
-    local bdot = ent:GetHitPower(norm, beam, trace)
+    local bdot = ent:GetHitPower(norm, trace, beam)
     if(trace and trace.Hit and bdot) then
       local aim, nrm = beam.VrDirect, trace.HitNormal
       local ray = LaserLib.GetReflected(aim, nrm)
@@ -4399,7 +4400,7 @@ DATA.ACTORS = {
     local trace = beam:GetTarget() -- Read current trace
     local ent, src = trace.Entity, beam:GetSource()
     local norm = ent:GetHitNormal()
-    local bdot = ent:GetHitPower(norm, beam, trace)
+    local bdot = ent:GetHitPower(norm, trace, beam)
     if(trace and trace.Hit and bdot) then
       local node = beam:GetNode() -- Extract last node
       local sc = beam:GetColorRGBA(true)
@@ -4481,7 +4482,7 @@ DATA.ACTORS = {
     local trace = beam:GetTarget() -- Read current trace
     local ent = trace.Entity -- Retrieve class trace entity
     local norm, bmln = ent:GetHitNormal(), ent:GetLinearMapping()
-    local bdot, mdot = ent:GetHitPower(norm, beam, trace, bmln)
+    local bdot, mdot = ent:GetHitPower(norm, trace, beam, bmln)
     if(trace and trace.Hit and bdot) then
       beam:Finish(false) -- Beam hits correct surface. Continue
       local focu = ent:GetFocus() -- Apply custom focus

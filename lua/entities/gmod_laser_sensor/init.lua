@@ -137,7 +137,7 @@ function ENT:EveryBeam(entity, index, beam)
   local trace = beam:GetTarget()
   if(trace and trace.Hit) then
     local norm = self:GetUnitDirection()
-    local bdot, mdot = self:GetHitPower(norm, beam, trace)
+    local bdot, mdot = self:GetHitPower(norm, trace, beam)
     self:SetArrays(entity, index, mdot, (bdot and 1 or 0))
     if(bdot) then
       self.crNpower = beam:GetPower()

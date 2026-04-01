@@ -62,22 +62,15 @@ function ENT:ToCustomUCS(vec)
   return ret, ucs
 end
 
-function ENT:IsHitNormal(trace)
-  local norm = Vector(self:GetNormalLocal())
-  if(norm:LengthSqr() < gnDOTM) then return true end
-  norm:Rotate(self:GetAngles())
-  return (math.abs(norm:Dot(trace.HitNormal)) > (1 - gnDOTM))
-end
-
 --[[
  * Converts the transit entity ID or entity itself
  * idx > Entity ID to convert to transit
- * ent > Force entity output instead of string
+ * ben > Force entity output instead of string
 ]]
-function ENT:GetTransitID(idx, ent)
-  local idx = (tonumber(idx) or 0) -- Convert the number
-  if(ent) then return ((idx ~= 0) and ents.GetByIndex(idx) or nil)
-  else return ((idx ~= 0) and tostring(idx) or gsNOAV) end
+function ENT:GetTransitID(idx, ben)
+  local idx = (tonumber(idx) or 0) -- Convert the number return string
+  if(not ben) then return ((idx ~= 0) and tostring(idx) or gsNOAV) end
+  return ((idx ~= 0) and ents.GetByIndex(idx) or nil) -- Entity
 end
 
 function ENT:IsTrueExit(out) local ent

@@ -20,7 +20,7 @@ function ENT:Initialize()
     beam:Finish(trace) -- Assume that beam stops traversing
     local ent = trace.Entity -- Retrieve class trace entity
     local norm = ent:GetHitNormal()
-    local bdot = ent:GetHitPower(norm, beam, trace)
+    local bdot = ent:GetHitPower(norm, trace, beam)
     if(trace and trace.Hit and bdot) then
       local aim, nrm = beam.VrDirect, trace.HitNormal
       local ray = LaserLib.GetReflected(aim, nrm)
