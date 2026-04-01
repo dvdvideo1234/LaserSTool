@@ -63,7 +63,7 @@ if(CLIENT) then
   end, gsTOOL.."lang")
 
   -- http://www.famfamfam.com/lab/icons/silk/preview.php
-  concommand.Add(gsTOOL.."_openmaterial",
+  concommand.Add(gsTOOL.."_openmanager",
     function(user, cmd, args)
       local base, tseq, sors
       local argm = tostring(args[1] or ""):upper()
@@ -78,7 +78,7 @@ if(CLIENT) then
       else return nil end
       tseq.Sors = sors:lower().."used"
       tseq.Conv = GetConVar(gsTOOL.."_"..tseq.Sors)
-      tseq.Name = language.GetPhrase("tool."..gsTOOL..".openmaterial").." "..argm
+      tseq.Name = language.GetPhrase("tool."..gsTOOL..".openmanager").." "..argm
       local pnFrame = vgui.Create("DFrame"); if(not IsValid(pnFrame)) then return nil end
       local scrW, scrH = surface.ScreenWidth(), surface.ScreenHeight()
       local iPa, iSx, iSy = 5, (scrW / 2), (scrH / 2)
@@ -381,9 +381,9 @@ function TOOL:Reload(trace)
   local user, ent = self:GetOwner(), trace.Entity
   if(trace.HitWorld) then
     if(user:KeyDown(IN_USE)) then
-      LaserLib.ConCommand(user, "openmaterial", "transparent"); return true
+      LaserLib.ConCommand(user, "openmanager", "transparent"); return true
     elseif(user:KeyDown(IN_SPEED)) then
-      LaserLib.ConCommand(user, "openmaterial", "mirror"); return true
+      LaserLib.ConCommand(user, "openmanager", "mirror"); return true
     end; return false
   else
     if(not LaserLib.IsValid(ent))  then return false end

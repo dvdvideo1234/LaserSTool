@@ -4,6 +4,7 @@ LaserLib.__newindex = nil
 
 local DATA = {}; setmetatable(LaserLib, LaserLib)
 
+DATA.ENRE = false              -- Enable unit registration errors. Disable when developing
 DATA.GRAT = 1.61803398875      -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"     -- Tool name for internal use
 DATA.ICON = "icon16/%s.png"    -- Format to convert icons
@@ -1266,7 +1267,7 @@ function LaserLib.RegisterUnit(uent, mdef, vdef, conv)
     ErrorNoHaltWithStack("Class invalid: "..tostring(usrc)) end
   local udrr = ucas:gsub(ocas.."%A+", ""); if(udrr == "") then
     ErrorNoHaltWithStack("Suffix empty: "..tostring(usrc)) end
-  local vset = (DATA.UNITS[index] or {}); if(vset and vset[5]) then
+  local vset = (DATA.UNITS[index] or {}); if(DATA.ENRE and vset and vset[5]) then
     ErrorNoHaltWithStack("Unit present ["..index.."]["..tostring(vset[1]).."]: "..ucas) end
   local uset = vset[1]; if(uset and uset ~= ucas) then
     ErrorNoHaltWithStack("Unit mismatch ["..index.."]["..tostring(vset[1]).."]: "..ucas) end
@@ -2719,8 +2720,9 @@ function LaserLib.GetWaveArray(cB, ...)
   local coax = math.max(cB.r, cB.g, cB.b)
   local coan = math.min(cB.r, cB.g, cB.b)
   local marg = -tW.Marg; tW.PT = 0
+  tW.IS, tW.IE = 1, tW.Size
   tW.PC = LaserLib.GetColorPower(cB)
-  if(coan > 0) then
+  if(coan > 0 and coan < coax) then
     coax  = (coax - coan)
     tW.PN = (coan / comx)
     tW.PX = (coax / comx)
@@ -2728,7 +2730,6 @@ function LaserLib.GetWaveArray(cB, ...)
     weco.r = tW.PM * (cB.r - coan)
     weco.g = tW.PM * (cB.g - coan)
     weco.b = tW.PM * (cB.b - coan)
-    tW.IS, tW.IE = 1, tW.Size
   else
     tW.PM = (comx / coax)
     tW.PX, tW.PN = (coax / comx), 0
@@ -3851,6 +3852,7 @@ end
  * util.IntersectRayWithOBB
 ]]
 function mtBeam:SetTraceExit()
+  if(self.BmRecuLS > 0) then return self end
   local ent, len = self:GetSource(), self:GetLength()
   local mib, mab = ent:OBBMins(), ent:OBBMaxs()
   local anb, psb = ent:GetAngles(), ent:GetPos()
@@ -4029,7 +4031,11 @@ function mtBeam:SourceFilter(entity, ...)
   elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
     if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly, ...} end
   else -- Switch the filter according to the weapon the player is holding
-    self.BmSource, self.TeFilter = entity, {entity, ...}
+    if(self.BmRecuLS > 0) then -- The beam has already left the source
+      self.BmSource, self.TeFilter = entity, {...} -- The beam is triggered recursively
+    else -- This is the root of the beam tree. No recursive stages are present
+      self.BmSource, self.TeFilter = entity, {entity, ...} -- We are exiting the source
+    end -- The filter must be set properly so the reflected beam will not pass trough source
   end; return self
 end
 
@@ -4281,38 +4287,43 @@ DATA.ACTORS = {
     beam:SetActor(out); beam:Finish(false)
   end,
   ["gmod_laser_portal"] = function(beam)
-    local norm, trace = self:GetNormalLocal(), beam:GetTarget()
-    local ent, src = trace.Entity, beam:GetSource()
+    local trace = beam:GetTarget()    -- Trace target
+    local ent = trace.Entity          -- Trace entity
+    local src = beam:GetSource()      -- Beam reference
+    local norm = ent:GetNormalLocal() -- Normal vector
     if(not ent:GetHitPower(norm, trace, nil, nil, true)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
     if(idx <= 0) then return end -- No output ID chosen
     local out = ent:GetActiveExit(idx) -- Validate output entity
     if(not out) then return end -- No output ID. Missing entity
     local node = beam:GetNode(); node[5] = false -- Skip node
-    local nrm = ent:GetNormalLocal() -- Read current normal
-    local bnr = (nrm:LengthSqr() > 0) -- When the model is flat
+    local bnr = (norm:LengthSqr() > 0) -- When the model is flat
     local mir = ent:GetMirrorExitPos()
     local pos, dir = trace.HitPos, beam.VrDirect
     local nps, ndr = LaserLib.GetBeamPortal(ent, out, pos, dir,
       function(ppos)
-        if(mir and bnr) then
-          local v, a = ent:ToCustomUCS(ppos)
-          v.y = -v.y; ppos:Set(v); ppos:Rotate(a)
-        else
-          local v, a = ent:ToCustomUCS(ppos)
-          ppos:Set(v); ppos:Rotate(a)
+        if(bnr) then
+          if(mir) then
+            local v, a = ent:ToCustomUCS(ppos)
+            v.y = -v.y; ppos:Set(v); ppos:Rotate(a)
+          else
+            local v, a = ent:ToCustomUCS(ppos)
+            ppos:Set(v); ppos:Rotate(a)
+          end
         end
       end,
       function(pdir)
-        if(ent:GetReflectExitDir()) then
-          local trn, wmr = Vector(trace.HitNormal), DATA.WLMR
-          trn:Mul(wmr); trn:Add(ent:GetPos())
-          trn:Set(ent:WorldToLocal(trn)); trn:Div(wmr)
-          pdir:Set(LaserLib.GetReflected(pdir, trn))
-        else
-          local v, a = ent:ToCustomUCS(pdir)
-          v.x = -v.x; v.y = -v.y
-          pdir:Set(v); pdir:Rotate(a)
+        if(bnr) then
+          if(ent:GetReflectExitDir()) then
+            local trn, wmr = Vector(trace.HitNormal), DATA.WLMR
+            trn:Mul(wmr); trn:Add(ent:GetPos())
+            trn:Set(ent:WorldToLocal(trn)); trn:Div(wmr)
+            pdir:Set(LaserLib.GetReflected(pdir, trn))
+          else
+            local v, a = ent:ToCustomUCS(pdir)
+            v.x = -v.x; v.y = -v.y
+            pdir:Set(v); pdir:Rotate(a)
+          end
         end
       end)
     beam.VrOrigin:Set(nps); beam.VrDirect:Set(ndr)
