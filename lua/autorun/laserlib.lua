@@ -1410,7 +1410,7 @@ function LaserLib.Configure(unit)
   function unit:GetHitPower(norm, trace, beam, bmln, skip)
     local norm, dotm = Vector(norm), DATA.DOTM; norm:Rotate(self:GetAngles())
     local dotv = (beam and math.abs(norm:Dot(beam.VrDirect)) or nil)
-    if(dotv and bmln) then dotv = -2 * math.acos(dotv) / math.pi end
+    if(bmln and dotv) then dotv = -2 * math.acos(dotv) / math.pi end
     if(skip and norm:LengthSqr() < dotm) then return true, dotv end
     local dott = math.abs(norm:Dot(trace.HitNormal))
     return (dott > (1 - dotm)), dotv
