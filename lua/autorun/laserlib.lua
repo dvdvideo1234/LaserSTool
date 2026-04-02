@@ -4,7 +4,7 @@ LaserLib.__newindex = nil
 
 local DATA = {}; setmetatable(LaserLib, LaserLib)
 
-DATA.ENRE = false              -- Enable unit registration errors. Disable when developing
+DATA.ENRE = true              -- Enable unit registration errors. Disable when developing
 DATA.GRAT = 1.61803398875      -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"     -- Tool name for internal use
 DATA.ICON = "icon16/%s.png"    -- Format to convert icons
@@ -4289,7 +4289,6 @@ DATA.ACTORS = {
   ["gmod_laser_portal"] = function(beam)
     local trace = beam:GetTarget()    -- Trace target
     local ent = trace.Entity          -- Trace entity
-    local src = beam:GetSource()      -- Beam reference
     local norm = ent:GetNormalLocal() -- Normal vector
     if(not ent:GetHitPower(norm, trace, nil, nil, true)) then return end
     local idx = (tonumber(ent:GetEntityExitID()) or 0)
@@ -4333,7 +4332,7 @@ DATA.ACTORS = {
   end,
   ["prop_portal"] = function(beam)
     local trace = beam:GetTarget() -- Read current trace
-    local ent, src = trace.Entity, beam:GetSource()
+    local ent = trace.Entity       -- Trace entity
     if(not ent:IsLinked()) then return end -- No linked pair
     local opr = (SERVER and ent:FindOpenPair() or nil)
     local out = LaserLib.GetBeamExit(ent, opr)
