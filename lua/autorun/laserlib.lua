@@ -2758,8 +2758,8 @@ function LaserLib.Beam(origin, direct, length)
   --   [4] > Node beam current force automatic (number)
   --   [5] > Whenever to draw or not beam line (boolean)
   --   [6] > Color updated by various filters (color)
-  self.BmHoleLn = DATA.BLHOLESG:GetFloat() -- Black hole curve interpolation
-  self.NvFresne = DATA.MXFRESNE:GetInt() -- Allowed fresnel splits count
+  self.BmHoleLn = math.max(DATA.BLHOLESG:GetFloat(), 0) -- Black hole curve interpolation
+  self.NvFresne = math.max(DATA.MXFRESNE:GetInt(), 0) -- Allowed fresnel splits count
   self.IsHoleGv = false -- Is is currently affected by gravity wells
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client

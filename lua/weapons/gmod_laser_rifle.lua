@@ -224,19 +224,23 @@ function SWEP:GetBeamDirect()
 end
 
 function SWEP:DoBeam(origin, direct)
+  local width  = self:GetBeamWidth()
+  local length = self:GetBeamLength()
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
   local r, g, b, a = self:GetBeamColorRGBA()
   local disper = (cvWDHUECNT:GetInt() > 0)
-  local beam = LaserLib.Beam(origin, direct, self:GetBeamLength())
+  local fresne = (cvMXFRESNE:GetInt() > 0)
+  local beam = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self:GetOwner(), self)
-        beam:SetWidth(LaserLib.GetWidth(self:GetBeamWidth()))
+        beam:SetWidth(LaserLib.GetWidth(width))
         beam:SetDamage(self:GetBeamDamage())
         beam:SetForce(self:GetBeamForce())
         beam:SetFgDivert(usrfle, usrfre)
-        beam:SetFgTexture(noverm, disper)
+        beam:SetFgTexture(noverm, disper, fresne)
         beam:SetBounces(1)
+        beam:SetFresnel(0)
         beam:SetColorRGBA(r, g, b, a)
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
@@ -254,8 +258,8 @@ function SWEP:ServerBeam()
     local trace = beam:GetTarget()
     if(trace.StartSolid) then return end
     local ueye = self:GetOwner():EyePos()
-    local dist = (trace.HitPos - ueye):LengthSqr()
-    if(dist < 1500) then return end
+    ueye:Sub(trace.HitPos)
+    if(ueye:LengthSqr() < 1500) then return end
     beam:DoDamage(self)
   end
 end
