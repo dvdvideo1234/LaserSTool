@@ -42,8 +42,8 @@ local function wireSetupPorts(oE, sF, tI, bL)
     if(not sT) then oE:WireError("("..sF..")["..iD.."]: Type missing"); return oE end
     if(not WireLib.DT[sT]) then oE:WireError("("..sF..")["..iD.."]: Type invalid ["..sT.."]"); return oE end
     tN[iD], tT[iD], tD[iD] = sN, sT, sD; iD = (iD + 1) -- Call the provider
-  end
-  if(bL) then
+  end -- All the ports are converted from row description to column array
+  if(bL) then -- Wire function can process a single port on a single call
     for iD = 1, #tN do -- Port name and type is mandatory
       local bS, sE = pcall(WireLib[sF], oE, tN[iD], tT[iD], tD[iD])
       if(not bS) then oE:WireError("("..sF..")["..iD.."]: Error: "..sE); return oE end
@@ -51,8 +51,7 @@ local function wireSetupPorts(oE, sF, tI, bL)
   else -- The wiremod method can process multiple ports in one call
     local bS, sE = pcall(WireLib[sF], oE, tN, tT, tD)
     if(not bS) then oE:WireError("("..sF..")["..iD.."]: Error: "..sE); return oE end
-  end
-  return oE -- Coding effective API. Must always return reference to self
+  end; return oE -- Coding effective API. Must always return reference to self
 end
 
 --[[
@@ -63,7 +62,8 @@ function ENT:WireError(sM)
   local tI, sM = debug.getinfo(2), tostring(sM or "")
   local sN = tI and tI.name or "Incognito"
   local sO = tostring(self).."."..sN..": "..sM
-  self:Remove(); error(sO.."\n")
+  if(SERVER) then self:Remove() end
+  ErrorNoHaltWithStack(sO.."\n")
 end
 
 --[[
@@ -71,8 +71,8 @@ end
  * sN > Port name must be string
 ]]
 function ENT:WireIsInput(sN)
-  if(not WireLib) then return nil end
-  if(sN == nil) then self:WireError("Name missing"); return nil end
+  if(not WireLib) then return false end
+  if(sN == nil) then self:WireError("Name missing"); return false end
   local tP, sP = self["Inputs"], tostring(sN); tP = (tP and tP[sP] or nil)
   return (tP ~= nil)
 end
@@ -82,8 +82,8 @@ end
  * sN > Port name must be string
 ]]
 function ENT:WireIsOutput(sN)
-  if(not WireLib) then return nil end
-  if(sN == nil) then self:WireError("Name missing"); return nil end
+  if(not WireLib) then return false end
+  if(sN == nil) then self:WireError("Name missing"); return false end
   local tP, sP = self["Outputs"], tostring(sN); tP = (tP and tP[sP] or nil)
   return (tP ~= nil)
 end
@@ -100,7 +100,7 @@ function ENT:WireIndex(sT, sN)
   if(not widx[sT]) then self:WireError("("..tostring(sT).."): Type invalid"); return nil end
   if(sN == nil) then self:WireError("("..sT.."): Name missing"); return nil end
   local tP, sP = self[sT], tostring(sN); tP = (tP and tP[sP] or nil)
-  if(tP == nil) then self:WireError("("..sT..")("..sP.."): Name invalid"); return tP, sP end
+  if(tP == nil) then self:WireError("("..sT..")("..sP.."): Name invalid"); return nil end
   return tP, sP -- Returns the dedicated indexed wire I/O port and name
 end
 
@@ -109,7 +109,7 @@ end
  * sN > The output name to disconnect
 ]]
 function ENT:WireDisconnect(sN)
-  if(not WireLib) then return nil end; local tP, sP = self:WireIndex("Outputs", sN)
+  if(not WireLib) then return self end; local tP, sP = self:WireIndex("Outputs", sN)
   if(tP == nil) then self:WireError("("..sP.."): Output missing"); return self end
   WireLib.DisconnectOutput(self, sN); return self -- Disconnects the output
 end
@@ -119,8 +119,8 @@ end
  * sN > Input name to check connection for
 ]]
 function ENT:WireIsConnected(sN)
-  if(not WireLib) then return nil end; local tP, sP = self:WireIndex("Inputs", sN)
-  if(tP == nil) then self:WireError("("..sP.."): Input missing"); return nil end
+  if(not WireLib) then return false end; local tP, sP = self:WireIndex("Inputs", sN)
+  if(tP == nil) then self:WireError("("..sP.."): Input missing"); return false end
   return IsValid(tP.Src) -- When the input exists and connected returns true
 end
 
@@ -149,7 +149,7 @@ end
  * Function. Returns the built dupe information
 ]]
 function ENT:WireBuildDupeInfo()
-  if(not WireLib) then return end
+  if(not WireLib) then return nil end
   return WireLib.BuildDupeInfo(self)
 end
 
@@ -222,15 +222,14 @@ end
 function ENT:WireWrite(sN, vD, bT)
   if(not WireLib) then return self end; local tP, sP = self:WireIndex("Outputs", sN)
   if(tP == nil) then self:WireError("("..sP.."): Output missing"); return self end
-  if(bT) then
-    local sD = tP.Type; if(sD == nil) then
+  if(bT) then -- Type check is enabled then compare them. Check various conditions
+    local sD = tP.Type; if(sD == nil) then -- Type is undefined. Error at once
       self:WireError("("..sP.."): Type missing"); return self end
-    local tD = WireLib.DT[sD]; if(tD == nil) then
+    local tD = WireLib.DT[sD]; if(tD == nil) then -- No default value for the type
       self:WireError("("..sP..")("..sD.."): Type undefined"); return self end
-    local sT, sZ = type(vD), type(tD.Zero); if(sT ~= sZ) then
+    local sT, sZ = type(vD), type(tD.Zero); if(sT ~= sZ) then -- Compare types
       self:WireError("("..sP..")("..sT.."~"..sZ.."): Type mismatch"); return self end
-  end
-  WireLib.TriggerOutput(self, sP, vD); return self
+  end; WireLib.TriggerOutput(self, sP, vD); return self
 end
 
 function ENT:WireCreateInputs(...)

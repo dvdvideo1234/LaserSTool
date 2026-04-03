@@ -1000,45 +1000,6 @@ function LaserLib.Clear(arr, idx)
 end
 
 --[[
- * Extracts table value content from 2D set specified key
- * tab > Reference to a table of row tables
- * key > The key to be extracted (not mandatory)
-]]
-function LaserLib.ExtractCon(tab, key)
-  if(not tab) then return tab end
-  if(not key) then return tab end
-  local set = {} -- Allocate
-  for k, v in pairs(tab) do
-    set[k] = v[key] -- Populate values
-  end; return set -- Key-value pairs
-end
-
---[[
- * Extracts table icons from 2D set specified key
- * tab > Reference to a table of row tables
- * key > The key to be extracted (not mandatory)
- * dir > Enable direct table mapping
-]]
-function LaserLib.ExtractIco(tab, key)
-  if(not tab) then return end
-  if(not key) then return end
-  if(istable(key)) then
-    for k, v in pairs(key) do
-      key[k] = LaserLib.GetIcon(v)
-    end; return key
-  else
-    if(key:sub(1, 1) == DATA.KEYX) then
-      return LaserLib.GetIcon(key:sub(2, -1))
-    else
-      local set = {} -- Allocate
-      for k, v in pairs(tab) do -- Populate values
-        set[k] = LaserLib.GetIcon(v[key])
-      end; return set -- Key-value pairs
-    end -- Update icon with key table or string
-  end
-end
-
---[[
  * Returns the entity owner when defined
  * Uses various entity fields and methods
 ]]
@@ -1701,19 +1662,6 @@ function LaserLib.Configure(unit)
       if(wsr and nam) then self:WireWrite(nam, arr) end
     end; set.Save = nil; return self
   end
-end
-
---[[
- * Retrieves entity order settings for the given key
- * ent > Entity to register as primary laser source
-]]
-function LaserLib.GetOrderID(ent, key)
-  if(not key) then return end
-  if(not LaserLib.IsValid(ent)) then return end
-  local info = ent.meOrderInfo; if(not info) then return end
-  local itab = info.T; if(itab[key]) then
-    itab[key] = (itab[key] + 1) else itab[key] = 0 end
-  info.N = (info.N + 1); return key, info.N, itab[key]
 end
 
 function LaserLib.GetTransformUnit(ent)
