@@ -1,0 +1,3 @@
+[submodule "lua/laseremitter/wrapper"]
+	path = lua/laseremitter/wrapper
+	url = git@github.com:dvdvideo1234/Wrappers-Gmod.git
