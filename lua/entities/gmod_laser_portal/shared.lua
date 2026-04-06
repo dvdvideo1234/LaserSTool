@@ -18,8 +18,8 @@ ENT.UnitID         = 9
 
 LaserLib.RegisterUnit(ENT, "models/props_c17/frame002a.mdl", "models/props_combine/com_shield001a")
 
-include(LaserLib.GetTool().."/wire_wrapper.lua")
-include(LaserLib.GetTool().."/editable_wrapper.lua")
+include(LaserLib.GetTool().."/wrapper/wire.lua")
+include(LaserLib.GetTool().."/wrapper/editable.lua")
 
 local gsNOAV = LaserLib.GetData("NOAV")
 local gnDOTM = LaserLib.GetData("DOTM")

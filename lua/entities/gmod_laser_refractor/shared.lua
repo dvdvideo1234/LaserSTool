@@ -18,8 +18,8 @@ ENT.UnitID         = 12
 
 LaserLib.RegisterUnit(ENT, "models/madjawa/laser_reflector.mdl", "models/props_combine/health_charger_glass")
 
-include(LaserLib.GetTool().."/wire_wrapper.lua")
-include(LaserLib.GetTool().."/editable_wrapper.lua")
+include(LaserLib.GetTool().."/wrapper/wire.lua")
+include(LaserLib.GetTool().."/wrapper/editable.lua")
 
 function ENT:SetupDataTables()
   self:EditableSetBool ("ZeroIndexMode" , "General")

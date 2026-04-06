@@ -18,8 +18,8 @@ ENT.UnitID         = 3
 
 LaserLib.RegisterUnit(ENT, "models/madjawa/laser_reflector.mdl", "debug/env_cubemap_model")
 
-include(LaserLib.GetTool().."/wire_wrapper.lua")
-include(LaserLib.GetTool().."/editable_wrapper.lua")
+include(LaserLib.GetTool().."/wrapper/wire.lua")
+include(LaserLib.GetTool().."/wrapper/editable.lua")
 
 function ENT:SetupDataTables()
   self:EditableSetFloat("InReflectRatio" , "General", 0, 1)

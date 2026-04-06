@@ -18,8 +18,8 @@ ENT.AdminSpawnable = true
 ENT.RenderGroup    = RENDERGROUP_BOTH
 ENT.UnitID         = 0
 
-include(LaserLib.GetTool().."/wire_wrapper.lua")
-include(LaserLib.GetTool().."/editable_wrapper.lua")
+include(LaserLib.GetTool().."/wrapper/wire.lua")
+include(LaserLib.GetTool().."/wrapper/editable.lua")
 
 local gnDOTM = LaserLib.GetData("DOTM")
 
