@@ -1277,7 +1277,7 @@ function LaserLib.Configure(unit)
   local uas, cas = unit:GetClass(), LaserLib.GetClass(1)
   if(not uas:find(cas)) then ErrorNoHaltWithStack("Invalid unit: "..uas) end
   -- Delete temporary order info and register unit
-  unit.meOrderInfo = nil; DATA.UNITS[uas] = true
+  unit:EditableRemoveOrder(); DATA.UNITS[uas] = true
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
     if(unit.OverrideOnRemove) then
