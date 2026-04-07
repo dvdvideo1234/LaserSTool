@@ -1281,20 +1281,20 @@ function LaserLib.Configure(unit)
   -- Instance specific configuration
   if(SERVER) then -- Do server configuration finalizer
     if(unit.OverrideOnRemove) then
-      function unit:OnRemove() self:OverrideOnRemove() end
-    else function unit:OnRemove() self:WireRemove() end end
+      function unit:OnRemove(...) self:OverrideOnRemove(...) end
+    else function unit:OnRemove(...) self:WireRemove(...) end end
     if(unit.OverrideOnRestore) then
-      function unit:OnRemove() self:OverrideOnRestore() end
-    else function unit:OnRestore() self:WireRestored() end end
+      function unit:OnRemove(...) self:OverrideOnRestore(...) end
+    else function unit:OnRestore(...) self:WireRestored(...) end end
     if(unit.OverridePreEntityCopy) then
       function unit:PreEntityCopy() self:OverridePreEntityCopy() end
     else function unit:PreEntityCopy() self:WirePreEntityCopy() end end
     if(unit.OverridePostEntityPaste) then
-      function unit:PostEntityPaste(ply, ent, cre) self:OverridePostEntityPaste(ply, ent, cre) end
-    else function unit:PostEntityPaste(ply, ent, cre) self:WirePostEntityPaste(ply, ent, cre) end end
+      function unit:PostEntityPaste(...) self:OverridePostEntityPaste(...) end
+    else function unit:PostEntityPaste(...) self:WirePostEntityPaste(...) end end
     if(unit.OverrideApplyDupeInfo) then
-      function unit:ApplyDupeInfo(ply, ent, info, feid) self:OverrideApplyDupeInfo(ply, ent, info, feid) end
-    else function unit:ApplyDupeInfo(ply, ent, info, feid) self:WireApplyDupeInfo(ply, ent, info, feid) end end
+      function unit:ApplyDupeInfo(...) self:OverrideApplyDupeInfo(...) end
+    else function unit:ApplyDupeInfo(...) self:WireApplyDupeInfo(...) end end
   else -- Do client configuration finalizer
     language.Add(uas, unit.Information)
     if(uas ~= cas) then -- Setup the same kill icon
