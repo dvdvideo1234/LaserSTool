@@ -39,6 +39,7 @@ local gsPref = gsTool.."_"
 local gtAMAX     = LaserLib.GetData("AMAX")
 local gnCLMX     = LaserLib.GetData("CLMX")
 local cvWDHUECNT = LaserLib.GetData("WDHUECNT")
+local cvMXFRESNE = LaserLib.GetData("MXFRESNE")
 local cvMXBMDAMG = LaserLib.GetData("MXBMDAMG")
 local cvMXBMWIDT = LaserLib.GetData("MXBMWIDT")
 local cvMXBMFORC = LaserLib.GetData("MXBMFORC")
@@ -207,6 +208,14 @@ function SWEP:GetBeamIgnite()
   return (self:GetOwner():GetInfoNum(gsPref.."enignebeam", 0) ~= 0)
 end
 
+function SWEP:GetBeamDisperse()
+  return (cvWDHUECNT:GetInt() > 0)
+end
+
+function SWEP:GetBeamFresnel()
+  return (cvMXFRESNE:GetInt() > 0)
+end
+
 function SWEP:GetBeamOrigin()
   local user = self:GetOwner()
   local vorg = user:GetCurrentViewOffset()
@@ -229,9 +238,9 @@ function SWEP:DoBeam(origin, direct)
   local usrfle = self:GetReflectRatio()
   local usrfre = self:GetRefractRatio()
   local noverm = self:GetNonOverMater()
+  local fresne = self:GetBeamFresnel()
+  local disper = self:GetBeamDisperse()
   local r, g, b, a = self:GetBeamColorRGBA()
-  local disper = (cvWDHUECNT:GetInt() > 0)
-  local fresne = (cvMXFRESNE:GetInt() > 0)
   local beam = LaserLib.Beam(origin, direct, length)
         beam:SetSource(self:GetOwner(), self)
         beam:SetWidth(LaserLib.GetWidth(width))
@@ -256,6 +265,7 @@ function SWEP:ServerBeam()
     local beam = self:DoBeam(vorg, vdir)
     if(not beam) then return end
     local trace = beam:GetTarget()
+    if(not trace) then return end
     if(trace.StartSolid) then return end
     local ueye = self:GetOwner():EyePos()
     ueye:Sub(trace.HitPos)
@@ -284,6 +294,7 @@ else
     local beam = self:DoBeam(origin, direct)
     if(not beam) then return end
     local trace = beam:GetTarget()
+    if(not trace) then return end
     if(trace.StartSolid) then return end
     local ueye = self:GetOwner():EyePos()
     local dist = (trace.HitPos - ueye):LengthSqr()

@@ -430,8 +430,8 @@ if(CLIENT) then
   killicon.Add(DATA.UNITS[1][1], DATA.KILL, DATA.COLOR["WHITE"])
 else -- Server-side initialization. Put server related code here
   AddCSLuaFile("autorun/laserlib.lua")
-  AddCSLuaFile(DATA.TOOL.."/wire_wrapper.lua")
-  AddCSLuaFile(DATA.TOOL.."/editable_wrapper.lua")
+  AddCSLuaFile(DATA.TOOL.."/wrapper/wire.lua")
+  AddCSLuaFile(DATA.TOOL.."/wrapper/editable.lua")
   DATA.DMGI = DamageInfo() -- Create a server-side damage information class
   DATA.BURN = Sound("player/general/flesh_burn.wav") -- Burn sound for player safety
   -- User notification configuration type. Used to format notifications via string.format
@@ -1175,9 +1175,9 @@ function LaserLib.SetPrimary(ent, nov)
   if(nov) then
     material["<Empty>"] = {name = "", icon = "stop"}
     dissolve["<Empty>"] = {name = "", icon = "stop"}
-    ent:EditableSetIntCombo("ForceCenter" , "General" , comxbool, "name", "icon")
-    ent:EditableSetIntCombo("ReflectRatio", "Material", comxbool, "name", "icon")
-    ent:EditableSetIntCombo("RefractRatio", "Material", comxbool, "name", "icon")
+    ent:EditableSetIntCombo("ForceCenter" , "General" , comxbool, "name")
+    ent:EditableSetIntCombo("ReflectRatio", "Material", comxbool, "name")
+    ent:EditableSetIntCombo("RefractRatio", "Material", comxbool, "name")
   else
     ent:EditableSetBool("ForceCenter" , "General")
     ent:EditableSetBool("ReflectRatio", "Material")
@@ -1188,14 +1188,14 @@ function LaserLib.SetPrimary(ent, nov)
   ent:EditableSetFloat("InBeamLength", "Internals", 0, DATA.MXBMLENG:GetFloat())
   ent:EditableSetFloat("InBeamDamage", "Internals", 0, DATA.MXBMDAMG:GetFloat())
   ent:EditableSetFloat("InBeamForce" , "Internals", 0, DATA.MXBMFORC:GetFloat())
-  ent:EditableSetStringCombo("InBeamMaterial", "Internals", material, "name", "icon")
+  ent:EditableSetStringCombo("InBeamMaterial", "Internals", material, "name")
   if(nov) then
-    ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool, "name", "icon")
-    ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool, "name", "icon")
-    ent:EditableSetIntCombo("InBeamIgnite"  , "Internals", comxbool, "name", "icon")
-    ent:EditableSetIntCombo("InBeamFresnel" , "Internals", comxbool, "name", "icon")
-    ent:EditableSetIntCombo("InBeamDisperse", "Internals", comxbool, "name", "icon")
-    ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool, "name", "icon")
+    ent:EditableSetIntCombo("InNonOverMater", "Internals", comxbool, "name")
+    ent:EditableSetIntCombo("InBeamSafety"  , "Internals", comxbool, "name")
+    ent:EditableSetIntCombo("InBeamIgnite"  , "Internals", comxbool, "name")
+    ent:EditableSetIntCombo("InBeamFresnel" , "Internals", comxbool, "name")
+    ent:EditableSetIntCombo("InBeamDisperse", "Internals", comxbool, "name")
+    ent:EditableSetIntCombo("EndingEffect"  , "Visuals"  , comxbool, "name")
   else
     ent:EditableSetBool("InNonOverMater", "Internals")
     ent:EditableSetBool("InBeamSafety"  , "Internals")
@@ -1206,7 +1206,7 @@ function LaserLib.SetPrimary(ent, nov)
   end
   ent:EditableSetVectorColor("BeamColor", "Visuals")
   ent:EditableSetFloat("BeamAlpha", "Visuals", 0, DATA.CLMX)
-  ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name", "icon")
+  ent:EditableSetStringCombo("DissolveType", "Visuals", dissolve, "name")
 end
 
 --[[
@@ -1277,8 +1277,11 @@ function LaserLib.Configure(unit)
   local uas, cas = unit:GetClass(), LaserLib.GetClass(1)
   if(not uas:find(cas)) then ErrorNoHaltWithStack("Invalid unit: "..uas) end
   -- Delete temporary order info and register unit
-  unit:EditableRemoveOrder(); DATA.UNITS[uas] = true
-  -- Instance specific configuration
+  if(unit.EditableRemoveOrder) then unit:EditableRemoveOrder() end
+  DATA.UNITS[uas] = true -- Add the unit to the list for searching
+
+  ------ INSTANCE SPECIFIC CONFIGURATION ------
+
   if(SERVER) then -- Do server configuration finalizer
     if(unit.OverrideOnRemove) then
       function unit:OnRemove(...) self:OverrideOnRemove(...) end
