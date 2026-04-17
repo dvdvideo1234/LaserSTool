@@ -907,6 +907,8 @@ function LaserLib.IsValid(arg)
 end
 
 --[[
+ * Pick a valid entity form a list
+ * {...} > Items list to pick the first valid from
 ]]
 function LaserLib.GetValid(...)
   for iD = 1, select("#", ...) do
