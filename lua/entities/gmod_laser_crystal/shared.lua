@@ -17,7 +17,7 @@ LaserLib.RegisterUnit(ENT, "models/props_c17/pottery02a.mdl", "models/dog/eyegla
 
 function ENT:SetupDataTables()
   self:EditableSetBool("BeamColorMerge","Visuals")
-  self:EditableSetName(nil, true)
+  self:EditableSetRead(true)
   LaserLib.SetPrimary(self)
   LaserLib.Configure(self)
 end

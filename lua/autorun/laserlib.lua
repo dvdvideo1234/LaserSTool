@@ -907,6 +907,15 @@ function LaserLib.IsValid(arg)
 end
 
 --[[
+]]
+function LaserLib.GetValid(...)
+  for iD = 1, select("#", ...) do
+    local oE = select(iD, ...)
+    local vE = LaserLib.IsValid(oE)
+    if(vE) then return oE end
+  end
+end
+--[[
  * Compared when given time interval is passed
  * Returns true when the interval is passed
  * tim > Time point to compare against
@@ -3347,7 +3356,7 @@ end
 ]]
 function mtBeam:GetNudge(mar)
   local nM = (tonumber(nM) or DATA.NUGE)
-  local vO = Vector(self.VrDirect); vtm:Mul(nM)
+  local vO = Vector(self.VrDirect); vO:Mul(nM)
   vO:Add(self.VrOrigin); return vO
 end
 
@@ -4721,14 +4730,14 @@ if(SERVER) then
   end
 
   -- https://developer.valvesoftware.com/wiki/Env_entity_dissolver
-  function mtBeam:GetTorch(param)
-    local laser  = param.laser
+  function mtBeam:GetTorch(arg)
+    local laser = arg.laser
     if(not LaserLib.IsValid(laser)) then return nil end
-    local attacker = param.attacker
+    local attacker = arg.attacker
     if(not LaserLib.IsValid(attacker)) then return nil end
-    local target = param.target
+    local target = arg.target
     if(not LaserLib.IsValid(target)) then return nil end
-    local dissolve = param.dissolve
+    local dissolve = arg.dissolve
     local origin = target:GetPos()
     local torch = ents.Create("env_entity_dissolver")
     if(not LaserLib.IsValid(torch)) then return nil end
@@ -4748,8 +4757,8 @@ if(SERVER) then
     torch:Remove(); return self
   end
 
-  function mtBeam:DoSound(param)
-    local target, noise = param.target, param.noise
+  function mtBeam:DoSound(arg)
+    local target, noise = arg.target, arg.noise
     if(not LaserLib.IsValid(target)) then return self end
     if(noise and (target:Health() > 0 or target:IsPlayer())) then
       sound.Play(noise, target:GetPos())
@@ -4762,11 +4771,11 @@ if(SERVER) then
    * Applicable when damage parameter is present
    * Mmmmm... You know that smells kinda nice
   ]]
-  function mtBeam:DoBurn(param)
-    local target, origin = param.target, param.origin
+  function mtBeam:DoBurn(arg)
+    local target, origin = arg.target, arg.origin
     if(not LaserLib.IsValid(target)) then return self end
-    local direct, safety = param.direct, param.safety
-    local damage = param.damage -- Beam damage
+    local direct, safety = arg.direct, arg.safety
+    local damage = arg.damage -- Beam damage
     if(damage <= 0) then return self end
     if(not safety) then return self end -- Beam safety skipped
     local smu = DATA.VESFBEAM:GetFloat() -- Safety velocity
@@ -4787,13 +4796,13 @@ if(SERVER) then
    * The heat radiates DATA.RADIE units away
    * Applicable when damage parameter is present
   ]]
-  function mtBeam:DoIgnite(param)
-    local target = param.target
+  function mtBeam:DoIgnite(arg)
+    local target = arg.target
     if(not LaserLib.IsValid(target)) then return self end
     if(target:IsOnFire()) then return self end
-    local ignite = param.ignite -- Ignite flag
+    local ignite = arg.ignite -- Ignite flag
     if(not ignite) then return self end
-    local damage = param.damage -- Beam damage
+    local damage = arg.damage -- Beam damage
     if(damage <= 0) then return self end
     local smu = DATA.IGENTMBM:GetFloat() -- Ignite time
     if(smu <= 0) then return self end
@@ -4811,29 +4820,31 @@ if(SERVER) then
     end
     local trace = self:GetTarget()
     if(not (trace and trace.Hit)) then return self end
-    local target, param = trace.Entity, DATA.DMPAR
+    local target, arg = trace.Entity, DATA.DMPAR
     if(not LaserLib.IsValid(target)) then return self end
     if(LaserLib.IsUnit(target)) then return self end
     local sours = self:GetSource()
     if(not LaserLib.IsValid(sours)) then return self end
     -- Localize the calculated parameters
-    param.target   = target
-    param.laser    = laser
-    param.attacker = (self.ply or self.player) or sours:GetCreator()
-    param.origin   = trace.HitPos
-    param.normal   = trace.HitNormal
-    param.direct   = self.VrDirect
-    param.damage   = self.NvDamage
-    param.dmtype   = DMG_ENERGYBEAM
-    param.force    = self.NvForce
-    param.dissolve = LaserLib.GetDissolveID(sours:GetDissolveType())
-    param.noise    = sours:GetKillSound()
-    param.fcenter  = sours:GetForceCenter()
-    param.safety   = sours:GetBeamSafety()
-    param.ignite   = sours:GetBeamIgnite()
+    local cre = (sours.GetCreator and sours:GetCreator() or nil)
+    local own = (sours.GetOwner   and sours:GetOwner  () or nil)
+    arg.target   = target
+    arg.laser    = laser
+    arg.attacker = LaserLib.GetValid(self.ply, self.player, cre, own)
+    arg.origin   = trace.HitPos
+    arg.normal   = trace.HitNormal
+    arg.direct   = self.VrDirect
+    arg.damage   = self.NvDamage
+    arg.dmtype   = DMG_ENERGYBEAM
+    arg.force    = self.NvForce
+    arg.dissolve = LaserLib.GetDissolveID(sours:GetDissolveType())
+    arg.noise    = sours:GetKillSound()
+    arg.fcenter  = sours:GetForceCenter()
+    arg.safety   = sours:GetBeamSafety()
+    arg.ignite   = sours:GetBeamIgnite()
     -- Create a reference to what is used locally
-    local direct, damage = param.direct, param.damage
-    local force , origin = param.force , param.origin
+    local direct, damage = arg.direct, arg.damage
+    local force , origin = arg.force , arg.origin
     -- Read damage configuration and physics
     local g_damage, phys = DATA.DAMAGE, target:GetPhysicsObject()
     -- In case the target is not a unit force it or burn it
@@ -4847,9 +4858,9 @@ if(SERVER) then
       end -- Do not apply force on laser units
       if(damage > 0) then -- Portal beam safety
         if(target:IsPlayer()) then
-          self:DoBurn(param)
+          self:DoBurn(arg)
         else
-          self:DoIgnite(param)
+          self:DoIgnite(arg)
         end
       end -- Target is not unit. Check emiter safety
     end
@@ -4857,19 +4868,19 @@ if(SERVER) then
     if(laser.isDamage and damage and damage > 0) then
       local cas = target:GetClass()
       if(cas and g_damage[cas]) then
-        local suc, oux = pcall(g_damage[cas], self, param)
+        local suc, oux = pcall(g_damage[cas], self, arg)
         if(not suc) then target:Remove(); ErrorNoHaltWithStack(oux) end -- Remove target
         if(oux) then return self end -- Exit main damage routine immediately
       else
         if(target:IsPlayer()) then
           if(target:Health() <= damage) then
-            local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
+            local suc, oux = pcall(g_damage["#ISPLAYER#"], self, arg)
             if(not suc) then target:Kill(); ErrorNoHaltWithStack(oux) end -- Remove target
             if(oux) then return self end -- Exit main damage routine immediately
           end
         elseif(target:IsNPC()) then
           if(target:Health() <= damage) then
-            local suc, oux = pcall(g_damage["#ISNPC#"], self, param)
+            local suc, oux = pcall(g_damage["#ISNPC#"], self, arg)
             if(not suc) then target:Remove(); ErrorNoHaltWithStack(oux) end -- Remove target
             if(oux) then return self end -- Exit main damage routine immediately
           end
@@ -4877,15 +4888,15 @@ if(SERVER) then
           local driver = target:GetDriver()
           if(LaserLib.IsValid(driver) and driver:IsPlayer()) then
             if(driver:Health() <= damage) then driver:ExitVehicle()
-              param.target = driver -- Switch target to the driver on kill
-              local suc, oux = pcall(g_damage["#ISPLAYER#"], self, param)
+              arg.target = driver -- Switch target to the driver on kill
+              local suc, oux = pcall(g_damage["#ISPLAYER#"], self, arg)
               if(not suc) then driver:Kill(); ErrorNoHaltWithStack(oux) end -- Remove target
               if(oux) then return self end -- Exit main damage routine immediately
             end
           end
         end
       end -- When target is not supposed to be killed yet
-      self:TakeDamage(param) -- Make it eat one more slap
+      self:TakeDamage(arg) -- Make it eat one more slap
     end; return self
   end
 end
@@ -5071,8 +5082,8 @@ function mtBeam:Run(iStg)
           local org = self:GetNudge(mar) -- Calculate nudge origin
           -- Register the node at the location the laser lefts the glass
           self:RegisterNode(org, mar)
-        else
-          self:RegisterNode(trace.HitPos, trace.LengthLS)
+        else -- Left solid will be always zero so nil is passed
+          self:RegisterNode(trace.HitPos)
         end
         self.StRfract = trace.StartSolid -- Start in world entity
       end

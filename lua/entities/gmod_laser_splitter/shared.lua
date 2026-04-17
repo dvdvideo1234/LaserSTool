@@ -31,7 +31,7 @@ function ENT:SetupDataTables()
   self:EditableSetBool  ("BeamReplicate", "General")
   self:EditableSetVector("UpwardLocal"  , "General")
   self:EditableSetBool ("BeamColorSplit", "Visuals")
-  self:EditableSetName(nil, true)
+  self:EditableSetRead(true)
   LaserLib.SetPrimary(self)
   LaserLib.Configure(self)
 end

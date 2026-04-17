@@ -131,6 +131,8 @@ end
 
 function SWEP:GetOn()
   local user = self:GetOwner()
+  if(not user) then return false end
+  if(not user:IsValid()) then return false end
   return user:KeyDown(IN_ATTACK)
 end
 
@@ -290,7 +292,6 @@ else
 
   function SWEP:DrawBeam(origin, direct)
     self:UpdateInit()
-
     local beam = self:DoBeam(origin, direct)
     if(not beam) then return end
     local trace = beam:GetTarget()
@@ -323,7 +324,7 @@ else
     self:DrawModel()
     if(self:GetOn()) then
       if(not (self.VM and self.VA)) then return end
-      local mussle = self.VM:GetAttachment(self.VA)
+      local mussle = self.VM:GetAttachment(self.WA)
       local org, dir = self:GetBeamRay(mussle)
       if(not org) then return end
       self:DrawBeam(org, dir)
