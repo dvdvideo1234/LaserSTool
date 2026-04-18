@@ -131,6 +131,7 @@ DATA.UNITS = {
   ["gmod_laser_parallel" ] = true, -- This is present for hot reload. You must register yours separately
   ["gmod_laser_filter"   ] = true, -- This is present for hot reload. You must register yours separately
   ["gmod_laser_refractor"] = true, -- This is present for hot reload. You must register yours separately
+  ["gmod_laser_rifle"    ] = true, -- This is present for hot reload. You must register yours separately
   -- These are intended for user configuration and pre-allocation. Used to create also convars
   -- [1] Actual class passed to `ents.Create` and used to actually create the proper scripted entity
   -- [2] Extension for folder and variable name indices. Stores which folder are entity specific files located

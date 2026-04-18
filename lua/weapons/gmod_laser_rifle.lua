@@ -51,19 +51,27 @@ end
 
 function SWEP:Setup()
   if(CLIENT) then
-    local cass = self:GetClass()
+    local rtab = self:GetTable()
     local user = self:GetOwner()
-    if(user.GetViewModel and user:GetViewModel():IsValid()) then
-      local mod = user:GetViewModel()
-      local idx = mod:LookupAttachment("muzzle")
-      if(idx == 0) then idx = mod:LookupAttachment("1") end
-      if(user:GetAttachment(idx)) then
-        self.VM = mod
-        self.VA = idx
+    local vMO, wMO = user:GetViewModel(), self
+    if(LaserLib.IsValid(vMO)) then
+      local vID = vMO:LookupAttachment("muzzle")
+      if(vID == 0) then vID = vMO:LookupAttachment("1") end
+      if(user:GetAttachment(vID)) then
+        rtab.VM = vMO
+        rtab.VI = vID
+        print("VM:VI", rtab.VM, rtab.VI)
       end
     end
-    self.WA = self:LookupAttachment("muzzle")
-    self.MO, self.MD = Vector(), Vector()
+    if(LaserLib.IsValid(wMO)) then
+      local wID = wMO:LookupAttachment("muzzle")
+      if(wID == 0) then wID = wMO:LookupAttachment("1") end
+      if(user:GetAttachment(wID)) then
+        rtab.WM = wMO
+        rtab.WI = wID
+        print("WM:WI", rtab.WM, rtab.WI)
+      end
+    end
   end
   self:SetHoldType("ar2")
   LaserLib.Configure(self)
@@ -220,10 +228,7 @@ end
 
 function SWEP:GetBeamOrigin()
   local user = self:GetOwner()
-  local vorg = user:GetCurrentViewOffset()
-  local vobb = user:LocalToWorld(user:OBBCenter())
-        vorg:Mul(4); vorg:Add(vobb)
-  return vorg
+  return user:LocalToWorld(user:OBBCenter())
 end
 
 function SWEP:GetBeamDirect()
@@ -234,7 +239,9 @@ function SWEP:GetBeamDirect()
   return vdir
 end
 
-function SWEP:DoBeam(origin, direct)
+function SWEP:DoBeam()
+  local origin = self:GetBeamOrigin()
+  local direct = self:GetBeamDirect()
   local width  = self:GetBeamWidth()
   local length = self:GetBeamLength()
   local usrfle = self:GetReflectRatio()
@@ -258,13 +265,17 @@ function SWEP:DoBeam(origin, direct)
   return beam:Run()
 end
 
-function SWEP:ServerBeam()
-  self:UpdateInit()
+if(SERVER) then
 
-  if(self:GetOn()) then
-    local vorg = self:GetBeamOrigin()
-    local vdir = self:GetBeamDirect()
-    local beam = self:DoBeam(vorg, vdir)
+  function SWEP:OverrideOnRemove()
+    -- Does nothing
+  end
+
+  function SWEP:ServerBeam()
+    self:UpdateInit()
+
+    if(not self:GetOn()) then return end
+    local beam = self:DoBeam()
     if(not beam) then return end
     local trace = beam:GetTarget()
     if(not trace) then return end
@@ -273,13 +284,6 @@ function SWEP:ServerBeam()
     ueye:Sub(trace.HitPos)
     if(ueye:LengthSqr() < 1500) then return end
     beam:DoDamage(self)
-  end
-end
-
-if(SERVER) then
-
-  function SWEP:OverrideOnRemove()
-    -- Does nothing
   end
 
   function SWEP:Think()
@@ -290,58 +294,56 @@ if(SERVER) then
 
 else
 
-  function SWEP:DrawBeam(origin, direct)
+  function SWEP:DrawBeam(org, src)
     self:UpdateInit()
-    local beam = self:DoBeam(origin, direct)
+    -- Calculate beam path
+    local beam = self:DoBeam()
     if(not beam) then return end
     local trace = beam:GetTarget()
     if(not trace) then return end
     if(trace.StartSolid) then return end
+    -- Cut off when looking at a wall
     local ueye = self:GetOwner():EyePos()
-    local dist = (trace.HitPos - ueye):LengthSqr()
-    if(dist < 1500) then return end
-
+    ueye:Sub(trace.HitPos)
+    if(ueye:LengthSqr() < 1500) then return end
+    -- Modify the first node
+    local tvp, siz = beam:GetPoints() -- Mark segment
+    print("SZ", src, siz)
+    if(siz < 1) then return end
+    beam:GetNode(1)[1]:Set(org)
+    beam:GetNode(1)[5] = false
+    if(siz >= 2) then beam:GetNode(2)[1]:Set(org) end
+    -- Read visuals
     local eeff = self:GetEndingEffect()
     local matr = self:GetBeamMaterial(true)
     local colr = self:GetBeamColorRGBA(true)
-
+    -- Draw beam
     beam:Draw(self, matr, colr)
     beam:DrawEffect(self, eeff)
-  end
-
-  function SWEP:GetBeamRay(mussle)
-    if(not mussle) then return end
-    local hitpos = self:GetOwner():GetEyeTrace().HitPos
-    local direct = self.MD; direct:Set(hitpos)
-    local origin = self.MO; origin:Set(mussle.Pos)
-          direct:Sub(origin)
-          direct:Normalize()
-    return origin, direct
   end
 
   -- How the local player sees the laser rifle
   function SWEP:PreDrawViewModel()
     self:DrawModel()
-    if(self:GetOn()) then
-      if(not (self.VM and self.VA)) then return end
-      local mussle = self.VM:GetAttachment(self.WA)
-      local org, dir = self:GetBeamRay(mussle)
-      if(not org) then return end
-      self:DrawBeam(org, dir)
-    end
+    if(not self:GetOn()) then return end
+    local rtab = self:GetTable()
+    if(not (rtab.VM and rtab.VI)) then return end
+    local muss = rtab.VM:GetAttachment(rtab.VI)
+    if(not muss) then return end
+    LaserLib.DrawPoint(muss.Pos + Vector(0,0,7))
+    self:DrawBeam(muss.Pos, "V")
   end
 
   -- How others players see the laser rifle
   function SWEP:DrawWorldModel()
     self:DrawModel()
-    if(self:GetOn()) then
-      if(not self.WA) then return end
-      local mussle = self:GetAttachment(self.WA)
-      if(not mussle) then return end
-      local org, dir = self:GetBeamRay(mussle)
-      if(not org) then return end
-      self:DrawBeam(org, dir)
-    end
+    if(not self:GetOn()) then return end
+    local rtab = self:GetTable()
+    if(not (rtab.WM and rtab.WI)) then return end
+    local muss = rtab.WM:GetAttachment(rtab.WI)
+    if(not muss) then return end
+    LaserLib.DrawPoint(muss.Pos + Vector(0,0,10))
+    self:DrawBeam(muss.Pos, "W")
   end
 
 end
