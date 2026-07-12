@@ -10,7 +10,7 @@ end
 
 function ENT:Draw()
   self:DrawModel()
-  self:DrawShadow(false)
+  self:DrawShadow(true)
   self:InitSources()
   if(self:GetOn()) then
     self:UpdateInit()

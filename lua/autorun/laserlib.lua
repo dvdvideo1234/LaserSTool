@@ -4,7 +4,7 @@ LaserLib.__newindex = nil
 
 local DATA = {}; setmetatable(LaserLib, LaserLib)
 
-DATA.ENRE = true              -- Enable unit registration errors. Disable when developing
+DATA.ENRE = true               -- Enable unit registration errors. Disable when developing
 DATA.GRAT = 1.61803398875      -- Golden ratio used for panels
 DATA.TOOL = "laseremitter"     -- Tool name for internal use
 DATA.ICON = "icon16/%s.png"    -- Format to convert icons
@@ -701,7 +701,7 @@ function LaserLib.Gauss(xin, cen, oev)
 end
 
 --[[
- * Project a position onto ray defines as origin and direction
+ * Project a position onto ray defined as origin and direction
  * pos > Position being projected onto a ray
  * org > Ray origin that we are projecting onto
  * dir > Ray direction that we are projecting onto
@@ -3606,11 +3606,14 @@ end
  * belongs on the laser beam and adjusts if not
 ]]
 function mtBeam:IsNode()
-  if(self.NvLength >= 0) then return true end
+  local nve = self.NvLength
+  local rnn = math.Round(nve, DATA.RNDB)
+  if(math.min(rnn, 0) >= 0) then return true end
   local set, siz = self:GetPoints() -- Set of nodes
+  if(siz < 2) then return true end
   local nxt = set[siz][1]
   local dir = Vector(self.VrDirect)
-  dir:Mul(self.NvLength); nxt:Add(dir)
+  dir:Mul(nve); nxt:Add(dir)
   self.NvLength = 0; return false
 end
 
@@ -3989,9 +3992,9 @@ function mtBeam:SourceFilter(entity, ...)
   if(not LaserLib.IsValid(entity)) then return self end
   -- Make sure the initial laser source is skipped
   if(entity:IsPlayer()) then local eGun = entity:GetActiveWeapon()
-    if(LaserLib.IsUnit(eGun)) then self.BmSource, self.TeFilter = eGun, {entity, eGun, ...} end
+    self.BmSource, self.TeFilter = eGun, {entity, eGun, ...}
   elseif(entity:IsWeapon()) then local ePly = entity:GetOwner()
-    if(LaserLib.IsUnit(entity)) then self.BmSource, self.TeFilter = entity, {entity, ePly, ...} end
+    self.BmSource, self.TeFilter = entity, {entity, ePly, ...}
   else -- Switch the filter according to the weapon the player is holding
     if(self.BmRecuLS > 0) then -- The beam has already left the source
       self.BmSource, self.TeFilter = entity, {...} -- The beam is triggered recursively
@@ -5085,7 +5088,7 @@ function mtBeam:Run(iStg)
           -- Register the node at the location the laser lefts the glass
           self:RegisterNode(org, mar)
         else -- Left solid will be always zero so nil is passed
-          self:RegisterNode(trace.HitPos)
+          self:RegisterNode(trace.HitPos, trace.LengthLS)
         end
         self.StRfract = trace.StartSolid -- Start in world entity
       end

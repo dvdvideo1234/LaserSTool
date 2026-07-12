@@ -324,7 +324,7 @@ else
     self:DrawModel()
     if(self:GetOn()) then
       if(not (self.VM and self.VA)) then return end
-      local mussle = self.VM:GetAttachment(self.WA)
+      local mussle = self.VM:GetAttachment(self.VA)
       local org, dir = self:GetBeamRay(mussle)
       if(not org) then return end
       self:DrawBeam(org, dir)
@@ -335,7 +335,7 @@ else
   function SWEP:DrawWorldModel()
     self:DrawModel()
     if(self:GetOn()) then
-      if(not self.WA) then return end
+      if(not (self.VM and self.VA)) then return end
       local mussle = self:GetAttachment(self.WA)
       if(not mussle) then return end
       local org, dir = self:GetBeamRay(mussle)

@@ -15,7 +15,7 @@ end
 function ENT:Draw()
   self:UpdateViewRB()
   self:DrawModel()
-  self:DrawShadow(false)
+  self:DrawShadow(true)
   local mcount = self:GetBeamCount()
   if(self:GetOn()) then
     local width = self:GetBeamWidth()
