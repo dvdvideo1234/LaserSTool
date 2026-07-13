@@ -354,19 +354,21 @@ DATA.BLHOLE = {
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
     GetAffect = function(ent, pos, stp)
-      local kve, eps, grs, wve = DATA.BVKEY, DATA.ZEPS, 10, nil
+      local zer, eps = DATA.VZERO, DATA.ZEPS
+      local kve, grs, wve = DATA.BVKEY, 10, nil
       local cen = ent:LocalToWorld(ent:OBBCenter())
       local rav = Vector(pos); rav:Sub(cen)
-      local grv, drg, req = Vector(rav), Vector(), rav:LengthSqr()
-      grv:Normalize(); grv:Mul(-stp * (ent:GetStrength() / req))
+      local grv, rsq = Vector(rav), rav:LengthSqr()
+      local rep = 1 / (eps + rsq * math.sqrt(rsq))
+      grv:Mul(-stp * ent:GetStrength() * rep)
       if(SERVER) then -- There is physics only on the server
         wve = ent:GetPhysicsObject():GetAngleVelocity()
         wve:Set(ent:LocalToWorld(wve)); wve:Sub(cen)
         ent:SetNWVector(kve, wve)
-      else wve = ent:GetNWVector(kve, drg) end
+      else wve = ent:GetNWVector(kve, zer) end
       if(not wve:IsZero()) then -- D = aGM / r^3
-        drg:Set(wve:Cross(rav)) -- Stabilize the singularity
-        drg:Mul(stp / (grs * (eps + req ^ 1.5))); grv:Add(drg)
+        local drg = wve:Cross(rav) -- Stabilize the singularity
+        drg:Mul(stp * rep / grs); grv:Add(drg)
       end; return grv
     end,
     Registry = {}
