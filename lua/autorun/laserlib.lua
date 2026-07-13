@@ -353,10 +353,9 @@ DATA.BLHOLE = {
   ["gwater_blackhole"] = { -- Mee's Gwater 1
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
-    GetAffect = function(ent, pos, stp)
+    GetAffect = function(ent, cen, rao, pos, stp)
       local zer, eps = DATA.VZERO, DATA.ZEPS
       local kve, grs, wve = DATA.BVKEY, 10, nil
-      local cen = ent:LocalToWorld(ent:OBBCenter())
       local rav = Vector(pos); rav:Sub(cen)
       local grv, rsq = Vector(rav), rav:LengthSqr()
       local rep = 1 / (eps + rsq * math.sqrt(rsq))
@@ -370,16 +369,14 @@ DATA.BLHOLE = {
         local drg = wve:Cross(rav) -- Stabilize the singularity
         drg:Mul(stp * rep / grs); grv:Add(drg)
       end; return grv
-    end,
-    Registry = {}
+    end
   }
 }
 
 DATA.BLHOLE["gwater2_blackhole"] = { -- Mee's Gwater 2
   GetCenter = DATA.BLHOLE["gwater_blackhole"].GetCenter,
   GetRadius = DATA.BLHOLE["gwater_blackhole"].GetRadius,
-  GetAffect = DATA.BLHOLE["gwater_blackhole"].GetAffect,
-  Registry = {}
+  GetAffect = DATA.BLHOLE["gwater_blackhole"].GetAffect
 }
 
 --[[
@@ -446,6 +443,9 @@ end
 ]]
 local function ConfigureHookRegistry(set, name)
   local suid = DATA.TOOL.."_"..name
+  for case, info in pairs(set) do
+    info.Registry = (info.Registry or {})
+  end -- Registry table is allocated
   if(SERVER) then
     util.AddNetworkString(suid.."_add")
     util.AddNetworkString(suid.."_rem")
@@ -469,13 +469,13 @@ local function ConfigureHookRegistry(set, name)
         end)
       end)
   else
-    local function setEntity(sv)
+    local function setEntity(arg)
       local ent = net.ReadEntity()
       if(not LaserLib.IsValid(ent)) then return end
       local ukey = ent:GetClass()
       local info = set[ukey]
       if(not info) then return end
-      info.Registry[ent] = sv
+      info.Registry[ent] = arg
     end
     net.Receive(suid.."_add", function() setEntity(true) end)
     net.Receive(suid.."_rem", function() setEntity( nil) end)
@@ -4086,8 +4086,8 @@ function mtBeam:ApplyGravity()
     for hole, bool in pairs(info.Registry) do
       if(LaserLib.IsValid(hole)) then
         local org, dir = self.VrOrigin, self.VrDirect
-        local cen, rad = info.GetCenter(hole), info.GetRadius(hole)
-        local nFFr, nFBa = util.IntersectRayWithSphere(org, dir, cen, rad)
+        local cen, rao = info.GetCenter(hole), info.GetRadius(hole)
+        local nFFr, nFBa = util.IntersectRayWithSphere(org, dir, cen, rao)
         if(nFFr and nFBa) then -- Ray intersects with gravity well
           local rFFr, rFBa = math.Round(nFFr, g_rnd), math.Round(nFBa, g_rnd)
           if(rFFr > 0 and rFBa > 0) then -- Ray will enter a gravity well
@@ -4099,7 +4099,7 @@ function mtBeam:ApplyGravity()
           elseif(rFFr <= 0 and rFBa >= 0) then -- Ray starts inside a well
             -- Start to amend the trace direction instantly towards the well
             if(not vgrv) then vgrv = Vector() end
-            vgrv:Add(info.GetAffect(hole, org, self.BmHoleLn))
+            vgrv:Add(info.GetAffect(hole, cen, rao, org, self.BmHoleLn))
             self.IsHoleGv = true
             self.NvHoleLn = self.BmHoleLn
           end
