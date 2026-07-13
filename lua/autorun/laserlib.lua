@@ -469,7 +469,7 @@ local function ConfigureHookRegistry(set, name)
         end)
       end)
   else
-    function upEntity(sv)
+    local function setEntity(sv)
       local ent = net.ReadEntity()
       if(not LaserLib.IsValid(ent)) then return end
       local ukey = ent:GetClass()
@@ -477,8 +477,8 @@ local function ConfigureHookRegistry(set, name)
       if(not info) then return end
       info.Registry[ent] = sv
     end
-    net.Receive(suid.."_add", function() upEntity(true) end)
-    net.Receive(suid.."_rem", function() upEntity( nil) end)
+    net.Receive(suid.."_add", function() setEntity(true) end)
+    net.Receive(suid.."_rem", function() setEntity( nil) end)
   end
 end
 
@@ -2832,7 +2832,7 @@ function mtBeam:IsValid()
 end
 
 --[[
- * Returns the decremented fresnel breanches
+ * Returns the decremented fresnel branches
  * bD > Decrement the count before returning it
 ]]
 function mtBeam:GetFresnel(bD)
