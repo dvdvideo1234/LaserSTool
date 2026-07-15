@@ -331,21 +331,21 @@ DATA.REFRACT = {
 }; DATA.REFRACT.Size = #DATA.REFRACT
 
 DATA.DISPERSE = {
-  ["cable/cable2"                       ] = { 25,  25,  25},
-  ["cable/crystal_beam1"                ] = {255, 255,   0},
-  ["trails/plasma"                      ] = {225, 225, 225},
-  ["trails/electric"                    ] = { 30,  50, 225},
-  ["trails/smoke"                       ] = {100, 100, 100},
-  ["trails/laser"                       ] = {225, 225, 225},
-  ["trails/love"                        ] = {225, 225, 225},
-  ["trails/lol"                         ] = {225, 225, 225},
-  ["effects/beam_generic01"             ] = {225, 225, 225},
-  ["effects/beam001_blu"                ] = { 25, 150, 225},
-  ["effects/beam001_red"                ] = {225, 150,  25},
-  ["effects/beam001_white"              ] = {225, 225, 225},
-  ["effects/repair_claw_trail_blue"     ] = {  0, 240, 255},
-  ["effects/repair_claw_trail_red"      ] = {255, 240,   0},
-  ["effects/australiumtrail_red"        ] = {255, 240,   0}
+  ["cable/cable2"]                   = { 25,  25,  25},
+  ["cable/crystal_beam1"]            = {255, 255,   0},
+  ["trails/plasma"]                  = {225, 225, 225},
+  ["trails/electric"]                = { 30,  50, 225},
+  ["trails/smoke"]                   = {100, 100, 100},
+  ["trails/laser"]                   = {225, 225, 225},
+  ["trails/love"]                    = {225, 225, 225},
+  ["trails/lol"]                     = {225, 225, 225},
+  ["effects/beam_generic01"]         = {225, 225, 225},
+  ["effects/beam001_blu"]            = { 25, 150, 225},
+  ["effects/beam001_red"]            = {225, 150,  25},
+  ["effects/beam001_white"]          = {225, 225, 225},
+  ["effects/repair_claw_trail_blue"] = {  0, 240, 255},
+  ["effects/repair_claw_trail_red"]  = {255, 240,   0},
+  ["effects/australiumtrail_red"]    = {255, 240,   0}
 }
 
 -- Black hole interfaces
