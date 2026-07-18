@@ -75,8 +75,8 @@ function ENT:DoBeam(org, dir, bmsr)
         beam:SetWidth(LaserLib.GetWidth(bmsr.NvWidth / todiv))
         beam:SetDamage(bmsr.NvDamage / todiv)
         beam:SetForce(bmsr.NvForce  / todiv)
-        beam:SetFgDivert (bmsr.BrReflec, bmsr.BrRefrac)
-        beam:SetFgTexture(bmsr.BmNoover, bmsr.BmDisper)
+        beam:SetFgDivert(bmsr:GetFgDivert())
+        beam:SetFgTexture(bmsr:GetFgTexture())
         beam:SetBounces()
   if(not beam:IsValid() and SERVER) then
     beam:Clear(); self:Remove(); return end
