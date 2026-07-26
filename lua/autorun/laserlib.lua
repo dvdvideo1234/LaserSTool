@@ -4957,8 +4957,8 @@ function mtBeam:Refract(vDir, vPos, vNor, nSrc, nDst)
       beam:Clear(); src:Remove(); return false end
     -- Register the branch in the current beam
     beam:Run(self.BmRecuLS + 1)
-    local tvp, siz = beam:GetPoints() -- Mark segment
-    if(siz > 0) then beam:GetNode(1)[1]:Set(vPos) end
+    local nor = beam:GetNode(1)
+    if(nor) then nor[1]:Set(vPos) end
     self:SetPowerRatio(1 - rat)
     self:SetBranch(beam)
   end; return vBir, bNex, bSam, nCos
@@ -4977,28 +4977,22 @@ function mtBeam:IsDisperse(tRef, sKey, vOrg, vDir)
   -- Ignore processing when laser exit is inside a prop
   if(self.StRfract and self:IsFirst()) then return false end
   -- This beam is already branched. Skip branching
-  local brn = self:GetBranch() -- Index branch table
-  if(brn.Size > 0) then return false end
   -- Check if we have more bounces
   local bnc = self:GetBounces(true)
   if(bnc <= 0) then return false end
+  -- Read the refractive indices
+  local nS = self.TrMedium.D[1][1] -- Current destin
+  local nD = tRef[1] -- This is the next ref index
+  -- Equal refractive indices for source and destination
+  if(nS == nD) then return false end
   -- Stabilize the arguments
   local mar = (DATA.NUGE / 4)
   local tar = self:GetTarget()
   local vOrg = Vector(vOrg or tar.HitPos)
   local vDir = Vector(vDir or self.VrDirect)
   local vNor = Vector(tar.HitNormal)
-  -- Push the origin back so the trace will not get stuck
-  local org, dir, len = self:GetMove(vOrg, vDir, -mar)
   -- Normal is missing in current iteration so read memory
   if(vNor:IsZero()) then vNor:Set(self.TrMedium.M[3]) end
-  -- Read the refractive indices
-  local nS = self.TrMedium.D[1][1] -- Current destin
-  local nD = tRef[1] -- This is the next ref index
-  -- Equal refractive indices for source and destination
-  if(nS == nD) then return false end
-  self:SetMediumSours(self.TrMedium.D)
-  self:SetMediumDestn(tRef, sKey)
   -- Handle input beam fresnel effect
   local vD, bN, bS, nC = self:Refract(vDir, vOrg, vNor, nS, nD)
   -- If the beam is orthogonal no dispersion is triggered
@@ -5020,15 +5014,19 @@ function mtBeam:IsDisperse(tRef, sKey, vOrg, vDir)
   local dmg, frc = self:GetDamage(), self:GetForce()
   local sr, sg, sb, sa = self:GetColorRGBA()
   -- Mark the base beam as finished and branch components
+  self:SetFgTexture(ovr, false, false) -- Disable branching
   self:Finish(); tar.NoEffect = true -- Turn effects off
   -- Start looping and extract dispersed light
   for iW = tW.IS, tW.IE do -- Use only available entries
     local recw = tW[iW] -- Current component indexing
     local rCo, rPw, rEn = recw.C, recw.P, (recw.P / pmr)
     local vr, vg, vb, va = rCo.r, rCo.g, rCo.b, (sa * rPw)
-    local beam = LaserLib.Beam(org, dir, len) -- Make a beam
+    local ref, nex, sam  = self:Refract(vDir, vOrg, vNor, nS, nD)
+    -- Push the origin forward so the trace will not get stuck
+    local org, dir, len = self:GetMove(vOrg, ref, mar)
+    -- Make a beam corresp[onding to the refracted direction
+    local beam = LaserLib.Beam(org, dir, len)
     -- Setup child beam and apply power modifiers
-    beam.NxRgnode = false             -- Skip node registration
     beam:SetSource(src, src, sro)     -- Primary source
     beam:SetWidth(rEn * wih)          -- Weighted width
     beam:SetDamage(rEn * dmg)         -- Weighted damage
@@ -5041,7 +5039,10 @@ function mtBeam:IsDisperse(tRef, sKey, vOrg, vDir)
     -- Validate branch beam state and start the propagation
     if(not beam:IsValid() and SERVER) then
       beam:Clear(); src:Remove(); return false end
-    beam:Run(self.BmRecuLS + 1); self:SetBranch(beam)
+    beam:Run(self.BmRecuLS + 1)
+    local nor = beam:GetNode(1)
+    if(nor) then nor[1]:Set(vOrg) end
+    self:SetBranch(beam)
   end; return true
 end
 
