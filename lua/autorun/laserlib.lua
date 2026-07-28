@@ -4968,8 +4968,10 @@ end
 
 --[[
  * Can this beam be dispersed into components
- * vOrg > Provide beam start for splitter source entities
  * tRef > Refraction sodium line configuration
+ * sKey > The contents key the surface classification
+ * vOrg > Provide beam start for splitting source entities
+ * vDir > Provide beam direction for splitting source entities
 ]]
 function mtBeam:IsDisperse(tRef, sKey, vOrg, vDir)
   -- Dispersion is not being enabled
@@ -5007,13 +5009,13 @@ function mtBeam:IsDisperse(tRef, sKey, vOrg, vDir)
   if(not tW) then return false end
   if(tW.PT <= 0) then return false end
   -- Store local parameters used in the loop
-  local ifr = self:GetFresnel()
+  local ifr = self:GetFresnel() --
   local ovr, dis, frn = self:GetFgTexture()
+  local sr, sg, sb, sa = self:GetColorRGBA()
+  local wih = LaserLib.GetWidth(self:GetWidth())
   local src, sro = self.BmSource, self.BoSource
   local pmr, rle, rfr = tW.PT, self:GetFgDivert()
-  local wih = LaserLib.GetWidth(self:GetWidth())
   local dmg, frc = self:GetDamage(), self:GetForce()
-  local sr, sg, sb, sa = self:GetColorRGBA()
   -- Mark the base beam as finished and branch components
   self:SetFgTexture(ovr, false, false) -- Disable branching
   self:Finish(); tar.NoEffect = true -- Turn effects off
