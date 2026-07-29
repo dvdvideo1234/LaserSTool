@@ -1509,8 +1509,17 @@ function LaserLib.Configure(unit)
   end
 
   --[[
+   * Retrieves hit reports array from a unit
+  ]]
+  function unit:GetHitReports()
+    local ros = self.mrReports
+    if(not ros) then return nil end
+    return ros
+  end
+
+  --[[
    * Retrieves hit report trace and beam for specified index
-   * idx > Hit report index to read ( defaults to 1 )
+   * idx > Hit report index to read. Checked for empty
   ]]
   function unit:GetHitReport(idx)
     if(not idx) then return nil end
@@ -3125,12 +3134,11 @@ end
 ]]
 function mtBeam:SetLength(nB, nO, bS)
   local nB = math.max(tonumber(nB) or 0, 0)
-    if(nB > 0) then self.BmLength = nB end
-  if(nO) then
+  if(nB > 0) then self.BmLength = nB end
+  if(nO) then -- Assign source origin length
     local nO = math.max(tonumber(nO) or 0, 0)
     if(nO > 0) then self.BoLength = nO end
-  end
-  -- Range of the length. Just like wire ranger
+  end -- Range of the length. Just like wire ranger
   self.RaLength = self:GetLength(bS)
   -- The actual beam length subtracted after iterations
   self.NvLength = self:GetLength(bS)
@@ -5276,8 +5284,7 @@ function mtBeam:Run(iStg)
       else self:Finish() end; self:Bounce() -- Refresh medium pass through information
     elseif(self.IsTrace and self.IsHoleGv) then
       if(self.NvLength > 0) then
-        self:Bounce()
-        self:Divert(trace.HitPos)
+        self:Bounce(); self:Divert(trace.HitPos)
         -- If we were about to enter a black hole reset the step for next iteration
         if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
       else self:Finish() end

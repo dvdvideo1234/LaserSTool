@@ -1,13 +1,42 @@
+
+--[[ **************************** REGISTER **************************** ]]
+
+registerType("lbeam", "xlb", nil,
+  nil,
+  nil,
+  function(retval)
+    if(retval == nil) then return end
+    if(not istable(retval)) then error("Return value is neither nil nor a table, but a "..type(retval).."!",0) end
+  end,
+  function(v)
+    return (not istable(v)) or (not v.StartPos)
+  end
+)
+
+-- Register extension to the wire extensions list
 E2Lib.RegisterExtension("laserbeam", true,
   "Allows E2 chips utilize entity functions form the laser sources and addon.",
   "Provides a dedicated API that can extract beam information from laser entities and database."
 )
+
+-- Register assignment operator
+registerOperator("ass", "xlb", "xlb", function(self, args)
+  local lhs, op2, scope = args[2], args[3], args[4]
+  local rhs = op2[1](self, op2)
+  self.Scopes[scope][lhs] = rhs
+  self.Scopes[scope].vclk[lhs] = true
+  return rhs
+end)
+
+--[[ **************************** CONFIGURATION **************************** ]]
 
 local gbRNEXT, gbRSAME = false, false -- These store the current status for medium refraction
 local gsKEYA    = LaserLib.GetData("KEYA") -- Retrieve the active key indexing select all
 local gtREFLECT = LaserLib.DataReflect(gsKEYA) -- Retrieve all reflection database entries
 local gtREFRACT = LaserLib.DataRefract(gsKEYA) -- Retrieve all refraction database entries
 local gtWIRECNV = {[true] = 1,[false] = 0} -- Convert between GLua boolean and wire boolean
+
+--[[ **************************** PRIMITIVES **************************** ]]
 
 --[[
  * Converts any value to wiremod dedicated booleans
@@ -33,9 +62,13 @@ local function toString(src)
   return tostring(src or "")
 end
 
+--[[
+ * Converts any value to wiremod dedicated string
+ * src > source value to be converted
+]]
 local function getReports(ent)
   if(not LaserLib.IsUnit(ent)) then return nil end
-  return ent.mrReports -- Entity hit reports
+  return ent:GetHitReports() -- Entity hit reports
 end
 --[[
  * Returns the specified laser hit report entry under the requested index
@@ -43,28 +76,13 @@ end
  * idx > Hit report requested index entry to search for
  * trc > Switch to beam hit report trace result structure
 ]]
-local function getReport(ent, idx, trc)
+local function getReport(ent, idx)
   local rep = getReports(ent) -- Entity reports
   if(not rep) then return nil end -- No reports
   local siz = rep.Size -- Entity hit report size
   if(not siz or siz == 0) then return nil end
   if(idx <= 0 or idx > siz) then return nil end
-  rep = rep[idx]; if(not rep) then return nil end
-  if(trc) then rep = rep.BmTarget end
-  return rep -- Return the indexed hit report type
-end
-
---[[
- * Returns the specified laser hit report entry member value under the requested index
- * ent > Entity to search for hit reports
- * idx > Hit report requested index entry to search for
- * key > Hit report requested data structure member name
- * trc > Switch to beam hit report trace result structure
-]]
-local function getReportKey(ent, idx, key, trc)
-  local rep = getReport(ent, idx, trc)
-  if(not rep) then return nil end; rep = rep[key]
-  if(not rep) then return nil end; return rep
+  return ent:GetHitReport(idx) -- Indexed hit report
 end
 
 --[[
@@ -252,13 +270,6 @@ e2function vector entity:laserGetDataDirect(number idx)
 end
 
 __e2setcost(1)
-e2function number entity:laserGetDataLength(number idx)
-  local beam = getReport(this, idx)
-  if(not beam) then return 0 end
-  return toNumber(beam:GetLength())
-end
-
-__e2setcost(1)
 e2function number entity:laserGetDataDamage(number idx)
   return toNumber(getReportKey(this, idx, "NvDamage"))
 end
@@ -294,6 +305,16 @@ e2function number entity:laserGetDataLengthRest(number idx)
 end
 
 __e2setcost(1)
+e2function number entity:laserGetDataLengthBeam(number idx)
+  return toNumber(getReportKey(this, idx, "BmLength"))
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataLengthOrig(number idx)
+  return toNumber(getReportKey(this, idx, "BoLength"))
+end
+
+__e2setcost(1)
 e2function entity entity:laserGetDataSource(number idx)
   local beam = getReport(this, idx)
   if(not beam) then return nil end
@@ -311,6 +332,48 @@ __e2setcost(1)
 e2function number entity:laserGetDataIsRefract(number idx)
   local ext = getReportKey(this, idx, "BrRefrac")
   if(ext == nil) then return 0 end; return toBool(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataIsNoOver(number idx)
+  local ext = getReportKey(this, idx, "BmNoover")
+  if(ext == nil) then return 0 end; return toBool(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataIsDisperse(number idx)
+  local ext = getReportKey(this, idx, "BmDisper")
+  if(ext == nil) then return 0 end; return toBool(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataIsFresnel(number idx)
+  local ext = getReportKey(this, idx, "BmFresne")
+  if(ext == nil) then return 0 end; return toBool(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataFresnelCount(number idx)
+  local ext = getReportKey(this, idx, "NvFresne")
+  if(ext == nil) then return 0 end; return toNumber(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataGravitySize(number idx)
+  local ext = getReportKey(this, idx, "BmHoleLn")
+  if(ext == nil) then return 0 end; return toNumber(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataGravityStep(number idx)
+  local ext = getReportKey(this, idx, "NvHoleLn")
+  if(ext == nil) then return 0 end; return toNumber(ext)
+end
+
+__e2setcost(1)
+e2function number entity:laserGetDataWaveLength(number idx)
+  local ext = getReportKey(this, idx, "BmWaveLn")
+  if(ext == nil) then return 0 end; return toNumber(ext)
 end
 
 __e2setcost(1)
@@ -337,7 +400,7 @@ end
 __e2setcost(1)
 e2function number entity:laserGetDataPointForce(number idx, number cnt)
   local ext = getReportKey(this, idx, "TvPoints")
-  if(not ext) then return 0 end local set = ext[cnt]
+  if(not ext) then return 0 end; local set = ext[cnt]
   if(not set) then return 0 end; return toNumber(set[4])
 end
 
