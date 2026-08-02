@@ -20,6 +20,7 @@ DATA.NUGE = 2                  -- Nudge amount for origin vectors back-tracing
 DATA.MINW = 0.05               -- Minimum width to be considered visible
 DATA.DOTM = 0.01               -- Collinearity and dot product margin check
 DATA.POWL = 0.001              -- Lowest bounds of laser power
+DATA.BEPS = 0.0001             -- Discard branches when margin value is less than this
 DATA.ZEPS = 1e-6               -- General use epsilon near zero value
 DATA.BRAD = 2.5                -- How much the bounding radius is scaled for back-trace
 DATA.ERAD = 1.5                -- Entity refract coefficient for back trace origins
@@ -2851,11 +2852,20 @@ end
 
 --[[
  * Implements Schlick’s approximation
+ * Fesnel uses module N for refractive indices
+ * Fixes negative index case ifinite power
+ * The signed indices are handled by Snell's law
+ * Cosine must be in range [0-1] for 5-power
 ]]
 function mtBeam:GetFresnelRate(nS, nD, nC)
-  local rbs = ((nS - nD) / (nS + nD))^2
-  local ref = rbs + (1 - rbs) * (1 - nC)^5
-  return ref
+  local nC = math.max(0, math.min(1, nC))
+  local nS, nD = math.abs(nS), math.abs(nD)
+  local nM, nP = (nS - nD), (nS + nD)
+  if(nM == 0) then return 0 end
+  if(nP == 0) then return 0 end
+  local nR, nF = (nM / nP), (1 - nC)
+  nR, nF = (nR * nR), (nF * nF * nF * nF * nF)
+  return nR + (1 - nR) * nF
 end
 
 --[[
@@ -4951,7 +4961,7 @@ function mtBeam:Disperse(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   -- Normal is missing in current iteration so read memory
   if(vNor:IsZero()) then vNor:Set(self.TrMedium.M[3]) end
   -- If the beam is orthogonal no dispersion is triggered
-  if(nCos > (1 - DATA.POWL)) then return end
+  if(nCos > (1 - DATA.BEPS)) then return end
   -- If the beam is not passing to the next medium
   if(not bNex) then return end
   -- Wave array cannot be initialized
@@ -5016,12 +5026,14 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   -- Fresnel effect is not enabled
   if(not self.BmFresne) then return end
   -- Boundary change and not total internal reflection
-  local nSrc = math.abs(nSrc) -- Fixes negative index case
-  local nDst = math.abs(nDst) -- Fesnel uses module N
   if(nSrc == nDst or bSam or not bNex) then return end
   -- Split caount is not available
   local iFr  = self:GetFresnel()
   if(iFr <= 0) then return end
+  -- Make sure the fresnal power is somewhat present
+  local nRa = self:GetFresnelRate(nSrc, nDst, nCos)
+  if(nRa < DATA.BEPS) then return end
+  -- Continue with the calculation
   local mar = (DATA.NUGE / 8)
   local bnc = self:GetBounces(true)
   local iFr  = self:GetFresnel(true)
@@ -5031,15 +5043,14 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   local wih = LaserLib.GetWidth(self:GetWidth())
   local dmg, frc = self:GetDamage(), self:GetForce()
   local vr, vg, vb, va = self:GetColorRGBA()
-  local rat = self:GetFresnelRate(nSrc, nDst, nCos)
   local ref = LaserLib.GetReflected(vDir, vNor)
   local org, dir, len = self:GetMove(vOrg, ref, mar)
   local beam = LaserLib.Beam(org, dir, len) -- Make a beam
   -- Setup child beam and apply power modifiers
   beam:SetSource(src, src, sro)     -- Primary source
-  beam:SetWidth(rat * wih)          -- Weighted width
-  beam:SetDamage(rat * dmg)         -- Weighted damage
-  beam:SetForce(rat * frc)          -- Weighted force
+  beam:SetWidth(nRa * wih)          -- Weighted width
+  beam:SetDamage(nRa * dmg)         -- Weighted damage
+  beam:SetForce(nRa * frc)          -- Weighted force
   beam:SetFgDivert(rle, rfr)        -- Inherited diversion
   beam:SetFgTexture(ovr, dis, frn)  -- Disable dispersion
   beam:SetBounces(bnc)              -- Left over bounces
@@ -5053,7 +5064,7 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   beam:Run(self.BmRecuLS + 1)
   local nor = beam:GetNode(1)
   if(nor) then nor[1]:Set(vOrg) end
-  self:SetPowerRatio(1 - rat)
+  self:SetPowerRatio(1 - nRa)
   self:SetBranch(beam)
 end
 
