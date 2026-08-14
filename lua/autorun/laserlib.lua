@@ -4956,8 +4956,6 @@ function mtBeam:Disperse(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   -- The beam material does not have a base color
   local cB = self:GetColorBase()
   if(not cB) then return end
-  -- Stabilize the arguments
-  local mar = (DATA.NUGE / 8)
   -- Normal is missing in current iteration so read memory
   if(vNor:IsZero()) then vNor:Set(self.TrMedium.M[3]) end
   -- If the beam is orthogonal no dispersion is triggered
@@ -4969,6 +4967,7 @@ function mtBeam:Disperse(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   if(not tW) then return end
   if(tW.PT <= 0) then return end
   -- Store local parameters used in the loop
+  local mar = (DATA.NUGE / 8)
   local tTg = self:GetTarget() -- Target
   local ifr = self:GetFresnel() -- Fresnel
   local ovr, dis, frn = self:GetFgTexture()
@@ -5035,6 +5034,7 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   if(nRa < DATA.BEPS) then return end
   -- Continue with the calculation
   local mar = (DATA.NUGE / 8)
+  local wav = self:GetWavelength()
   local bnc = self:GetBounces(true)
   local iFr  = self:GetFresnel(true)
   local rle, rfr = self:GetFgDivert()
@@ -5054,7 +5054,7 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   beam:SetFgDivert(rle, rfr)        -- Inherited diversion
   beam:SetFgTexture(ovr, dis, frn)  -- Disable dispersion
   beam:SetBounces(bnc)              -- Left over bounces
-  beam:SetWavelength(nW)            -- Component wavelength
+  beam:SetWavelength(wav)           -- Component wavelength
   beam:SetFresnel(iFr)              -- Fresnel count
   beam:SetColorRGBA(vr, vg, vb, va) -- Apply beam color
   -- Validate branch beam state and start the propagation
