@@ -2852,8 +2852,8 @@ end
 
 --[[
  * Implements Schlick’s approximation
- * Fesnel uses module N for refractive indices
- * Fixes negative index case ifinite power
+ * Fresnel uses module N for refractive indices
+ * Fixes negative index case infinite power
  * The signed indices are handled by Snell's law
  * Cosine must be in range [0-1] for 5-power
 ]]
@@ -2861,8 +2861,7 @@ function mtBeam:GetFresnelRate(nS, nD, nC)
   local nC = math.max(0, math.min(1, nC))
   local nS, nD = math.abs(nS), math.abs(nD)
   local nM, nP = (nS - nD), (nS + nD)
-  if(nM == 0) then return 0 end
-  if(nP == 0) then return 0 end
+  if(nM == 0 or nP == 0) then return 0 end
   local nR, nF = (nM / nP), (1 - nC)
   nR, nF = (nR * nR), (nF * nF * nF * nF * nF)
   return nR + (1 - nR) * nF
@@ -5026,10 +5025,10 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   if(not self.BmFresne) then return end
   -- Boundary change and not total internal reflection
   if(nSrc == nDst or bSam or not bNex) then return end
-  -- Split caount is not available
+  -- Split count is not available
   local iFr  = self:GetFresnel()
   if(iFr <= 0) then return end
-  -- Make sure the fresnal power is somewhat present
+  -- Make sure the fresnel power is somewhat present
   local nRa = self:GetFresnelRate(nSrc, nDst, nCos)
   if(nRa < DATA.BEPS) then return end
   -- Continue with the calculation
