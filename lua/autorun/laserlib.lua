@@ -2790,7 +2790,7 @@ function LaserLib.Beam(origin, direct, length)
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
-  self.BmWaveLn = 0  -- General beam wavelength. Enabled when greater than zero
+  self.BmWaveLn = 0  -- Nonzero wavelength the beam is resolved and not to be dispersed again
   self.BmBranch = {Size = 0} -- In case this beam is branched stores the branch objects
   self.NvDamage = 0 -- Initial current beam damage
   self.NvWidth  = 0 -- Initial current beam width
@@ -5307,9 +5307,8 @@ function mtBeam:Run(iStg)
         end
       else self:Finish() end; self:Bounce() -- Refresh medium pass through information
     elseif(self.IsTrace and self.IsHoleGv) then
-      if(self.NvLength > 0) then
-        self:Bounce(); self:Divert(trace.HitPos)
-        -- If we were about to enter a black hole reset the step for next iteration
+      if(self.NvLength > 0) then -- We were about to enter a black hole
+        self:Bounce(); self:Divert(trace.HitPos) -- Reset the step for next iteration
         if(self.NvHoleLn ~= self.BmHoleLn) then self.NvHoleLn = self.BmHoleLn end
       else self:Finish() end
     else

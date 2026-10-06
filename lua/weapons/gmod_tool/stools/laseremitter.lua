@@ -16,7 +16,7 @@ local cvMAXRAYAS = LaserLib.GetData("MAXRAYAS")
 local cvLANGUAGE = GetConVar("gmod_language")
 
 if(not LaserLib.IsInit()) then
-  ErrorNoHaltWithStack("Library is incomplete or malsormed!")
+  ErrorNoHaltWithStack("Library is incomplete or malformed!")
   return true
 end
 
