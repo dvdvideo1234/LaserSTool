@@ -2868,8 +2868,9 @@ function mtBeam:GetRatioSchlick(nS, nD, nC)
   local nS, nD = math.abs(nS), math.abs(nD)
   local nM, nP = (nS - nD), (nS + nD)
   if(nM == 0 or nP == 0) then return 0 end
-  local nR, nF = (nM / nP), (1 - nC)
-  nR, nF = (nR * nR), (nF * nF * nF * nF * nF)
+  local nR = (nM / nP); nR = (nR * nR)
+  if(nC > 1 - DATA.ZEPS) then return nR end
+  local nF = (1 - nC); nF = (nF * nF * nF * nF * nF)
   return nR + (1 - nR) * nF
 end
 
@@ -2892,7 +2893,7 @@ function mtBeam:GetRatioFresnel(nS, nD, nC)
   local nS, nD = math.abs(nS), math.abs(nD)
   local nE, nR = (nS / nD), 0.5
   local nSo = nE * nE * (1 - nC * nC)
-  if(nSo >= 1) then return nR, nR end -- TIR
+  if(nSo >= 1) then return nR, nR end
   local nCo = math.sqrt(1 - nSo)
   local nRS = (nS * nC - nD * nCo) /
               (nS * nC + nD * nCo)
