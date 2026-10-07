@@ -2242,6 +2242,7 @@ function LaserLib.GetRefractAngle(source, destin, outarg)
 end
 
 --[[
+ * Implements Snell's law for light ray refraction
  * https://en.wikipedia.org/wiki/Refraction
  * Refracts a beam across two mediums by returning the refracted vector
  * direct > The incident direction vector
@@ -2790,7 +2791,7 @@ function LaserLib.Beam(origin, direct, length)
   self.NvHoleLn = 0 -- Trace length used in case of gravity wells
   self.TvPoints = {Size = 0} -- Create empty vertices array for the client
   self.BmTarget = {} -- Stores the trace result when the beam is run
-  self.BmWaveLn = 0  -- Nonzero wavelength the beam is resolved and not to be dispersed again
+  self.BmWaveLn = 0  -- Nonzero wavelength the beam is monochromatic with no dispersion
   self.BmBranch = {Size = 0} -- In case this beam is branched stores the branch objects
   self.NvDamage = 0 -- Initial current beam damage
   self.NvWidth  = 0 -- Initial current beam width
@@ -2798,6 +2799,7 @@ function LaserLib.Beam(origin, direct, length)
   self.DmRfract = 0 -- Diameter trace-back dimensions of the entity
   self.TrRfract = 0 -- Full length for traces not being bound by hit events
   self.BmTracew = 0 -- Make sure beam is zero width during the initial trace hit
+  self.BmPoarzn = Vector() -- Beam polarization axis tracking. The orientation does not matter
   self.BmNoover = false -- Use the original entity material when no override is present
   self.BmDisper = false -- Enable decomposing upcoming beam to wavelengths
   self.BmFresne = false -- Enable fresnel effect interface reflection when refracting
@@ -2852,12 +2854,16 @@ end
 
 --[[
  * Implements Schlick’s approximation
+ * https://en.wikipedia.org/wiki/Fresnel_equations
  * Fresnel uses module N for refractive indices
  * Fixes negative index case infinite power
  * The signed indices are handled by Snell's law
  * Cosine must be in range [0-1] for 5-power
+ * nS > Source medium refractive index
+ * nD > Destination medium refractive index
+ * nC > Incident ray angle cosine
 ]]
-function mtBeam:GetFresnelRate(nS, nD, nC)
+function mtBeam:GetRatioSchlick(nS, nD, nC)
   local nC = math.max(0, math.min(1, nC))
   local nS, nD = math.abs(nS), math.abs(nD)
   local nM, nP = (nS - nD), (nS + nD)
@@ -2865,6 +2871,66 @@ function mtBeam:GetFresnelRate(nS, nD, nC)
   local nR, nF = (nM / nP), (1 - nC)
   nR, nF = (nR * nR), (nF * nF * nF * nF * nF)
   return nR + (1 - nR) * nF
+end
+
+--[[
+ * Implements a proper S/P polymerization rate
+ * https://en.wikipedia.org/wiki/Fresnel_equations
+ * Fresnel uses module N for refractive indices
+ * Fixes negative index case infinite power
+ * The signed indices are handled by Snell's law
+ * Cosine must be in range [0-1] for 5-power
+ * nS > Source medium refractive index
+ * nD > Destination medium refractive index
+ * nC > Incident ray angle cosine
+ * Returns
+ * [1] > The magnitude of the S polarized light
+ * [2] > The magnitude of the P polarized light
+]]
+function mtBeam:GetRatioFresnel(nS, nD, nC)
+  local nC = math.max(0, math.min(1, nC))
+  local nS, nD = math.abs(nS), math.abs(nD)
+  local nE, nR = (nS / nD), 0.5
+  local nSo = nE * nE * (1 - nC * nC)
+  if(nSo >= 1) then return nR, nR end -- TIR
+  local nCo = math.sqrt(1 - nSo)
+  local nRS = (nS * nC - nD * nCo) /
+              (nS * nC + nD * nCo)
+  local nRP = (nD * nC - nS * nCo) /
+              (nD * nC + nS * nCo)
+  local nSS = (nRS * nRS) * nR
+  local nSP = (nRP * nRP) * nR
+  return nSS, nSP
+end
+
+--[[
+ * Applies the polarization axis for S or P
+ * vD > The incident vector direction
+ * vN > The normal surface of the refraction
+ * bP > Proceed to using the P-polarization
+]]
+function mtBeam:SetPolarize(vD, vN, bP)
+  local vS = vD:Cross(vN); vS:Normalize()
+  if(not bP) then self.BmPoarzn:Set(vS); return self end
+  local vP = vS:Cross(vD); vP:Normalize()
+  self.BmPoarzn:Set(vP); return self
+end
+
+--[[
+ * Returns when there is polarization
+ * direction tracking. Polarization is present
+ * when its direction vector is not a zero vector
+]]
+function mtBeam:IsPolarize()
+  return self.BmPoarzn:IsZero()
+end
+
+--[[
+ * Returns a reference to the polarization vector
+]]
+function mtBeam:GetPolarize()
+  local vP = self.BmPoarzn
+  return (not vP:IsZero() and vP or nil)
 end
 
 --[[
@@ -5012,6 +5078,7 @@ end
 --[[
  * Can this beam apply fresnel effect with given depth
  * Checks whenever fresnel effect is enabled and try to split
+ * https://en.wikipedia.org/wiki/Transfer-matrix_method_(optics)
  * vOrg  > Origin start for splitting the beam
  * vDir  > Direction for splitting source entities
  * nSrc  > Source medium refractive index
@@ -5029,7 +5096,7 @@ function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
   local iFr  = self:GetFresnel()
   if(iFr <= 0) then return end
   -- Make sure the fresnel power is somewhat present
-  local nRa = self:GetFresnelRate(nSrc, nDst, nCos)
+  local nRa = self:GetRatioSchlick(nSrc, nDst, nCos)
   if(nRa < DATA.BEPS) then return end
   -- Continue with the calculation
   local mar = (DATA.NUGE / 8)
