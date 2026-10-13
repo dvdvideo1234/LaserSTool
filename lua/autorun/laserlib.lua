@@ -2220,6 +2220,8 @@ end
 
 --[[
  * Reflects a beam from a surface with material override
+ * Works regardless of which side the surface normal points
+ * Standard surface normal: [r = d - 2 * n:dot(d) * n]
  * direct > The incident direction vector
  * normal > Surface normal vector trace.HitNormal ( normalized )
  * Return the refracted ray and beam status
@@ -2228,7 +2230,7 @@ end
 function LaserLib.GetReflected(direct, normal)
   local ref = normal:GetNormalized()
   local inc = direct:GetNormalized()
-  local mul = (-2 * inc:Dot(ref))
+  local mul = (-2 * ref:Dot(inc))
   ref:Mul(mul); ref:Add(inc); return ref
 end
 
@@ -2255,8 +2257,9 @@ end
  * Implements Snell's law for light ray refraction
  * https://en.wikipedia.org/wiki/Refraction
  * Refracts a beam across two mediums by returning the refracted vector
- * direct > The incident direction vector
- * normal > Surface normal vector trace.HitNormal ( normalized )
+ * Direction formula: [r = eta * d + (eta * cos - sqrt(1 - eta^2 * (1 - cos^2))) * n]
+ * direct > The incident direction vector from the first medium to the second
+ * normal > The surface normal vector from the first medium to the second
  * source > Refraction index of the source medium
  * destin > Refraction index of the destination medium
  * Return the refracted ray and beam status
