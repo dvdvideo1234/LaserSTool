@@ -972,6 +972,16 @@ function LaserLib.GetNumber(n, ...)
 end
 
 --[[
+ * Default value to a known one in case empty
+ * aV > Any type of value being checked
+ * eV > The value to return in case empty
+]]
+function LaserLib.GetDefault(aV, eV)
+  if(aV == nil) then return eV end
+  return aV -- Original value
+end
+
+--[[
  * Extracts the color components from RGBA arguments when valid
  * In case not being valid the max component luminosity is returned
  * Automatically handles the input arguments in range of [0-255]
@@ -5002,27 +5012,33 @@ end
  * Or the beam is monochromatic and should not be branched
  * vOrg  > Origin start for splitting the beam
  * vDir  > Direction for splitting source entities
+ * vNor  > Surface normal vector for the medium boundary
  * nSrc  > Source medium refractive index
  * nDst  > Destination medium refractive index
  * [...] > The results from the library refraction
 ]]
-function mtBeam:Disperse(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
+function mtBeam:Disperse(vOrg, vDir, vNor, nSrc, nDst, ...)
   -- Dispersion is not being enabled
   if(not self.BmDisper) then return end
   -- This beam contains a single wavelength
   local nW = self:GetWavelength()
-  if(nW > 0) then return end
-  -- Ignore processing when laser exit is inside a prop
+  if(nW > 0) then return end -- Monochromatic light
+  -- Ignore processing when laser start in a prop
   if(self.StRfract and self:IsFirst()) then return end
   -- Check if we have more bounces
   local bnc = self:GetBounces(true)
   if(bnc <= 0) then return end
   -- Equal refractive indices then no dispersion
+  local bNex, bSam, nCos = ... -- Refraction result
+  nCos = LaserLib.GetDefault(nCos, 1) -- With the normal
+  bNex = LaserLib.GetDefault(bNex, true) -- Traverse
+  bSam = LaserLib.GetDefault(bSam, false) -- Different
   if(nSrc == nDst or bSam) then return end
   -- The beam material does not have a base color
   local cB = self:GetColorBase()
-  if(not cB) then return end
+  if(not cB) then return end -- No base color for split
   -- Normal is missing in current iteration so read memory
+  local vNor = Vector(vNor) -- Overshadow the normal
   if(vNor:IsZero()) then vNor:Set(self.TrMedium.M[3]) end
   -- If the beam is orthogonal no dispersion is triggered
   if(nCos > (1 - DATA.BEPS)) then return end
@@ -5082,16 +5098,21 @@ end
  * https://en.wikipedia.org/wiki/Transfer-matrix_method_(optics)
  * vOrg  > Origin start for splitting the beam
  * vDir  > Direction for splitting source entities
+ * vNor  > Surface normal vector for the medium boundary
  * nSrc  > Source medium refractive index
  * nDst  > Destination medium refractive index
  * [...] > The results from the library refraction
 ]]
-function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, bNex, bSam, nCos)
+function mtBeam:Fresnel(vOrg, vDir, vNor, nSrc, nDst, ...)
   -- Beam start inside a solid medium
   if(self.StRfract) then return end
   -- Fresnel effect is not enabled
   if(not self.BmFresne) then return end
   -- Boundary change and not total internal reflection
+  local bNex, bSam, nCos = ... -- Refraction results
+  nCos = LaserLib.GetDefault(nCos, 1) -- With the normal
+  bNex = LaserLib.GetDefault(bNex, true) -- Traverse
+  bSam = LaserLib.GetDefault(bSam, false) -- Different
   if(nSrc == nDst or bSam or not bNex) then return end
   -- Split count is not available
   local iFr  = self:GetFresnel()
@@ -5145,9 +5166,9 @@ function mtBeam:Refract(vOrg, vDir, vNor, nSrc, nDst)
   local nW   = self:GetWavelength()
   local nSrc = (tonumber(nSrc) or 0)
   local nDst = (tonumber(nDst) or 0)
-  local vDir = Vector(vDir or self.VrDirect)
-  local vNor = Vector(vNor or tTg.HitNormal or DATA.VDRUP)
-  local vOrg = Vector(vOrg or tTg.HitPos or self.VrOrigin)
+  local vDir = (vDir or self.VrDirect)
+  local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
+  local vOrg = (vOrg or tTg.HitPos or self.VrOrigin)
   if(nW > 0) then -- Internal monochromatic
     nSrc = LaserLib.WaveToIndex(nW, nSrc)
     nDst = LaserLib.WaveToIndex(nW, nDst)
