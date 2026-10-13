@@ -2265,15 +2265,15 @@ end
  *    [3] > Mediums have the same refractive index
 ]]
 function LaserLib.GetRefracted(direct, normal, source, destin)
-  local inc = direct:GetNormalized() -- Read normalized copy or incident
+  local ref = direct:GetNormalized() -- Read normalized copy or incident
   local nrm, eta = normal:GetNormalized(), (source / destin)  -- Copy-constructor
-  local cos = -inc:Dot(nrm); if(cos < 0) then nrm:Negate(); cos = -cos end
-  if(eta == 1) then return inc, true, true, cos end -- Continue out medium
+  local cos = math.min(math.max(nrm:Dot(ref), -1), 1) -- Clamp the cosine
+  if(cos < 0) then nrm:Negate(); cos = -cos end -- Flip the boundary normal
+  if(eta == 1) then return ref, true, true, cos end -- Continue out medium
   local sin = eta * eta * (1 - cos * cos) -- Calculate sin squared
   if(sin > 1) then return LaserLib.GetReflected(direct, normal), false, false, cos end
-  local ref = Vector(inc); ref:Mul(eta) -- Create output direction
   local mar = eta * cos - math.sqrt(1 - sin) -- Calculate trig margin
-  nrm:Mul(mar); ref:Add(nrm); ref:Normalize() -- Adjust direction and normalize
+  nrm:Mul(mar); ref:Mul(eta); ref:Add(nrm); ref:Normalize() -- Adjust direction
   return ref, true, false, cos
 end
 
