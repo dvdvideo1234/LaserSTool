@@ -49,6 +49,7 @@ DATA.PHKEY = DATA.TOOL.."_physprop"  -- Key used to register physical properties
 DATA.MTKEY = DATA.TOOL.."_material"  -- Key used to register dupe material modifier
 DATA.BVKEY = DATA.TOOL.."_hoangvel"  -- Key used to register black hole and velocity
 DATA.TRDGQ = (DATA.TRWD * math.sqrt(3)) / 2 -- Trace hit normal displacement
+DATA.VRTMP = {Vector(), Vector(), Vector()} -- Temporary vector for store usage
 DATA.FSELF = function(arg) return arg end -- Copy-constructor for numbers and strings
 DATA.FILTW = function(ent) return (ent == game.GetWorld()) end -- Trace world filter function
 DATA.CAPSF = function(str) return str:gsub("^%l", string.upper) end -- Capitalize first letter
@@ -355,10 +356,11 @@ DATA.BLHOLE = {
     GetCenter = function(ent) return ent:LocalToWorld(ent:OBBCenter()) end,
     GetRadius = function(ent) return ent:GetRadius() end,
     GetAffect = function(ent, cen, rao, pos, stp)
+      local avt = DATA.VRTMP
       local zer, eps = DATA.VZERO, DATA.ZEPS
       local kve, grs, wve = DATA.BVKEY, 10, nil
-      local rav = Vector(pos); rav:Sub(cen)
-      local grv, rsq = Vector(rav), rav:LengthSqr()
+      local rav = avt[1]; rav:Set(pos); rav:Sub(cen)
+      local grv, rsq = avt[2]; grv:Set(rav), rav:LengthSqr()
       local rep = 1 / (eps + rsq * math.sqrt(rsq))
       grv:Mul(-stp * ent:GetStrength() * rep)
       if(SERVER) then -- There is physics only on the server
@@ -564,7 +566,7 @@ local function TraceBeam(origin, direct, length, filter, mask, colgrp, iworld, w
   local length  = (tonumber(length) or 0)
   local actype  = g_trace.actiontype[width > 0]
   g_trace.start:Set(origin)
-  g_trace.endpos:Set(direct) 
+  g_trace.endpos:Set(direct)
   if(length > 0) then -- Length argument
     g_trace.endpos:Normalize()
     g_trace.endpos:Mul(length)
@@ -771,14 +773,13 @@ end
 function LaserLib.GetBeamPortal(base, exit, origin, direct, forigin, fdirect)
   if(not (base and base:IsValid())) then return origin, direct end
   if(not (exit and exit:IsValid())) then return origin, direct end
-  local pos, dir, wmr = Vector(origin), Vector(direct), DATA.WLMR
-  pos:Set(base:WorldToLocal(pos)); dir:Mul(wmr)
+  local pos = base:WorldToLocal(origin)
+  local dir, wmr = Vector(direct), DATA.WLMR; dir:Mul(wmr)
   if(forigin) then local suc, err = pcall(forigin, pos)
     if(not suc) then ErrorNoHaltWithStack("Origin: "..err) end
   else pos.x, pos.y = -pos.x, -pos.y end
-  pos:Set(exit:LocalToWorld(pos))
-  dir:Add(base:GetPos())
-  dir:Set(base:WorldToLocal(dir))
+  pos = exit:LocalToWorld(pos); dir:Add(base:GetPos())
+  dir = base:WorldToLocal(dir) -- Garbage collect the previous
   if(fdirect) then local suc, err = pcall(fdirect, dir)
     if(not suc) then ErrorNoHaltWithStack("Direct: "..err) end
   else dir.x, dir.y = -dir.x, -dir.y end
@@ -798,9 +799,9 @@ end
  * Returns the output beam ray margin transition
 ]]
 function LaserLib.GetMarginPortal(entity, origin, direct, normal)
-  local normal = (normal or entity:GetForward())
+  local normal, avt = (normal or entity:GetForward()), DATA.VRTMP
   local pos, mav = entity:GetPos(), Vector(direct)
-  local wvc = Vector(origin); wvc:Sub(pos)
+  local wvc = avt[1]; wvc:Set(origin); wvc:Sub(pos)
   local mar = math.abs(wvc:Dot(normal)) -- Project entrance vector
   local vsm = mar / math.cos(math.asin(normal:Cross(direct):Length()))
   vsm = 2 * vsm; mav:Mul(vsm); mav:Add(origin)
@@ -1703,9 +1704,9 @@ end
 function LaserLib.GetTransformUnit(ent)
   if(not LaserLib.IsValid(ent)) then return end
   local org = (ent.GetOriginLocal and ent:GetOriginLocal() or ent:OBBCenter())
-  local dir = (ent.GetDirectLocal and ent:GetDirectLocal() or nil)
-  if(not dir) then  dir = (ent.GetNormalLocal and ent:GetNormalLocal() or nil) end
-  if(not (org and dir)) then return end
+  local dir = (ent.GetDirectLocal and ent:GetDirectLocal())
+            or (ent.GetNormalLocal and ent:GetNormalLocal() or ent:GetForward())
+  if(dir:IsZero()) then return end
   local pos, ang = ent:GetPos(), ent:GetAngles()
   local vor = Vector(org); vor:Rotate(ang); vor:Add(pos)
   local vdr = Vector(dir); vdr:Rotate(ang)
@@ -1786,12 +1787,14 @@ end
 function LaserLib.DrawAssist(org, dir, ray, tre, ply)
   if(SERVER) then return end -- Server can go out now
   if(ray <= 0) then return end -- Ray assist disabled
+  local avtm = DATA.VRTMP -- Temporary vectors array
+  local vndr, vmax, vmin = avtm[1], avtm[2], avtm[3]
   local mray = DATA.MAXRAYAS:GetFloat()
   local nasr = DATA.NRASSIST:GetFloat()
-  local vndr = Vector(nasr, nasr, nasr)
-  local vmax = Vector(org); vmax:Add(vndr)
-  local vmin = Vector(org); vmin:Sub(vndr)
   local ncst = math.Clamp(ray, 0, mray)^2
+  vndr:SetUnpacked(nasr, nasr, nasr)
+  vmax:Set(org); vmax:Add(vndr)
+  vmin:Set(org); vmin:Sub(vndr)
   local teun = ents.FindInBox(vmin, vmax)
   for idx = 1, #teun do local ent = teun[idx]
     if(LaserLib.IsValid(ent) and
@@ -2365,8 +2368,9 @@ end
  * kmulv  > Width relative to the given local direction
 ]]
 function LaserLib.GetBeamOrigin(base, direct)
+  local vbeam = DATA.VRTMP[1]
   if(not LaserLib.IsValid(base)) then return Vector(DATA.VZERO) end
-  local vbeam, obcen = Vector(direct), base:OBBCenter()
+  local obcen = base:OBBCenter(); vbeam:Set(direct)
   local obdir = base:OBBMaxs(); obdir:Sub(base:OBBMins())
   local kmulv = math.abs(obdir:Dot(vbeam))
         vbeam:Mul(kmulv / 2); obcen:Add(vbeam)
@@ -2471,7 +2475,7 @@ end
  * direct > The model offset beam direct parameterization
 ]]
 function LaserLib.SnapCustom(base, trrs, origin, direct)
-  local dir = Vector(direct); dir:Negate()
+  local dir = DATA.VRTMP[1]; dir:Set(direct); dir:Negate()
   local ang, tra = Angle(), trrs.HitNormal:Angle()
   local pos = LaserLib.GetBeamOrigin(base, dir)
   ang:Set(LaserLib.GetCustomAngle(base, direct))
@@ -3372,8 +3376,9 @@ end
 ]]
 function mtBeam:GetWaterOrigin(pos)
   if(self:IsAir()) then return nil end
+  local org = DATA.VRTMP[1]
   local wat = self:GetWater()
-  local org = Vector(pos or self.VrOrigin)
+  org:Set(pos or self.VrOrigin)
   org:Sub(wat.P); return org:Dot(wat.N)
 end
 
@@ -3384,9 +3389,9 @@ end
  * length > External forced length being searched
 ]]
 function mtBeam:SetWaterSurface(origin, direct, length, filter)
-  local len = (tonumber(length) or DATA.TRWU)
-  local dir = Vector(direct or DATA.VDRUP)
-  local org = Vector(origin or self.VrOrigin)
+  local avt, len = DATA.VRTMP, (tonumber(length) or DATA.TRWU)
+  local dir = avt[1]; dir:Set(direct or DATA.VDRUP)
+  local org = avt[2]; org:Set(origin or self.VrOrigin)
   if(len <= 0) then len = dir:Length() end; dir:Normalize()
   local wat, tr = self:GetWater(), self:GetTrace(org, dir, len, filter, MASK_ALL)
   wat.P:Set(tr.Normal); wat.P:Mul(tr.FractionLeftSolid * len)
@@ -3629,8 +3634,8 @@ function mtBeam:SetTraceWidth(trace, length)
      self.IsRfract and -- Library must be refracting
      self.BmTracew and -- Beam width is available
      self.BmTracew > 0) then -- Beam width is present
-    local nor = Vector(trace.HitNormal) -- Normal scale
-    nor:Mul(-DATA.TRDGQ * self.BmTracew)trace.HitPos:Add(nor)
+    local nor = DATA.VRTMP[1]; nor:Set(trace.HitNormal) -- Normal
+    nor:Mul(-DATA.TRDGQ * self.BmTracew); trace.HitPos:Add(nor)
   end -- At this point we know exactly how long will the trace be
   self:SetTraceLength(trace, length)
   return trace, trace.Entity
@@ -3656,7 +3661,8 @@ function mtBeam:RegisterNode(origin, nbulen, bedraw)
   else -- Read node stack size and use distance for travel
     if(size > 0 and nbulen) then -- Length is not provided
       local prev = info[size][1]  -- Relative to previous
-      local vdir = Vector(node); vdir:Sub(prev)
+      local vdir = DATA.VRTMP[1]  -- Local vector index
+      vdir:Set(node); vdir:Sub(prev) -- Calculated vector
       self:Pass(vdir:Length()) -- Slower but correct
     end -- Use the nodes and make sure previous exists
   end -- Register the new node to the stack
@@ -3709,9 +3715,8 @@ function mtBeam:IsNode()
   if(math.min(rnn, 0) >= 0) then return true end
   local set, siz = self:GetPoints() -- Set of nodes
   if(siz < 2) then return true end
-  local nxt = set[siz][1]
-  local dir = Vector(self.VrDirect)
-  dir:Mul(nve); nxt:Add(dir)
+  local nxt, dir = set[siz][1], DATA.VRTMP[1]
+  dir:Set(self.VrDirect); dir:Mul(nve); nxt:Add(dir)
   self.NvLength = 0; return false
 end
 
@@ -3916,11 +3921,12 @@ end
 ]]
 function mtBeam:SetTraceExit()
   if(self.BmRecuLS > 0) then return self end
-  local ent, len = self:GetSource(), self:GetLength()
+  local ent = self:GetSource()
   local mib, mab = ent:OBBMins(), ent:OBBMaxs()
   local anb, psb = ent:GetAngles(), ent:GetPos()
-  local org = Vector(self.VrOrigin)
-  local dir = Vector(self.VrDirect); dir:Mul(len)
+  local avt, len = DATA.VRTMP, self:GetLength()
+  local org = avt[1]; org:Set(self.VrOrigin)
+  local dir = avt[2]; dir:Set(self.VrDirect); dir:Mul(len)
   local rox = util.IntersectRayWithOBB(org, dir, psb, anb, mib, mab)
   if(not rox) then return self end
   local ren = (DATA.BRAD * ent:BoundingRadius())
@@ -4061,8 +4067,9 @@ end
  * target > Entity being the current beam target
 ]]
 function mtBeam:IsTraverse(origin, direct, normal, target)
-  local org = Vector(origin or self.VrOrigin)
-  local dir = Vector(direct or self.VrDirect)
+  local avt = DATA.VRTMP -- Array of temporary vectors
+  local org = avt[1]; org:Set(origin or self.VrOrigin)
+  local dir = avt[2]; dir:Set(direct or self.VrDirect)
   local refract = self:GetSolidMedium(org, dir, target)
   if(not refract) then return false end
   local merum = self.TrMedium -- Localize beam mediums
@@ -5041,7 +5048,8 @@ function mtBeam:Disperse(vOrg, vDir, vNor, nSrc, nDst, ...)
   local cB = self:GetColorBase()
   if(not cB) then return end -- No base color for split
   -- Normal is missing in current iteration so read memory
-  local vNor = Vector(vNor) -- Overshadow the normal
+  local vN, vNor = vNor, DATA.VRTMP[1] -- Overshadow normal
+  if(vN) then vNor:Set(vN) else vNor:Set(self.TrMedium.M[3]) end
   if(vNor:IsZero()) then vNor:Set(self.TrMedium.M[3]) end
   -- If the beam is orthogonal no dispersion is triggered
   if(nCos > (1 - DATA.BEPS)) then return end
@@ -5165,10 +5173,8 @@ end
  * Returns [vdir, bnex, bsam, ncos] according to wavelength
 ]]
 function mtBeam:Refract(vOrg, vDir, vNor, nSrc, nDst)
-  local tTg  = self:GetTarget()
-  local nW   = self:GetWavelength()
-  local nSrc = (tonumber(nSrc) or 0)
-  local nDst = (tonumber(nDst) or 0)
+  local tTg, nW = self:GetTarget(), self:GetWavelength()
+  local nSrc, nDst = (tonumber(nSrc) or 0), (tonumber(nDst) or 0)
   local vDir = (vDir or self.VrDirect)
   local vNor = (vNor or tTg.HitNormal or DATA.VDRUP)
   local vOrg = (vOrg or tTg.HitPos or self.VrOrigin)
